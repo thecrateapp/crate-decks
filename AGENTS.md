@@ -65,9 +65,9 @@ Ningún cambio de servidor se hace desde este repositorio.
 
 ### 5.2. Reglas de Crate Decks
 
-- **Código propio aislado** en `src/crate/`, `src/library/crateserver/`, `src/test/crate/`, `res/skins/CrateDecks/`, `res/crate-design/` y `tools/crate-design/`, detrás de la opción de CMake `CRATE`.
+- **Código propio aislado** en `src/crate/`, `src/library/crateserver/`, `src/test/crate/`, `res/skins/CrateDecks/`, `res/crate-design/` y `tools/crate-design/`, detrás de la opción de CMake `CRATE`. La excepción es la identidad de la aplicación (`src/crate/appidentity.*` y sus tests): se compila siempre, también con `CRATE=OFF`, para que ningún build escriba en `~/.mixxx`.
 - **Parches a ficheros de Mixxx:** la lista cerrada está en §5.2 del diseño. Cualquier otro necesita justificación en el PR. Desde F1, todo PR que toque un fichero de Mixxx actualiza `CRATE_PATCHES.md`. Se prefieren señales, slots y hooks a reescribir lógica de upstream.
-- **Nombres:** solo se cambian las cadenas visibles (título, About, asistente de primer arranque y preferencias). Los identificadores, grupos de control, claves de configuración y nombres de fichero con "Mixxx" no se tocan.
+- **Nombres:** solo se cambian las cadenas visibles (título, About, asistente de primer arranque y preferencias). Los identificadores, grupos de control, claves de configuración y nombres de fichero con "Mixxx" no se tocan, salvo los de la identidad de la aplicación de D3 (ejecutable, ID de aplicación, carpeta de ajustes y prefijo del keychain).
 - **Base de datos:** las tablas propias llevan el prefijo `crateserver_` y se crean de forma idempotente al arrancar. No se modifica `res/schema.xml` ni ninguna tabla de Mixxx.
 - **Hilos:**
   - La red va por `crate::Client`, asíncrona con Qt. El hilo principal nunca bloquea más de 16 ms, y el parseo pesado va a `QtConcurrent`.
