@@ -11,9 +11,8 @@ void applyApplicationIdentity() {
     // logic in the OS X appstore support patch from QTBUG-16549.
     QCoreApplication::setOrganizationDomain(QString::fromUtf8(kOrganizationDomain));
 
-    // Setting the organization name results in a QDesktopStorage::DataLocation
-    // of "$HOME/Library/Application Support/Mixxx/Mixxx" on OS X. Leave the
-    // organization name blank.
+    // With an organization name, QStandardPaths::AppLocalDataLocation (the
+    // settings directory on Windows) becomes "<data>/Crate/Crate Decks".
     QCoreApplication::setOrganizationName(QString::fromUtf8(kOrganizationName));
 
 #ifdef __LINUX__

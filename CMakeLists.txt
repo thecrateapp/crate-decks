@@ -2060,7 +2060,8 @@ target_sources(mixxx-lib PRIVATE src/crate/appidentity.cpp)
 
 if(UNIX AND NOT APPLE)
   target_sources(mixxx-lib PRIVATE src/util/rlimit.cpp)
-  set(MIXXX_SETTINGS_PATH ".mixxx/")
+  # Crate Decks: own settings directory, apart from an installed Mixxx
+  set(MIXXX_SETTINGS_PATH ".cratedecks/")
 endif()
 
 if(APPLE)
@@ -3012,6 +3013,8 @@ if(BUILD_TESTING)
       src/test/waveform_upgrade_test.cpp
     )
   endif()
+  # Crate Decks: tests of the Crate code (src/test/crate/)
+  set(src-mixxx-test ${src-mixxx-test} src/test/crate/brandingtest.cpp)
 
   if(QML)
     qt_add_executable(mixxx-test ${src-mixxx-test} MANUAL_FINALIZATION)
