@@ -24,6 +24,7 @@
 #include <taglib.h>
 #include <vorbis/codec.h>
 
+#include "crate/appidentity.h"
 #include "util/gitinfostore.h"
 #include "version.h"
 
@@ -36,7 +37,8 @@ namespace {
 const QVersionNumber kMixxxVersionNumber = QVersionNumber(
         MIXXX_VERSION_MAJOR, MIXXX_VERSION_MINOR, MIXXX_VERSION_PATCH);
 const QString kMixxxVersionSuffix = QStringLiteral(MIXXX_VERSION_SUFFIX);
-const QString kMixxx = QStringLiteral("Mixxx");
+// Crate Decks: the application name comes from the Crate Decks identity.
+const QString kMixxx = QString::fromUtf8(crate::kApplicationName);
 const QString kBuildFlags = QStringLiteral(MIXXX_BUILD_FLAGS);
 
 QString ebur128Version() {

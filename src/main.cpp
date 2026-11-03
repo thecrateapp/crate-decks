@@ -15,6 +15,7 @@
 #include "config.h"
 #include "controllers/controllermanager.h"
 #include "coreservices.h"
+#include "crate/appidentity.h"
 #include "errordialoghandler.h"
 #include "mixxxapplication.h"
 #ifdef MIXXX_USE_QML
@@ -211,9 +212,8 @@ Java_org_qtproject_qt_android_QtNativeAccessibility_accessibilitySupported(JNIEn
 int main(int argc, char * argv[]) {
     Console console;
 
-    // These need to be set early on (not sure how early) in order to trigger
-    // logic in the OS X appstore support patch from QTBUG-16549.
-    QCoreApplication::setOrganizationDomain("mixxx.org");
+    // Crate Decks: organization, domain and Wayland desktop file name.
+    crate::applyApplicationIdentity();
 
 #ifdef MIXXX_USE_QOPENGL
     QApplication::setAttribute(Qt::AA_ShareOpenGLContexts);
@@ -223,16 +223,6 @@ int main(int argc, char * argv[]) {
     // By default the value is always rounded to the nearest int.
     QGuiApplication::setHighDpiScaleFactorRoundingPolicy(
             Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
-
-#ifdef __LINUX__
-    // Needed by Wayland compositors to set proper app_id and window icon
-    QGuiApplication::setDesktopFileName(QStringLiteral("org.mixxx.Mixxx"));
-#endif
-
-    // Setting the organization name results in a QDesktopStorage::DataLocation
-    // of "$HOME/Library/Application Support/Mixxx/Mixxx" on OS X. Leave the
-    // organization name blank.
-    //QCoreApplication::setOrganizationName("Mixxx");
 
     QCoreApplication::setApplicationName(VersionStore::applicationName());
     QCoreApplication::setApplicationVersion(VersionStore::version());

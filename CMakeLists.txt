@@ -2055,6 +2055,9 @@ target_include_directories(
   mixxx-lib
   PUBLIC src "${CMAKE_CURRENT_BINARY_DIR}/src"
 )
+# Crate Decks: application identity (src/crate/appidentity.cpp)
+target_sources(mixxx-lib PRIVATE src/crate/appidentity.cpp)
+
 if(UNIX AND NOT APPLE)
   target_sources(mixxx-lib PRIVATE src/util/rlimit.cpp)
   set(MIXXX_SETTINGS_PATH ".mixxx/")

@@ -17,6 +17,7 @@
 using namespace QKeychain;
 
 #include "broadcast/defs_broadcast.h"
+#include "crate/appidentity.h"
 #include "defs_urls.h"
 #include "errordialoghandler.h"
 #include "moc_broadcastprofile.cpp"
@@ -61,7 +62,8 @@ constexpr const char* kStreamPublic = "StreamPublic";
 constexpr const char* kStreamWebsite = "StreamWebsite";
 
 #ifdef __QTKEYCHAIN__
-constexpr const char* kKeychainPrefix = "Mixxx - ";
+// Crate Decks: keychain services apart from those of an installed Mixxx.
+constexpr const char* kKeychainPrefix = crate::kBroadcastKeychainPrefix;
 #endif
 
 constexpr int kDefaultBitrate = 128;
