@@ -1,0 +1,7 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+    <qresource prefix="/">
+      <!-- Crate Decks application icon for windows and dialogs (MIXXX_ICON_PATH) -->
+        <file>images/icons/256x256/apps/app.cratemusic.decks.png</file>
+    </qresource>
+</RCC>

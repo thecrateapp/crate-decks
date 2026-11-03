@@ -9,7 +9,8 @@
     "." TO_STR(minor)
 
 // Icons used for the main window and dialogs
-#define MIXXX_ICON_PATH ":/images/icons/scalable/apps/mixxx.svg"
+// Crate Decks: application icon of Crate Decks (res/crate.qrc)
+#define MIXXX_ICON_PATH ":/images/icons/256x256/apps/app.cratemusic.decks.png"
 #define MIXXX_LOGO_PATH ":/images/mixxx_logo.svg"
 
 #define MIXXX_WEBSITE_URL       "https://www.mixxx.org"

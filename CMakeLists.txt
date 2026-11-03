@@ -2656,6 +2656,8 @@ if(UNIX AND NOT APPLE)
     DESTINATION "${CMAKE_INSTALL_DATADIR}/icons/hicolor"
     # This file is for Windows.
     PATTERN ic_mixxx.ico EXCLUDE
+    # Crate Decks: install the Crate Decks icon, not Mixxx's
+    PATTERN "mixxx*" EXCLUDE
   )
 
   # .metainfo.xml file for KDE/GNOME AppStream initiative
@@ -3032,6 +3034,12 @@ if(BUILD_TESTING)
       PRIVATE src/test/controller_hid_reportdescriptor_test.cpp
     )
   endif()
+  # Crate Decks: src/test/crate/ builds dialogs of mixxx-lib, whose ui_*.h
+  # headers AUTOUIC generates in the autogen directory of mixxx-lib
+  target_include_directories(
+    mixxx-test
+    PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/mixxx-lib_autogen/include"
+  )
 
   if(QML)
     target_sources(
@@ -3162,9 +3170,12 @@ if(
 endif()
 
 target_sources(mixxx PRIVATE res/mixxx.qrc)
+# Crate Decks: resources of Crate Decks (res/crate.qrc)
+target_sources(mixxx PRIVATE res/crate.qrc)
 set_target_properties(mixxx PROPERTIES AUTORCC ON)
 if(BUILD_TESTING)
   target_sources(mixxx-test PRIVATE res/mixxx.qrc)
+  target_sources(mixxx-test PRIVATE res/crate.qrc)
   set_target_properties(mixxx-test PROPERTIES AUTORCC ON)
 endif()
 
