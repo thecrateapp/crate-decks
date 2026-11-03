@@ -1,5 +1,7 @@
 # Crate Decks
 
+[![Build](https://github.com/thecrateapp/crate-decks/actions/workflows/develop.yml/badge.svg?branch=main)](https://github.com/thecrateapp/crate-decks/actions/workflows/develop.yml?query=branch%3Amain)
+
 Crate Decks es un programa de DJ de escritorio que usa un servidor Crate como biblioteca y cerebro: biblioteca remota, análisis de Crate, recomendaciones y Smart Mix en los decks.
 
 Es un repositorio independiente basado en el código de [Mixxx](https://mixxx.org).
@@ -25,3 +27,36 @@ Se reportan en este repositorio, nunca en el de Mixxx.
 Dependencias, compilación y tests: [AGENTS.md §7](AGENTS.md). Estilo de código y detalles de compilación de Mixxx: [CONTRIBUTING.md](CONTRIBUTING.md).
 
 El ejecutable es `crate-decks`. En Linux guarda los ajustes en `~/.cratedecks/` (o en la carpeta que se le pase con `--settingsPath`), así que no comparte `mixxx.cfg` ni `mixxxdb.sqlite` con un Mixxx instalado.
+
+## CI
+
+Cada push y cada PR ejecutan `.github/workflows/develop.yml`, que llama a:
+
+- **`crate-decks-build.yml`** (solo Linux):
+  - **Ubuntu 24.04:** build y todos los tests de `mixxx-test` con `ctest`, sin excluir ninguno.
+  - **AppImage x86_64:** se construye en Ubuntu 22.04, como la de Mixxx, para que funcione en más distribuciones. Es un build de desarrollo: se descarga como artefacto del workflow (14 días) y no se publica como release.
+- **`pre-commit.yml`:** en los PRs, los hooks de `.pre-commit-config.yaml` sobre los ficheros cambiados; clang-format, solo sobre las líneas cambiadas. codespell no revisa los documentos en español y markdownlint no revisa `docs/plans/`, porque los reescribiría.
+- **`checks.yml`:** clazy, clang-tidy y cobertura.
+
+Lo mismo en local:
+
+```shell
+ctest --test-dir build --timeout 45             # tests como en el CI, un proceso por test
+pre-commit run --from-ref main --to-ref HEAD   # hooks sobre lo cambiado desde main
+```
+
+`pre-commit` aplica los arreglos de los hooks, también el `fix: true` de `.markdownlint-cli2.yaml` (markdownlint-cli2 0.23 no tiene `--no-fix`): revisa el diff antes de hacer commit.
+
+La AppImage del CI necesita el entorno de Mixxx de `tools/appimage_release_buildenv.sh`, con su Qt estática. Con las librerías del sistema, `cpack -G AppImage` sirve para revisar el empaquetado (`.desktop`, icono y ejecutable), pero esa AppImage no arranca: no lleva los plugins de plataforma de Qt.
+
+## Tests
+
+En la máquina de desarrollo (CachyOS, Qt 6.12), `build/mixxx-test` falla en tests que en el CI pasan:
+
+| Test | Causa |
+| --- | --- |
+| `ControllerScriptEngineLegacyTimerTest.beginTimer_singleShot{BindFunction,ArrowFunction,BindFunctionInClass,ArrowFunctionInClass}` | Qt 6.12; el CI usa la Qt 6.4 de Ubuntu 24.04 |
+| `TrackMetadataExportTest.keepWithespaceKey` | Solo cuando todos los tests van en un proceso; con `ctest` pasa |
+| `QmlSkins/QmlStartupSmokeTest.Starts/NewUi` | Violación de segmento solo con todos los tests en un proceso; tumba el resto de la batería. Para pasarla entera: `build/mixxx-test --gtest_filter='-QmlSkins/QmlStartupSmokeTest.Starts/NewUi'` |
+
+Cualquier otro fallo es nuevo.
