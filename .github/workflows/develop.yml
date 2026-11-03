@@ -75,10 +75,9 @@ jobs:
     permissions:
       contents: read #  to fetch code (actions/checkout)
       actions: write # to delete outdated caches
-    uses: ./.github/workflows/build.yml
-    with:
-      branch: ${{ github.head_ref || github.ref_name }}
-      ref: ${{ github.ref }}
+    # Crate Decks: Linux build, tests and development AppImage only, instead
+    # of Mixxx's full matrix (build.yml stays for the packaging of F9).
+    uses: ./.github/workflows/crate-decks-build.yml
 
   # This task is used as a probe for auto merge
   # In the future, it could also be used to perform a status update (e.g once the whole CI is passing + is ready for review, add a specific label such as `need review`)

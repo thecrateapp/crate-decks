@@ -1,0 +1,237 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow
+
+# Linux build of Crate Decks: build and tests on Ubuntu 24.04, and a
+# development AppImage uploaded as a workflow artifact (never as a release).
+# develop.yml calls it for pushes and pull requests; it can also be started
+# by hand. The steps follow the Ubuntu 24.04 and AppImage entries of Mixxx's
+# build.yml, which this workflow replaces until packaging for other
+# platforms (F9).
+
+name: Crate Decks build
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read #  to fetch code (actions/checkout)
+
+jobs:
+  build:
+    permissions:
+      contents: read #  to fetch code (actions/checkout)
+      actions: write # to delete outdated ccache caches (gh cache delete)
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Ubuntu 24.04
+            os: ubuntu-24.04
+            buildenv_script: tools/debian_buildenv.sh
+            cmake_args: >-
+              -DQT6=ON
+              -DQML=ON
+              -DBULK=ON
+              -DFFMPEG=ON
+              -DLOCALECOMPARE=ON
+              -DMAD=ON
+              -DMODPLUG=ON
+              -DWAVPACK=ON
+              -DINSTALL_USER_UDEV_RULES=OFF
+            compiler_cache_id: qt6
+            run_tests: true
+          # The AppImage is built on Ubuntu 22.04 (glibc 2.35) like Mixxx's,
+          # so that it runs on as many distributions as possible; its
+          # dependencies come from Mixxx's prebuilt vcpkg environment. The
+          # CPack AppImage generator needs CMake >= 4.2.
+          - name: AppImage x86_64
+            os: ubuntu-22.04
+            buildenv_script: tools/appimage_release_buildenv.sh
+            cmake_version: "4.2.x"
+            cmake_args: >-
+              -DQT6=ON
+              -DQML=ON
+              -DMIXXX_APPIMAGE=ON
+              -DINSTALL_USER_UDEV_RULES=OFF
+              -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="-O2 -DNDEBUG"
+              -DCMAKE_INSTALL_PREFIX=/usr
+              -DCMAKE_INSTALL_LIBDIR=lib
+              -DCMAKE_EXE_LINKER_FLAGS="-Wl,--allow-shlib-undefined"
+            compiler_cache_id: appimage-qt6
+            # mixxx-test runs in the Ubuntu 24.04 job.
+            run_tests: false
+            cpack_generator: AppImage
+
+    runs-on: ${{ matrix.os }}
+    name: ${{ matrix.name }}
+    timeout-minutes: 150
+    env:
+      BUILDENV_BASEPATH: /home/runner/buildenv
+      CCACHE_PATH: /home/runner/.cache/ccache
+      CACHE_BRANCH: ${{ github.head_ref || github.ref_name }}
+    steps:
+      - name: "Check out repository"
+        uses: actions/checkout@v7
+        with:
+          # This is necessary for making `git describe` work.
+          fetch-depth: 0
+
+      - name: "Ensure that all tags are fetched"
+        run: git fetch origin --force --tags
+
+      - name: "Set up cmake"
+        if: matrix.cmake_version != null
+        uses: jwlawson/actions-setup-cmake@v2.2
+        with:
+          cmake-version: ${{ matrix.cmake_version }}
+
+      - name: "Set up build environment"
+        run: ${{ matrix.buildenv_script }} setup
+
+      - name: "Restore ccache cache"
+        # Caches are only saved by push builds (see "Save ccache cache").
+        # Pull requests read the caches of their base branch.
+        id: ccache_cache
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ env.CCACHE_PATH }}
+          key: ${{ matrix.os }}-${{ matrix.compiler_cache_id }}-${{ env.CACHE_BRANCH }}-${{ env.BUILDENV_NAME || 'system' }}-${{ hashFiles('src/**', 'CMakeLists.txt', 'cmake/**') }}
+          restore-keys: |
+            ${{ matrix.os }}-${{ matrix.compiler_cache_id }}-${{ env.CACHE_BRANCH }}
+            ${{ matrix.os }}-${{ matrix.compiler_cache_id }}-${{ github.base_ref }}
+            ${{ matrix.os }}-${{ matrix.compiler_cache_id }}-main
+            ${{ matrix.os }}-${{ matrix.compiler_cache_id }}
+
+      - name: "Set up ccache"
+        # The limit applies to the compressed size. Uncompressed, the build
+        # with debug info exceeds 2G and evicts its own objects.
+        run: |
+          ccache --zero-stats
+          ccache --max-size=2G
+
+      - name: "Configure"
+        run: >-
+          cmake -S . -B build
+          ${{ matrix.cmake_args }}
+          -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          -DCMAKE_PREFIX_PATH="${{ env.CMAKE_PREFIX_PATH }}"
+          -DWARNINGS_FATAL=ON
+          -DDEBUG_ASSERTIONS_FATAL=OFF
+          -DBATTERY=ON
+          -DBROADCAST=ON
+          -DDOWNLOAD_MANUAL=ON
+          -DHID=ON
+          -DKEYFINDER=ON
+          -DLILV=ON
+          -DOPUS=ON
+          -DQTKEYCHAIN=ON
+          -DVINYLCONTROL=ON
+          -DCRATE=ON
+          -L
+
+      - name: "Set up gcc problem matcher"
+        uses: ammaraskar/gcc-problem-matcher@0.3.0
+
+      - name: "Build"
+        # Mixxx's CMake finds ccache by itself; make needs --parallel.
+        run: cmake --build build --parallel "$(nproc)"
+
+      - name: "Print compiler cache stats"
+        run: |
+          ccache --show-stats
+          ccache --cleanup
+
+      - name: "Save ccache cache"
+        id: ccache_save
+        if: steps.ccache_cache.outputs.cache-hit != 'true' && github.event_name == 'push' && github.ref_type == 'branch'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ env.CCACHE_PATH }}
+          key: ${{ steps.ccache_cache.outputs.cache-primary-key }}
+
+      - name: "Delete outdated ccache caches"
+        # Every source change creates a new cache entry for this branch. Drop
+        # the older ones so they don't evict the caches of other branches.
+        if: steps.ccache_save.outcome == 'success'
+        run: |
+          # A build of a newer commit may have saved its cache already
+          if [ "$(gh api "repos/$GH_REPO/commits/$GITHUB_REF" --jq .sha)" != "$GITHUB_SHA" ]; then
+            echo "$GITHUB_REF has newer commits, not deleting any caches"
+            exit 0
+          fi
+          gh cache list --ref "$GITHUB_REF" --key "$KEY_PREFIX" --limit 100 --json id,key \
+            --jq ".[] | select(.key != \"$KEY\") | .id" |
+          while read -r id; do
+            gh cache delete "$id"
+          done
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          KEY: ${{ steps.ccache_cache.outputs.cache-primary-key }}
+          # Also matches caches made with an outdated build environment
+          KEY_PREFIX: ${{ matrix.os }}-${{ matrix.compiler_cache_id }}-${{ env.CACHE_BRANCH }}-
+
+      - name: "Test (mixxx-test)"
+        # The whole suite must pass, with no tests excluded. The failures
+        # known on developer machines (CRATE.md, "Tests") do not happen here:
+        # the four ControllerScriptEngineLegacyTimerTest.beginTimer_singleShot*
+        # tests fail with Qt 6.12, and Ubuntu 24.04 has Qt 6.4;
+        # TrackMetadataExportTest.keepWithespaceKey and
+        # QmlStartupSmokeTest.Starts/NewUi only fail when all tests share one
+        # process, and ctest runs each test in its own process. A failure of
+        # any of them here is therefore a regression.
+        if: matrix.run_tests
+        run: ctest --test-dir build --timeout 45
+        env:
+          GTEST_COLOR: 1
+          CTEST_PARALLEL_LEVEL: 3
+          CTEST_OUTPUT_ON_FAILURE: 1
+
+      - name: "Package"
+        if: matrix.cpack_generator != null
+        working-directory: build
+        run: cpack -G ${{ matrix.cpack_generator }} -V
+
+      - name: "Upload AppImage"
+        # A development build for testing, kept as a workflow artifact only.
+        if: matrix.cpack_generator == 'AppImage'
+        uses: actions/upload-artifact@v7
+        with:
+          path: build/*.AppImage
+          if-no-files-found: error
+          # With archive=false the AppImage is uploaded as-is and the
+          # artifact name becomes the file name.
+          archive: "false"
+          retention-days: 14
+
+      - name: "Smoke test the AppImage"
+        # Run the packaged AppImage once. This catches loader-level failures
+        # (missing bundled libraries, a broken linker) that the build cannot
+        # see, and checks that it starts as Crate Decks: --version prints the
+        # application name and version and exits before touching any
+        # settings.
+        if: matrix.cpack_generator == 'AppImage'
+        run: |
+          # The AppImage does not bundle libpipewire (it is excluded), so the
+          # host must provide it; the bare runner image lacks it.
+          sudo apt-get install -y --no-install-recommends libpipewire-0.3-0
+          APPIMAGE=$(ls build/*.AppImage | head -1)
+          echo "Smoke-testing ${APPIMAGE}"
+          set +e
+          APPIMAGE_EXTRACT_AND_RUN=1 timeout 60 "${APPIMAGE}" --version >/tmp/smoke.log 2>&1
+          rc=$?
+          set -e
+          cat /tmp/smoke.log
+          if grep -qE "Inconsistency detected by ld.so|error while loading shared libraries|cannot open shared object file" /tmp/smoke.log; then
+            echo "FAIL: AppImage failed at loader level (rc=${rc})"
+            exit 1
+          fi
+          if ! grep -qE "^Crate Decks [0-9]+\.[0-9]+\.[0-9]+" /tmp/smoke.log; then
+            echo "FAIL: AppImage did not print the Crate Decks version (rc=${rc})"
+            exit 1
+          fi
+          echo "SMOKE OK"
+        env:
+          # The runner has no display. The offscreen platform plugin is linked
+          # into the static Qt of the AppImage (CMakeLists.txt, Qt_IS_STATIC).
+          QT_QPA_PLATFORM: offscreen
