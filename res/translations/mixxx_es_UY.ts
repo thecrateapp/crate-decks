@@ -3845,8 +3845,8 @@ trace    - Above + Profiling messages</source>
     <name>DlgAboutDlg</name>
     <message>
         <location filename="../../src/dialog/dlgaboutdlg.ui" line="26"/>
-        <source>About Mixxx</source>
-        <translation>Acerca de Mixxx</translation>
+        <source>About Crate Decks</source>
+        <translation>Acerca de Crate Decks</translation>
     </message>
     <message>
         <location filename="../../src/dialog/dlgaboutdlg.ui" line="103"/>
@@ -4145,14 +4145,14 @@ Si no hay fuentes de pistas configuradas, se añade una pista de la biblioteca.<
     </message>
     <message>
         <location filename="../../src/preferences/dialog/dlgprefbeatsdlg.ui" line="20"/>
-        <source>When beat detection is enabled, Mixxx detects the beats per minute and beats of your tracks,
+        <source>When beat detection is enabled, Crate Decks detects the beats per minute and beats of your tracks,
 automatically shows a beat-grid for them, and allows you to synchronize tracks using their beat information.</source>
         <translation type="unfinished"/>
     </message>
     <message>
         <location filename="../../src/preferences/dialog/dlgprefbeatsdlg.ui" line="62"/>
         <source>Enable fast beat detection.
-If activated Mixxx only analyzes the first minute of a track for beat information.
+If activated Crate Decks only analyzes the first minute of a track for beat information.
 This can speed up beat detection on slower computers but may result in lower quality beatgrids.</source>
         <translation type="unfinished"/>
     </message>
@@ -4709,8 +4709,8 @@ Two source connections to the same server that have the same mountpoint can not 
     </message>
     <message>
         <location filename="../../src/preferences/dialog/dlgprefbroadcastdlg.ui" line="506"/>
-        <source>Mixxx Icecast Testing</source>
-        <translation>Prueba de «Icecast» de Mixxx</translation>
+        <source>Crate Decks Icecast Testing</source>
+        <translation>Prueba de «Icecast» de Crate Decks</translation>
     </message>
     <message>
         <location filename="../../src/preferences/dialog/dlgprefbroadcastdlg.ui" line="636"/>
@@ -5124,7 +5124,7 @@ Apply settings and continue?</source>
     </message>
     <message>
         <location filename="../../src/controllers/dlgprefcontroller.cpp" line="76"/>
-        <source>&lt;font color=&apos;#BB0000&apos;&gt;&lt;b&gt;If you use this mapping your controller may not work correctly. Please select another mapping or disable the controller.&lt;/b&gt;&lt;/font&gt;&lt;br&gt;&lt;br&gt;This mapping was designed for a newer Mixxx Controller Engine and cannot be used on your current Mixxx installation.&lt;br&gt;Your Mixxx installation has Controller Engine version %1. This mapping requires a Controller Engine version &gt;= %2.&lt;br&gt;&lt;br&gt;For more information visit the wiki page on &lt;a href=&apos;https://mixxx.org/wiki/doku.php/controller_engine_versions&apos;&gt;Controller Engine Versions&lt;/a&gt;.</source>
+        <source>&lt;font color=&apos;#BB0000&apos;&gt;&lt;b&gt;If you use this mapping your controller may not work correctly. Please select another mapping or disable the controller.&lt;/b&gt;&lt;/font&gt;&lt;br&gt;&lt;br&gt;This mapping was designed for a newer Mixxx Controller Engine and cannot be used on your current Crate Decks installation.&lt;br&gt;Your Crate Decks installation has Controller Engine version %1. This mapping requires a Controller Engine version &gt;= %2.&lt;br&gt;&lt;br&gt;For more information visit the wiki page on &lt;a href=&apos;https://mixxx.org/wiki/doku.php/controller_engine_versions&apos;&gt;Controller Engine Versions&lt;/a&gt;.</source>
         <translation type="unfinished"/>
     </message>
     <message>
@@ -5307,8 +5307,8 @@ Apply settings and continue?</source>
     </message>
     <message>
         <location filename="../../src/controllers/dlgprefcontrollersdlg.ui" line="65"/>
-        <source>Mixxx did not detect any controllers. If you connected the controller while Mixxx was running you must restart Mixxx first.</source>
-        <translation>Mixxx no detectó ningún controlador. Si ha conectado el controlador mientras Mixxx estaba funcionando, deberá reiniciar Mixxx.</translation>
+        <source>Crate Decks did not detect any controllers. If you connected the controller while Crate Decks was running you must restart Crate Decks first.</source>
+        <translation>Crate Decks no detectó ningún controlador. Si ha conectado el controlador mientras Crate Decks estaba funcionando, deberá reiniciar Crate Decks.</translation>
     </message>
     <message>
         <location filename="../../src/controllers/dlgprefcontrollersdlg.ui" line="78"/>
@@ -5327,8 +5327,8 @@ Apply settings and continue?</source>
     </message>
     <message>
         <location filename="../../src/controllers/dlgprefcontrollersdlg.ui" line="30"/>
-        <source>Controllers are physical devices that send MIDI or HID signals to your computer over a USB connection. These allow you to control Mixxx in a more hands-on way than a keyboard and mouse. Attached controllers that Mixxx recognizes are shown in the &quot;Controllers&quot; section in the sidebar.</source>
-        <translation>Los controladores son dispositivos físicos que envian señales MIDI o HID al ordenador a través del connector USB. Permiten controlar el Mixxx más con las manos, en vez de usar el teclado y el ratón. Mixxx muestra en la sección &quot;Controladores&quot; aquellos controladores conectados que el Mixxx reconode.</translation>
+        <source>Controllers are physical devices that send MIDI or HID signals to your computer over a USB connection. These allow you to control Crate Decks in a more hands-on way than a keyboard and mouse. Attached controllers that Crate Decks recognizes are shown in the &quot;Controllers&quot; section in the sidebar.</source>
+        <translation>Los controladores son dispositivos físicos que envian señales MIDI o HID al ordenador a través del connector USB. Permiten controlar el Crate Decks más con las manos, en vez de usar el teclado y el ratón. Crate Decks muestra en la sección &quot;Controladores&quot; aquellos controladores conectados que el Crate Decks reconode.</translation>
     </message>
     <message>
         <location filename="../../src/controllers/dlgprefcontrollersdlg.ui" line="119"/>
@@ -6068,7 +6068,7 @@ You can always drag-and-drop tracks on screen to clone a deck.</source>
     </message>
     <message>
         <location filename="../../src/preferences/dialog/dlgprefinterface.cpp" line="385"/>
-        <source>Mixxx must be restarted before the new locale, scaling or multi-sampling settings will take effect.</source>
+        <source>Crate Decks must be restarted before the new locale, scaling or multi-sampling settings will take effect.</source>
         <translation type="unfinished"/>
     </message>
 </context>
@@ -6081,7 +6081,7 @@ You can always drag-and-drop tracks on screen to clone a deck.</source>
     </message>
     <message>
         <location filename="../../src/preferences/dialog/dlgprefkeydlg.ui" line="21"/>
-        <source>When key detection is enabled, Mixxx detects the musical key of your tracks
+        <source>When key detection is enabled, Crate Decks detects the musical key of your tracks
 and allows you to pitch adjust them for harmonic mixing.</source>
         <translation type="unfinished"/>
     </message>
@@ -6310,13 +6310,13 @@ and allows you to pitch adjust them for harmonic mixing.</source>
     </message>
     <message>
         <location filename="../../src/preferences/dialog/dlgpreflibrary.cpp" line="412"/>
-        <source>Mixxx will no longer watch this directory for new tracks. What would you like to do with the tracks from this directory and subdirectories?&lt;ul&gt;&lt;li&gt;Hide all tracks from this directory and subdirectories.&lt;/li&gt;&lt;li&gt;Delete all metadata for these tracks from Mixxx permanently.&lt;/li&gt;&lt;li&gt;Leave the tracks unchanged in your library.&lt;/li&gt;&lt;/ul&gt;Hiding tracks saves their metadata in case you re-add them in the future.</source>
-        <translation>Mixxx no seguirá observando el directorio por nuevas pistas. Que quiere hacer con las pistas de esta carpeta y subcarpetas que están en la biblioteca?&lt;ul&gt;&lt;li&gt;Esconder las pistas de la carpeta y subcarpetas.&lt;/li&gt;&lt;li&gt;Borrar los metadatos de estas pistas de forma permanente.&lt;/li&gt;&lt;li&gt;Mantener las pistas en la biblioteca.&lt;/li&gt;&lt;/ul&gt;Esconder las pistas permite guardar los metadatos en caso que quiera volverlas a la bibloteca.</translation>
+        <source>Crate Decks will no longer watch this directory for new tracks. What would you like to do with the tracks from this directory and subdirectories?&lt;ul&gt;&lt;li&gt;Hide all tracks from this directory and subdirectories.&lt;/li&gt;&lt;li&gt;Delete all metadata for these tracks from Crate Decks permanently.&lt;/li&gt;&lt;li&gt;Leave the tracks unchanged in your library.&lt;/li&gt;&lt;/ul&gt;Hiding tracks saves their metadata in case you re-add them in the future.</source>
+        <translation>Crate Decks no seguirá observando el directorio por nuevas pistas. Que quiere hacer con las pistas de esta carpeta y subcarpetas que están en la biblioteca?&lt;ul&gt;&lt;li&gt;Esconder las pistas de la carpeta y subcarpetas.&lt;/li&gt;&lt;li&gt;Borrar los metadatos de estas pistas de forma permanente.&lt;/li&gt;&lt;li&gt;Mantener las pistas en la biblioteca.&lt;/li&gt;&lt;/ul&gt;Esconder las pistas permite guardar los metadatos en caso que quiera volverlas a la bibloteca.</translation>
     </message>
     <message>
         <location filename="../../src/preferences/dialog/dlgpreflibrary.cpp" line="423"/>
-        <source>Metadata means all track details (artist, title, playcount, etc.) as well as beatgrids, hotcues, and loops. This choice only affects the Mixxx library. No files on disk will be changed or deleted.</source>
-        <translation>Metadata means all track details (artist, title, playcount, etc.) as well as beatgrids, hotcues, and loops. This choice only affects the Mixxx library. No files on disk will be changed or deleted.</translation>
+        <source>Metadata means all track details (artist, title, playcount, etc.) as well as beatgrids, hotcues, and loops. This choice only affects the Crate Decks library. No files on disk will be changed or deleted.</source>
+        <translation type="unfinished"/>
     </message>
     <message>
         <location filename="../../src/preferences/dialog/dlgpreflibrary.cpp" line="431"/>
@@ -6348,8 +6348,8 @@ and allows you to pitch adjust them for harmonic mixing.</source>
     <name>DlgPrefLibraryDlg</name>
     <message>
         <location filename="../../src/preferences/dialog/dlgpreflibrarydlg.ui" line="73"/>
-        <source>If removed, Mixxx will no longer watch this directory and its subdirectories for new tracks.</source>
-        <translation>Si lo elimina, Mixxx no revisará mas este directorio y sub directorios para encontrar nuevas pistas.</translation>
+        <source>If removed, Crate Decks will no longer watch this directory and its subdirectories for new tracks.</source>
+        <translation>Si lo elimina, Crate Decks no revisará mas este directorio y sub directorios para encontrar nuevas pistas.</translation>
     </message>
     <message>
         <location filename="../../src/preferences/dialog/dlgpreflibrarydlg.ui" line="76"/>
@@ -6358,8 +6358,8 @@ and allows you to pitch adjust them for harmonic mixing.</source>
     </message>
     <message>
         <location filename="../../src/preferences/dialog/dlgpreflibrarydlg.ui" line="48"/>
-        <source>Add a directory where your music is stored. Mixxx will watch this directory and its subdirectories for new tracks.</source>
-        <translation>Agrega un directorio donde su musica esta guardada. Mixxx revisará este directorio y sub directorios para encontrar nuevas pistas.</translation>
+        <source>Add a directory where your music is stored. Crate Decks will watch this directory and its subdirectories for new tracks.</source>
+        <translation>Agrega un directorio donde su musica esta guardada. Crate Decks revisará este directorio y sub directorios para encontrar nuevas pistas.</translation>
     </message>
     <message>
         <location filename="../../src/preferences/dialog/dlgpreflibrarydlg.ui" line="21"/>
@@ -6373,8 +6373,8 @@ and allows you to pitch adjust them for harmonic mixing.</source>
     </message>
     <message>
         <location filename="../../src/preferences/dialog/dlgpreflibrarydlg.ui" line="59"/>
-        <source>If an existing music directory is moved, Mixxx doesn&apos;t know where to find the audio files in it. Choose Relink to select the music directory in its new location. &lt;br/&gt; This will re-establish the links to the audio files in the Mixxx library.</source>
-        <translation>Si un directorio con musica es movido, Mixxx no podrá saber donde encontrar las pistas de audio. Seleccione Reenlazar para seleccionar el directorio en su nueva ubicación. &lt;br/&gt; Esto restablecerá la ubicación de las pistas de aubio en la biblioteca de Mixxx.</translation>
+        <source>If an existing music directory is moved, Crate Decks doesn&apos;t know where to find the audio files in it. Choose Relink to select the music directory in its new location. &lt;br/&gt; This will re-establish the links to the audio files in the Crate Decks library.</source>
+        <translation>Si un directorio con musica es movido, Crate Decks no podrá saber donde encontrar las pistas de audio. Seleccione Reenlazar para seleccionar el directorio en su nueva ubicación. &lt;br/&gt; Esto restablecerá la ubicación de las pistas de aubio en la biblioteca de Crate Decks.</translation>
     </message>
     <message>
         <location filename="../../src/preferences/dialog/dlgpreflibrarydlg.ui" line="62"/>
@@ -6424,8 +6424,8 @@ and allows you to pitch adjust them for harmonic mixing.</source>
     </message>
     <message>
         <location filename="../../src/preferences/dialog/dlgpreflibrarydlg.ui" line="406"/>
-        <source>History playlist with less than N tracks will be deleted&lt;br/&gt;&lt;br/&gt;Note: the cleanup will be performed during startup and shutdown of Mixxx.</source>
-        <translation>Historial de lista de reproducciones con menos de N pistas serán borradas&lt;br/&gt;&lt;br/&gt;Nota: la limpieza será realizada durante el inicio y el cierre de Mixxx.</translation>
+        <source>History playlist with less than N tracks will be deleted&lt;br/&gt;&lt;br/&gt;Note: the cleanup will be performed during startup and shutdown of Crate Decks.</source>
+        <translation>Historial de lista de reproducciones con menos de N pistas serán borradas&lt;br/&gt;&lt;br/&gt;Nota: la limpieza será realizada durante el inicio y el cierre de Crate Decks.</translation>
     </message>
     <message>
         <location filename="../../src/preferences/dialog/dlgpreflibrarydlg.ui" line="409"/>
@@ -6509,17 +6509,17 @@ and allows you to pitch adjust them for harmonic mixing.</source>
     </message>
     <message>
         <location filename="../../src/preferences/dialog/dlgpreflibrarydlg.ui" line="606"/>
-        <source>The Mixxx settings directory contains the library database, various configuration files, log files, track analysis data, as well as custom controller mappings.</source>
-        <translation>El directorio de configuración de Mixxx contiene la base de datos de la biblioteca, varios archivos de configuración, archivos de bitácoras, datos de análisis de pistas, así como mapeos de controladores personalizados.</translation>
+        <source>The Crate Decks settings directory contains the library database, various configuration files, log files, track analysis data, as well as custom controller mappings.</source>
+        <translation>El directorio de configuración de Crate Decks contiene la base de datos de la biblioteca, varios archivos de configuración, archivos de bitácoras, datos de análisis de pistas, así como mapeos de controladores personalizados.</translation>
     </message>
     <message>
         <location filename="../../src/preferences/dialog/dlgpreflibrarydlg.ui" line="629"/>
-        <source>Edit those files only if you know what you are doing and only while Mixxx is not running.</source>
+        <source>Edit those files only if you know what you are doing and only while Crate Decks is not running.</source>
         <translation type="unfinished"/>
     </message>
     <message>
         <location filename="../../src/preferences/dialog/dlgpreflibrarydlg.ui" line="645"/>
-        <source>Open Mixxx Settings Folder</source>
+        <source>Open Crate Decks Settings Folder</source>
         <translation type="unfinished"/>
     </message>
     <message>
@@ -6559,8 +6559,8 @@ and allows you to pitch adjust them for harmonic mixing.</source>
     </message>
     <message>
         <location filename="../../src/preferences/dialog/dlgpreflibrarydlg.ui" line="139"/>
-        <source>Keeps track color, beat grid, bpm lock, cue points, and loops synchronized with SERATO_MARKERS/MARKERS2 file tags.&lt;br/&gt;&lt;br/&gt;WARNING: Enabling this option also enables the reimport of Serato metadata after files have been modified outside of Mixxx. On reimport existing metadata in Mixxx is replaced with the metadata found in file tags. Custom metadata not included in file tags like loop colors is lost.</source>
-        <translation>Mantiene el color de la pista, la cuadrícula del ritmo, bloqueo de bpm, puntos de marcado, y bucles sincronizados con las etiquetas de archivo SERATO_MARKERS/MARKERS2.&lt;br/&gt;&lt;br/&gt;ADVERTENCIA: Habilitando esta opción también habilita la reimportación de metadatos de Serato después de que los archivos han sido modificados afuera de Mixxx. Al reimportar metadatos existentes en Mixxx se remplaza con los metadatos encontrados en las etiquetas de archivos. Los Metadatos personalizados no incluidos en las etiquetas de archivos como los colores de los bucles se perderán.</translation>
+        <source>Keeps track color, beat grid, bpm lock, cue points, and loops synchronized with SERATO_MARKERS/MARKERS2 file tags.&lt;br/&gt;&lt;br/&gt;WARNING: Enabling this option also enables the reimport of Serato metadata after files have been modified outside of Crate Decks. On reimport existing metadata in Crate Decks is replaced with the metadata found in file tags. Custom metadata not included in file tags like loop colors is lost.</source>
+        <translation>Mantiene el color de la pista, la cuadrícula del ritmo, bloqueo de bpm, puntos de marcado, y bucles sincronizados con las etiquetas de archivo SERATO_MARKERS/MARKERS2.&lt;br/&gt;&lt;br/&gt;ADVERTENCIA: Habilitando esta opción también habilita la reimportación de metadatos de Serato después de que los archivos han sido modificados afuera de Crate Decks. Al reimportar metadatos existentes en Crate Decks se remplaza con los metadatos encontrados en las etiquetas de archivos. Los Metadatos personalizados no incluidos en las etiquetas de archivos como los colores de los bucles se perderán.</translation>
     </message>
     <message>
         <location filename="../../src/preferences/dialog/dlgpreflibrarydlg.ui" line="168"/>
@@ -6589,8 +6589,8 @@ and allows you to pitch adjust them for harmonic mixing.</source>
     </message>
     <message>
         <location filename="../../src/preferences/dialog/dlgpreflibrarydlg.ui" line="516"/>
-        <source>You will need to restart Mixxx for these settings to take effect.</source>
-        <translation>Usted tendrá que reiniciar Mixxx para que esta configuración surta efecto.</translation>
+        <source>You will need to restart Crate Decks for these settings to take effect.</source>
+        <translation>Usted tendrá que reiniciar Crate Decks para que esta configuración surta efecto.</translation>
     </message>
     <message>
         <location filename="../../src/preferences/dialog/dlgpreflibrarydlg.ui" line="443"/>
@@ -6926,8 +6926,8 @@ and allows you to pitch adjust them for harmonic mixing.</source>
     </message>
     <message>
         <location filename="../../src/preferences/dialog/dlgprefmodplugdlg.ui" line="393"/>
-        <source>Module files are decoded at once and kept in RAM to allow for seeking and smooth operation in Mixxx. About 10MB of RAM are required for 1 minute of audio.</source>
-        <translation>Los módulos se decodifican una vez y se mantienen en la RAM para permitir fluidez y rapidez en Mixxx. Se necesitan alrededor de 10MB de RAM por cada minuto de audio.</translation>
+        <source>Module files are decoded at once and kept in RAM to allow for seeking and smooth operation in Crate Decks. About 10MB of RAM are required for 1 minute of audio.</source>
+        <translation>Los módulos se decodifican una vez y se mantienen en la RAM para permitir fluidez y rapidez en Crate Decks. Se necesitan alrededor de 10MB de RAM por cada minuto de audio.</translation>
     </message>
     <message>
         <location filename="../../src/preferences/dialog/dlgprefmodplugdlg.ui" line="422"/>
@@ -7150,10 +7150,10 @@ and allows you to pitch adjust them for harmonic mixing.</source>
     </message>
     <message>
         <location filename="../../src/preferences/dialog/dlgprefreplaygaindlg.ui" line="278"/>
-        <source>ReplayGain targets a reference loudness of -18 LUFS (Loudness Units relative to Full Scale). You may increase it if you find Mixxx is too quiet or reduce it if you find that your tracks are clipping. You may also want to decrease the volume of unanalyzed tracks if you find they are often louder than ReplayGained tracks. For podcasting a loudness of -16 LUFS is recommended.
+        <source>ReplayGain targets a reference loudness of -18 LUFS (Loudness Units relative to Full Scale). You may increase it if you find Crate Decks is too quiet or reduce it if you find that your tracks are clipping. You may also want to decrease the volume of unanalyzed tracks if you find they are often louder than ReplayGained tracks. For podcasting a loudness of -16 LUFS is recommended.
 
 The loudness target is approximate and assumes track pregain and main output level are unchanged.</source>
-        <translation>ReplayGain apunta a una sonoridad de referencia de -18 LUFS (Unidades de Sonoridad relativas a la Escala Completa). Puedes aumentarlo si encuentras que Mixxx es demasiado silencioso o reducirlo si encuentras que tus pistas están saturadas. También puedes querer disminuir el volumen de las pistas no analizadas si encuentras que a menudo son más ruidosas que las pistas ReplayGained. Para podcasting se recomienda un volumen de -16 LUFS.
+        <translation>ReplayGain apunta a una sonoridad de referencia de -18 LUFS (Unidades de Sonoridad relativas a la Escala Completa). Puedes aumentarlo si encuentras que Crate Decks es demasiado silencioso o reducirlo si encuentras que tus pistas están saturadas. También puedes querer disminuir el volumen de las pistas no analizadas si encuentras que a menudo son más ruidosas que las pistas ReplayGained. Para podcasting se recomienda un volumen de -16 LUFS.
 
 El objetivo de sonoridad es aproximado y asume que la preganancia de la pista y el nivel de salida principal no cambian.</translation>
     </message>
@@ -7199,8 +7199,8 @@ El objetivo de sonoridad es aproximado y asume que la preganancia de la pista y 
     </message>
     <message>
         <location filename="../../src/preferences/dialog/dlgprefreplaygaindlg.ui" line="293"/>
-        <source>When an unanalyzed track is playing, Mixxx will avoid an abrupt volume change by not applying a newly calculated ReplayGain value.</source>
-        <translation>Cuando una pista sin analizar se este reproduciendo, Mixxx evitará cambiar el volumen abruptamente y no aplicará el nuevo valor ReplayGain.</translation>
+        <source>When an unanalyzed track is playing, Crate Decks will avoid an abrupt volume change by not applying a newly calculated ReplayGain value.</source>
+        <translation>Cuando una pista sin analizar se este reproduciendo, Crate Decks evitará cambiar el volumen abruptamente y no aplicará el nuevo valor ReplayGain.</translation>
     </message>
     <message>
         <location filename="../../src/preferences/dialog/dlgprefreplaygaindlg.ui" line="214"/>
@@ -7277,7 +7277,7 @@ El objetivo de sonoridad es aproximado y asume que la preganancia de la pista y 
     </message>
     <message>
         <location filename="../../src/preferences/dialog/dlgprefsound.cpp" line="260"/>
-        <source>The %1 lists sound cards and controllers you may want to consider for using Mixxx.</source>
+        <source>The %1 lists sound cards and controllers you may want to consider for using Crate Decks.</source>
         <translation type="unfinished"/>
     </message>
     <message>
@@ -7480,8 +7480,8 @@ El objetivo de sonoridad es aproximado y asume que la preganancia de la pista y 
     </message>
     <message>
         <location filename="../../src/preferences/dialog/dlgprefsounddlg.ui" line="335"/>
-        <source>Downsize your audio buffer to improve Mixxx&apos;s responsiveness.</source>
-        <translation>Disminuya su búfer de audio para mejorar la velocidad de respuesta de Mixxx.</translation>
+        <source>Downsize your audio buffer to improve the responsiveness of Crate Decks.</source>
+        <translation>Disminuya su búfer de audio para mejorar la velocidad de respuesta de Crate Decks.</translation>
     </message>
     <message>
         <location filename="../../src/preferences/dialog/dlgprefsounddlg.ui" line="238"/>
@@ -7838,8 +7838,8 @@ Elija entre los distintos tipos de visualización para la forma de onda, que se 
     </message>
     <message>
         <location filename="../../src/preferences/dialog/dlgprefwaveformdlg.ui" line="565"/>
-        <source>Mixxx caches the waveforms of your tracks on disk the first time you load a track. This reduces CPU usage when you are playing live but requires extra disk space.</source>
-        <translation>Mixxx almacena en caché las formas de onda de las pistas en el disco la primera vez que se carga una pista. Esto reduce el uso de la CPU cuando se está jugando en vivo, pero requiere espacio en disco adicional.</translation>
+        <source>Crate Decks caches the waveforms of your tracks on disk the first time you load a track. This reduces CPU usage when you are playing live but requires extra disk space.</source>
+        <translation>Crate Decks almacena en caché las formas de onda de las pistas en el disco la primera vez que se carga una pista. Esto reduce el uso de la CPU cuando se está jugando en vivo, pero requiere espacio en disco adicional.</translation>
     </message>
     <message>
         <location filename="../../src/preferences/dialog/dlgprefwaveformdlg.ui" line="591"/>
@@ -9609,7 +9609,7 @@ Do you really want to overwrite it?</translation>
     </message>
     <message>
         <location filename="../../src/mixxxmainwindow.cpp" line="563"/>
-        <source>Allow Mixxx to hide the menu bar?</source>
+        <source>Allow Crate Decks to hide the menu bar?</source>
         <translation type="unfinished"/>
     </message>
     <message>
@@ -9625,7 +9625,7 @@ Do you really want to overwrite it?</translation>
     </message>
     <message>
         <location filename="../../src/mixxxmainwindow.cpp" line="569"/>
-        <source>The Mixxx menu bar is hidden and can be toggled with a single press of the &lt;b&gt;Alt&lt;/b&gt; key.&lt;br&gt;&lt;br&gt;Click &lt;b&gt;%1&lt;/b&gt; to agree.&lt;br&gt;&lt;br&gt;Click &lt;b&gt;%2&lt;/b&gt; to disable that, for example if you don&apos;t use Mixxx with a keyboard.&lt;br&gt;&lt;br&gt;You can change this setting any time in Preferences -&gt; Interface.&lt;br&gt;</source>
+        <source>The Crate Decks menu bar is hidden and can be toggled with a single press of the &lt;b&gt;Alt&lt;/b&gt; key.&lt;br&gt;&lt;br&gt;Click &lt;b&gt;%1&lt;/b&gt; to agree.&lt;br&gt;&lt;br&gt;Click &lt;b&gt;%2&lt;/b&gt; to disable that, for example if you don&apos;t use Crate Decks with a keyboard.&lt;br&gt;&lt;br&gt;You can change this setting any time in Preferences -&gt; Interface.&lt;br&gt;</source>
         <extracomment>Keep formatting tags &lt;b&gt; (bold text) and &lt;br&gt; (linebreak). %1 is the placeholder for the 'Always show' button label</extracomment>
         <translation type="unfinished"/>
     </message>
