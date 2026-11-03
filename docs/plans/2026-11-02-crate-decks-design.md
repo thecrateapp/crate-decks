@@ -15,7 +15,7 @@ Hay que revalidar rutas y números de línea al empezar cada fase: ambos proyect
 
 ## 1. Objetivo
 
-Crate Decks es un software de mezcla de escritorio, fork de Mixxx, que trata a un servidor Crate como
+Crate Decks es un software de mezcla de escritorio basado en el código de Mixxx, que trata a un servidor Crate como
 su biblioteca y su cerebro:
 
 - **Biblioteca:** navegar, buscar y cargar en un deck cualquier pista del servidor sin importar ficheros a mano.
@@ -101,15 +101,16 @@ Decks es el cliente de DJ de primera clase.
 
 ## 4. Decisiones
 
-**D1. Fork delgado de Mixxx en un repositorio aparte.** (repo creado por decisión de Diego el 2026-11-03; el resto, G0)
-- **Repo:** `thecrateapp/crate-decks` (público, como todo fork de un repo público), fork de `mixxxdj/mixxx` con historial completo, para poder sincronizar con upstream. Rama de trabajo inicial: `spike/crate-decks`.
+**D1. Repositorio independiente basado en el código de Mixxx.** (Decisión de Diego del 2026-11-03: opción A)
+- **Repo:** `thecrateapp/crate-decks`, fuera de la red de forks de GitHub ("Leave fork network") y con el historial completo de Mixxx.
+- **Sin contribuir a Mixxx:** no se publica nada en `mixxxdj/mixxx`.
+- **Cambios de Mixxx en una sola dirección:** la rama `upstream` permite traer, cuando conviene, tags estables o arreglos concretos (AGENTS.md §9).
 - **Fuera del monorepo de Crate:** el build, el CI y la licencia son distintos.
 - **Código propio aislado** en `src/crate/` (cliente, caché, director de Smart Mix) y `src/library/crateserver/` (feature y modelos).
-- **Parches a ficheros de Mixxx** mínimos y enumerados en `CRATE_PATCHES.md`. Cada parche lleva su motivo y si se intentará subir upstream.
-- **Hooks genéricos** (registro de colecciones externas, modos de AutoDJ extensibles): se intentan proponer upstream de forma manual. El `AGENTS.md` de Mixxx prohíbe PRs autónomos de agentes en su repo.
+- **Parches a ficheros de Mixxx** mínimos y enumerados en `CRATE_PATCHES.md`, con su motivo. Se prefieren hooks genéricos: abaratan los merges desde Mixxx.
 
 **D2. Licencia y marca.**
-- El fork queda **GPL-2.0-or-later**, y el código nuevo propio se publica GPL-2.0-or-later para no complicar la sincronía con upstream.
+- Crate Decks queda **GPL-2.0-or-later** por ser una obra derivada de Mixxx, y el código propio que se compila en Decks también.
 - **Relación con el servidor:** el servidor Crate (AGPL-3.0) y Decks son programas distintos que hablan HTTP, así que no hay obligación cruzada.
 - **Marca:** no se usa el nombre ni el logo de Mixxx. Habrá créditos visibles ("Basado en Mixxx") en About y en la documentación.
 - **Distribución:** los binarios llevan el código fuente correspondiente (enlace al tag del repo), como exige la GPL.
@@ -259,7 +260,7 @@ Android e iOS quedan fuera (Mixxx tiene un target Android experimental; no se to
 
 ```mermaid
 flowchart LR
-  subgraph Decks[Crate Decks · fork de Mixxx]
+  subgraph Decks[Crate Decks · basado en Mixxx]
     UI[Sección Crate · vistas Compatibles y Caché]
     LIB[CrateServerFeature + modelos]
     COL[CrateServerCollection : ExternalTrackCollection]
@@ -307,7 +308,7 @@ flowchart LR
 
 ### 5.2. Parches en ficheros de Mixxx (lista cerrada; cualquier otro necesita justificación)
 
-| Fichero | Cambio | ¿Upstream? |
+| Fichero | Cambio | ¿Hook genérico? |
 |---|---|---|
 | ~~`src/library/trackcollectionmanager.cpp`~~ | **Descartado tras F0 (Q9):** no hay forma de registrar colecciones externas (la línea 59 es un `TODO`), y la colección recibiría `saveTrack`, purgas y reubicaciones desde cualquier hilo. Se reconsidera en F7/F8 | — |
 | `src/library/library.cpp` | `addFeature(new CrateServerFeature(...))` detrás de `CRATE` y de la clave `[Library],ShowCrateServer`: 4 líneas, medido en F0 Q9 | No |
@@ -461,7 +462,7 @@ Todas siguen las reglas del monorepo:
 
 | Riesgo | Impacto | Mitigación |
 |---|---|---|
-| Deriva respecto a upstream (unas 343.000 líneas, muy activo) | Rebases costosos | Código aislado, parches enumerados, sincronía mensual programada (F1) e intentar subir upstream los hooks |
+| Deriva respecto a Mixxx (unas 343.000 líneas, muy activo) | Merges costosos | Código aislado, parches enumerados y hooks genéricos. Se traen desde `upstream` tags estables o arreglos concretos cuando Diego lo decide, sin sincronía obligatoria |
 | Mixxx 2.7 sigue en alpha | Bugs del motor | Basar las releases en un tag estable de 2.6/2.7 cuando exista; el spike decide la base |
 | Análisis del servidor poco fiable (F0 Q3–Q5) | Grids desplazados y tonalidades erróneas en los decks y en la compatibilidad armónica | S8. Mientras tanto, `AnalysisImporter` deja los beats y la tonalidad a Mixxx y usa de Crate las cues, los planes y los compatibles |
 | La fuente FFmpeg de Mixxx no lee MP3 con FFmpeg 9.0.2 (F0 Q17) | D14 sin MP3; riesgo también para builds sin MAD | Reproducción progresiva solo para FLAC, AAC, ALAC y Opus. Investigar la causa (`av_seek_frame` devuelve −1) y avisar a upstream (lo abre una persona) |
@@ -496,7 +497,7 @@ Todas siguen las reglas del monorepo:
 
 | Gate | Cuándo | Qué decide Diego |
 |---|---|---|
-| G0 | Tras la fase 0 (spike) | Si se sigue; base de upstream (tag o `main`); D1, D7, límites de D8; repo y nombre |
+| G0 | Tras la fase 0 (spike) | Si se sigue; base de upstream (tag o `main`); D7 y límites de D8 (D1 ya decidido: repositorio independiente) |
 | G1 | Tras F1 | Branding, identificadores y canal de distribución en Linux |
 | GU1 | Tras V1 (tokens y maquetas), antes de construir la skin | Las adaptaciones DJ de §14.3 todavía abiertas (color por deck y Solar al 100 % ya decididos: rueda Camelot, knobs y faders de instrumento, vista del plan de Smart Mix, simplicidad, densidad, VU, paleta de forma de onda) y las maquetas de pantalla principal, biblioteca y preferencias |
 | GU2 | Cuando se cumplan los criterios de §14.4, nunca antes de la primera release | Si se migra a QML y con qué base |

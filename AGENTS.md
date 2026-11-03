@@ -1,18 +1,18 @@
 # AGENTS.md — Crate Decks
 
-Crate Decks es un fork de [Mixxx](https://github.com/mixxxdj/mixxx) que usa un servidor Crate como biblioteca y cerebro: biblioteca remota, análisis de Crate, recomendaciones y Smart Mix en los decks.
+Crate Decks es un producto independiente basado en el código de [Mixxx](https://github.com/mixxxdj/mixxx) (GPL-2.0-or-later) que usa un servidor Crate como biblioteca y cerebro: biblioteca remota, análisis de Crate, recomendaciones y Smart Mix en los decks.
 
 - **Qué y por qué:** [diseño de Crate Decks](docs/plans/2026-11-02-crate-decks-design.md).
 - **Cómo y en qué orden:** [plan de implementación de Crate Decks](docs/plans/2026-11-02-crate-decks-implementation-plan.md).
 - **Smart Mix 3** (solo servidor, en el monorepo de Crate): [diseño](docs/plans/2026-11-02-smart-mix-3-design.md) y [plan](docs/plans/2026-11-02-smart-mix-3-implementation-plan.md).
 - **Compilar, estilo de código y flujo de Git de Mixxx:** [CONTRIBUTING.md](CONTRIBUTING.md). Se aplica tal cual salvo en lo que este fichero diga otra cosa.
 
-## 1. Tres repositorios, tres políticas
+## 1. Repositorios
 
 | Repositorio | Qué se hace ahí | Política para agentes |
 | --- | --- | --- |
 | `thecrateapp/crate-decks` (este) | Cliente de escritorio | Este fichero |
-| `mixxxdj/mixxx` (upstream) | Nada directamente. Solo hooks genéricos que una persona decide proponer | La de upstream, copiada literalmente en §9 |
+| `mixxxdj/mixxx` (origen del código) | Nada. Solo se leen sus cambios para traerlos (§9) | No se publica nada allí |
 | `thecrateapp/crate` (monorepo) | Cambios de servidor S1–S7 y todo Smart Mix 3 | Su propio `AGENTS.md` |
 
 Ningún cambio de servidor se hace desde este repositorio.
@@ -35,7 +35,7 @@ Ningún cambio de servidor se hace desde este repositorio.
 
 - Hacer merge a `main` o a `upstream`, ni force-push a ramas compartidas.
 - Dar por superado un gate humano (§4).
-- Abrir, comentar o actualizar nada en `mixxxdj/mixxx`: ni PRs, ni issues, ni reviews.
+- Abrir, comentar o actualizar nada en `mixxxdj/mixxx`: ni PRs, ni issues, ni reviews. No se contribuye a Mixxx (§9).
 - Usar el servidor de producción de Crate o sus credenciales.
 - Mergear la rama `spike/crate-decks`: su código es desechable.
 
@@ -43,8 +43,8 @@ Ningún cambio de servidor se hace desde este repositorio.
 
 ## 3. Texto generado por IA
 
-- **En este fork:** commits, comentarios y documentación van sin atribución ni aviso de IA. Diego revisa el texto y lo asume como propio.
-- **Hacia upstream:** todo texto que vaya a `mixxxdj/mixxx` cumple la política de §9, incluido el aviso al principio y al final del texto generado por un agente.
+- Commits, comentarios y documentación van sin atribución ni aviso de IA. Diego revisa el texto y lo asume como propio.
+- No se envía texto a `mixxxdj/mixxx` (§9).
 
 ## 4. Planes, decisiones y gates
 
@@ -81,7 +81,7 @@ Ningún cambio de servidor se hace desde este repositorio.
 ## 6. Estilo, tests y commits
 
 - **Estilo:** el de Mixxx ([CONTRIBUTING.md](CONTRIBUTING.md)): C++20, Qt6, clang-format con pre-commit y `kLogger` por fichero.
-- **Idioma:** código, comentarios y mensajes de commit en inglés, como upstream. Planes y documentación de Crate en español.
+- **Idioma:** código, comentarios y mensajes de commit en inglés, como el código de Mixxx. Planes y documentación de Crate en español.
 - **Tests:**
   - GoogleTest en `src/test/crate/`, añadidos a mano a la lista de fuentes de `mixxx-test` en `CMakeLists.txt` (no hay glob).
   - Red simulada con `src/test/mock_networkaccessmanager.h` o con un `QNetworkAccessManager` inyectado. Nunca se depende de un servidor real en un test unitario.
@@ -110,53 +110,21 @@ Hasta F1 el ejecutable se llama `mixxx`; a partir de F1, `crate-decks`.
 - En F0, solo tokens `crv_` del stack dev, por variables de entorno (`CRATE_URL`, `CRATE_TOKEN`) y nunca commiteados.
 - Si una tarea del cliente necesita un cambio de servidor que no está en S1–S7, para y avisa: primero se añade al plan.
 
-## 9. Upstream
+## 9. Código de Mixxx y licencia
 
-- La rama `upstream` sigue a `mixxxdj/mixxx` sin cambios, y `main` es `upstream` más los parches de Crate (desde F1).
-- Los conflictos de la sincronía en ficheros parcheados los revisa Diego.
-- Este fichero también es un parche. En cada sincronía, si upstream cambia su `AGENTS.md`, se actualiza la copia de abajo y se revisa si afecta a §2 y §3.
-
-### 9.1. Política de IA de upstream
-
-Copia literal del `AGENTS.md` de `mixxxdj/mixxx` en `bc49961`, con los títulos bajados de nivel. Se aplica a todo lo que se envíe a `mixxxdj/mixxx`. No se edita salvo al sincronizar.
-
-> #### AI Agent Policy
->
-> > **Important:** The Mixxx project only accepts contributions driven by human developers.
-> > Automated AI agents acting autonomously on a user's behalf are not welcome and may result
-> > in pull requests being closed without comment.
-> > But using AI tools that **assist** the human contributor with code generation, refactoring,
-> > documentation and reviewing the work before submission is welcome.
->
-> ##### No Autonomous Pull Requests
->
-> AI agents **must not** open, update, or re-open pull requests autonomously on behalf of a user.
-> All pull requests must be explicitly reviewed, approved, and submitted by the human developer
-> themselves. An agent may prepare and stage changes locally, but `git commit`, `git push`, and PR
-> creation must be deliberate human actions. Before this, a test of the code change by a human,
-> using a real DJ setup, is required.
->
-> ##### No Automated Responses to PR Review Comments
->
-> AI agents **must not** post replies to review comments, questions, or change requests left on
-> a pull request or its commits. All communication in the PR thread must come directly from the human contributor.
->
-> ##### AI Code-Reviews
->
-> AI agents **may** and **should** perform code reviews on explicitly request in scope of the PR.
->
-> ##### No Autonomous Creation of Issues, Bug Reports or Feature Requests
->
-> AI agents **must not** open, update, or re-open Issues, Bug Reports or Feature Requests autonomously
-> or on behalf of a user.
-> All Issues, Bug Reports, and Feature Requests must be explicitly reviewed, approved, and submitted by
-> the human user themselves.
->
-> ##### AI-Generated Text Must Carry a Disclaimer
->
-> Any text (PR description, commit message body, code comments, documentation) that was written
-> autonomously by an AI Agent **must** be framed with an disclaimer that the text is autonomously generated
-> by the AI Agent, at both the start and the end of that text block.
+- **Independiente:** el repositorio sale de la red de forks de GitHub ("Leave fork network", decisión de Diego del 2026-11-03). No se publica nada en `mixxxdj/mixxx`: ni PRs, ni issues, ni reviews, ni texto. Los fallos de Mixxx que encontremos se arreglan aquí.
+- **Origen:** Mixxx `main` en `bc49961` (2.7-alpha), o la base que se elija en G0.
+- **Traer cambios de Mixxx** (en una sola dirección, opción A):
+  - El remoto `upstream` y la rama `upstream` siguen a `mixxxdj/mixxx` sin cambios. `main` es `upstream` más el código de Crate.
+  - Se trae lo que interese (un merge de un tag estable, o cherry-picks de arreglos de motor, audio, controladoras o seguridad) cuando Diego lo decide. No hay sincronía obligatoria.
+  - Los conflictos en ficheros parcheados los revisa Diego.
+- **Disciplina de aislamiento:** por eso sigue vigente la de §5.2. Cuanto menos se toque de Mixxx, más baratos son esos merges.
+- **Licencia:** GPL-2.0-or-later.
+  - Se conservan `LICENSE`, los avisos de copyright y los créditos de Mixxx en *About*.
+  - Crate Decks se distribuye bajo GPL con su código fuente, y el código de Crate que se compila en Decks también.
+  - El servidor Crate no queda afectado, porque habla con Decks por HTTP.
+  - No se usan el nombre ni los logos de Mixxx en el producto, salvo en los créditos.
+- **CI:** los workflows de `.github/workflows/` que vienen de Mixxx se recortan antes del primer push al repositorio independiente (F1.PR1).
 
 ## 10. Estructura
 

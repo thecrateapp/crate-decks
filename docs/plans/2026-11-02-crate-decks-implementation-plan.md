@@ -18,7 +18,7 @@
 
 | Repo | Contenido | Ramas |
 |---|---|---|
-| `thecrateapp/crate-decks` (fork de `mixxxdj/mixxx`, creado en F1) | Cliente de escritorio | `main` del fork = upstream + parches Crate. Ramas `feat/decks-<tema>`, `fix/decks-<tema>`. Rama `upstream` que sigue a `mixxxdj/mixxx` sin cambios |
+| `thecrateapp/crate-decks` (independiente, basado en `mixxxdj/mixxx`, fuera de la red de forks de GitHub) | Cliente de escritorio | `main` = `upstream` + código de Crate. `upstream` solo sirve para traer cambios de Mixxx (AGENTS.md §9) |
 | `thecrateapp/crate` (monorepo) | Cambios de servidor S1–S7 y documentación canónica | `feat/decks-server-<tema>` desde `main` en un worktree propio (`worktrees/decks-server-<tema>`) |
 
 ### 0.2. Reglas
@@ -84,7 +84,7 @@ F1–F3 no dependen de ellas.
 ```mermaid
 flowchart TD
   F0[F0 · Spike en Linux] --> G0{{G0}}
-  G0 --> F1[F1 · Fork, rebrand y CI]
+  G0 --> F1[F1 · Repo independiente, marca y CI]
   F1 --> G1{{G1}}
   G0 --> F2S[F2 · Servidor S1+S2]
   G1 --> F2C[F2 · Cliente: sesión y preferencias]
@@ -127,7 +127,7 @@ con la skin `CrateDecks`.
 | Fase | Resultado | PRs aproximados | Tamaño estimado |
 |---|---|---|---|
 | F0 | Informe del spike con respuestas medidas; código desechable | 0 (rama `spike/crate-decks` sin merge) | 7–10 días |
-| F1 | Fork con marca propia, ajustes separados y CI Linux verde | 3 | 3–4 días |
+| F1 | Repo independiente con marca propia, ajustes separados y CI Linux verde | 3 | 3–4 días |
 | F2 | Cliente `decks` en el servidor; inicio de sesión y Keychain en Decks | 2 servidor + 3 cliente | 5–7 días |
 | F3 | Sección Crate navegable y búsqueda DJ | 1 servidor + 3 cliente | 6–8 días |
 | F4 | Cargar cualquier pista Crate en un deck con el análisis de Crate | 1 servidor + 4 cliente | 7–10 días |
@@ -295,25 +295,27 @@ Decide:
 
 ---
 
-## F1 · Fork, marca y CI
+## F1 · Repo independiente, marca y CI
 
-**Objetivo:** un fork que compila, arranca como "Crate Decks" sin tocar una instalación de Mixxx, pasa
-el CI de Linux y tiene un proceso de sincronía con upstream.
+**Objetivo:** un repositorio independiente que compila, arranca como "Crate Decks" sin tocar una instalación
+de Mixxx, pasa el CI de Linux y sabe traer cambios de Mixxx cuando convenga.
 
-### F1.PR1 · Crear el fork y el proceso de upstream
+### F1.PR1 · Repositorio independiente y cómo traer cambios de Mixxx
 
-- **Fork:** `thecrateapp/crate-decks` ya existe (creado el 2026-11-03). En F1 se crea la rama `upstream`, se ajusta la rama por defecto y se llevan los planes de `spike/crate-decks` a `main`.
+- **Salir de la red de forks:**
+  1. Antes: recortar los workflows de Mixxx (abajo), para que el repositorio independiente no los ejecute.
+  2. Diego pulsa *Settings → General → Danger Zone → Leave fork network* en `thecrateapp/crate-decks`. Es permanente y se conserva todo el historial; hoy no hay issues, PRs ni forks que perder.
 - **Ramas:**
-  - `upstream`, que sigue a `mixxxdj/mixxx` en la base elegida en G0.
-  - `main` = `upstream` + parches.
+  - `upstream`, que sigue a `mixxxdj/mixxx` en la base elegida en G0 y solo sirve para traer cambios.
+  - `main` = `upstream` + código de Crate. Los planes y `AGENTS.md` llegan a `main` desde `docs/decks-post-spike`.
 - **Ficheros nuevos:**
-  - `CRATE_PATCHES.md`: tabla de parches (fichero, motivo, PR de origen, ¿upstream?, estado). Al principio está vacía.
-  - `CRATE.md`: qué es el fork, cómo compilar, cómo sincronizar y a quién reportar los bugs (a nosotros, no a Mixxx).
-  - `.github/workflows/upstream-sync.yml`: job mensual (y manual) que hace `git fetch upstream`, intenta `git merge` en una rama `sync/upstream-<fecha>`, compila, ejecuta `mixxx-test` y abre un PR si va verde, o un issue con el conflicto si no.
-- **Desactivar workflows de upstream** que no aplican (publicación en el PPA de Mixxx, subida a downloads.mixxx.org, firma de Azure) y dejar solo el build y los tests.
-- **AGENTS.md del fork:** se respetan las reglas de upstream (no abrir PRs a `mixxxdj/mixxx` de forma autónoma) y se añaden las reglas de §0.2 de este plan.
+  - `CRATE_PATCHES.md`: tabla de parches a ficheros de Mixxx (fichero, motivo, PR de origen, ¿hook genérico?, estado). Al principio está vacía.
+  - `CRATE.md`: qué es Crate Decks, su relación con Mixxx (código de origen, GPL y créditos), cómo compilar, cómo traer cambios de Mixxx y a quién reportar los fallos (a nosotros, nunca a Mixxx).
+  - `docs/mixxx-merges.md`: cómo traer un tag o un arreglo de Mixxx (`git fetch upstream`, merge o cherry-pick en una rama `merge/mixxx-<ref>`, compilar, `mixxx-test` y la prueba humana si toca audio). Sin job automático: se hace cuando Diego decide.
+- **Recortar los workflows de Mixxx:** publicación en el PPA de Mixxx, subida a downloads.mixxx.org, firma de Azure y cualquiera con secretos de Mixxx. Se dejan solo el build y los tests.
+- **AGENTS.md:** sin la copia de la política de IA de Mixxx, porque no se le envía nada (AGENTS.md §9).
 
-**Tests:** el CI de upstream (Linux) en verde sobre el fork sin cambios.
+**Tests:** el CI de Linux en verde sobre el repositorio independiente.
 
 ### F1.PR2 · Marca e identidad (D2, D3)
 
@@ -616,7 +618,7 @@ Si F0/Q9 recomendó `library.cpp` en lugar de `ExternalTrackCollection`, se usa 
 | Fichero | Contenido |
 |---|---|
 | `src/library/crateserver/crateservertrackmodel.cpp` | `getTrack(index)` / `getTrackLocation`: devuelven la pista solo si está en caché (`getOrAddTrack(TrackRef::fromFilePath(path))` más `AnalysisImporter::apply`). **Nunca arrancan descargas**, porque `getTrack` también se llama al seleccionar filas (`wtracktableview.cpp:166`) y al montar menús. Si no está en caché, devuelven `nullptr` y la carga va por el hook asíncrono |
-| `src/widget/wtracktableview.cpp`, `src/widget/wtrackmenu.cpp`, `src/library/trackmodel.h` | **Parche nuevo, pendiente de Diego.** Hook de carga asíncrona: `TrackModel::requestTrackLoad(index, group, play)`, virtual y con `false` por defecto. `WTrackTableView` (doble clic, Enter, `LoadSelectedTrack`) y `WTrackMenu::loadSelectionToGroup` lo llaman antes de `getTrack`. Arrastrar al deck solo funciona con pistas en caché. Es genérico y candidato a upstream. Sin él, la sección Crate necesita vista propia, como el spike, y pierde las columnas nativas, el arrastre y las controladoras (F0 Q9) |
+| `src/widget/wtracktableview.cpp`, `src/widget/wtrackmenu.cpp`, `src/library/trackmodel.h` | **Parche nuevo, pendiente de Diego.** Hook de carga asíncrona: `TrackModel::requestTrackLoad(index, group, play)`, virtual y con `false` por defecto. `WTrackTableView` (doble clic, Enter, `LoadSelectedTrack`) y `WTrackMenu::loadSelectionToGroup` lo llaman antes de `getTrack`. Arrastrar al deck solo funciona con pistas en caché. Es genérico, lo que abarata los merges desde Mixxx. Sin él, la sección Crate necesita vista propia, como el spike, y pierde las columnas nativas, el arrastre y las controladoras (F0 Q9) |
 | `src/crate/library/crateloadcoordinator.{h,cpp}` | Recibe del hook asíncrono las cargas con su deck de destino (doble clic, Enter, menú "Cargar en Deck N", `LoadSelectedTrack` de controladoras): estado "descargando" en la fila; al terminar, `loadTrackToPlayer(track, group, play)`; si el usuario carga otra pista mientras tanto, se cancela la carga pendiente de ese deck |
 | `src/library/autodj/autodjprocessor.cpp` | Parche "pending track" (diseño §5.2): no descartar entradas Crate pendientes de descarga, esperar hasta N segundos y si no, pasar a la siguiente disponible |
 | `src/crate/library/crateprefetcher.{h,cpp}` | Observa la cola de AutoDJ (`PlaylistDAO`, playlist `PLHT_AUTO_DJ`) y pide `ensure()` de las 3 siguientes |
@@ -851,7 +853,7 @@ grep -rn "smart-mix-v2" app/crate | head
 
 | Fichero | Contenido |
 |---|---|
-| `src/library/autodj/autodjprocessor.{h,cpp}` | **Parche** (medido en F0 Q8, spike `7b389742b4`):<br>• `TransitionMode::CrateSmartMix`, al final del enum, y un hook estático.<br>• Al empezar el fundido, AutoDJ llama al hook. Si lo acepta, no arranca el entrante ni mueve el crossfader, espera en `FADING` a que el saliente se pare y después sigue como siempre (cola, carga y retirada).<br>• `calculateTransition` reutiliza `FullIntroOutro` y adelanta el traspaso 30 s solo si hay director.<br>• Desactivar AutoDJ cancela la transición.<br>• "Fade now" también pasa por el hook.<br>Tres ficheros, unas 60 líneas. Solo se formatean las líneas tocadas: `clang-format` sobre el fichero entero reescribe código de Mixxx. Anotado en `CRATE_PATCHES.md` como candidato a upstream |
+| `src/library/autodj/autodjprocessor.{h,cpp}` | **Parche** (medido en F0 Q8, spike `7b389742b4`):<br>• `TransitionMode::CrateSmartMix`, al final del enum, y un hook estático.<br>• Al empezar el fundido, AutoDJ llama al hook. Si lo acepta, no arranca el entrante ni mueve el crossfader, espera en `FADING` a que el saliente se pare y después sigue como siempre (cola, carga y retirada).<br>• `calculateTransition` reutiliza `FullIntroOutro` y adelanta el traspaso 30 s solo si hay director.<br>• Desactivar AutoDJ cancela la transición.<br>• "Fade now" también pasa por el hook.<br>Tres ficheros, unas 60 líneas. Solo se formatean las líneas tocadas: `clang-format` sobre el fichero entero reescribe código de Mixxx. Anotado en `CRATE_PATCHES.md` |
 | `src/library/autodj/dlgautodj.cpp` | Entrada "Crate Smart Mix" en el combo de modos (solo si hay servidor con `beatmatch`) |
 | `src/crate/smartmix/autodjsmartmixadapter.{h,cpp}` | Implementa `TransitionDirector` con `SmartMixDirector` y `PlanClient`; pide planes de las 2 aristas siguientes al cambiar la cola o la pista |
 
@@ -1225,8 +1227,8 @@ Esquema previsto (se detallará en un plan propio cuando GU2 lo apruebe):
 
 | Tarea | Frecuencia | Responsable |
 |---|---|---|
-| Sincronía con upstream (`upstream-sync.yml`) | Mensual o en cada release de Mixxx | Agente con revisión de Diego si hay conflictos en ficheros parcheados |
-| Revisar `CRATE_PATCHES.md`: ¿algún parche puede ir upstream? | Trimestral | Diego decide; los PRs a Mixxx los abre una persona |
+| Traer cambios de Mixxx (`docs/mixxx-merges.md`) | Cuando Diego lo decide: tags estables, arreglos de motor, audio, controladoras o seguridad | Agente con revisión de Diego si hay conflictos en ficheros parcheados |
+| Revisar `CRATE_PATCHES.md`: ¿qué parches se pueden reducir o convertir en hooks genéricos? | Trimestral | Diego decide; nada va a Mixxx |
 | Paridad de curvas y comportamiento de Smart Mix con Android | Cada cambio del planner o de las curvas en el monorepo | Test `MatchesAndroidReferenceValues` actualizado con la tabla nueva |
 | Sincronía de tokens con `app/shared/ui/tokens/`, `MonoLabel`, GenreWheel y StackMap (siempre desde `origin/main`) | En cada cambio de esos ficheros en el monorepo | PR en el fork que actualiza `tokens.json`, regenera y adjunta capturas |
 | Cambios de upstream en `res/skins/LateNight/` y en la interfaz QML | En cada sincronía mensual | Listar los cambios de LateNight a portar a `CrateDecks`; revisar los criterios de §14.4 del diseño |
@@ -1240,7 +1242,7 @@ Esquema previsto (se detallará en un plan propio cuando GU2 lo apruebe):
 | ~~F0 muestra que `Beats` importados se reanalizan igualmente~~ | Q3: no se reanalizan (10 de 10, medido) | Ninguna; el riesgo queda cerrado |
 | Desviación de arranque > 10 ms desde el hilo principal | Q7 en rojo | Mover el disparo a un `EngineControl` propio en el hilo del motor (parche más grande; evaluar en G0) |
 | El modo de AutoDJ externo necesita reescribir `AutoDJProcessor` | Q8 con más de 300 líneas de parche | Implementar el director como "AutoDJ paralelo" propio que usa la cola de Mixxx pero no su procesador |
-| Conflictos mensuales en ficheros parcheados | Más de 2 conflictos por sincronía | Reducir parches moviendo lógica a señales y slots externos; priorizar subir hooks upstream |
+| Conflictos al traer cambios de Mixxx en ficheros parcheados | Más de 2 conflictos por merge | Reducir parches moviendo lógica a señales y slots externos o a hooks genéricos; traer solo tags estables o arreglos concretos |
 | Q13 muestra que QSS no llega al aspecto del admin | Capturas que no se reconocen como Crate | Ampliar los controles SVG propios y los delegates (sin tocar el motor); si aun así no basta, reevaluar en G0 adelantar QML con LateNightQML, aceptando el riesgo de §14.2 |
 | El QSS de la biblioteca degrada el scroll | Q14 o una medida de V2 por debajo del presupuesto | Sacar estilos de las reglas `::item` a delegates; simplificar selectores |
 | Divergencia entre `tokens.json` y el admin | El admin cambia de paleta y Decks no | Revisión en el trabajo continuo: cada cambio en `app/shared/ui/tokens/` abre un issue en el fork |
