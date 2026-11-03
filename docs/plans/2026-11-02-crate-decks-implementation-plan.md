@@ -126,7 +126,7 @@ con la skin `CrateDecks`.
 | Fase | Resultado | PRs aproximados | Tamaño estimado |
 |---|---|---|---|
 | F0 | Informe del spike con respuestas medidas; código desechable | 0 (rama `spike/crate-decks` sin merge) | 7–10 días |
-| F1 | Repo independiente con marca propia, ajustes separados y CI Linux verde | 3 | 3–4 días |
+| F1 | Repo independiente con marca propia, ajustes separados y CI Linux verde | 4 | 3–4 días |
 | F2 | Cliente `decks` en el servidor; inicio de sesión y Keychain en Decks | 2 servidor + 3 cliente | 5–7 días |
 | F3 | Sección Crate navegable y búsqueda DJ | 1 servidor + 3 cliente | 6–8 días |
 | F4 | Cargar cualquier pista Crate en un deck con el análisis de Crate | 1 servidor + 4 cliente | 7–10 días |
@@ -322,30 +322,38 @@ de Mixxx, pasa el CI de Linux y sabe traer cambios de Mixxx cuando convenga.
 
 | Fichero | Cambio |
 |---|---|
-| `src/util/versionstore.cpp` | `applicationName()` = "Crate Decks"; versión propia (`0.1.0`), con la de Mixxx de base en `About` |
-| `src/main.cpp` / `src/mixxxapplication.cpp` | `setOrganizationName("Crate")`, `setOrganizationDomain("cratemusic.app")`, `setApplicationName("Crate Decks")` |
-| `CMakeLists.txt` (`MIXXX_SETTINGS_PATH`) y `src/util/cmdlineargs.cpp` | Carpeta de ajustes propia. En Linux sale de `MIXXX_SETTINGS_PATH`, fijado al compilar (`.mixxx/`, `CMakeLists.txt:2065`), y no del nombre de la aplicación (F0 Q12, medido): pasa a `.cratedecks/`. En macOS y Windows basta con `applicationName`, porque `AppLocalDataLocation` lo sigue. Respeta `--settingsPath` |
-| `src/main.cpp` (`setDesktopFileName`) y el `.desktop` de Linux | ID de Wayland propio (`app.cratemusic.CrateDecks`) en vez de `org.mixxx.Mixxx` (`main.cpp:229`), con su `.desktop` e icono (F0 Q12) |
+| `src/crate/appidentity.{h,cpp}` (nuevo) | La identidad en un solo sitio: nombre, organización, dominio, ID de aplicación, prefijo del keychain, versión de producto y enlace al código fuente. Los parches de Mixxx de esta tabla la leen de aquí. Se compila siempre, también con `CRATE=OFF` |
+| `src/util/versionstore.cpp` | `applicationName()` = "Crate Decks". La versión de producto (`0.1.0`, `crate::kApplicationVersion`) va aparte y la muestran *About* y `--version`, con la de Mixxx de base en *About*. `VersionStore::version()` sigue siendo la de Mixxx: `upgrade.cpp` la guarda en `mixxx.cfg` como versión de los ajustes y la compara con versiones de Mixxx |
+| `src/main.cpp` | `crate::applyApplicationIdentity()`: organización `Crate`, dominio `cratemusic.app`, nombre de escritorio y versión de producto. `src/mixxxapplication.cpp` no cambia |
+| `CMakeLists.txt` (`MIXXX_SETTINGS_PATH`) | Carpeta de ajustes propia. En Linux sale de `MIXXX_SETTINGS_PATH`, fijado al compilar (`.mixxx/`, `CMakeLists.txt:2060`), y no del nombre de la aplicación (F0 Q12, medido): pasa a `.cratedecks/`, sin tocar `src/util/cmdlineargs.cpp`. En Windows `AppLocalDataLocation` sigue a la organización y al nombre (`Crate/Crate Decks`). En macOS no basta: ver F9.PR2. Respeta `--settingsPath` |
+| `src/main.cpp` (`setDesktopFileName`) y el `.desktop` de Linux | ID de Wayland `app.cratemusic.decks` (el ID de aplicación de D3) en vez de `org.mixxx.Mixxx` (`main.cpp:229`), igual que el nombre base del `.desktop` y del metainfo (F0 Q12) |
 | `src/preferences/broadcastprofile.cpp` | Prefijo de los servicios del keychain (línea 64): `"Crate - "` en vez de `"Mixxx - "`, decidido en G0, para que los perfiles de emisión no compartan servicio con un Mixxx instalado. Es un identificador de Mixxx: excepción aprobada a AGENTS.md §5.2 (F0 Q12) |
-| `CMakeLists.txt` | `project(crate-decks …)`, nombre del ejecutable `crate-decks`, `CPACK_PACKAGE_NAME`, contacto y URL, opción `CRATE` (ON) |
-| `res/linux/app.cratemusic.decks.desktop`, `res/linux/app.cratemusic.decks.metainfo.xml` | Nuevos (sustituyen a los de Mixxx en el empaquetado) |
-| `res/images/`, `res/icons/` | Icono de Crate Decks (sin el logo de Mixxx) |
-| `src/dialog/dlgabout*` | "Crate Decks se basa en Mixxx", con enlace al proyecto, la licencia GPL y el enlace al código fuente del tag |
+| `CMakeLists.txt` | Ejecutable `crate-decks` en Linux; `CPACK_PACKAGE_NAME` "Crate Decks" (paquete Debian `crate-decks`), contacto `Crate <hello@cratemusic.app>` y URL `https://cratemusic.app`; opción `CRATE` (ON). **Se mantiene `project(mixxx)`:** los recursos se encuentran por `mixxx_SOURCE_DIR` en `CMakeCache.txt` (builds) y por `../share/mixxx` (instalaciones), en `src/preferences/configobject.cpp` |
+| `res/linux/app.cratemusic.decks.desktop`, `res/linux/app.cratemusic.decks.metainfo.xml` | Nuevos. Los instalan `cmake --install` y la AppImage (`packaging/appimage/`, `packaging/CPackConfig.cmake`); los de Mixxx se quedan en el árbol sin instalar |
+| `res/images/icons/<tamaño>/apps/app.cratemusic.decks.png`, `res/crate.qrc` | Icono de Crate Decks, provisional hasta G1 (el de la app Listen de escritorio del monorepo), sin el logo de Mixxx. No se instalan los iconos de Mixxx |
+| `src/dialog/dlgabout*` | "Crate Decks is based on Mixxx", con enlace al proyecto, la licencia GPL y el enlace al código fuente de esa versión (el tag o, si no, el commit) |
 
 La skin no se toca en F1: el rediseño visual es la línea V (V1–V4), que empieza tras G1.
 
-Cadenas visibles: renombrar solo lo que ve el usuario en ventanas y diálogos principales (título, About,
-asistente de primer arranque, diálogo de preferencias). **No** se reescriben las unas 627 apariciones de
-"Mixxx" en el código: identificadores, grupos de control y nombres de ficheros se quedan como están para
-no romper la sincronía con upstream ni los mapeos de controladoras.
+Cadenas visibles: el título y *About* van en este PR; el resto de cadenas visibles, en F1.PR2b. **No** se
+reescriben las unas 627 apariciones de "Mixxx" en el código: identificadores, grupos de control y nombres
+de ficheros se quedan como están para no romper la sincronía con upstream ni los mapeos de controladoras.
 
 **Tests (en rojo primero):**
 - `src/test/crate/brandingtest.cpp`:
-  - `applicationName() == "Crate Decks"`.
+  - `applicationName() == "Crate Decks"`, organización, dominio, nombre de escritorio y versión de producto.
   - La ruta de ajustes por defecto no contiene `.mixxx`.
   - `--settingsPath` sigue funcionando.
+  - Icono en todos los tamaños instalados, `.desktop` y metainfo con el ID de aplicación, y *About* con el icono, la versión, el crédito a Mixxx y el enlace al código fuente.
 
 **Manual:** con Mixxx instalado del sistema, arrancar ambos y comprobar que no comparten `mixxx.cfg` ni `mixxxdb.sqlite`.
+
+### F1.PR2b · Cadenas visibles
+
+- **Superficies** (las de AGENTS.md §5.2): título de la ventana, *About*, el diálogo de primer arranque y el de la barra de menús, y las preferencias.
+- **Qué cambia:** las cadenas fuente que nombran la aplicación pasan a "Crate Decks". Las que se refieren a Mixxx como proyecto (créditos, "based on Mixxx", enlaces a la documentación de Mixxx que siguen valiendo) se quedan.
+- **Traducciones:** cambiar una cadena fuente de `tr()` pierde su traducción. Se acepta para los demás idiomas; las traducciones al español se actualizan en el mismo PR y el build sigue compilando los `.qm`.
+- **Test:** que ninguna cadena `tr()` de esas superficies siga nombrando la aplicación como "Mixxx"; si no es práctico, `TEST_GAP:` con el `grep` usado.
 
 ### F1.PR3 · CI Linux y artefacto de desarrollo
 
@@ -1209,12 +1217,14 @@ Esquema previsto (se detallará en un plan propio cuando GU2 lo apruebe):
 
 - AppImage (Ubuntu 22.04, igual que upstream) y `.deb` (Ubuntu 24.04) en el CI de tags `decks-vX.Y.Z`.
 - `.desktop`, metainfo, iconos y asociación de tipo (ninguna por defecto).
+- **El `.deb` no debe chocar con un Mixxx instalado.** Hoy instala `share/mixxx`, `share/doc/mixxx` y la regla udev `mixxx-usb-uaccess.rules` con los mismos nombres que el paquete de Mixxx. Antes del primer `.deb`, instalar los recursos en una ruta de Crate Decks, adaptando la búsqueda de `../share/mixxx` en `src/preferences/configobject.cpp` (F1.PR2 mantuvo `project(mixxx)` por eso). La AppImage no choca.
 - **Smoke test en CI:** arrancar con `QT_QPA_PLATFORM=offscreen --settingsPath /tmp/x` y comprobar que crea los ajustes y sale limpio (requiere un flag `--smoke-test` o similar; si no existe, añadirlo de forma mínima).
 
 ### F9.PR2 · macOS
 
 - DMG firmado ad-hoc (sin secretos de Apple, como el desktop de Crate), en arm64 e Intel si el runner lo permite.
 - `Info.plist` con `app.cratemusic.decks` y los permisos de micrófono (entradas de audio) y red.
+- **Bloqueante antes del primer build de macOS que alguien ejecute:** `Sandbox::migrateOldSettings()` (`src/util/sandbox.cpp`, llamado desde `main.cpp` y `coreservices.cpp` si no hay `--settingsPath`) fija la carpeta de ajustes en `~/Library/Containers/org.mixxx.mixxx/Data/Library/Application Support/Mixxx` y mueve ahí `~/Library/Application Support/Mixxx`. En un Mac con Mixxx instalado, Crate Decks se quedaría con sus ajustes y su base de datos. Hay que derivar la carpeta de la identidad de la app (`app.cratemusic.decks`) y no migrar nunca los ajustes de Mixxx.
 - Documentar el aviso de Gatekeeper.
 
 ### F9.PR3 · Windows
