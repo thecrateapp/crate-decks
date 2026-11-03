@@ -309,13 +309,18 @@ flowchart LR
 
 | Fichero | Cambio | ¿Upstream? |
 |---|---|---|
-| `src/library/trackcollectionmanager.cpp` | Registrar `CrateServerCollection` en el `TODO` de la línea 59, detrás de la opción de build `CRATE` | Sí: un mecanismo de registro genérico |
-| `src/library/library.cpp` | Nada si la feature llega por `newLibraryFeature`; si no, `addFeature` con la clave `[Library],ShowCrateServerLibrary` | — |
-| `src/library/autodj/autodjprocessor.{h,cpp}`, `dlgautodj.cpp` | Valor `TransitionMode::CrateSmartMix` y puntos de enganche: delegar el cálculo y la ejecución a un `TransitionDirector` externo cuando ese modo está activo | Sí: una interfaz de modos de transición enchufables |
+| ~~`src/library/trackcollectionmanager.cpp`~~ | **Descartado tras F0 (Q9):** no hay forma de registrar colecciones externas (la línea 59 es un `TODO`), y la colección recibiría `saveTrack`, purgas y reubicaciones desde cualquier hilo. Se reconsidera en F7/F8 | — |
+| `src/library/library.cpp` | `addFeature(new CrateServerFeature(...))` detrás de `CRATE` y de la clave `[Library],ShowCrateServer`: 4 líneas, medido en F0 Q9 | No |
+| `src/library/autodj/autodjprocessor.{h,cpp}`, `dlgautodj.cpp` | `TransitionMode::CrateSmartMix` al final del enum y un hook estático. Al empezar el fundido, AutoDJ cede la transición si el hook la acepta y espera a que el saliente se pare. El traspaso se adelanta 30 s solo si hay director. Medido en F0 Q8: tres ficheros, unas 60 líneas | Posible (hook genérico) |
 | `src/library/autodj/autodjprocessor.cpp` (~1001-1010) | No descartar entradas sin fichero si pertenecen a Crate y están descargándose; esperar a que termine | Sí: un hook "pending track" |
-| `src/analyzer/analyzerbeats.cpp` (~159-162) | Tratar `subVersion` `crate-mix-profile-*` como importado (igual que Rekordbox) respetando `[BPM],ReanalyzeImported` | Quizá |
+| ~~`src/analyzer/analyzerbeats.cpp`~~ | **Descartado tras F0 (Q3):** con el BPM bloqueado, `AnalyzerBeats` no reanaliza (10 de 10 pistas) | — |
 | `CMakeLists.txt` | Fuentes de `src/crate` y `src/library/crateserver`, opción `CRATE` (activada por defecto en el fork), nombre, identificadores y CPack | No |
 | `src/util/versionstore.cpp`, `main.cpp`, `res/linux/*`, `packaging/*` | Nombre, organización, ruta de ajustes, iconos, `.desktop` y metainfo | No |
+| `CMakeLists.txt` (`MIXXX_SETTINGS_PATH`) y `src/main.cpp` (`setDesktopFileName`) | En Linux la carpeta de ajustes sale de `MIXXX_SETTINGS_PATH` al compilar, no del nombre (F0 Q12): pasa a `.cratedecks/`. ID de Wayland propio en vez de `org.mixxx.Mixxx` | No |
+| `src/preferences/broadcastprofile.cpp` | **Pendiente de Diego.** Prefijo `"Mixxx - "` de los servicios del keychain (línea 64); sin cambiarlo, los perfiles de emisión chocan con un Mixxx instalado (F0 Q12) | No |
+| `src/widget/wtracktableview.cpp`, `src/widget/wtrackmenu.cpp`, `src/library/trackmodel.h` | **Pendiente de Diego.** Hook de carga asíncrona: `TrackModel::requestTrackLoad(index, group, play)`, virtual y con `false` por defecto, al que llaman el doble clic, Enter, `LoadSelectedTrack` y "Cargar en Deck N" antes de `getTrack`. Hace falta porque `getTrack` es síncrono, también se llama al seleccionar y no recibe el deck (F0 Q9) | Sí (genérico) |
+| `src/sources/soundsourceffmpeg.{h,cpp}` | Hook virtual `openInputContext()` (+9 / −2; el valor por defecto mantiene el comportamiento) para la fuente progresiva (F0 Q17) | Posible |
+| `src/engine/cachingreader/cachingreaderworker.cpp`, `src/analyzer/analyzerthread.cpp`, `src/coreservices.cpp` | Banderas de aborto para que una lectura progresiva que espera bytes se despierte al expulsar, cargar otra pista o cerrar; si no, `quitWait()` espera para siempre (F0 Q17) | Posible |
 | `src/preferences/dialog/dlgpreferences.cpp` | Registrar `DlgPrefCrate` | No |
 | `src/sources/soundsourceproxy.cpp` (`registerProviders`) | Registrar `SoundSourceCrateProgressive` con prioridad `Highest`; solo en F4b (D14) | Quizá: un hook genérico de fuentes progresivas |
 | Importación de metadatos al añadir la pista (localizar en F4b: `TrackCollectionManager` / `SoundSourceProxy::updateTrackFromSource`) | Saltar la lectura de tags de pistas Crate en descarga; solo en F4b | No |
@@ -419,6 +424,8 @@ sequenceDiagram
 | S6 | **Now playing con deck**: campos opcionales `deck` y `mix_session_id`, `device_type="decks"` válido en play events y `transition_source` opcional (`ai`, `deterministic` o `none`, D15) | Historial correcto, D10 | F7 |
 | SM3 | **Plan smart-mix-3** (externo): estructura, planner v3, refinamiento con LLM, `refinement` en transition plans y `smart_mix.ai_assisted` en capacidades. Ver [plan](2026-11-02-smart-mix-3-implementation-plan.md); Decks F6b depende de su fase SM4 | AI Assisted Mixing, D15 | F6b |
 | S7 | **Cues y correcciones del usuario**: tablas de cues, loops y correcciones de grid/BPM/tonalidad por usuario y `entity_uid` con revisión; endpoints de lectura en lote y escritura idempotente | Cues entre dispositivos y no perder correcciones | F8 |
+| S8 | **Calidad del análisis** (nuevo tras F0):<br>• BPM cuantizado: hoy salen decimales que la pista no tiene (128,346 en vez de 128) y el grid constante deriva.<br>• Fase del grid comprobada: hay pistas medio beat desplazadas.<br>• Revisar el sesgo de tonalidad: 81 % de los perfiles en 7B, 8A o 7A.<br>• Criterios de aceptación medidos con el arnés del spike frente a un conjunto etiquetado. | F0 Q3–Q5: el grid de Crate difiere del de Mixxx entre 30 y 350 ms y la tonalidad coincide con KeyFinder en 3 de 10. Sin esto, Decks deja los beats y la tonalidad a Mixxx | Antes de F4 (o en paralelo; F4 tiene política de respaldo) |
+| S9 | **Disponibilidad y contrato** (nuevo tras F0): un campo que indique si la pista tiene audio, en `search` y en la navegación S3; documentar qué significan `beatPhaseOffsetMs` (adelanta el inicio del entrante en `beatmatch`) y `activeEndMs` (final musical, no umbral de silencio) | F0: la búsqueda devuelve pistas sin audio, y el spike aplicó `beatPhaseOffsetMs` al revés hasta leer el cliente de Android | Con S3 |
 
 Todas siguen las reglas del monorepo:
 - Las escrituras van por los repositorios de `app/crate/db/`.
@@ -456,6 +463,8 @@ Todas siguen las reglas del monorepo:
 |---|---|---|
 | Deriva respecto a upstream (unas 343.000 líneas, muy activo) | Rebases costosos | Código aislado, parches enumerados, sincronía mensual programada (F1) e intentar subir upstream los hooks |
 | Mixxx 2.7 sigue en alpha | Bugs del motor | Basar las releases en un tag estable de 2.6/2.7 cuando exista; el spike decide la base |
+| Análisis del servidor poco fiable (F0 Q3–Q5) | Grids desplazados y tonalidades erróneas en los decks y en la compatibilidad armónica | S8. Mientras tanto, `AnalysisImporter` deja los beats y la tonalidad a Mixxx y usa de Crate las cues, los planes y los compatibles |
+| La fuente FFmpeg de Mixxx no lee MP3 con FFmpeg 9.0.2 (F0 Q17) | D14 sin MP3; riesgo también para builds sin MAD | Reproducción progresiva solo para FLAC, AAC, ALAC y Opus. Investigar la causa (`av_seek_frame` devuelve −1) y avisar a upstream (lo abre una persona) |
 | Numeración de los parámetros de EQ sin verificar (`parameter1` = graves se infiere del manifiesto) | Intercambio de bajos sobre la banda equivocada | Verificar en F0 con una prueba de audio y un test |
 | Pista no descargada a tiempo en AutoDJ | Silencio o pista saltada | Prefetch de 3, parche del "pending track" y fallback a la siguiente descargada |
 | Perfiles `partial` o ausentes | Grid malo y beatmatch fallido | Política D6 (análisis local) y planner con `fallbackReason` |

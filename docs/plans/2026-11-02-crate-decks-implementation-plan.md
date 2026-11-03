@@ -51,6 +51,34 @@ Estimaciones a confirmar en F0:
 
 ---
 
+## Cambios tras el spike (2026-11-03)
+
+El [informe del spike](2026-11-03-crate-decks-spike-report.md) mide Q1, Q3–Q5, Q8–Q12 y Q17 (Q17 sin motor). **Decisión de Diego:** Crate Decks sigue adelante pase lo que pase con las medidas. Las decisiones concretas de G0 siguen siendo suyas. Este cuadro resume lo que cambia en el plan; el detalle está en cada tarea.
+
+| Fase | Cambio | Origen | Estado |
+| --- | --- | --- | --- |
+| F1.PR2 | Carpeta de ajustes por `MIXXX_SETTINGS_PATH`, ID de Wayland propio | Q12 | Aplicado |
+| F1.PR2 | Prefijo `"Mixxx - "` del keychain de emisión | Q12 | **Pendiente de Diego** |
+| F2.C-PR2 | `SecretStore` asíncrono, con límite de 3 s y alternativa en memoria | Q11 | Aplicado |
+| F3.C-PR2 | Registro por `library.cpp`; sin `ExternalTrackCollection` | Q9 | Aplicado |
+| F3/F4 | Hook de carga asíncrona en `WTrackTableView` y `WTrackMenu` | Q9 | **Pendiente de Diego** (parche nuevo) |
+| F4.C-PR2 | Solo perfiles `full`. Grid con control de calidad; tonalidad y N60dBSound de Mixxx; sin parche en `analyzerbeats.cpp` | Q3–Q5 | Aplicado |
+| F4b | Solo FLAC, AAC, ALAC y Opus; cola primero; banderas de aborto; nunca bloquear en el hilo de la interfaz | Q17 | Aplicado (parches nuevos) |
+| F6.C-PR2 | Director con las correcciones de la revisión del spike | Q7 (código) | Aplicado |
+| F6.C-PR3 | Hook mínimo de AutoDJ medido | Q8 | Aplicado |
+| Servidor | S8 (calidad del análisis) y S9 (disponibilidad del audio), nuevos en el diseño (§8) | Q3–Q5, Q10 | Aplicado; hay que llevarlos al monorepo |
+
+**Pruebas de F0.4 que quedan** (necesitan a Diego), y la fase que no debe empezar sin ellas:
+
+| Antes de | Pruebas |
+| --- | --- |
+| F4 | Q3 y Q5 en la forma de onda (qué grid va con la música) y Q10 en la LAN |
+| F6 | Q6 (EQ) y Q7 (10 transiciones con audio) |
+| V1/V2 y GU1 | Q13–Q16 |
+| — | Q2 (base de upstream), con la decisión de G0 |
+
+F1–F3 no dependen de ellas.
+
 ## Mapa de fases
 
 ```mermaid
@@ -293,7 +321,9 @@ el CI de Linux y tiene un proceso de sincronía con upstream.
 |---|---|
 | `src/util/versionstore.cpp` | `applicationName()` = "Crate Decks"; versión propia (`0.1.0`), con la de Mixxx de base en `About` |
 | `src/main.cpp` / `src/mixxxapplication.cpp` | `setOrganizationName("Crate")`, `setOrganizationDomain("cratemusic.app")`, `setApplicationName("Crate Decks")` |
-| `src/preferences/settingsmanager.cpp` o el que resuelva `settingsPath` | Directorio de ajustes por defecto `~/.cratedecks/` (Linux) y equivalentes con `QStandardPaths::AppLocalDataLocation`; respeta `--settingsPath` |
+| `CMakeLists.txt` (`MIXXX_SETTINGS_PATH`) y `src/util/cmdlineargs.cpp` | Carpeta de ajustes propia. En Linux sale de `MIXXX_SETTINGS_PATH`, fijado al compilar (`.mixxx/`, `CMakeLists.txt:2065`), y no del nombre de la aplicación (F0 Q12, medido): pasa a `.cratedecks/`. En macOS y Windows basta con `applicationName`, porque `AppLocalDataLocation` lo sigue. Respeta `--settingsPath` |
+| `src/main.cpp` (`setDesktopFileName`) y el `.desktop` de Linux | ID de Wayland propio (`app.cratemusic.CrateDecks`) en vez de `org.mixxx.Mixxx` (`main.cpp:229`), con su `.desktop` e icono (F0 Q12) |
+| `src/preferences/broadcastprofile.cpp` | **Pendiente de Diego.** Prefijo `"Mixxx - "` de los servicios del keychain (línea 64). Si no se cambia, los perfiles de emisión comparten servicio con un Mixxx instalado. Es un identificador de Mixxx (AGENTS.md §5.2) (F0 Q12) |
 | `CMakeLists.txt` | `project(crate-decks …)`, nombre del ejecutable `crate-decks`, `CPACK_PACKAGE_NAME`, contacto y URL, opción `CRATE` (ON) |
 | `res/linux/app.cratemusic.decks.desktop`, `res/linux/app.cratemusic.decks.metainfo.xml` | Nuevos (sustituyen a los de Mixxx en el empaquetado) |
 | `res/images/`, `res/icons/` | Icono de Crate Decks (sin el logo de Mixxx) |
@@ -404,7 +434,7 @@ En `cratecapabilities_test.cpp`:
 | Fichero | Contenido |
 |---|---|
 | `src/crate/session/cratesession.{h,cpp}` | Perfiles de servidor; `loginWithPassword`, `loginWithBrowser` (PKCE: `code_verifier` aleatorio de 64 bytes, `code_challenge` S256, `state` aleatorio, `QTcpServer` en `127.0.0.1:0` que acepta **una** petición `GET /callback`, valida `state`, responde con una página HTML simple y se cierra; tiempo máximo de 5 min); `refresh`, `logout` (revoca en el servidor y borra el Keychain) |
-| `src/crate/session/cratesecretstore.{h,cpp}` | Interfaz `SecretStore` e implementación `KeychainSecretStore` (QtKeychain, servicio `app.cratemusic.decks`, clave `<server_id>:refresh`). Si no hay backend: `SessionOnlySecretStore` en memoria y aviso en la UI |
+| `src/crate/session/cratesecretstore.{h,cpp}` | Interfaz `SecretStore` e implementación `KeychainSecretStore` (QtKeychain, servicio `app.cratemusic.decks`, clave `<server_id>:refresh`). Los trabajos de QtKeychain son **asíncronos y con un límite de 3 s**, sin bucle de eventos anidado (el patrón de `broadcastprofile.cpp` congelaría la interfaz). F0 Q11: sin Secret Service, QtKeychain se bloquea hasta que D-Bus se rinde; sin bus de sesión falla en milisegundos (error 7). En los dos casos se pasa a `SessionOnlySecretStore` en memoria, con un aviso en la interfaz |
 | `src/crate/db/crateserverschema.{h,cpp}` | Creación idempotente de `crateserver_servers` (y de las demás tablas en sus fases), envuelta en transacción |
 
 **Tests:**
@@ -501,8 +531,8 @@ En `cratecapabilities_test.cpp`:
 |---|---|
 | `src/library/crateserver/crateserverfeature.{h,cpp}` | `title()` = "Crate"; `sidebarModel()` (`TreeItemModel`: un nodo por servidor y, dentro, Biblioteca, Playlists, Crates, Géneros, Moods, Recientes y Likes); `activate()` y `activateChild()` muestran el modelo de pistas; carga perezosa (`onLazyChildExpandation`); menú contextual mínimo (Actualizar) |
 | `src/library/crateserver/crateservertrackmodel.{h,cpp}` | Sobre `BaseExternalTrackModel`: vista TEMPORARY `crateserver_view_<container>` sobre `crateserver_container_tracks ⨝ crateserver_tracks`; columnas Camelot, Energía, Calidad del perfil y Estado de caché (`ColumnCache` / `TrackModel::Capabilities` como en Rekordbox); `getTrack()` sin implementar todavía (F4) |
-| `src/library/crateserver/crateservercollection.{h,cpp}` | `ExternalTrackCollection`: `establishConnection` (sesión válida), `newLibraryFeature` (devuelve la feature) y el resto vacío hasta F7 |
-| `src/library/trackcollectionmanager.cpp` | Registrar la colección cuando `CRATE` está activo. **Parche de Mixxx**: anotarlo |
+| `src/library/library.cpp` | Registrar `CrateServerFeature` con `addFeature` detrás de `CRATE` (unas 4 líneas, F0 Q9). **Parche de Mixxx**: anotarlo |
+| (sin `ExternalTrackCollection`) | F0 Q9: `TrackCollectionManager` no puede registrarla (`trackcollectionmanager.cpp:56-60` es un `TODO`), y repartiría `saveTrack`, purgas y reubicaciones desde cualquier hilo. Se reconsidera en F7/F8 si hacen falta esos avisos |
 
 Si F0/Q9 recomendó `library.cpp` en lugar de `ExternalTrackCollection`, se usa esa vía y se ajusta esta tabla.
 
@@ -568,8 +598,8 @@ Si F0/Q9 recomendó `library.cpp` en lugar de `ExternalTrackCollection`, se usa 
 | Fichero | Contenido |
 |---|---|
 | `src/crate/analysis/profilestore.{h,cpp}` | Tabla `crateserver_profiles`; `get(uids)` que usa el lote si `profiles_batch` está disponible y si no peticiones individuales con concurrencia limitada; invalidación por `profile_revision` |
-| `src/crate/analysis/analysisimporter.{h,cpp}` | `apply(TrackPointer, MixProfile, Policy)`: (1) si la calidad es `full`, el beatgrid va por `BeatsImporter` (ms a frames con la sample rate real) con `subVersion` `crate-mix-profile-<rev>` y `setBpmLocked(true)`; (2) tonalidad con `setKeys`; (3) cues Intro, Outro y N60dBSound si no existen o si son de Crate con revisión antigua y el usuario no las editó; (4) `pregain` opcional desde LUFS (preferencia, apagada por defecto); (5) si la calidad no es `full`, no inyecta nada y marca la pista para análisis local |
-| `src/analyzer/analyzerbeats.cpp` | Parche (si F0 lo pidió): tratar `crate-mix-profile-*` como importado |
+| `src/crate/analysis/analysisimporter.{h,cpp}` | `apply(TrackPointer, MixProfile, Policy)`:<br>(1) Solo con calidad `full`; si no, no inyecta nada y la pista se analiza en local.<br>(2) **Beatgrid**: solo si pasa el **control de calidad**: BPM cuantizado, beats frente a una rejilla constante por debajo de un umbral y sin deriva. Va por `BeatsImporter` (ms a frames con la sample rate real), con `subVersion` `crate-mix-profile-<rev>` y `setBpmLocked(true)`. Si no pasa, analiza Mixxx.<br>(3) **Tonalidad**: por defecto la de Mixxx (KeyFinder), con una preferencia para usar la de Crate.<br>(4) **Cues**: Intro y Outro de Crate si no existen o si son de Crate con una revisión antigua que el usuario no editó. N60dBSound lo calcula Mixxx, porque `activeEndMs` es un final musical, no un umbral de silencio.<br>(5) `pregain` opcional desde LUFS (preferencia, apagada por defecto).<br>Mientras S8 no esté, la política por defecto es "beats y tonalidad de Mixxx". F0 Q3–Q5: el grid de Crate difiere del de Mixxx entre 30 y 350 ms, sus BPM con decimales derivan y la tonalidad coincide con KeyFinder en 3 de 10 |
+| (sin parche en `analyzerbeats.cpp`) | F0 Q3: con el BPM bloqueado, `AnalyzerBeats` no reanaliza; no hace falta tratar `crate-mix-profile-*` como importado |
 
 **Tests**, en `analysisimporter_test.cpp` con fixtures JSON de perfiles reales anonimizados en `src/test/crate/data/`:
 - `ImportsBeatGridAtFileSampleRate` (44,1 y 48 kHz)
@@ -585,8 +615,9 @@ Si F0/Q9 recomendó `library.cpp` en lugar de `ExternalTrackCollection`, se usa 
 
 | Fichero | Contenido |
 |---|---|
-| `src/library/crateserver/crateservertrackmodel.cpp` | `getTrack(index)` / `getTrackLocation`: si está en caché, `getOrAddTrack(TrackRef::fromFilePath(path))` más `AnalysisImporter::apply`; si no, `nullptr` y arranca `ensure()` |
-| `src/crate/library/crateloadcoordinator.{h,cpp}` | Intercepta "Cargar en Deck N" y doble clic desde la sección Crate: estado "descargando" en la fila; al terminar, `loadTrackToPlayer(track, group, play)`; si el usuario carga otra pista mientras tanto, se cancela la carga pendiente de ese deck |
+| `src/library/crateserver/crateservertrackmodel.cpp` | `getTrack(index)` / `getTrackLocation`: devuelven la pista solo si está en caché (`getOrAddTrack(TrackRef::fromFilePath(path))` más `AnalysisImporter::apply`). **Nunca arrancan descargas**, porque `getTrack` también se llama al seleccionar filas (`wtracktableview.cpp:166`) y al montar menús. Si no está en caché, devuelven `nullptr` y la carga va por el hook asíncrono |
+| `src/widget/wtracktableview.cpp`, `src/widget/wtrackmenu.cpp`, `src/library/trackmodel.h` | **Parche nuevo, pendiente de Diego.** Hook de carga asíncrona: `TrackModel::requestTrackLoad(index, group, play)`, virtual y con `false` por defecto. `WTrackTableView` (doble clic, Enter, `LoadSelectedTrack`) y `WTrackMenu::loadSelectionToGroup` lo llaman antes de `getTrack`. Arrastrar al deck solo funciona con pistas en caché. Es genérico y candidato a upstream. Sin él, la sección Crate necesita vista propia, como el spike, y pierde las columnas nativas, el arrastre y las controladoras (F0 Q9) |
+| `src/crate/library/crateloadcoordinator.{h,cpp}` | Recibe del hook asíncrono las cargas con su deck de destino (doble clic, Enter, menú "Cargar en Deck N", `LoadSelectedTrack` de controladoras): estado "descargando" en la fila; al terminar, `loadTrackToPlayer(track, group, play)`; si el usuario carga otra pista mientras tanto, se cancela la carga pendiente de ese deck |
 | `src/library/autodj/autodjprocessor.cpp` | Parche "pending track" (diseño §5.2): no descartar entradas Crate pendientes de descarga, esperar hasta N segundos y si no, pasar a la siguiente disponible |
 | `src/crate/library/crateprefetcher.{h,cpp}` | Observa la cola de AutoDJ (`PlaylistDAO`, playlist `PLHT_AUTO_DJ`) y pide `ensure()` de las 3 siguientes |
 | Menú contextual | "Descargar", "Descargar contenedor (set offline)" (muestra el tamaño total antes), "Quitar de la caché" |
@@ -654,9 +685,11 @@ corre en paralelo con F5 y F6 y tiene que estar cerrada antes de F9 o quedar des
 
 | Fichero | Contenido |
 |---|---|
-| `src/sources/soundsourcecrateprogressive.{h,cpp}` | `SoundSourceProvider` con prioridad `Highest` para las extensiones de FFmpeg. `tryOpen`: si la ruta no está en el registro de descargas progresivas activas, devuelve `OpenResult::Aborted` y Mixxx prueba el siguiente proveedor. Si lo está, abre con FFmpeg sobre un `AVIOContext` cuyo `read` y `seek` llaman a `ProgressiveDownload::waitFor`. Duración, sample rate y canales desde el perfil o el catálogo de Crate. Lee frames solo dentro del rango confirmado, sin lecturas cortas. La cancelación llega desde `close()` |
+| `src/sources/soundsourcecrateprogressive.{h,cpp}` | Subclase de `SoundSourceFFmpeg` (hook `openInputContext()`, ya probado en el spike `880f373588`) con proveedor de prioridad `Highest` **solo para FLAC, AAC y ALAC en M4A, y Opus**. El MP3 se descarga entero, porque la fuente FFmpeg de Mixxx no lee MP3 con FFmpeg 9.0.2 (F0 Q17).<br>`tryOpen`: si la ruta no está en el registro de descargas progresivas activas, o se abre desde el hilo de la interfaz, devuelve `OpenResult::Aborted`. Si no, abre FFmpeg sobre un `AVIOContext` cuyo `read` espera los bytes y cuyo `seek` no espera nunca; `AVSEEK_SIZE` devuelve el `Content-Length`.<br>La descarga empieza por la cola (`Range: bytes=-N`) y la cabeza: 64 KiB bastan para FLAC con carátula y 16 KiB para AAC, ALAC y Opus. Nunca hay lecturas cortas. La cancelación llega por las banderas de aborto, no por `close()` |
 | `src/crate/cache/progressiveregistry.{h,cpp}` | Registro hilo-seguro `ruta → ProgressiveDownload` que consulta el proveedor |
 | `src/sources/soundsourceproxy.cpp` | **Parche:** registrar el proveedor en `registerProviders()`, detrás de la opción `CRATE` y de `FFMPEG`. Anotado en `CRATE_PATCHES.md` |
+| `src/sources/soundsourceffmpeg.{h,cpp}` | **Parche:** hook virtual `openInputContext()` (+9 / −2), cuyo valor por defecto mantiene el comportamiento actual (F0 Q17) |
+| `src/engine/cachingreader/cachingreaderworker.cpp`, `src/analyzer/analyzerthread.cpp`, `src/coreservices.cpp` | **Parche nuevo.** Bandera de aborto por hilo (`m_stop` o `m_newTrackAvailable`; `isStopping()`) y otra global al empezar `CoreServices::finalize`, para que una lectura que espera bytes se despierte al expulsar, al cargar otra pista o al cerrar. Sin ella, `quitWait()` espera para siempre (F0 Q17) |
 | Importación de metadatos (localizar la llamada en `TrackCollectionManager` / `SoundSourceProxy::updateTrackFromSource`) | **Parche:** no leer tags de pistas registradas como progresivas; los metadatos vienen de `crateserver_tracks` |
 
 **Tests:**
@@ -793,7 +826,7 @@ grep -rn "smart-mix-v2" app/crate | head
 
 | Fichero | Contenido |
 |---|---|
-| `src/crate/smartmix/smartmixdirector.{h,cpp}` | Máquina de estados `Idle → Armed → Preparing → Running → Completed / Cancelled / FellBack`. **Preparing** (≥ 8 s antes): cue del entrante en `incomingCueMs`, `rate` desde `incomingTempoRatio` (o `sync_enabled` si el plan lo pide), `pregain`, EQ neutra, keylock según preferencia. **Running**: arranque del entrante en el beat calculado con `beat_distance` del saliente y `beatPhaseOffsetMs`; curva del crossfader; intercambio de bajos en `handoffProgress`; rampa de ganancias. Actualización a 60 Hz con `Qt::PreciseTimer` y como máximo un `set` por control y tick |
+| `src/crate/smartmix/smartmixdirector.{h,cpp}` | Máquina de estados `Idle → Armed → Preparing → Running → Completed / Cancelled / FellBack`, con lo aprendido en el spike (`5aba6b9098`, revisión final).<br>**Posiciones**: de `VisualPlayPosition::getEnginePlayPos()`, no de `playposition`, que el motor actualiza unas 15 veces por segundo.<br>**Preparing** (≥ 8 s antes, o en cuanto llega el plan):<br>• cue del entrante en `incomingCueMs`, más `round(beatPhaseOffsetMs × incomingTempoRatio)` en `beatmatch` (como `NativeTransitionPlan.startIncomingCueMs()`);<br>• `rate_ratio` = `incomingTempoRatio` × el del saliente;<br>• quantize y sync del entrante apagados hasta el final;<br>• `pregain` y EQ neutra; keylock según preferencia.<br>**Running**:<br>• el entrante arranca cuando el saliente llega a `outgoingCueMs`, con el reloj de beats (`beat_distance`) si el inicio cae en el siguiente beat;<br>• si llega tarde (outro largo, "Fade now"), el entrante salta a donde ya debería estar;<br>• el progreso va por reloj de pared;<br>• curva del crossfader según la orientación del saliente y `xFaderReverse`;<br>• intercambio de bajos en `handoffProgress` y rampa de ganancias.<br>**Cancelación**: si un deck se para o cambia de pista, si el saliente hace bucle o seek atrás, o si vence el plazo. El plan tiene un límite de 3 s y, si no llega, hay respaldo.<br>Actualización a 60 Hz con `Qt::PreciseTimer` y como máximo un `set` por control y tick |
 | `src/crate/smartmix/controlautomation.{h,cpp}` | Envoltorio de `ControlProxy` por control: registra el último valor escrito por el director; si el valor cambia por otra vía (DJ o controladora), marca *manual override*, deja de automatizar **ese** control y emite `overridden(control)` |
 | `src/crate/smartmix/curves.{h,cpp}` | `equalPower(t)`, `djBlend(t)` y rampas de EQ y de ganancia, idénticas a las de Android. Comprobar el código fuente de Listen/Android para la paridad (buscar la implementación de las curvas en `app/listen` o en el reproductor nativo) |
 | `src/crate/smartmix/eqmap.h` | Mapa de parámetros de EQ confirmado en F0 Q6 |
@@ -818,7 +851,7 @@ grep -rn "smart-mix-v2" app/crate | head
 
 | Fichero | Contenido |
 |---|---|
-| `src/library/autodj/autodjprocessor.{h,cpp}` | **Parche:** `TransitionMode::CrateSmartMix`; interfaz `TransitionDirector` (`prepare(from, to)`, `shouldStart(position)`, `run`, `cancel`); si el modo está activo y hay director, `calculateTransition` y `playerPositionChanged` delegan en él y el resto de AutoDJ (cola, carga y retirada) sigue igual. Mínimo de líneas; anotado en `CRATE_PATCHES.md` como candidato a upstream |
+| `src/library/autodj/autodjprocessor.{h,cpp}` | **Parche** (medido en F0 Q8, spike `7b389742b4`):<br>• `TransitionMode::CrateSmartMix`, al final del enum, y un hook estático.<br>• Al empezar el fundido, AutoDJ llama al hook. Si lo acepta, no arranca el entrante ni mueve el crossfader, espera en `FADING` a que el saliente se pare y después sigue como siempre (cola, carga y retirada).<br>• `calculateTransition` reutiliza `FullIntroOutro` y adelanta el traspaso 30 s solo si hay director.<br>• Desactivar AutoDJ cancela la transición.<br>• "Fade now" también pasa por el hook.<br>Tres ficheros, unas 60 líneas. Solo se formatean las líneas tocadas: `clang-format` sobre el fichero entero reescribe código de Mixxx. Anotado en `CRATE_PATCHES.md` como candidato a upstream |
 | `src/library/autodj/dlgautodj.cpp` | Entrada "Crate Smart Mix" en el combo de modos (solo si hay servidor con `beatmatch`) |
 | `src/crate/smartmix/autodjsmartmixadapter.{h,cpp}` | Implementa `TransitionDirector` con `SmartMixDirector` y `PlanClient`; pide planes de las 2 aristas siguientes al cambiar la cola o la pista |
 
@@ -1198,19 +1231,23 @@ Esquema previsto (se detallará en un plan propio cuando GU2 lo apruebe):
 | Sincronía de tokens con `app/shared/ui/tokens/`, `MonoLabel`, GenreWheel y StackMap (siempre desde `origin/main`) | En cada cambio de esos ficheros en el monorepo | PR en el fork que actualiza `tokens.json`, regenera y adjunta capturas |
 | Cambios de upstream en `res/skins/LateNight/` y en la interfaz QML | En cada sincronía mensual | Listar los cambios de LateNight a portar a `CrateDecks`; revisar los criterios de §14.4 del diseño |
 | Contrato `capabilities.decks.contract_version` | En cada cambio incompatible de S1–S7 | El PR de servidor sube la versión; el cliente gestiona ambas durante una release |
+| Medidas automáticas del spike (`CrateSpikeHarnessLive`, convertido en herramienta en `src/test/crate/` o en `tools/`) contra el stack dev: grid, tonalidad y cues frente a los analizadores de Mixxx, y tiempos de descarga | En cada cambio de `AnalysisImporter`, del director o de S8 | Agente; los resultados van al PR |
 
 ## Riesgos de ejecución (además de §11 del diseño)
 
 | Riesgo | Señal temprana | Acción |
 |---|---|---|
-| F0 muestra que `Beats` importados se reanalizan igualmente | Q3 en rojo | Parche en `analyzerbeats.cpp` (ya previsto) o preferencia `[BPM],BPMDetectionEnabled=0` para pistas Crate; reevaluar en G0 |
+| ~~F0 muestra que `Beats` importados se reanalizan igualmente~~ | Q3: no se reanalizan (10 de 10, medido) | Ninguna; el riesgo queda cerrado |
 | Desviación de arranque > 10 ms desde el hilo principal | Q7 en rojo | Mover el disparo a un `EngineControl` propio en el hilo del motor (parche más grande; evaluar en G0) |
 | El modo de AutoDJ externo necesita reescribir `AutoDJProcessor` | Q8 con más de 300 líneas de parche | Implementar el director como "AutoDJ paralelo" propio que usa la cola de Mixxx pero no su procesador |
 | Conflictos mensuales en ficheros parcheados | Más de 2 conflictos por sincronía | Reducir parches moviendo lógica a señales y slots externos; priorizar subir hooks upstream |
 | Q13 muestra que QSS no llega al aspecto del admin | Capturas que no se reconocen como Crate | Ampliar los controles SVG propios y los delegates (sin tocar el motor); si aun así no basta, reevaluar en G0 adelantar QML con LateNightQML, aceptando el riesgo de §14.2 |
 | El QSS de la biblioteca degrada el scroll | Q14 o una medida de V2 por debajo del presupuesto | Sacar estilos de las reglas `::item` a delegates; simplificar selectores |
 | Divergencia entre `tokens.json` y el admin | El admin cambia de paleta y Decks no | Revisión en el trabajo continuo: cada cambio en `app/shared/ui/tokens/` abre un issue en el fork |
-| Q17 muestra cuelgues al expulsar o lecturas cortas inevitables en algún formato | Prototipo inestable | Limitar D14 a FLAC y MP3 (cabecera al principio), o descartarla en G0; la base D4 no cambia |
+| Q17: lecturas cortas o cuelgues al expulsar en algún formato | Sin motor: ninguna lectura corta en FLAC, AAC, ALAC y Opus. El MP3 falla con FFmpeg 9.0.2 incluso completo | D14 solo para FLAC, AAC, ALAC y Opus; el MP3 se descarga entero hasta arreglar la fuente FFmpeg o tener una fuente basada en MAD. Las banderas de aborto evitan los cuelgues (F4b) |
 | FFmpeg ausente en algún build de plataforma | Q17 | D14 solo donde exista FFmpeg; el resto usa la descarga completa |
 | smart-mix-3 se retrasa o SG3 es no-go | F6b bloqueada o sin IA | F6b.PR1 (v3) sigue siendo útil por sí solo; PR2 y PR3 se aparcan sin afectar al resto de Decks |
+| La calidad del análisis de Crate no mejora a tiempo (S8) | El grid sigue fuera del control de calidad en las pistas de prueba | `AnalysisImporter` deja los beats y la tonalidad a Mixxx (política por defecto mientras S8 no esté); Crate sigue aportando cues, planes y compatibles |
+| Upstream o Diego rechazan el hook de carga asíncrona | Sin decisión antes de F3 | La sección Crate usa vista propia, como el spike: sin columnas nativas, arrastre ni `LoadSelectedTrack` hasta que haya hook |
+| El stack dev borra pistas sin fichero | Faltan pistas después de arrancar o sincronizar | Desactivar `library_pipeline` y `repair_duplicate_tracks` en `schedules` antes de arrancar los workers; importar el audio de prueba con artistas propios (informe del spike) |
 | El stack dev en Linux no tiene perfiles `full` suficientes | Pocos perfiles en el admin | Backfill de perfiles antes de F0; usar un subconjunto analizado de `test-music` |
