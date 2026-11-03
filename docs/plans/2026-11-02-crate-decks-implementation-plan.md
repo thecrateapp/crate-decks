@@ -181,11 +181,16 @@ make dev
 # Iniciar sesión en el admin local con admin@cratemusic.app / admin y crear un token:
 curl -s -X POST http://localhost:8585/api/auth/access-tokens \
   -H "Authorization: Bearer <session-jwt>" -H 'Content-Type: application/json' \
-  -d '{"name":"decks-spike","scopes":["vdj.catalog.read","vdj.media.read","vdj.smart_mix.read"]}'
+  -d '{"name":"decks-spike","scopes":["vdj.catalog.read","vdj.media.read","vdj.smart_mix.read","vdj.play_events.write"]}'
 ```
 
-Revisa el cuerpo exacto que espera `POST /api/auth/access-tokens` en `app/crate/api/auth.py` y su
-esquema antes de lanzarlo. Comprueba también que el análisis y los perfiles de mezcla de `test-music/`
+Revisa el cuerpo exacto que espera `POST /api/auth/access-tokens` en `app/crate/api/access_tokens.py` y su
+esquema (`app/crate/api/schemas/access_tokens.py`) antes de lanzarlo.
+
+**Si la base dev no tiene los ficheros de audio** (por ejemplo, una copia de otra máquina), Crate borra
+las pistas al arrancar y al sincronizar. Antes de arrancar los workers, desactiva `library_pipeline` y
+`repair_duplicate_tracks` en `schedules`. Importa el audio de prueba con artistas propios, sin etiquetas
+MusicBrainz. El procedimiento está en el [informe del spike](2026-11-03-crate-decks-spike-report.md). Comprueba también que el análisis y los perfiles de mezcla de `test-music/`
 están completos: el admin muestra la cobertura de Smart Mix. Si no lo están, lanza el backfill de perfiles
 desde el admin y espera a que termine.
 
