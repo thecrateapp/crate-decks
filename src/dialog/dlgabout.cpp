@@ -4,6 +4,7 @@
 #include <QFile>
 #include <QLocale>
 
+#include "crate/appidentity.h"
 #include "defs_urls.h"
 #include "moc_dlgabout.cpp"
 #include "util/color/color.h"
@@ -32,6 +33,34 @@ DlgAbout::DlgAbout()
     platform_label->setText(VersionStore::platform());
     QLocale locale;
     date_label->setText(locale.toString(VersionStore::date().toLocalTime(), QLocale::LongFormat));
+
+    // Crate Decks: credit to Mixxx, licence and source code of this build (D2).
+    setWindowTitle(tr("About %1").arg(VersionStore::applicationName()));
+    const QString linkStyle =
+            QStringLiteral("color:%1;")
+                    .arg(Color::blendColors(
+                            palette().link().color(), palette().text().color())
+                                    .name());
+    auto* pBasedOn = new QLabel(this);
+    pBasedOn->setObjectName(QStringLiteral("crate_based_on"));
+    pBasedOn->setWordWrap(true);
+    pBasedOn->setTextFormat(Qt::RichText);
+    pBasedOn->setOpenExternalLinks(true);
+    pBasedOn->setText(
+            tr("%1 is based on <a style=\"%2\" href=\"%3\">Mixxx</a> %4, made "
+               "by the Mixxx Development Team. It is free software under the "
+               "GNU General Public License, version 2 or later (see the "
+               "License tab).")
+                    .arg(VersionStore::applicationName(),
+                            linkStyle,
+                            MIXXX_WEBSITE_URL,
+                            VersionStore::version()) +
+            QStringLiteral("<br><a style=\"%1\" href=\"%2\">%3</a>")
+                    .arg(linkStyle,
+                            crate::sourceCodeUrl(VersionStore::gitDescribe())
+                                    .toString(),
+                            tr("Source code of this version")));
+    verticalLayout->insertWidget(2, pBasedOn);
 
     QFile licenseFile(":/LICENSE");
     if (!licenseFile.open(QIODevice::ReadOnly)) {
@@ -509,7 +538,7 @@ DlgAbout::DlgAbout()
                     .arg(Color::blendColors(palette().link().color(),
                                  palette().text().color())
                                     .name(),
-                            MIXXX_WEBSITE_URL,
+                            crate::kHomepageUrl, // Crate Decks
                             tr("Official Website")));
     if (std::rand() % 6) {
         if (!Color::isDimColor(palette().text().color())) {
@@ -520,7 +549,7 @@ DlgAbout::DlgAbout()
     } else {
         btnDonate->setIcon(QIcon(":/images/heart_icon_rainbow.svg"));
     }
-    btnDonate->setText(tr("Donate"));
+    btnDonate->setText(tr("Donate to Mixxx")); // Crate Decks: it goes to Mixxx
     connect(btnDonate, &QPushButton::clicked, this, [] {
         mixxx::DesktopHelper::openUrl(QUrl(MIXXX_DONATE_URL));
     });

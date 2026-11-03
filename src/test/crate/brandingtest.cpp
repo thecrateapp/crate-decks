@@ -11,6 +11,8 @@
 #include <QLabel>
 #include <QString>
 #include <QTemporaryDir>
+#include <QTextBrowser>
+#include <QUrl>
 
 #include "crate/appidentity.h"
 #include "defs_urls.h"
@@ -208,6 +210,51 @@ TEST_F(CrateBrandingTest, MetainfoMatchesDesktopFileName) {
             component.firstChildElement(QStringLiteral("provides"))
                     .firstChildElement(QStringLiteral("binary"))
                     .text());
+}
+
+TEST_F(CrateBrandingTest, SourceCodeUrlPointsAtTheBuiltSource) {
+    const QString repository = QString::fromUtf8(crate::kSourceRepositoryUrl);
+    const struct {
+        QString gitDescribe;
+        QString url;
+    } cases[] = {
+            {QStringLiteral("0.1.0"), repository + QStringLiteral("/tree/0.1.0")},
+            {QStringLiteral("2.6-beta-3815-ge9ea8313bd"),
+                    repository + QStringLiteral("/tree/e9ea8313bd")},
+            {QStringLiteral("2.6-beta-3815-ge9ea8313bd-modified"),
+                    repository + QStringLiteral("/tree/e9ea8313bd")},
+            {QStringLiteral("e9ea8313bd"), repository + QStringLiteral("/tree/e9ea8313bd")},
+            {QString(), repository},
+    };
+    for (const auto& testCase : cases) {
+        SCOPED_TRACE(qPrintable(testCase.gitDescribe));
+        EXPECT_QSTRING_EQ(testCase.url, crate::sourceCodeUrl(testCase.gitDescribe).toString());
+    }
+}
+
+TEST_F(CrateBrandingTest, AboutCreditsMixxxAndLinksTheSourceCode) {
+    const DlgAbout about;
+
+    EXPECT_QSTRING_EQ(QStringLiteral("About Crate Decks"), about.windowTitle());
+    const auto* pBasedOn = about.findChild<QLabel*>(QStringLiteral("crate_based_on"));
+    ASSERT_NE(nullptr, pBasedOn);
+    const QString basedOn = pBasedOn->text();
+    EXPECT_TRUE(basedOn.contains(QStringLiteral("is based on"))) << qPrintable(basedOn);
+    EXPECT_TRUE(basedOn.contains(QStringLiteral(MIXXX_WEBSITE_URL))) << qPrintable(basedOn);
+    EXPECT_TRUE(basedOn.contains(QStringLiteral("GNU General Public License")))
+            << qPrintable(basedOn);
+    const QString sourceCodeUrl =
+            crate::sourceCodeUrl(VersionStore::gitDescribe()).toString();
+    EXPECT_FALSE(sourceCodeUrl.isEmpty());
+    EXPECT_TRUE(basedOn.contains(sourceCodeUrl)) << qPrintable(basedOn);
+
+    // The Mixxx credits and its copyright notice stay.
+    const auto* pCredits = about.findChild<QTextBrowser*>(QStringLiteral("textBrowser"));
+    ASSERT_NE(nullptr, pCredits);
+    EXPECT_TRUE(pCredits->toPlainText().contains(QStringLiteral("Mixxx")));
+    const auto* pLicense = about.findChild<QTextBrowser*>(QStringLiteral("licenseText"));
+    ASSERT_NE(nullptr, pLicense);
+    EXPECT_TRUE(pLicense->toPlainText().contains(QStringLiteral("Mixxx Development Team")));
 }
 
 } // namespace
