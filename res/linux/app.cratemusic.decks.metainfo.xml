@@ -1,0 +1,30 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<component type="desktop-application">
+  <id>app.cratemusic.decks</id>
+  <launchable type="desktop-id">app.cratemusic.decks.desktop</launchable>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-2.0-or-later</project_license>
+  <name>Crate Decks</name>
+  <summary>DJ software that uses your Crate server as its library</summary>
+  <description>
+    <p>
+      Crate Decks is desktop DJ software that uses a Crate server as its
+      library and brain: the remote library, Crate's analysis,
+      recommendations and Smart Mix, on the decks.
+    </p>
+    <p>
+      Crate Decks is based on Mixxx, the free DJ software made by the Mixxx
+      Development Team.
+    </p>
+  </description>
+  <developer id="app.cratemusic">
+    <name>Crate</name>
+  </developer>
+  <url type="homepage">https://cratemusic.app</url>
+  <url type="bugtracker">https://github.com/thecrateapp/crate-decks/issues</url>
+  <url type="vcs-browser">https://github.com/thecrateapp/crate-decks</url>
+  <provides>
+    <binary>crate-decks</binary>
+  </provides>
+  <content_rating type="oars-1.1"/>
+</component>

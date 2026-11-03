@@ -23,3 +23,5 @@ Se reportan en este repositorio, nunca en el de Mixxx.
 ## Compilar
 
 Dependencias, compilación y tests: [AGENTS.md §7](AGENTS.md). Estilo de código y detalles de compilación de Mixxx: [CONTRIBUTING.md](CONTRIBUTING.md).
+
+El ejecutable es `crate-decks`. En Linux guarda los ajustes en `~/.cratedecks/` (o en la carpeta que se le pase con `--settingsPath`), así que no comparte `mixxx.cfg` ni `mixxxdb.sqlite` con un Mixxx instalado.

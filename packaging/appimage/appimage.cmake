@@ -1,7 +1,7 @@
 # AppImage-specific install rules, included from the main CMakeLists.txt
 # when MIXXX_APPIMAGE is enabled.
 
-# AppImage desktop file (simplified Exec=mixxx).
+# AppImage desktop file (simplified Exec=crate-decks).
 # The Exec= key must refer to the binary by basename only, as CPack matches it
 # against an installed file.
 set(
@@ -10,13 +10,13 @@ set(
 )
 file(
   READ
-  "${CMAKE_CURRENT_SOURCE_DIR}/res/linux/org.mixxx.Mixxx.desktop"
+  "${CMAKE_CURRENT_SOURCE_DIR}/res/linux/app.cratemusic.decks.desktop"
   MIXXX_APPIMAGE_DESKTOP_CONTENT
 )
 string(
   REGEX REPLACE
   "\nExec=[^\n]*"
-  "\nExec=mixxx"
+  "\nExec=crate-decks"
   MIXXX_APPIMAGE_DESKTOP_CONTENT
   "${MIXXX_APPIMAGE_DESKTOP_CONTENT}"
 )

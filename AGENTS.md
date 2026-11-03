@@ -99,10 +99,10 @@ cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_TESTING=O
   -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 cmake --build build -j"$(nproc)"
 build/mixxx-test --gtest_filter='<Suite>.*'
-build/mixxx --settingsPath "$(mktemp -d)"   # nunca contra ~/.mixxx
+build/crate-decks --settingsPath "$(mktemp -d)"   # nunca contra ~/.cratedecks ni ~/.mixxx
 ```
 
-Hasta F1 el ejecutable se llama `mixxx`; a partir de F1, `crate-decks`.
+Desde F1.PR2 el ejecutable se llama `crate-decks` y, en Linux, su carpeta de ajustes por defecto es `~/.cratedecks/`. Los tests siguen en `mixxx-test`.
 
 ## 8. Servidor Crate
 

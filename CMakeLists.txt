@@ -2457,6 +2457,10 @@ if(ANDROID)
 else()
   qt_add_executable(mixxx WIN32 src/main.cpp MANUAL_FINALIZATION)
 endif()
+# Crate Decks: the executable is crate-decks, apart from an installed mixxx
+if(UNIX AND NOT APPLE AND NOT ANDROID AND NOT EMSCRIPTEN)
+  set_target_properties(mixxx PROPERTIES OUTPUT_NAME crate-decks)
+endif()
 
 if(NOT QML)
   target_sources(
@@ -2640,8 +2644,9 @@ endif()
 # Additional Linux-only files
 if(UNIX AND NOT APPLE)
   # .desktop file for KDE/GNOME menu
+  # Crate Decks: own desktop entry and metainfo (app.cratemusic.decks)
   install(
-    FILES "${CMAKE_CURRENT_SOURCE_DIR}/res/linux/org.mixxx.Mixxx.desktop"
+    FILES "${CMAKE_CURRENT_SOURCE_DIR}/res/linux/app.cratemusic.decks.desktop"
     DESTINATION "${CMAKE_INSTALL_DATADIR}/applications"
   )
 
@@ -2662,7 +2667,8 @@ if(UNIX AND NOT APPLE)
 
   # .metainfo.xml file for KDE/GNOME AppStream initiative
   install(
-    FILES "${CMAKE_CURRENT_SOURCE_DIR}/res/linux/org.mixxx.Mixxx.metainfo.xml"
+    FILES
+      "${CMAKE_CURRENT_SOURCE_DIR}/res/linux/app.cratemusic.decks.metainfo.xml"
     DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/metainfo"
   )
 
@@ -5486,8 +5492,10 @@ configure_file(
 )
 
 # Packaging
-set(CPACK_PACKAGE_NAME "Mixxx")
-set(CPACK_PACKAGE_VENDOR "Mixxx Project")
+# Crate Decks: package name, vendor and homepage of Crate Decks
+set(CPACK_PACKAGE_NAME "Crate Decks")
+set(CPACK_DEBIAN_PACKAGE_NAME "crate-decks")
+set(CPACK_PACKAGE_VENDOR "Crate")
 # TODO: Split this into Maintainer field: core-team@mixxx.org for package issues
 # and Uploaders field for personal signing email per Debian Policy.
 # https://www.debian.org/doc/debian-policy/ch-binary.html#the-maintainer-of-a-package
@@ -5500,7 +5508,7 @@ set(
 set(CPACK_PACKAGE_INSTALL_DIRECTORY "Mixxx")
 set(CPACK_PACKAGE_EXECUTABLES "mixxx;Mixxx")
 set(CPACK_PACKAGE_ICON "${CMAKE_SOURCE_DIR}/res/images/mixxx_install_logo.bmp")
-set(CPACK_PACKAGE_HOMEPAGE_URL "https://www.mixxx.org/")
+set(CPACK_PACKAGE_HOMEPAGE_URL "https://cratemusic.app")
 set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
 set(CPACK_RESOURCE_FILE_README "${CMAKE_CURRENT_SOURCE_DIR}/README.md")
 set(CPACK_STRIP_FILES ON)

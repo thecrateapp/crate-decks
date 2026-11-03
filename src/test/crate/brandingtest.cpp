@@ -2,7 +2,11 @@
 
 #include <QCoreApplication>
 #include <QDir>
+#include <QDomDocument>
+#include <QDomElement>
+#include <QFile>
 #include <QGuiApplication>
+#include <QHash>
 #include <QImage>
 #include <QLabel>
 #include <QString>
@@ -22,6 +26,28 @@ const QString kMixxxSettingsDir = QStringLiteral(".mixxx");
 
 QDir resourceDir() {
     return QDir(ConfigObject<ConfigValue>::computeResourcePath());
+}
+
+/// Keys of the [Desktop Entry] group of a freedesktop .desktop file.
+QHash<QString, QString> readDesktopEntry(const QString& path) {
+    QHash<QString, QString> entry;
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        return entry;
+    }
+    bool inDesktopEntry = false;
+    while (!file.atEnd()) {
+        const QString line = QString::fromUtf8(file.readLine()).trimmed();
+        if (line.startsWith(QChar('['))) {
+            inDesktopEntry = line == QStringLiteral("[Desktop Entry]");
+            continue;
+        }
+        const int separator = line.indexOf(QChar('='));
+        if (inDesktopEntry && separator > 0) {
+            entry.insert(line.left(separator).trimmed(), line.mid(separator + 1).trimmed());
+        }
+    }
+    return entry;
 }
 
 QString appIconPath(int size) {
@@ -143,6 +169,45 @@ TEST_F(CrateBrandingTest, AboutShowsAppIconAndNoMixxxLogo) {
     const auto* pAppIcon = about.findChild<QLabel*>(QStringLiteral("crate_app_icon"));
     ASSERT_NE(nullptr, pAppIcon);
     EXPECT_FALSE(pAppIcon->pixmap().isNull());
+}
+
+// TEST_GAP: the executable name (OUTPUT_NAME in CMakeLists.txt) is not
+// visible to the tests; `cmake --install` shows bin/crate-decks.
+TEST_F(CrateBrandingTest, DesktopEntryMatchesDesktopFileName) {
+    const QString desktopFileName = QString::fromUtf8(crate::kDesktopFileName);
+    const QString path = resourceDir().filePath(
+            QStringLiteral("linux/%1.desktop").arg(desktopFileName));
+    const QHash<QString, QString> entry = readDesktopEntry(path);
+    ASSERT_FALSE(entry.isEmpty()) << qPrintable(path);
+
+    EXPECT_QSTRING_EQ(QStringLiteral("Application"), entry.value(QStringLiteral("Type")));
+    EXPECT_QSTRING_EQ(QStringLiteral("Crate Decks"), entry.value(QStringLiteral("Name")));
+    EXPECT_QSTRING_EQ(desktopFileName, entry.value(QStringLiteral("Icon")));
+    const QString exec = entry.value(QStringLiteral("Exec"));
+    EXPECT_TRUE(exec.contains(QStringLiteral("crate-decks"))) << qPrintable(exec);
+    EXPECT_FALSE(exec.contains(QStringLiteral("mixxx"))) << qPrintable(exec);
+}
+
+TEST_F(CrateBrandingTest, MetainfoMatchesDesktopFileName) {
+    const QString desktopFileName = QString::fromUtf8(crate::kDesktopFileName);
+    const QString path = resourceDir().filePath(
+            QStringLiteral("linux/%1.metainfo.xml").arg(desktopFileName));
+    QFile file(path);
+    ASSERT_TRUE(file.open(QIODevice::ReadOnly)) << qPrintable(path);
+    QDomDocument metainfo;
+    ASSERT_TRUE(metainfo.setContent(&file));
+    const QDomElement component = metainfo.documentElement();
+
+    EXPECT_QSTRING_EQ(desktopFileName,
+            component.firstChildElement(QStringLiteral("id")).text());
+    EXPECT_QSTRING_EQ(desktopFileName + QStringLiteral(".desktop"),
+            component.firstChildElement(QStringLiteral("launchable")).text());
+    EXPECT_QSTRING_EQ(QStringLiteral("Crate Decks"),
+            component.firstChildElement(QStringLiteral("name")).text());
+    EXPECT_QSTRING_EQ(QStringLiteral("crate-decks"),
+            component.firstChildElement(QStringLiteral("provides"))
+                    .firstChildElement(QStringLiteral("binary"))
+                    .text());
 }
 
 } // namespace

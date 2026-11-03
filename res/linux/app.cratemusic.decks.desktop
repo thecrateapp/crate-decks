@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Crate Decks
+GenericName=DJ Software
+Comment=Mix live with the library, analysis and recommendations of your Crate server
+Exec=sh -c "pasuspender -- crate-decks || crate-decks"
+Icon=app.cratemusic.decks
+Terminal=false
+StartupNotify=true
+StartupWMClass=crate-decks
+Categories=Qt;AudioVideo;Audio;Midi;Mixer;Player;Recorder;Sequencer;
+Keywords=dj;music;mix;crate;
