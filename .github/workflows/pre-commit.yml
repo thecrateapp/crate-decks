@@ -77,4 +77,5 @@ jobs:
       # AppStream metadata has been generated/updated by a pre-commit hook
       - name: "Validate AppStream metadata"
         if: runner.os == 'Linux'
-        run: appstreamcli validate --no-net res/linux/org.mixxx.Mixxx.metainfo.xml
+        # Crate Decks: validate the metainfo that is installed
+        run: appstreamcli validate --no-net res/linux/app.cratemusic.decks.metainfo.xml
