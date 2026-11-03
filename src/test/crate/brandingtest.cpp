@@ -218,6 +218,8 @@ TEST_F(CrateBrandingTest, MetainfoMatchesDesktopFileName) {
             component.firstChildElement(QStringLiteral("launchable")).text());
     EXPECT_QSTRING_EQ(QStringLiteral("Crate Decks"),
             component.firstChildElement(QStringLiteral("name")).text());
+    EXPECT_QSTRING_EQ(QStringLiteral("hello@cratemusic.app"),
+            component.firstChildElement(QStringLiteral("update_contact")).text());
     EXPECT_QSTRING_EQ(QStringLiteral("crate-decks"),
             component.firstChildElement(QStringLiteral("provides"))
                     .firstChildElement(QStringLiteral("binary"))
