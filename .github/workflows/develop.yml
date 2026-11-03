@@ -8,10 +8,10 @@ on:
       - reopened
       - edited
   push:
+    # Crate Decks: release.yml is gone, so main and branches with a slash
+    # (feat/decks-*) build here too.
     branches:
-      - "*"
-      - "!main"
-      - "![0-9].[0-9]"
+      - "**"
   workflow_dispatch:
 
 permissions:
@@ -30,8 +30,9 @@ jobs:
         if: ${{ github.event_name == 'push' }}
         uses: actions/github-script@v9
         env:
-          ORGANIZATION: mixxxdj
-          REPOSITORY: mixxx
+          # Crate Decks: look for open PRs in this repository, not in Mixxx's.
+          ORGANIZATION: ${{ github.repository_owner }}
+          REPOSITORY: ${{ github.event.repository.name }}
         with:
           script: |
             try {
