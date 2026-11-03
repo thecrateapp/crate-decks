@@ -64,7 +64,9 @@ repos:
             "\\W(?:m_p*(?=[A-Z])|m_(?=\\w)|pp*(?=[A-Z])|k(?=[A-Z])|s_(?=\\w))",
             --write-changes,
           ]
-        exclude: ^(packaging/wix/LICENSE.rtf.in|src/dialog/dlgabout\.cpp|res/linux/org\.mixxx\.Mixxx\.desktop|.*\.(?:pot?|(?<!\.d\.)ts|wxl|svg))$
+        # Crate Decks: the Crate docs are in Spanish, which codespell "fixes"
+        # into English ("hace" -> "have")
+        exclude: ^(packaging/wix/LICENSE.rtf.in|src/dialog/dlgabout\.cpp|res/linux/org\.mixxx\.Mixxx\.desktop|.*\.(?:pot?|(?<!\.d\.)ts|wxl|svg)|AGENTS\.md|CRATE(_PATCHES)?\.md|docs/mixxx-merges\.md|docs/plans/.*)$
   - repo: https://github.com/pre-commit/mirrors-eslint
     rev: v10.11.0
     hooks:
@@ -116,6 +118,9 @@ repos:
     rev: v0.23.3
     hooks:
       - id: markdownlint-cli2
+        # Crate Decks: the plans are not lint-clean and the hook would rewrite
+        # them (.markdownlint-cli2.yaml sets fix: true)
+        exclude: ^docs/plans/
   - repo: https://github.com/python-jsonschema/check-jsonschema
     rev: 0.38.2
     hooks:
