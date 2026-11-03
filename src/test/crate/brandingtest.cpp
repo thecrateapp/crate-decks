@@ -63,6 +63,7 @@ class CrateBrandingTest : public testing::Test {
         m_organizationName = QCoreApplication::organizationName();
         m_organizationDomain = QCoreApplication::organizationDomain();
         m_desktopFileName = QGuiApplication::desktopFileName();
+        m_applicationVersion = QCoreApplication::applicationVersion();
     }
 
     void TearDown() override {
@@ -70,12 +71,14 @@ class CrateBrandingTest : public testing::Test {
         QCoreApplication::setOrganizationName(m_organizationName);
         QCoreApplication::setOrganizationDomain(m_organizationDomain);
         QGuiApplication::setDesktopFileName(m_desktopFileName);
+        QCoreApplication::setApplicationVersion(m_applicationVersion);
     }
 
   private:
     QString m_organizationName;
     QString m_organizationDomain;
     QString m_desktopFileName;
+    QString m_applicationVersion;
 };
 
 TEST_F(CrateBrandingTest, ApplicationNameIsCrateDecks) {
@@ -90,6 +93,15 @@ TEST_F(CrateBrandingTest, ApplyApplicationIdentitySetsCrateIdentity) {
 #ifdef __LINUX__
     EXPECT_QSTRING_EQ(QStringLiteral("app.cratemusic.decks"), QGuiApplication::desktopFileName());
 #endif
+    // QCommandLineParser prints this version for --version.
+    EXPECT_QSTRING_EQ(QStringLiteral("0.1.0"), QCoreApplication::applicationVersion());
+}
+
+TEST_F(CrateBrandingTest, ProductVersionDoesNotReplaceTheConfigVersion) {
+    // Upgrade::versionUpgrade() stores VersionStore::version() in mixxx.cfg
+    // and compares it with Mixxx versions, so it must stay Mixxx's.
+    EXPECT_QSTRING_EQ(QStringLiteral("0.1.0"), QString::fromUtf8(crate::kApplicationVersion));
+    EXPECT_NE(QString::fromUtf8(crate::kApplicationVersion), VersionStore::version());
 }
 
 TEST_F(CrateBrandingTest, DefaultSettingsPathIsNotMixxxs) {
@@ -236,11 +248,16 @@ TEST_F(CrateBrandingTest, AboutCreditsMixxxAndLinksTheSourceCode) {
     const DlgAbout about;
 
     EXPECT_QSTRING_EQ(QStringLiteral("About Crate Decks"), about.windowTitle());
+    const auto* pVersion = about.findChild<QLabel*>(QStringLiteral("version_label"));
+    ASSERT_NE(nullptr, pVersion);
+    EXPECT_QSTRING_EQ(QStringLiteral("Crate Decks 0.1.0"), pVersion->text());
     const auto* pBasedOn = about.findChild<QLabel*>(QStringLiteral("crate_based_on"));
     ASSERT_NE(nullptr, pBasedOn);
     const QString basedOn = pBasedOn->text();
     EXPECT_TRUE(basedOn.contains(QStringLiteral("is based on"))) << qPrintable(basedOn);
     EXPECT_TRUE(basedOn.contains(QStringLiteral(MIXXX_WEBSITE_URL))) << qPrintable(basedOn);
+    EXPECT_TRUE(basedOn.contains(QStringLiteral("</a> ") + VersionStore::version()))
+            << qPrintable(basedOn);
     EXPECT_TRUE(basedOn.contains(QStringLiteral("GNU General Public License")))
             << qPrintable(basedOn);
     const QString sourceCodeUrl =

@@ -29,6 +29,9 @@ void applyApplicationIdentity() {
     // Needed by Wayland compositors to set proper app_id and window icon
     QGuiApplication::setDesktopFileName(QString::fromUtf8(kDesktopFileName));
 #endif
+
+    // Printed by --version.
+    QCoreApplication::setApplicationVersion(QString::fromUtf8(kApplicationVersion));
 }
 
 QUrl sourceCodeUrl(const QString& gitDescribe) {

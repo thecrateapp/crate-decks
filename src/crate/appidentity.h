@@ -15,6 +15,10 @@ namespace crate {
 
 /// Visible name of the application: window title, dialogs, JACK client.
 inline constexpr char kApplicationName[] = "Crate Decks";
+/// Version of Crate Decks shown to users (About, --version). It is not
+/// VersionStore::version(), which stays Mixxx's because Upgrade stores it in
+/// mixxx.cfg as the version of the settings.
+inline constexpr char kApplicationVersion[] = "0.1.0";
 inline constexpr char kOrganizationName[] = "Crate";
 inline constexpr char kOrganizationDomain[] = "cratemusic.app";
 /// Wayland app_id, which must match the basename of the .desktop file.
@@ -32,7 +36,8 @@ inline constexpr char kSourceRepositoryUrl[] = "https://github.com/thecrateapp/c
 /// repository.
 QUrl sourceCodeUrl(const QString& gitDescribe);
 
-/// Sets the organization and the desktop file name on the Qt application.
+/// Sets the organization, the desktop file name and the application version
+/// on the Qt application.
 /// Must be called before the QApplication is constructed.
 void applyApplicationIdentity();
 

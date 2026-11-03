@@ -212,7 +212,8 @@ Java_org_qtproject_qt_android_QtNativeAccessibility_accessibilitySupported(JNIEn
 int main(int argc, char * argv[]) {
     Console console;
 
-    // Crate Decks: organization, domain and Wayland desktop file name.
+    // Crate Decks: organization, domain, Wayland desktop file name and
+    // application version.
     crate::applyApplicationIdentity();
 
 #ifdef MIXXX_USE_QOPENGL
@@ -225,7 +226,6 @@ int main(int argc, char * argv[]) {
             Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
 
     QCoreApplication::setApplicationName(VersionStore::applicationName());
-    QCoreApplication::setApplicationVersion(VersionStore::version());
 
     // Construct a list of strings based on the command line arguments
     CmdlineArgs& args = CmdlineArgs::Instance();

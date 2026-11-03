@@ -27,7 +27,7 @@ DlgAbout::DlgAbout()
     horizontalLayout->insertWidget(0, pAppIcon);
 
     version_label->setText(VersionStore::applicationName() +
-            QStringLiteral(" ") + VersionStore::version());
+            QStringLiteral(" ") + crate::kApplicationVersion); // Crate Decks
     git_version_label->setText(VersionStore::gitVersion());
     qt_version_label->setText(VersionStore::qtVersion());
     platform_label->setText(VersionStore::platform());
