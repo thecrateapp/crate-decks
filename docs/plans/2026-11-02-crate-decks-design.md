@@ -146,7 +146,7 @@ Decks es el cliente de DJ de primera clase.
 - **BPM bloqueado:** si el usuario lo desbloquea y ajusta, la corrección es local y se ofrece subirla (F8).
 - **Cues del usuario:** no se sobrescriben. `importCueInfos` ya se salta tipos de cue existentes; las cues de Crate se reaplican solo si cambia `profileRevision` y el usuario no las editó.
 
-**D7. Un tipo de cliente "decks" en el servidor.** (pendiente G0)
+**D7. Un tipo de cliente "decks" en el servidor.** (aprobado en G0)
 - **Problema:** con un token `crv_` no se puede navegar la biblioteca, ni usar radio, paths, likes, playlists o SSE.
 - **Propuesta:** tratar a Decks como cliente nativo de primera clase, con sesión interactiva y refresh:
   - `X-Crate-App: decks/<versión>` y app ID `crate-decks`.
@@ -169,7 +169,7 @@ Decks es el cliente de DJ de primera clase.
 - **El servidor añade contexto `decks`:**
   - `source: "decks"`.
   - Capacidades `decks.beatmatch` y `decks.bass_handoff`, independientes de Android.
-  - Opción de transiciones más largas en mezcla manual. Los límites actuales se mantienen en AutoDJ salvo decisión en G0: `incomingTempoRatio` de 0,94 a 1,06 (tempo ≤4 % por política), de 1 a 12 s, o hasta 48 s en beatmatch largo.
+  - Opción de transiciones más largas en mezcla manual. **Decidido en G0:** en AutoDJ, los mismos límites que Android: `incomingTempoRatio` de 0,94 a 1,06 (tempo ≤4 % por política), de 1 a 12 s, o hasta 48 s en beatmatch largo. Las transiciones más largas son solo para el modo asistente, y su límite se fija en F6 escuchando.
 
 **D9. Recomendaciones.**
 - **Panel "Compatibles":** una vista propia de biblioteca que sigue a la pista del deck "maestro", o a la seleccionada. Usa `compatible?context=auto` y muestra puntuación, relación armónica, Δ BPM y Δ energía.
@@ -182,7 +182,7 @@ Decks es el cliente de DJ de primera clase.
 - **Likes, valoraciones y playlists:** like con un atajo, valoración a 5 estrellas sincronizada, y playlists de Crate editables desde Decks (añadir, quitar, reordenar).
 - **Cues e hot cues en el servidor:** fuera de las primeras fases. Necesitan almacenamiento y contrato nuevos (§8, S7).
 
-**D11. Rediseño visual con el lenguaje del admin, en dos etapas.** (pendiente G0 y GU1)
+**D11. Rediseño visual con el lenguaje del admin, en dos etapas.** (aprobado en G0; los detalles, en GU1)
 - **Etapa 1, ahora:** skin QWidget propia `CrateDecks`, derivada de LateNight y predeterminada en el fork.
   - **Estructura:** reescribe los estilos QSS, las variables de la skin, los SVG (botones, knobs, faders, iconos) y los colores de forma de onda. Conserva la ergonomía y los controles de LateNight; la maquetación se adapta donde haga falta (barra superior, barra lateral).
   - **Estilo de diálogos y preferencias:** se reescribe el `res/skins/default.qss` del fork.
@@ -206,9 +206,9 @@ Decks es el cliente de DJ de primera clase.
 
 Android e iOS quedan fuera (Mixxx tiene un target Android experimental; no se toca).
 
-**D14. Reproducción progresiva (empezar a sonar mientras descarga), opcional.** (pendiente G3b)
+**D14. Reproducción progresiva (empezar a sonar mientras descarga), como preferencia.** (G0: se construye; G3b decide si va activada por defecto)
 - **Qué es:** el comportamiento de las fuentes online de VirtualDJ. La pista se carga y puede sonar antes de terminar la descarga, y el overview muestra las zonas ya descargadas.
-- **Cuándo se activa:** solo si F0 Q10 no cumple el presupuesto de carga en WAN, o si Diego lo decide en G3b. La base (D4) no depende de ella.
+- **Cuándo se activa:** es una preferencia del usuario. Se construye en F4b (decisión de G0); G3b decide, con el dato de F0 Q10 en WAN, si va activada por defecto. La base (D4) no depende de ella.
 - **Por qué es viable sin tocar el motor** (comprobado en Mixxx `bc49961`):
   - El hilo de audio solo consume bloques ya decodificados de 8.192 frames (`cachingreaderchunk.h:26`). Los decodifica un `CachingReaderWorker` por deck, en su propio `QThread` (`engineworker.h:15`). Si ese hilo espera bytes, solo ese deck sufre un fallo de caché y suena en silencio; ni el motor ni los otros decks se bloquean.
   - Mixxx admite fuentes de audio con prioridad (`SoundSourceProviderPriority::Highest`, `soundsourceprovider.h:17-23`) y prueba la siguiente si una devuelve `OpenResult::Aborted` (`soundsourceproxy.cpp:475-511`). Una fuente `CrateProgressive` reclama solo las pistas de Crate en descarga y deja pasar el resto. El parche en Mixxx es una línea de registro.
@@ -319,7 +319,7 @@ flowchart LR
 | `src/util/versionstore.cpp`, `main.cpp`, `res/linux/*`, `packaging/*` | Nombre, organización, ruta de ajustes, iconos, `.desktop` y metainfo | No |
 | `CMakeLists.txt` (`MIXXX_SETTINGS_PATH`) y `src/main.cpp` (`setDesktopFileName`) | En Linux la carpeta de ajustes sale de `MIXXX_SETTINGS_PATH` al compilar, no del nombre (F0 Q12): pasa a `.cratedecks/`. ID de Wayland propio en vez de `org.mixxx.Mixxx` | No |
 | `src/preferences/broadcastprofile.cpp` | Prefijo de los servicios del keychain (línea 64): `"Crate - "` en vez de `"Mixxx - "` (decidido en G0), para que los perfiles de emisión no choquen con un Mixxx instalado (F0 Q12) | No |
-| `src/widget/wtracktableview.cpp`, `src/widget/wtrackmenu.cpp`, `src/library/trackmodel.h` | **Pendiente de Diego.** Hook de carga asíncrona: `TrackModel::requestTrackLoad(index, group, play)`, virtual y con `false` por defecto, al que llaman el doble clic, Enter, `LoadSelectedTrack` y "Cargar en Deck N" antes de `getTrack`. Hace falta porque `getTrack` es síncrono, también se llama al seleccionar y no recibe el deck (F0 Q9) | Sí (genérico) |
+| `src/widget/wtracktableview.cpp`, `src/widget/wtrackmenu.cpp`, `src/library/trackmodel.h` | **Aprobado en G0.** Hook de carga asíncrona: `TrackModel::requestTrackLoad(index, group, play)`, virtual y con `false` por defecto, al que llaman el doble clic, Enter, `LoadSelectedTrack` y "Cargar en Deck N" antes de `getTrack`. Hace falta porque `getTrack` es síncrono, también se llama al seleccionar y no recibe el deck (F0 Q9) | Sí (genérico) |
 | `src/sources/soundsourceffmpeg.{h,cpp}` | Hook virtual `openInputContext()` (+9 / −2; el valor por defecto mantiene el comportamiento) para la fuente progresiva (F0 Q17) | Posible |
 | `src/engine/cachingreader/cachingreaderworker.cpp`, `src/analyzer/analyzerthread.cpp`, `src/coreservices.cpp` | Banderas de aborto para que una lectura progresiva que espera bytes se despierte al expulsar, cargar otra pista o cerrar; si no, `quitWait()` espera para siempre (F0 Q17) | Posible |
 | `src/preferences/dialog/dlgpreferences.cpp` | Registrar `DlgPrefCrate` | No |
@@ -503,7 +503,7 @@ Todas siguen las reglas del monorepo:
 | GU2 | Cuando se cumplan los criterios de §14.4, nunca antes de la primera release | Si se migra a QML y con qué base |
 | G2 | Tras F2 | Contrato de autenticación del cliente `decks` (S1 y S2) antes de desplegarlo en el servidor |
 | G3 | Tras F4 | Experiencia de carga y caché en un set real |
-| G3b | Tras G3, con el dato de F0 Q10 en WAN | Si se construye la reproducción progresiva (D14, F4b); y tras F4b, si se activa por defecto |
+| G3b | Tras F4b, con el dato de F0 Q10 en WAN | Si la reproducción progresiva (D14) va activada por defecto. Construirla ya lo decidió G0 |
 | G4 | Tras F6 | Calidad de las transiciones de Smart Mix en los decks frente a Android (prueba de escucha) |
 | G4b | Tras F6b | AI Assisted Mixing en cabina: prueba de 1 h con AutoDJ y asistente, con el refinamiento activo y la conexión elegida en SG3 de smart-mix-3. La activación por defecto la decide SG4 de ese plan |
 | G5 | Tras F8 | Contrato de cues y correcciones (S7) |

@@ -35,9 +35,10 @@ Preguntas y criterios: §F0.1 del [plan de implementación](2026-11-02-crate-dec
 
 - **Base de upstream.** Decidido por Diego (2026-11-03): `main` (2.7-alpha), donde está hecho todo el spike. Q2 ya no hace falta.
 - **Prefijo del keychain de emisión.** Decidido por Diego: `"Crate - "` en vez de `"Mixxx - "` (F1.PR2, Q12).
-- **D1** ya está decidido: repositorio independiente. **D7 y D8:** el spike no aporta datos nuevos; S1 implementa D7 tal como lo propone el diseño.
-- **D11.** Pendiente de Q13–Q16.
-- **D14.** Sigue siendo una opción para FLAC, AAC, ALAC y Opus. MP3 necesita arreglar la fuente FFmpeg o una fuente basada en MAD. La construcción se decide en G3b.
+- **D1** ya está decidido: repositorio independiente. **D7 y D8:** el spike no aporta datos nuevos; S1 implementa D7 tal como lo propone el diseño. Decidido por Diego: D7 como se propone; D8 con los límites de Android en AutoDJ.
+- **D11.** Aprobado por Diego; Q13–Q16 ajustan los detalles en GU1.
+- **D14.** Sigue siendo una opción para FLAC, AAC, ALAC y Opus. MP3 necesita arreglar la fuente FFmpeg o una fuente basada en MAD. Decidido por Diego: se construye (F4b) como preferencia del usuario.
+- **Hook de carga asíncrona.** Aprobado por Diego.
 - **Ajustes de fases.** En F4, inyectar el grid con control de calidad (riesgo 1). En F2, keychain asíncrono con alternativa en memoria (Q11). En F1, la ruta de configuración propia (Q12).
 
 ## Entorno

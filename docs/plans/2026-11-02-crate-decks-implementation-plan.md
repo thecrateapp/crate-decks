@@ -61,7 +61,7 @@ El [informe del spike](2026-11-03-crate-decks-spike-report.md) mide Q1, Q3–Q5,
 | F1.PR2 | Prefijo del keychain de emisión: `"Crate - "` en vez de `"Mixxx - "` | Q12 | Decidido en G0 |
 | F2.C-PR2 | `SecretStore` asíncrono, con límite de 3 s y alternativa en memoria | Q11 | Aplicado |
 | F3.C-PR2 | Registro por `library.cpp`; sin `ExternalTrackCollection` | Q9 | Aplicado |
-| F3/F4 | Hook de carga asíncrona en `WTrackTableView` y `WTrackMenu` | Q9 | **Pendiente de Diego** (parche nuevo) |
+| F3/F4 | Hook de carga asíncrona en `WTrackTableView` y `WTrackMenu` | Q9 | Aprobado en G0 (parche nuevo) |
 | F4.C-PR2 | Solo perfiles `full`. Grid con control de calidad; tonalidad y N60dBSound de Mixxx; sin parche en `analyzerbeats.cpp` | Q3–Q5 | Aplicado |
 | F4b | Solo FLAC, AAC, ALAC y Opus; cola primero; banderas de aborto; nunca bloquear en el hilo de la interfaz | Q17 | Aplicado (parches nuevos) |
 | F6.C-PR2 | Director con las correcciones de la revisión del spike | Q7 (código) | Aplicado |
@@ -92,9 +92,9 @@ flowchart TD
   F2C --> F3[F3 · Biblioteca Crate · S3]
   F3 --> F4[F4 · Caché, análisis y carga · S4]
   F4 --> G3{{G3}}
-  G3 --> G3b{{G3b · Q10 en WAN}}
-  G3b --> F4b[F4b · Reproducción progresiva · opcional]
-  F4b --> F9
+  G3 --> F4b[F4b · Reproducción progresiva · preferencia]
+  F4b --> G3b{{G3b · ¿activada por defecto?}}
+  G3b --> F9
   G3 --> F5[F5 · Recomendaciones]
   G3 --> F6[F6 · Smart Mix en AutoDJ · S5]
   F6 --> G4{{G4}}
@@ -130,7 +130,7 @@ con la skin `CrateDecks`.
 | F2 | Cliente `decks` en el servidor; inicio de sesión y Keychain en Decks | 2 servidor + 3 cliente | 5–7 días |
 | F3 | Sección Crate navegable y búsqueda DJ | 1 servidor + 3 cliente | 6–8 días |
 | F4 | Cargar cualquier pista Crate en un deck con el análisis de Crate | 1 servidor + 4 cliente | 7–10 días |
-| F4b | Reproducción progresiva (D14), solo si G3b la aprueba | 3 | 15–25 días |
+| F4b | Reproducción progresiva (D14) como preferencia; G3b decide si va activada por defecto | 3 | 15–25 días |
 | F5 | Compatibles, Radio y Paths | 3 cliente | 4–6 días |
 | F6 | Modo AutoDJ "Crate Smart Mix" y asistente | 1 servidor + 4 cliente | 10–14 días |
 | F6b | Planner v3 y AI Assisted Mixing en el cliente (servidor en el plan smart-mix-3) | 3 | 6–9 días |
@@ -290,7 +290,7 @@ Decide:
 - D11: confirmar la estrategia mixta (skin QWidget ahora, QML con GU2) a la vista de Q13–Q16.
 - Si se ajusta alguna fase según el informe.
 
-**Decidido (Diego, 2026-11-03):** se sigue; base `main` (2.7-alpha); D1, repositorio independiente; prefijo `"Crate - "` en el keychain de emisión. **Abierto:** D7, D8, D11, D14 y el hook de carga asíncrona (diseño §5.2).
+**Decidido (Diego, 2026-11-03):** se sigue; base `main` (2.7-alpha); D1, repositorio independiente; prefijo `"Crate - "` en el keychain de emisión. Después, también: D7 como se propone; D8 con los límites de Android en AutoDJ y transiciones más largas solo en el modo asistente (cifra en F6, escuchando); D11 aprobado (detalles en GU1); D14 se construye (F4b) como preferencia del usuario; el hook de carga asíncrona (diseño §5.2). G0 queda cerrado.
 
 **No empieces F1 ni F2 sin un "adelante" explícito.**
 
@@ -394,7 +394,7 @@ cd app && ../.venv/bin/python -m pytest tests/test_auth_decks_client.py tests/ -
 **Decisiones aceptadas por Diego (2026-11-03), para G2:**
 - Decks no recibe cookies de sesión: los tokens viajan solo en el cuerpo JSON.
 - Los refresh tokens no son de un solo uso: el anterior sigue valiendo hasta que la sesión caduca o se revoca, como en Listen. El refresh devuelve un access token y un refresh token nuevos.
-- Una sesión por dispositivo (mismo app ID y huella), como en Listen.
+- Una sesión por dispositivo (mismo app ID y huella), como en Listen. La revisión encontró que la huella calculada a partir de las cabeceras es igual en todas las máquinas con la misma versión, así que dos ordenadores compartían sesión. Arreglo: para Decks el servidor solo usa `X-Device-Fingerprint` (una por instalación, F2.C-PR1) y guarda todas las sesiones con el app ID `crate-decks`, así que la misma instalación conserva su sesión al actualizar.
 - La rama: `feat/decks-s1-s2-s9` del monorepo, que incluye también S2 y S9.
 
 ### F2.S-PR2 · Servidor: `capabilities.decks` (S2)
@@ -420,13 +420,14 @@ normal de release y solo cuando Diego lo pida.
 
 | Fichero | Contenido |
 |---|---|
-| `crateclient.{h,cpp}` | Clase `crate::Client`: `QNetworkAccessManager` inyectable; `get/post/put/del(path, json, options)` que devuelven `crate::Reply` (señales `finished(Result)`, `progress`); cabeceras comunes; límite de 4 peticiones API concurrentes por servidor; reintentos con backoff exponencial y *jitter* (3 intentos, solo en métodos idempotentes y en 429/502/503/504, respetando `Retry-After`); refresh automático en 401 con una sola renovación en vuelo y las peticiones esperando en cola; deduplicación de GET idénticos en vuelo |
+| `crateclient.{h,cpp}` | Clase `crate::Client`: `QNetworkAccessManager` inyectable; `get/post/put/del(path, json, options)` que devuelven `crate::Reply` (señales `finished(Result)`, `progress`); cabeceras comunes; límite de 4 peticiones API concurrentes por servidor; reintentos con backoff exponencial y *jitter* (3 intentos, solo en métodos idempotentes y en 429/502/503/504, respetando `Retry-After`); refresh automático en 401 con una sola renovación en vuelo y las peticiones esperando en cola; deduplicación de GET idénticos en vuelo. Cabeceras comunes: `Authorization`, `X-Crate-App: decks/<versión>` y `X-Device-Fingerprint`, un ID aleatorio creado una vez por instalación y guardado en la configuración (no es un secreto). El servidor no calcula huella para Decks: sin ella, cada login abre una sesión nueva |
 | `crateresult.h` | `Result<T>`: valor o error tipado (`Network`, `Http{status, code, message}`, `Auth`, `Decode`, `Cancelled`) |
 | `cratejson.{h,cpp}` | Utilidades de parseo estricto (campos obligatorios, tipos y valores por defecto explícitos) |
 | `cratecapabilities.{h,cpp}` | Parseo de `/api/capabilities` y `bool has(Feature)`; comparación semántica de `min_client_version` |
 
 **Tests (GoogleTest, en rojo primero), en `src/test/crate/crateclient_test.cpp`:**
 - `AddsAuthorizationAndAppHeaders`
+- `SendsTheSameDeviceFingerprintAcrossRestarts`
 - `RetriesIdempotentOn503WithBackoff` / `DoesNotRetryPost`
 - `HonoursRetryAfter`
 - `RefreshesOnceOn401AndReplaysQueuedRequests`
@@ -628,7 +629,7 @@ Si F0/Q9 recomendó `library.cpp` en lugar de `ExternalTrackCollection`, se usa 
 | Fichero | Contenido |
 |---|---|
 | `src/library/crateserver/crateservertrackmodel.cpp` | `getTrack(index)` / `getTrackLocation`: devuelven la pista solo si está en caché (`getOrAddTrack(TrackRef::fromFilePath(path))` más `AnalysisImporter::apply`). **Nunca arrancan descargas**, porque `getTrack` también se llama al seleccionar filas (`wtracktableview.cpp:166`) y al montar menús. Si no está en caché, devuelven `nullptr` y la carga va por el hook asíncrono |
-| `src/widget/wtracktableview.cpp`, `src/widget/wtrackmenu.cpp`, `src/library/trackmodel.h` | **Parche nuevo, pendiente de Diego.** Hook de carga asíncrona: `TrackModel::requestTrackLoad(index, group, play)`, virtual y con `false` por defecto. `WTrackTableView` (doble clic, Enter, `LoadSelectedTrack`) y `WTrackMenu::loadSelectionToGroup` lo llaman antes de `getTrack`. Arrastrar al deck solo funciona con pistas en caché. Es genérico, lo que abarata los merges desde Mixxx. Sin él, la sección Crate necesita vista propia, como el spike, y pierde las columnas nativas, el arrastre y las controladoras (F0 Q9) |
+| `src/widget/wtracktableview.cpp`, `src/widget/wtrackmenu.cpp`, `src/library/trackmodel.h` | **Parche nuevo, aprobado en G0.** Hook de carga asíncrona: `TrackModel::requestTrackLoad(index, group, play)`, virtual y con `false` por defecto. `WTrackTableView` (doble clic, Enter, `LoadSelectedTrack`) y `WTrackMenu::loadSelectionToGroup` lo llaman antes de `getTrack`. Arrastrar al deck solo funciona con pistas en caché. Es genérico, lo que abarata los merges desde Mixxx. Sin él, la sección Crate necesita vista propia, como el spike, y pierde las columnas nativas, el arrastre y las controladoras (F0 Q9) |
 | `src/crate/library/crateloadcoordinator.{h,cpp}` | Recibe del hook asíncrono las cargas con su deck de destino (doble clic, Enter, menú "Cargar en Deck N", `LoadSelectedTrack` de controladoras): estado "descargando" en la fila; al terminar, `loadTrackToPlayer(track, group, play)`; si el usuario carga otra pista mientras tanto, se cancela la carga pendiente de ese deck |
 | `src/library/autodj/autodjprocessor.cpp` | Parche "pending track" (diseño §5.2): no descartar entradas Crate pendientes de descarga, esperar hasta N segundos y si no, pasar a la siguiente disponible |
 | `src/crate/library/crateprefetcher.{h,cpp}` | Observa la cola de AutoDJ (`PlaylistDAO`, playlist `PLHT_AUTO_DJ`) y pide `ensure()` de las 3 siguientes |
@@ -663,10 +664,9 @@ Medir contra los presupuestos de §9 del diseño.
 
 ---
 
-## F4b · Reproducción progresiva (opcional, D14)
+## F4b · Reproducción progresiva (D14)
 
-**No se empieza sin G3b.** G3b decide con el dato de F0 Q10 en WAN y con la sesión de G3. Si se aprueba, F4b
-corre en paralelo con F5 y F6 y tiene que estar cerrada antes de F9 o quedar desactivada detrás de una preferencia.
+**Se construye** (G0): es una preferencia del usuario y empieza tras G3, cuando la caché de F4 existe. Corre en paralelo con F5 y F6 y tiene que estar cerrada antes de F9. G3b, al terminar F4b, decide con el dato de F0 Q10 en WAN si va activada por defecto.
 
 ### F4b.PR1 · `crate::ProgressiveDownload`
 
@@ -746,7 +746,7 @@ corre en paralelo con F5 y F6 y tiene que estar cerrada antes de F9 o quedar des
 - Expulsar y cerrar durante `BUFFERING`.
 - Medir contra el presupuesto de §9 del diseño.
 
-**Gate G3b, segunda parte (Diego):** tras F4b, si la reproducción progresiva se activa por defecto o queda como opción.
+**Gate G3b (Diego):** tras F4b, si la reproducción progresiva va activada por defecto o queda como preferencia apagada.
 
 ---
 
