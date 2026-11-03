@@ -58,7 +58,7 @@ El [informe del spike](2026-11-03-crate-decks-spike-report.md) mide Q1, Q3–Q5,
 | Fase | Cambio | Origen | Estado |
 | --- | --- | --- | --- |
 | F1.PR2 | Carpeta de ajustes por `MIXXX_SETTINGS_PATH`, ID de Wayland propio | Q12 | Aplicado |
-| F1.PR2 | Prefijo `"Mixxx - "` del keychain de emisión | Q12 | **Pendiente de Diego** |
+| F1.PR2 | Prefijo del keychain de emisión: `"Crate - "` en vez de `"Mixxx - "` | Q12 | Decidido en G0 |
 | F2.C-PR2 | `SecretStore` asíncrono, con límite de 3 s y alternativa en memoria | Q11 | Aplicado |
 | F3.C-PR2 | Registro por `library.cpp`; sin `ExternalTrackCollection` | Q9 | Aplicado |
 | F3/F4 | Hook de carga asíncrona en `WTrackTableView` y `WTrackMenu` | Q9 | **Pendiente de Diego** (parche nuevo) |
@@ -75,7 +75,6 @@ El [informe del spike](2026-11-03-crate-decks-spike-report.md) mide Q1, Q3–Q5,
 | F4 | Q3 y Q5 en la forma de onda (qué grid va con la música) y Q10 en la LAN |
 | F6 | Q6 (EQ) y Q7 (10 transiciones con audio) |
 | V1/V2 y GU1 | Q13–Q16 |
-| — | Q2 (base de upstream), con la decisión de G0 |
 
 F1–F3 no dependen de ellas.
 
@@ -291,6 +290,8 @@ Decide:
 - D11: confirmar la estrategia mixta (skin QWidget ahora, QML con GU2) a la vista de Q13–Q16.
 - Si se ajusta alguna fase según el informe.
 
+**Decidido (Diego, 2026-11-03):** se sigue; base `main` (2.7-alpha); D1, repositorio independiente; prefijo `"Crate - "` en el keychain de emisión. **Abierto:** D7, D8, D11, D14 y el hook de carga asíncrona (diseño §5.2).
+
 **No empieces F1 ni F2 sin un "adelante" explícito.**
 
 ---
@@ -325,7 +326,7 @@ de Mixxx, pasa el CI de Linux y sabe traer cambios de Mixxx cuando convenga.
 | `src/main.cpp` / `src/mixxxapplication.cpp` | `setOrganizationName("Crate")`, `setOrganizationDomain("cratemusic.app")`, `setApplicationName("Crate Decks")` |
 | `CMakeLists.txt` (`MIXXX_SETTINGS_PATH`) y `src/util/cmdlineargs.cpp` | Carpeta de ajustes propia. En Linux sale de `MIXXX_SETTINGS_PATH`, fijado al compilar (`.mixxx/`, `CMakeLists.txt:2065`), y no del nombre de la aplicación (F0 Q12, medido): pasa a `.cratedecks/`. En macOS y Windows basta con `applicationName`, porque `AppLocalDataLocation` lo sigue. Respeta `--settingsPath` |
 | `src/main.cpp` (`setDesktopFileName`) y el `.desktop` de Linux | ID de Wayland propio (`app.cratemusic.CrateDecks`) en vez de `org.mixxx.Mixxx` (`main.cpp:229`), con su `.desktop` e icono (F0 Q12) |
-| `src/preferences/broadcastprofile.cpp` | **Pendiente de Diego.** Prefijo `"Mixxx - "` de los servicios del keychain (línea 64). Si no se cambia, los perfiles de emisión comparten servicio con un Mixxx instalado. Es un identificador de Mixxx (AGENTS.md §5.2) (F0 Q12) |
+| `src/preferences/broadcastprofile.cpp` | Prefijo de los servicios del keychain (línea 64): `"Crate - "` en vez de `"Mixxx - "`, decidido en G0, para que los perfiles de emisión no compartan servicio con un Mixxx instalado. Es un identificador de Mixxx: excepción aprobada a AGENTS.md §5.2 (F0 Q12) |
 | `CMakeLists.txt` | `project(crate-decks …)`, nombre del ejecutable `crate-decks`, `CPACK_PACKAGE_NAME`, contacto y URL, opción `CRATE` (ON) |
 | `res/linux/app.cratemusic.decks.desktop`, `res/linux/app.cratemusic.decks.metainfo.xml` | Nuevos (sustituyen a los de Mixxx en el empaquetado) |
 | `res/images/`, `res/icons/` | Icono de Crate Decks (sin el logo de Mixxx) |
@@ -390,6 +391,12 @@ grep -rn "X-Crate-App\|x-crate-app" app/crate/api | head
 cd app && ../.venv/bin/python -m pytest tests/test_auth_decks_client.py tests/ -k "auth or oauth" -q
 ```
 
+**Decisiones aceptadas por Diego (2026-11-03), para G2:**
+- Decks no recibe cookies de sesión: los tokens viajan solo en el cuerpo JSON.
+- Los refresh tokens no son de un solo uso: el anterior sigue valiendo hasta que la sesión caduca o se revoca, como en Listen. El refresh devuelve un access token y un refresh token nuevos.
+- Una sesión por dispositivo (mismo app ID y huella), como en Listen.
+- La rama: `feat/decks-s1-s2-s9` del monorepo, que incluye también S2 y S9.
+
 ### F2.S-PR2 · Servidor: `capabilities.decks` (S2)
 
 | Fichero | Cambio |
@@ -401,6 +408,8 @@ cd app && ../.venv/bin/python -m pytest tests/test_auth_decks_client.py tests/ -
 **Tests**, en `app/tests/test_capabilities_decks.py`:
 - `test_capabilities_includes_decks_section`
 - `test_decks_features_reflect_settings` (si alguna depende de configuración)
+
+**Decisión aceptada:** `features` sigue vacía hasta S5. El planner ya sirve beatmatch a cualquier cliente, pero anunciarlo ahora daría a entender que existe `source="decks"`.
 
 **Gate G2 (Diego):** revisar el contrato S1 y S2 antes de mergear. El despliegue sigue el proceso
 normal de release y solo cuando Diego lo pida.
@@ -480,10 +489,11 @@ En `cratecapabilities_test.cpp`:
 | Endpoint | Respuesta |
 |---|---|
 | `GET /api/decks/containers` | Árbol: `playlists` (del usuario y compartidas), `crates`, `genres` (top N precomputado), `moods`, `recent`, `likes`. Cada nodo lleva `id`, `kind`, `name`, `parent_id`, `track_count` **si ya está precomputado** (si no, se omite) y `etag` |
-| `GET /api/decks/containers/{kind}/{id}/tracks?cursor=&limit=500` | Pistas del contenedor en orden: `entity_uid`, `global_track_uid`, `title`, `artist`, `album`, `duration_ms`, `bpm`, `camelot`, `energy`, `genre`, `format`, `bitrate`, `sample_rate`, `bit_depth`, `byte_length`, `source_revision`, `profile_revision`, `profile_quality` y `cover_url`. Devuelve `next_cursor` y `ETag`; acepta `If-None-Match` |
+| `GET /api/decks/containers/{kind}/{id}/tracks?cursor=&limit=500` | Pistas del contenedor en orden: `entity_uid`, `global_track_uid`, `title`, `artist`, `album`, `duration_ms`, `bpm`, `camelot`, `energy`, `genre`, `format`, `bitrate`, `sample_rate`, `bit_depth`, `byte_length`, `source_revision`, `profile_revision`, `profile_quality`, `playable` (S9) y `cover_url`. Devuelve `next_cursor` y `ETag`; acepta `If-None-Match` |
 
 - **Crates:** son de álbumes, así que se expanden a pistas en el orden de los álbumes (disco y número de pista).
 - **Cursor:** opaco (base64 de `(position, id)`) y estable ante inserciones al final.
+- **`playable`:** hoy la búsqueda DJ lo calcula mirando el fichero en cada petición (S9, decisión aceptada). Si con páginas de 500 pistas no se cumple el p95, se guarda como columna, con migración.
 
 | Fichero | Contenido |
 |---|---|

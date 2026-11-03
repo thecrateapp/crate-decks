@@ -12,7 +12,7 @@ Preguntas y criterios: §F0.1 del [plan de implementación](2026-11-02-crate-dec
 | Q1 | Contestada | Compila y pasa los tests; 4–5 fallos previos ajenos a Crate |
 | Q2 | Pendiente (F0.4) | Base `main` o 2.6: hace falta usar las dos |
 | Q3 | Medida a medias | Sin reanálisis; el deck muestra el grid de Crate tal cual. Pero el grid de Crate no coincide con el de Mixxx (de 30 a 350 ms) |
-| Q4 | Medida | Mixxx respeta la tonalidad inyectada; coincide con KeyFinder en 3 de 10 |
+| Q4 | Medida | Mixxx respeta la tonalidad inyectada; coincide con el detector de Mixxx (Queen Mary) en 3 de 10 |
 | Q5 | Medida a medias | Sin análisis de silencio. El final de Crate cae 1–6 s antes del de Mixxx. Falta mirarlo en la forma de onda |
 | Q6 | Pendiente (F0.4) | Tonos de prueba y escucha |
 | Q7 | Pendiente (F0.4) | El director y los CSV están listos y revisados; falta ejecutar 10 transiciones con audio |
@@ -26,15 +26,16 @@ Preguntas y criterios: §F0.1 del [plan de implementación](2026-11-02-crate-dec
 
 **Riesgos nuevos que cambian el diseño:**
 
-1. **Calidad del análisis del servidor.** El grid de Crate deriva o va desfasado frente al de Mixxx, y la tonalidad tiene un sesgo fuerte (81 % en 7B, 8A y 7A). Propuesta para Decks: inyectar el grid solo si pasa un control de calidad, o dejar los beats a Mixxx y usar Crate para cues, tonalidad y planes. Propuesta para Smart Mix 3: cuantizar el BPM y revisar los detectores de beats y tonalidad.
-2. **MP3 con FFmpeg 9.** La fuente FFmpeg de Mixxx no lee MP3; MAD lo oculta. Afecta a D14 y conviene avisar a upstream.
+1. **Calidad del análisis del servidor.** El grid de Crate deriva o va desfasado frente al de Mixxx, y la tonalidad tiene un sesgo fuerte (81 % en 7B, 8A y 7A). Propuesta para Decks: inyectar el grid solo si pasa un control de calidad, o dejar los beats a Mixxx y usar Crate para cues, tonalidad y planes. Propuesta para Smart Mix 3: cuantizar el BPM y revisar los detectores de beats y tonalidad. **Actualización:** S8 lo corrige en el servidor con el analizador `smart-mix-audio-v6`; los resultados están en el plan de Smart Mix 3 (SM0.PR0).
+2. **MP3 con FFmpeg 9.** La fuente FFmpeg de Mixxx no lee MP3; MAD lo oculta. Afecta a D14. No se avisa a Mixxx (AGENTS.md §9): si hace falta, se arregla aquí.
 3. **Base dev sin audio.** El stack de Crate borra pistas al arrancar y al sincronizar. Ya está documentado en el plan.
 4. **AutoDJ y Smart Mix.** El hook mínimo funciona, pero el director tiene que vigilar a los decks (paradas, bucles, expulsiones), quantize y sync. Aunque G0 decidiera otra cosa, el director sigue en el hilo principal: las posiciones se leen de `VisualPlayPosition`.
 
 **Lo que G0 tiene que decidir**, con lo que sugiere el spike:
 
-- **Base de upstream.** Q2 está sin medir; la propuesta es seguir con `main` (2.7-alpha), donde está hecho todo el spike.
-- **D1, D7 y D8.** El spike no aporta datos nuevos.
+- **Base de upstream.** Decidido por Diego (2026-11-03): `main` (2.7-alpha), donde está hecho todo el spike. Q2 ya no hace falta.
+- **Prefijo del keychain de emisión.** Decidido por Diego: `"Crate - "` en vez de `"Mixxx - "` (F1.PR2, Q12).
+- **D1** ya está decidido: repositorio independiente. **D7 y D8:** el spike no aporta datos nuevos; S1 implementa D7 tal como lo propone el diseño.
 - **D11.** Pendiente de Q13–Q16.
 - **D14.** Sigue siendo una opción para FLAC, AAC, ALAC y Opus. MP3 necesita arreglar la fuente FFmpeg o una fuente basada en MAD. La construcción se decide en G3b.
 - **Ajustes de fases.** En F4, inyectar el grid con control de calidad (riesgo 1). En F2, keychain asíncrono con alternativa en memoria (Q11). En F1, la ruta de configuración propia (Q12).
@@ -261,7 +262,8 @@ Escribe `q3-q5-harness.csv` y `q10-harness.csv` en la caché del spike.
 **Q4 · Tonalidad:**
 
 - Mixxx respeta la inyectada, porque no la recalcula.
-- Solo coincide con la de KeyFinder en 3 de 10 pistas. Cuadra con el sesgo de tonalidad del servidor: 7B y 8A en casi todas.
+- Solo coincide con la del detector de Mixxx en 3 de 10 pistas. Ese detector es Queen Mary, el que Mixxx usa por defecto, no KeyFinder. Cuadra con el sesgo de tonalidad del servidor: 7B y 8A en casi todas.
+- Con el analizador v6 (S8), las mismas 10 pistas coinciden en 6 con Queen Mary y en 8 con KeyFinder.
 
 **Q5 · Cues y silencio:**
 
@@ -280,5 +282,6 @@ Solo hay 5 MP3 porque la búsqueda solo devolvió 5 pistas "Spike ·" en MP3. "A
 
 ## Pendiente
 
-- Q2, Q6, Q7, Q13–Q16 y la parte visual de Q3, Q5 y Q10: pruebas de F0.4 (necesitan a Diego para mirar y escuchar).
+- Q6, Q7, Q13–Q16 y la parte visual de Q3, Q5 y Q10: pruebas de F0.4 (necesitan a Diego para mirar y escuchar).
+- Q2 ya no hace falta: G0 eligió `main` (2.7-alpha).
 - Q17 en un deck real: descartado del spike. G0 decide D14 con el prototipo sin motor.

@@ -113,7 +113,7 @@ Hasta F1 el ejecutable se llama `mixxx`; a partir de F1, `crate-decks`.
 ## 9. Código de Mixxx y licencia
 
 - **Independiente:** el repositorio sale de la red de forks de GitHub ("Leave fork network", decisión de Diego del 2026-11-03). No se publica nada en `mixxxdj/mixxx`: ni PRs, ni issues, ni reviews, ni texto. Los fallos de Mixxx que encontremos se arreglan aquí.
-- **Origen:** Mixxx `main` en `bc49961` (2.7-alpha), o la base que se elija en G0.
+- **Origen:** Mixxx `main` en `bc49961` (2.7-alpha), la base elegida en G0.
 - **Traer cambios de Mixxx** (en una sola dirección, opción A):
   - El remoto `upstream` y la rama `upstream` siguen a `mixxxdj/mixxx` sin cambios. `main` es `upstream` más el código de Crate.
   - Se trae lo que interese (un merge de un tag estable, o cherry-picks de arreglos de motor, audio, controladoras o seguridad) cuando Diego lo decide. No hay sincronía obligatoria.

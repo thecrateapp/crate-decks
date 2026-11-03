@@ -82,7 +82,7 @@ SM3 es independiente: SM4 y SM5 funcionan con DeepSeek y Ollama sin ella. SMQ co
 | Grid frente al de Mixxx | Diferencias de 30 a 350 ms; ninguna pista dentro de 5 ms |
 | BPM | Decimales que la pista no tiene (128,346 frente a 128); usado como tempo constante deriva casi medio segundo en 3 minutos |
 | Fase | Algunas pistas van medio beat desplazadas |
-| Tonalidad | Coincide con KeyFinder en 3 de 10; el 81 % de todos los perfiles cae en 7B, 8A o 7A |
+| Tonalidad | Coincide con el detector de Mixxx (Queen Mary) en 3 de 10; el 81 % de todos los perfiles cae en 7B, 8A o 7A |
 | `activeEndMs` | Cae entre 1 y 6 s antes que el final por silencio de Mixxx (−60 dB); es un final musical |
 
 **Tareas:**
@@ -91,15 +91,41 @@ SM3 es independiente: SM4 y SM5 funcionan con DeepSeek y Ollama sin ella. SMQ co
 2. Encontrar la causa del sesgo de tonalidad: preprocesado, perfil de tonalidades o mapeo a Camelot.
 3. Documentar en el contrato qué significan `activeEndMs` y `beatPhaseOffsetMs`. El spike aplicó este último al revés hasta leer `NativeTransitionPlan.startIncomingCueMs()`.
 
-**Criterio de aceptación:** sobre un conjunto etiquetado (BPM, fase y tonalidad revisados a mano), el grid no se desvía más de 5 ms en 5 beats repartidos y la tonalidad acierta al menos lo mismo que KeyFinder. El spike tiene un arnés (`CrateSpikeHarnessLive` en `crate-decks`) que sirve de primera medida.
+**Hecho (2026-11-03):** rama `feat/decks-s8-analysis-quality` del monorepo, analizador `smart-mix-audio-v6` en Rust y en el respaldo Python.
+
+| Causa en v5 | Arreglo en v6 |
+| --- | --- |
+| Tonalidad: sumaba bins de FFT de 2048 puntos (10,77 Hz) desde 20 Hz. Por debajo de unos 180 Hz un bin es más ancho que un semitono, y el bombo y el bajo se leían como fa | FFT de 8192 puntos sobre bandas de semitono de la1 a sol#6, normalizadas para que ninguna clase de nota tenga más bins, y blanqueadas frente a las bandas vecinas |
+| BPM con decimales: pendiente de índice de beat frente a tiempo, sin redondeo; cada vez que el detector se pasaba a los contratiempos ganaba o perdía un beat | Periodo ajustado al doble de la frecuencia de beat, para que un cambio de fase no lo deforme; grid constante si la pista mantiene el tempo; BPM entero o medio si encaja en 25 ms en toda la pista |
+| Jitter de ±50 ms y secciones desplazadas medio beat: cada beat se movía a la subida de energía más cercana, y en mezclas densas caía en sonidos distintos según la sección | La mayoría de los beats detectados elige la fase. `full` solo si la fase es clara: con grid constante, al menos el 70 % de los beats en la fase publicada; sin él, ningún desplazamiento de medio beat |
+
+| Medida | v5 | v6 |
+| --- | --- | --- |
+| Tonalidad donde Queen Mary y KeyFinder coinciden (36 pistas) | 8 % | 83 % |
+| Tres tonalidades más frecuentes, sobre el total | 95 % | 27 % |
+| BPM igual al de Mixxx en pistas de tempo entero (49) | 1 | 29 |
+| Grid frente a Mixxx en las 10 pistas del spike (mediana del peor beat de cada pista) | 107 ms | 23 ms |
+| Tiempo de análisis por pista | 1,17 s | 0,91 s |
+
+- El grid de Mixxx va 20–30 ms adelantado respecto al golpe del bombo en las pistas electrónicas, así que "≤ 5 ms frente a Mixxx" no sirve como criterio.
+- 14 de 83 perfiles pasan de `full` a `partial` por desplazamientos reales de medio beat (entre ellos, Ceremony y Crows). Diego confirma de oído en F0.4 qué fase de Ceremony es la buena.
+- Desplegar v6 marca como desactualizados todos los perfiles v5. Recalcularlos es una campaña de backfill manual; hasta entonces, las reglas que exigen perfil `full` ven menos pistas.
+- Pendiente: el respaldo Python sigue unos 17 ms por detrás del bombo, como en v5.
+
+**Criterio de aceptación** (decidido por Diego, 2026-11-03), sobre un conjunto etiquetado a mano de al menos 30 pistas (house y techno con caja de ritmos, hip-hop, rock en directo y pistas con breaks), guardado solo por `entity_uid`. Por pista: BPM, 5 transitorios de beat marcados con el zoom máximo de la forma de onda, si el tempo es constante y la tonalidad de oído.
+- **Grid:** en al menos el 90 % de las pistas de tempo constante, los 5 beats a 5 ms o menos. Las pistas de tempo entero dan exactamente ese BPM. Ningún perfil `full` tiene un beat etiquetado a más de un cuarto de beat.
+- **Tonalidad:** acierto exacto y ponderado (MIREX) al menos iguales a los de KeyFinder sobre los mismos ficheros. Tras un backfill de al menos 1.000 pistas, ningún código Camelot pasa del 15 % (en v5, 7B tenía el 39,9 %).
 
 **Mientras no esté:** Crate Decks deja los beats y la tonalidad a Mixxx y usa de Crate las cues, los planes y los compatibles.
 
 ### SM0.PR1 · Conjunto de aristas y métricas
 
+**Punto de partida:** las herramientas con las que S8 midió v6, en la rama `feat/smart-mix-eval-tools` del monorepo (`tools/smart-mix-eval/reference/`): una referencia offline con el Queen Mary y el KeyFinder de Mixxx, `evaluate.py` y `kick_reference.py`.
+
 | Fichero | Contenido |
 |---|---|
 | `tools/smart-mix-eval/README.md` | Qué mide, cómo se ejecuta y que nunca se lanza contra producción sin autorización |
+| `tools/smart-mix-eval/labels/` | El conjunto etiquetado de SM0.PR0 (solo `entity_uid`, nunca títulos) y el script que puntúa un analizador contra él |
 | `tools/smart-mix-eval/build_dataset.py` | Genera N aristas (por defecto 300) desde la biblioteca de la base de datos configurada, con el servicio de compatibles. Estratifica por género raíz y por Δ BPM (0–2 %, 2–4 %, 4–6 %) y guarda `dataset.jsonl` con los `entity_uid` y las revisiones de perfil (nunca títulos) |
 | `app/crate/smart_mix/evaluation.py` | Métricas sobre plan y perfiles, sin audio: `phrase_alignment`, `bass_overlap_ms`, `harmonic_clash_ms`, `energy_step`, `vocal_clash_ms` (si hay datos) y `policy_violations`. Funciones puras, testeables y sin acceso a la base de datos |
 | `tools/smart-mix-eval/run_eval.py` | Planifica el conjunto con un planner o variante, calcula las métricas y escribe `report.json` y `report.md` (medias, p50/p95 y diferencias por estrato) |
@@ -131,7 +157,7 @@ SM3 es independiente: SM4 y SM5 funcionan con DeepSeek y Ollama sin ella. SMQ co
 | `app/crate/smart_mix/structure.py` | `segment_phrases(beat_grid, downbeats, energy_frames, sample_rate) -> StructureDraft`. Novedad de energía y espectro por compás, con picos preferentes en múltiplos de 8 compases. Une y parte para que cada frase mida 8, 16 o 32 compases. Etiqueta el tipo con reglas sobre la energía relativa y la posición. Calcula `structure_confidence`. Curva de energía de 1 byte por compás |
 | `app/crate/smart_mix/analyzer.py` | `analyze_mix_profile` llama a `segment_phrases` reutilizando los frames de energía que ya calcula |
 | `app/crate/smart_mix/models.py` | `TrackMixProfileDraft` y el modelo de perfil ganan `phrases`, `energy_curve`, `vocal_presence` y `structure_confidence` |
-| `app/crate/smart_mix/versions.py` | `ANALYZER_VERSION = "smart-mix-audio-v6"` y `PROFILE_SCHEMA_VERSION = 2` |
+| `app/crate/smart_mix/versions.py` | `ANALYZER_VERSION = "smart-mix-audio-v7"` (S8 ya usó v6) y `PROFILE_SCHEMA_VERSION = 2` |
 
 **Tests**, en `app/tests/test_smart_mix_structure.py`, con pistas sintéticas generadas como en el test de paridad (clics más bloques de energía):
 - `test_segments_on_eight_bar_multiples`

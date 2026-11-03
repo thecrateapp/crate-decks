@@ -122,7 +122,7 @@ Si el LLM no mejora el resultado (SG3), no se activa, y el trabajo de estructura
   - **Presencia de voz por frase (opcional y aparte):** solo si una heurística espectral barata alcanza la precisión mínima de §10. Si no, se omite: no se mete un modelo de separación de fuentes en el camino del análisis.
 - **Implementación:**
   - En Python y en Rust, con paridad comprobada como hoy.
-  - `ANALYZER_VERSION` pasa a `smart-mix-audio-v6` y `PROFILE_SCHEMA_VERSION` a 2.
+  - `ANALYZER_VERSION` pasa a `smart-mix-audio-v7` (S8 de Crate Decks ya usó v6) y `PROFILE_SCHEMA_VERSION` a 2.
   - El backfill reutiliza `backfill_smart_mix_profiles` (cola heavy).
   - Los perfiles v1 siguen siendo válidos: v3 degrada a la heurística de compases si no hay estructura.
 
@@ -391,7 +391,7 @@ No se guarda el prompt ni la respuesta cruda, igual que el resto de la capa de I
 | Área | Presupuesto |
 |---|---|
 | API de transition plans | Sin cambio: p95 < 50 ms en caché y < 150 ms sin caché. Los refinamientos se leen en el mismo `mget`; ninguna consulta extra a PostgreSQL en el camino caliente salvo un fallo de caché, que es una lectura por clave primaria `ANY(:keys)` |
-| Análisis estructural | ≤ 10 % más de tiempo que `smart-mix-audio-v5` por pista; el backfill en cola heavy no compite con la reproducción |
+| Análisis estructural | ≤ 10 % más de tiempo que `smart-mix-audio-v6` por pista; el backfill en cola heavy no compite con la reproducción |
 | Familia `ai` | `ai`: 2 hilos por defecto, ≤ 300 s por tarea, espera en cola p95 ≤ 5 s para refinamientos de Smart Mix con la conexión libre. `ai_bulk`: 1 hilo y lotes largos. Ninguna tarea de IA en `fast`, `default`, `heavy` ni `maintenance`; ninguna llamada a modelo en HTTP |
 | Coste | Estimación: 3–6 K tokens de entrada y ~500 de salida por transición; con modelos tipo `deepseek-flash`, del orden de $0,001 por transición antes de caché. Verificar precios oficiales al configurar; cambiaron varias veces en 2026. Los presupuestos diarios de la conexión (llamadas y tokens) se respetan |
 | Base de datos | Una fila por refinamiento; índice por `(from_entity_uid, to_entity_uid)` para invalidar; limpieza a 180 días sin lectura |
