@@ -3022,7 +3022,12 @@ if(BUILD_TESTING)
     )
   endif()
   # Crate Decks: tests of the Crate code (src/test/crate/)
-  set(src-mixxx-test ${src-mixxx-test} src/test/crate/brandingtest.cpp)
+  set(
+    src-mixxx-test
+    ${src-mixxx-test}
+    src/test/crate/brandingtest.cpp
+    src/test/crate/visiblestringstest.cpp
+  )
 
   if(QML)
     qt_add_executable(mixxx-test ${src-mixxx-test} MANUAL_FINALIZATION)

@@ -60,9 +60,9 @@ DlgPrefControllers::DlgPrefControllers(DlgPreferences* pPreferences,
     txt_midithrough->setText(tr(
             "%1 is a virtual controller that allows to use e.g. the 'MIDI for light' "
             "mapping.<br/>"
-            "You need to restart Mixxx in order to enable it.<br/>"
+            "You need to restart Crate Decks in order to enable it.<br/>"
             "<b>Note:</b> mappings meant for physical controllers can cause issues and "
-            "even render the Mixxx GUI unresponsive when being loaded to %1.")
+            "even render the Crate Decks GUI unresponsive when being loaded to %1.")
                     .arg(kMidiThroughPortPrefix));
 #else
     line_midithrough->hide();
@@ -73,8 +73,8 @@ DlgPrefControllers::DlgPrefControllers(DlgPreferences* pPreferences,
     // Setting the description text here instead of in the ui file allows to paste
     // a formatted link (text color is a more readable blend of text color and original link color).
     txtMappingsOverview->setText(tr(
-            "Mixxx uses \"mappings\" to connect messages from your controller to "
-            "controls in Mixxx. If you do not see a mapping for your controller "
+            "Crate Decks uses \"mappings\" to connect messages from your controller to "
+            "controls in Crate Decks. If you do not see a mapping for your controller "
             "in the \"Load Mapping\" menu when you click on your controller on the "
             "left sidebar, you may be able to download one online from the %1. "
             "Place the XML (.xml) and Javascript (.js) file(s) in the \"User Mapping "

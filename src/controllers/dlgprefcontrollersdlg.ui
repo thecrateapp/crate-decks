@@ -27,7 +27,7 @@
          </sizepolicy>
         </property>
         <property name="text">
-         <string>Controllers are physical devices that send MIDI or HID signals to your computer over a USB connection. These allow you to control Mixxx in a more hands-on way than a keyboard and mouse. Attached controllers that Mixxx recognizes are shown in the &quot;Controllers&quot; section in the sidebar.</string>
+         <string>Controllers are physical devices that send MIDI or HID signals to your computer over a USB connection. These allow you to control Crate Decks in a more hands-on way than a keyboard and mouse. Attached controllers that Crate Decks recognizes are shown in the &quot;Controllers&quot; section in the sidebar.</string>
         </property>
         <property name="wordWrap">
          <bool>true</bool>
@@ -62,7 +62,7 @@
          <string notr="true">QLabel { font-weight: bold; }</string>
         </property>
         <property name="text">
-         <string>Mixxx did not detect any controllers. If you connected the controller while Mixxx was running you must restart Mixxx first.</string>
+         <string>Crate Decks did not detect any controllers. If you connected the controller while Crate Decks was running you must restart Crate Decks first.</string>
         </property>
         <property name="wordWrap">
          <bool>true</bool>

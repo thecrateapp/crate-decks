@@ -245,14 +245,14 @@ DlgPrefController::DlgPrefController(
             "Please select another mapping or disable the "
             "controller.</b></font><br><br>"
             "This mapping was designed for a newer Mixxx Controller Engine "
-            "and cannot be used on your current Mixxx installation.<br>"
-            "Your Mixxx installation has Controller Engine version %1. "
+            "and cannot be used on your current Crate Decks installation.<br>"
+            "Your Crate Decks installation has Controller Engine version %1. "
             "This mapping requires a Controller Engine version >= %2.<br><br>"
             "For more information visit the wiki page on "
             "<a "
             "href='https://mixxx.org/wiki/doku.php/"
             "controller_engine_versions'>Controller Engine Versions</a>.")
-                                       .arg("2", "1"));
+                    .arg("2", "1"));
 
     QIcon icon = style()->standardIcon(QStyle::SP_MessageBoxWarning);
     m_ui.labelWarningIcon->setPixmap(icon.pixmap(50));

@@ -241,7 +241,7 @@ DlgPrefSound::DlgPrefSound(QWidget* pParent,
                     m_settingsModified = true;
                     QMessageBox::information(this,
                             tr("Information"),
-                            tr("Mixxx must be restarted for the PipeWire "
+                            tr("Crate Decks must be restarted for the PipeWire "
                                "API selection to take effect."));
                 });
 
@@ -521,7 +521,7 @@ DlgPrefSound::DlgPrefSound(QWidget* pParent,
 
     hardwareGuide->setText(
             tr("The %1 lists sound cards and controllers you may want to "
-               "consider for using Mixxx.")
+               "consider for using Crate Decks.")
                     .arg(coloredLinkString(
                             m_pLinkColor,
                             tr("Mixxx DJ Hardware Guide"),
@@ -586,7 +586,7 @@ void DlgPrefSound::slotApply() {
                         keylockDualthreadedCheckBox->isEnabled())) {
             QMessageBox::information(this,
                     tr("Information"),
-                    tr("Mixxx must be restarted before the multi-threaded "
+                    tr("Crate Decks must be restarted before the multi-threaded "
                        "RubberBand setting change will take effect."));
         }
 #endif

@@ -35,7 +35,6 @@ DlgAbout::DlgAbout()
     date_label->setText(locale.toString(VersionStore::date().toLocalTime(), QLocale::LongFormat));
 
     // Crate Decks: credit to Mixxx, licence and source code of this build (D2).
-    setWindowTitle(tr("About %1").arg(VersionStore::applicationName()));
     const QString linkStyle =
             QStringLiteral("color:%1;")
                     .arg(Color::blendColors(
