@@ -5301,6 +5301,14 @@ if(QTKEYCHAIN)
   target_include_directories(mixxx-lib SYSTEM PUBLIC ${QTKEYCHAIN_INCLUDE_DIRS})
 endif()
 
+# Crate Decks: Crate server integration. The application identity
+# (src/crate/appidentity.cpp) is not behind this option, so that a build
+# without it still keeps away from the settings of an installed Mixxx.
+option(CRATE "Crate server integration: library, analysis and Smart Mix" ON)
+if(CRATE)
+  target_compile_definitions(mixxx-lib PUBLIC __CRATE__)
+endif()
+
 # USB HID or/and Bulk controller support
 find_package(LibUSB)
 
