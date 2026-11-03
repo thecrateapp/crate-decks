@@ -73,6 +73,28 @@ SM3 es independiente: SM4 y SM5 funcionan con DeepSeek y Ollama sin ella. SMQ co
 
 **Objetivo:** medir antes de cambiar nada. Cada fase posterior se compara con este baseline.
 
+### SM0.PR0 · Calidad del análisis de base (S8 de Crate Decks)
+
+**Por qué:** el spike de Crate Decks (2026-11-03, [informe](2026-11-03-crate-decks-spike-report.md)) comparó 10 perfiles `full` con los analizadores de Mixxx sobre los mismos ficheros. Smart Mix 3 planifica sobre esos mismos perfiles, así que hay que medirlos y corregirlos antes de que el baseline de SM0 los dé por buenos.
+
+| Medida | Resultado |
+| --- | --- |
+| Grid frente al de Mixxx | Diferencias de 30 a 350 ms; ninguna pista dentro de 5 ms |
+| BPM | Decimales que la pista no tiene (128,346 frente a 128); usado como tempo constante deriva casi medio segundo en 3 minutos |
+| Fase | Algunas pistas van medio beat desplazadas |
+| Tonalidad | Coincide con KeyFinder en 3 de 10; el 81 % de todos los perfiles cae en 7B, 8A o 7A |
+| `activeEndMs` | Cae entre 1 y 6 s antes que el final por silencio de Mixxx (−60 dB); es un final musical |
+
+**Tareas:**
+
+1. Cuantizar el BPM y comprobar la fase del grid frente a los onsets.
+2. Encontrar la causa del sesgo de tonalidad: preprocesado, perfil de tonalidades o mapeo a Camelot.
+3. Documentar en el contrato qué significan `activeEndMs` y `beatPhaseOffsetMs`. El spike aplicó este último al revés hasta leer `NativeTransitionPlan.startIncomingCueMs()`.
+
+**Criterio de aceptación:** sobre un conjunto etiquetado (BPM, fase y tonalidad revisados a mano), el grid no se desvía más de 5 ms en 5 beats repartidos y la tonalidad acierta al menos lo mismo que KeyFinder. El spike tiene un arnés (`CrateSpikeHarnessLive` en `crate-decks`) que sirve de primera medida.
+
+**Mientras no esté:** Crate Decks deja los beats y la tonalidad a Mixxx y usa de Crate las cues, los planes y los compatibles.
+
 ### SM0.PR1 · Conjunto de aristas y métricas
 
 | Fichero | Contenido |
