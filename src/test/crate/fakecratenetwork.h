@@ -6,6 +6,8 @@
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QPointer>
+#include <QSignalSpy>
+#include <QTcpSocket>
 #include <chrono>
 #include <cstring>
 #include <functional>
@@ -173,6 +175,30 @@ class FakeScheduler {
         }
     }
 };
+
+/// Sends `request` to a server on 127.0.0.1:`port`, as a browser would, and
+/// returns the whole answer (empty if nothing listens there). Runs the event
+/// loop meanwhile so that a server in this thread can reply.
+inline QByteArray sendHttpRequest(quint16 port, const QByteArray& request) {
+    QTcpSocket socket;
+    QSignalSpy connected(&socket, &QTcpSocket::connected);
+    QSignalSpy errorOccurred(&socket, &QTcpSocket::errorOccurred);
+    socket.connectToHost(QHostAddress(QHostAddress::LocalHost), port);
+    if (socket.state() != QAbstractSocket::ConnectedState) {
+        for (int i = 0; i < 50 && connected.isEmpty() && errorOccurred.isEmpty(); ++i) {
+            connected.wait(100);
+        }
+        if (connected.isEmpty()) {
+            return QByteArray();
+        }
+    }
+    socket.write(request);
+    QSignalSpy disconnected(&socket, &QTcpSocket::disconnected);
+    if (socket.state() != QAbstractSocket::UnconnectedState) {
+        disconnected.wait(5000);
+    }
+    return socket.readAll();
+}
 
 /// A session whose renewal the test completes by hand.
 class FakeTokenSource : public crate::TokenSource {

@@ -3,28 +3,14 @@
 #include <gtest/gtest.h>
 
 #include <QSignalSpy>
-#include <QTcpSocket>
+
+#include "test/crate/fakecratenetwork.h"
 
 namespace {
 
 using crate::LoopbackCallbackServer;
 
-/// Sends `request` to the server on 127.0.0.1:`port` and returns the whole
-/// answer, running the event loop meanwhile so that the server can reply.
-QByteArray exchange(quint16 port, const QByteArray& request) {
-    QTcpSocket socket;
-    socket.connectToHost(QHostAddress(QHostAddress::LocalHost), port);
-    QSignalSpy connected(&socket, &QTcpSocket::connected);
-    if (socket.state() != QAbstractSocket::ConnectedState && !connected.wait(5000)) {
-        return QByteArray();
-    }
-    socket.write(request);
-    QSignalSpy disconnected(&socket, &QTcpSocket::disconnected);
-    if (socket.state() != QAbstractSocket::UnconnectedState) {
-        disconnected.wait(5000);
-    }
-    return socket.readAll();
-}
+using crate::test::sendHttpRequest;
 
 TEST(CrateLoopbackServerTest, CallbackServerBindsLoopbackOnly) {
     LoopbackCallbackServer server;
@@ -42,7 +28,7 @@ TEST(CrateLoopbackServerTest, AnswersOneCallbackAndStops) {
     ASSERT_TRUE(server.listen());
     QSignalSpy received(&server, &LoopbackCallbackServer::callbackReceived);
 
-    const QByteArray answer = exchange(server.port(),
+    const QByteArray answer = sendHttpRequest(server.port(),
             "GET /callback?code=one-time-code&state=the-state HTTP/1.1\r\n"
             "Host: 127.0.0.1\r\n\r\n");
 
@@ -55,13 +41,29 @@ TEST(CrateLoopbackServerTest, AnswersOneCallbackAndStops) {
     EXPECT_FALSE(server.isListening());
 }
 
+TEST(CrateLoopbackServerTest, AnswersEvenWhenDeletedRightAfterTheCallback) {
+    auto* pServer = new LoopbackCallbackServer();
+    ASSERT_TRUE(pServer->listen());
+    QObject::connect(pServer,
+            &LoopbackCallbackServer::callbackReceived,
+            pServer,
+            &QObject::deleteLater);
+    const QPointer<LoopbackCallbackServer> pDeleted(pServer);
+
+    const QByteArray answer = sendHttpRequest(pServer->port(),
+            "GET /callback?code=one-time-code&state=the-state HTTP/1.1\r\n\r\n");
+
+    EXPECT_TRUE(answer.startsWith("HTTP/1.1 200"));
+    EXPECT_TRUE(pDeleted.isNull());
+}
+
 TEST(CrateLoopbackServerTest, KeepsWaitingAfterOtherRequests) {
     LoopbackCallbackServer server;
     ASSERT_TRUE(server.listen());
     QSignalSpy received(&server, &LoopbackCallbackServer::callbackReceived);
 
-    const QByteArray favicon = exchange(server.port(), "GET /favicon.ico HTTP/1.1\r\n\r\n");
-    const QByteArray post = exchange(server.port(), "POST /callback HTTP/1.1\r\n\r\n");
+    const QByteArray favicon = sendHttpRequest(server.port(), "GET /favicon.ico HTTP/1.1\r\n\r\n");
+    const QByteArray post = sendHttpRequest(server.port(), "POST /callback HTTP/1.1\r\n\r\n");
 
     EXPECT_TRUE(favicon.startsWith("HTTP/1.1 404"));
     EXPECT_TRUE(post.startsWith("HTTP/1.1 405"));

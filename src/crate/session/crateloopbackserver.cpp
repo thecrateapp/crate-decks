@@ -93,6 +93,10 @@ void LoopbackCallbackServer::close() {
 
 void LoopbackCallbackServer::onNewConnection() {
     while (QTcpSocket* pSocket = m_pServer->nextPendingConnection()) {
+        // Not a child of the server: the session deletes the server right
+        // after the callback, and the browser must still get its page. The
+        // socket deletes itself once disconnected, or after the timeout.
+        pSocket->setParent(nullptr);
         connect(pSocket, &QTcpSocket::disconnected, pSocket, &QObject::deleteLater);
         connect(pSocket, &QTcpSocket::readyRead, this, [this, pSocket] {
             onReadyRead(pSocket);
