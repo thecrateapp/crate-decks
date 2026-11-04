@@ -28,16 +28,24 @@ class Client;
 /// server rejects it. crate::Session (F2.C-PR2) implements it.
 class TokenSource {
   public:
+    enum class Renewal {
+        /// accessToken() returns the new token.
+        Renewed,
+        /// The session is over (revoked or expired): the user signs in again.
+        SessionEnded,
+        /// The server could not be reached; the session may still be valid.
+        Unreachable,
+    };
+
     virtual ~TokenSource() = default;
 
     /// Access token for the Authorization header; empty when signed out.
     virtual QString accessToken() const = 0;
 
-    /// Starts renewing the access token. Calls `done(true)` once
-    /// accessToken() returns the new token, or `done(false)` if the session
-    /// cannot be renewed. The Client never asks for a second renewal while one
-    /// is in flight.
-    virtual void renewAccessToken(std::function<void(bool renewed)> done) = 0;
+    /// Starts renewing the access token and calls `done` once with the
+    /// outcome. The Client never asks for a second renewal while one is in
+    /// flight.
+    virtual void renewAccessToken(std::function<void(Renewal renewal)> done) = 0;
 };
 
 struct ClientOptions {
@@ -160,7 +168,7 @@ class Client : public QObject {
     void send(const CallPtr& pCall);
     void onNetworkReplyFinished(const CallPtr& pCall);
     void onUnauthorized(const CallPtr& pCall);
-    void onAccessTokenRenewed(bool renewed);
+    void onAccessTokenRenewed(TokenSource::Renewal renewal);
     void scheduleRetry(const CallPtr& pCall, std::chrono::milliseconds delay);
     /// Finishes `calls` with `result`. Their Replies get it last, once this
     /// Client is done with its own state: a slot connected to finished() may

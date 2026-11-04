@@ -184,7 +184,7 @@ class FakeTokenSource : public crate::TokenSource {
         return token;
     }
 
-    void renewAccessToken(std::function<void(bool)> done) override {
+    void renewAccessToken(std::function<void(Renewal)> done) override {
         ++renewals;
         m_done = std::move(done);
     }
@@ -193,16 +193,25 @@ class FakeTokenSource : public crate::TokenSource {
         return static_cast<bool>(m_done);
     }
 
+    /// Renewed with `newToken`, or SessionEnded.
     void finishRenewal(bool renewed, const QString& newToken = QString()) {
         if (renewed) {
             token = newToken;
         }
-        const auto done = std::exchange(m_done, nullptr);
-        done(renewed);
+        finish(renewed ? Renewal::Renewed : Renewal::SessionEnded);
+    }
+
+    void finishRenewalUnreachable() {
+        finish(Renewal::Unreachable);
     }
 
   private:
-    std::function<void(bool)> m_done;
+    void finish(Renewal renewal) {
+        const auto done = std::exchange(m_done, nullptr);
+        done(renewal);
+    }
+
+    std::function<void(Renewal)> m_done;
 };
 
 } // namespace crate::test

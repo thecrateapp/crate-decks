@@ -491,6 +491,23 @@ TEST_F(CrateClientTest, FailedRenewalIsNotRetriedByOtherRequests) {
     EXPECT_EQ(Error::Kind::Auth, third.result->error().kind);
 }
 
+TEST_F(CrateClientTest, UnreachableRenewalFailsAsNetworkAndKeepsTheSession) {
+    const auto pClient = makeClient();
+    Outcome offline(pClient->get(QStringLiteral("/api/a")));
+
+    lastReply()->respond(401);
+    m_tokens.finishRenewalUnreachable();
+    ASSERT_TRUE(offline.finished());
+    EXPECT_EQ(Error::Kind::Network, offline.result->error().kind);
+    Outcome later(pClient->get(QStringLiteral("/api/b")));
+    lastReply()->respond(401);
+
+    EXPECT_EQ(2, m_tokens.renewals);
+    m_tokens.finishRenewal(true, QStringLiteral("access-2"));
+    EXPECT_EQ(QByteArrayLiteral("Bearer access-2"),
+            lastReply()->request().rawHeader("Authorization"));
+}
+
 TEST_F(CrateClientTest, ForwardsDownloadProgress) {
     const auto pClient = makeClient();
     Reply* pReply = pClient->get(QStringLiteral("/api/capabilities"));

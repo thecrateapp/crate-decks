@@ -436,10 +436,10 @@ void Client::onUnauthorized(const CallPtr& pCall) {
     const quint64 generation = ++m_renewalGeneration;
     kLogger.debug() << "Renewing the access token";
     const QPointer<Client> pGuard(this);
-    m_pTokenSource->renewAccessToken([pGuard, generation](bool renewed) {
+    m_pTokenSource->renewAccessToken([pGuard, generation](TokenSource::Renewal renewal) {
         // Ignore the answer of a renewal that setTokenSource() abandoned.
         if (pGuard && pGuard->m_renewingToken && pGuard->m_renewalGeneration == generation) {
-            pGuard->onAccessTokenRenewed(renewed);
+            pGuard->onAccessTokenRenewed(renewal);
         }
     });
     // The renewal may have finished already and a slot may have deleted us.
@@ -448,12 +448,20 @@ void Client::onUnauthorized(const CallPtr& pCall) {
     }
 }
 
-void Client::onAccessTokenRenewed(bool renewed) {
+void Client::onAccessTokenRenewed(TokenSource::Renewal renewal) {
     m_renewingToken = false;
     const QList<CallPtr> waiting = std::exchange(m_waitingForToken, {});
-    if (renewed) {
+    if (renewal == TokenSource::Renewal::Renewed) {
         m_queue = waiting + m_queue;
         pump();
+        return;
+    }
+    if (renewal == TokenSource::Renewal::Unreachable) {
+        // The session may still be valid: the next 401 tries again.
+        kLogger.info() << "The server could not be reached to renew the session";
+        complete(waiting,
+                Error::network(QStringLiteral(
+                        "The server could not be reached to renew the session")));
         return;
     }
     kLogger.info() << "The session could not be renewed";
