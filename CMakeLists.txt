@@ -5319,6 +5319,7 @@ if(CRATE)
       src/crate/client/crateclient.cpp
       src/crate/client/cratejson.cpp
       src/crate/db/crateserverschema.cpp
+      src/crate/session/crateloopbackserver.cpp
       src/crate/session/cratesecretstore.cpp
   )
   # The tests of the Crate integration are added here and not in the list of
@@ -5330,6 +5331,7 @@ if(CRATE)
         src/test/crate/cratecapabilities_test.cpp
         src/test/crate/crateclient_test.cpp
         src/test/crate/cratejson_test.cpp
+        src/test/crate/crateloopbackserver_test.cpp
         src/test/crate/cratesecretstore_test.cpp
         src/test/crate/crateserverschema_test.cpp
     )
