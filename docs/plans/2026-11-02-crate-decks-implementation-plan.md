@@ -461,6 +461,15 @@ En `cratecapabilities_test.cpp`:
 - `MissingDecksSectionMeansUnavailable`
 - `MinClientVersionBlocksOlderClient`
 
+**Hecho (2026-11-04):**
+- Cambios sobre lo previsto:
+  - El servidor anuncia también `long_beatmatch`, y las funciones desconocidas se ignoran.
+  - Un `contract_version` distinto de 1 se trata como incompatible.
+  - Los reintentos solo se hacen en 429/502/503/504, respetando `Retry-After` de hasta 30 s.
+  - Las redirecciones solo se siguen al mismo origen, y el límite de transferencia es de 30 s.
+- El JSON se parsea en el hilo principal: las respuestas de F2 son de pocos KB. Las páginas grandes se parsearán fuera de él en F3.C-PR1.
+- La revisión independiente encontró un crítico (un `Reply` usaba `this` después de emitir) y cinco importantes. Todos están arreglados, cada uno con su test.
+
 ### F2.C-PR2 · Cliente: `crate::Session` y QtKeychain
 
 | Fichero | Contenido |
@@ -483,6 +492,14 @@ En `cratecapabilities_test.cpp`:
 
 `TEST_GAP:` el backend real de Keychain del sistema solo se prueba a mano (F0 Q11): los tests usan un `SecretStore` falso.
 
+**Hecho (2026-11-04):**
+- **Renovación del token:** informa de tres resultados (renovado, sesión terminada, servidor inalcanzable). Sin red, la sesión no se cierra.
+- **Servidor del callback:** es una clase propia (`crate::LoopbackCallbackServer`) que solo acepta el `state` del login en curso.
+- **Logout:** cierra la sesión en local al momento y la revoca en el servidor. Si el token de acceso ya no vale, renueva una vez para poder revocarla.
+- **Keychain:** `KeychainSecretStore` ejecuta en orden las operaciones de una misma clave, con un backend que se puede sustituir en los tests. Si el keychain falla, el refresh token se guarda solo en memoria, y el logout borra en los dos sitios.
+- **Tabla:** `crateserver_servers` tiene las columnas de §5.2 del diseño.
+- **Revisión:** la independiente encontró cuatro importantes, todos arreglados, cada uno con su test.
+
 ### F2.C-PR3 · Cliente: preferencias y asistente
 
 | Fichero | Contenido |
@@ -501,7 +518,23 @@ En `cratecapabilities_test.cpp`:
 
 ---
 
+**Hecho (2026-11-04):**
+- Las vistas están en `src/crate/ui/`, por el aislamiento de AGENTS.md §5.2, y se construyen en código. La lógica vive en `AddServerFlow` y `CrateServers`.
+- `CoreServices` crea `crate::CrateServers` (aprobado por Diego), y la página lo encuentra con `CrateServers::instance()`.
+- **Direcciones:** solo cuenta el origen, y sin esquema se asume HTTPS.
+  - HTTP a este equipo se acepta sin preguntar.
+  - HTTP en la red local pide confirmación.
+  - HTTP en internet no se acepta nunca, tampoco en los perfiles guardados.
+- **Servidores repetidos:** el mismo servidor no se puede añadir dos veces.
+- **Versión del servidor:** la página no la muestra, porque `/api/capabilities` no la da.
+- **Primer arranque:** se ofrece conectar un servidor una vez, después de mostrar la ventana principal (`main.cpp`). El diálogo de carpeta de música de Mixxx sigue apareciendo.
+- La revisión independiente encontró cinco importantes, todos arreglados, cada uno con su test.
+
 ## F3 · Biblioteca Crate navegable
+
+**Antes de F3:**
+- **Bloqueo durante el escaneo:** el escáner de la biblioteca de Mixxx bloqueaba la base de datos durante todo el escaneo (upstream #6631). Crate Decks lo parchea guardando cada pista en su propia transacción (`fix/decks-scanner-lock`), pendiente de la prueba manual de Diego.
+- **Escrituras de Crate:** las de las tablas `crateserver_` van igualmente fuera del hilo de la interfaz y reintentan si la base de datos está ocupada.
 
 ### F3.S-PR1 · Servidor: navegación paginada para clientes (S3)
 
