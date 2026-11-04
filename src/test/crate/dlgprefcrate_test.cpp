@@ -1,6 +1,11 @@
+#include "crate/ui/dlgprefcrate.h"
+
 #include <gtest/gtest.h>
 
 #include <QJsonDocument>
+#include <QLineEdit>
+#include <QListWidget>
+#include <QPushButton>
 #include <QSignalSpy>
 #include <QString>
 #include <QUrl>
@@ -208,6 +213,34 @@ TEST_F(CrateAddServerFlowTest, CancellingForgetsTheServer) {
     EXPECT_EQ(Step::EnterAddress, m_pFlow->step());
     EXPECT_TRUE(m_pServers->sessions().isEmpty());
     EXPECT_TRUE(crate::db::loadServerProfiles(dbConnection()).isEmpty());
+}
+
+// TEST_GAP: the page is driven here without being shown; how it looks and
+// the browser sign-in are checked by hand against the dev stack (F2.C-PR3).
+TEST_F(CrateAddServerFlowTest, PageAddsAServer) {
+    crate::DlgPrefCrate page(nullptr, m_pServers.get());
+    auto* pList = page.findChild<QListWidget*>(QStringLiteral("crateServers"));
+    auto* pAdd = page.findChild<QPushButton*>(QStringLiteral("crateAddServer"));
+    auto* pAddress = page.findChild<QLineEdit*>(QStringLiteral("crateServerAddress"));
+    auto* pConnect = page.findChild<QPushButton*>(QStringLiteral("crateConnect"));
+    auto* pEmail = page.findChild<QLineEdit*>(QStringLiteral("crateEmail"));
+    auto* pPassword = page.findChild<QLineEdit*>(QStringLiteral("cratePassword"));
+    auto* pSignIn = page.findChild<QPushButton*>(QStringLiteral("crateSignIn"));
+    ASSERT_TRUE(pList && pAdd && pAddress && pConnect && pEmail && pPassword && pSignIn);
+    EXPECT_EQ(0, pList->count());
+
+    pAdd->click();
+    pAddress->setText(QStringLiteral("https://crate.test"));
+    pConnect->click();
+    lastSent().pReply->respond(200, kDecksCapabilities);
+    pEmail->setText(QStringLiteral("dj@crate.test"));
+    pPassword->setText(QStringLiteral("secret-password"));
+    pSignIn->click();
+    EXPECT_TRUE(pPassword->text().isEmpty());
+    lastSent().pReply->respond(200, kLoginAnswer);
+
+    ASSERT_EQ(1, pList->count());
+    EXPECT_TRUE(pList->item(0)->text().contains(QStringLiteral("https://crate.test")));
 }
 
 } // namespace

@@ -148,6 +148,10 @@ void CrateServers::rememberCapabilities(
     }
 }
 
+QByteArray CrateServers::lastCapabilities(const QString& serverId) const {
+    return db::loadLastCapabilities(database(), serverId);
+}
+
 CrateServers::Server* CrateServers::createServer(const ServerProfile& profile, bool saved) {
     auto pServer = std::make_unique<Server>();
     ClientOptions options;

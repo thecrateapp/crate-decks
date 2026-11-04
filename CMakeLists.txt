@@ -5326,6 +5326,8 @@ if(CRATE)
       src/crate/session/cratesession.cpp
       src/crate/crateaddserverflow.cpp
       src/crate/crateservers.cpp
+      src/crate/ui/crateaddserverwidget.cpp
+      src/crate/ui/dlgprefcrate.cpp
   )
   # The tests of the Crate integration are added here and not in the list of
   # mixxx-test sources, which comes before this option.

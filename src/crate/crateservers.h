@@ -60,6 +60,8 @@ class CrateServers : public QObject {
     void removeServer(const QString& serverId);
     /// Keeps the last `GET /api/capabilities` answer of a saved server.
     void rememberCapabilities(const QString& serverId, const QByteArray& capabilitiesJson);
+    /// That answer, or empty if there is none.
+    QByteArray lastCapabilities(const QString& serverId) const;
 
   signals:
     void serversChanged();
