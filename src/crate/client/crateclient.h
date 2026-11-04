@@ -75,6 +75,9 @@ struct RequestOptions {
     /// Sends the access token and renews it on 401. Off for the sign-in
     /// requests, whose 401 means wrong credentials.
     bool authenticated = true;
+    /// Sent instead of the TokenSource's token, and never renewed: a 401 is
+    /// an Auth error. For revoking a session that is already closed locally.
+    std::optional<QString> bearerToken;
 };
 
 /// The ID of this installation, created the first time and kept in the

@@ -508,6 +508,22 @@ TEST_F(CrateClientTest, UnreachableRenewalFailsAsNetworkAndKeepsTheSession) {
             lastReply()->request().rawHeader("Authorization"));
 }
 
+TEST_F(CrateClientTest, ExplicitBearerTokenIsSentAndNeverRenewed) {
+    const auto pClient = makeClient();
+    RequestOptions revoke;
+    revoke.bearerToken = QStringLiteral("closing-session");
+    Outcome outcome(pClient->post(
+            QStringLiteral("/api/auth/logout"), QJsonDocument(QJsonObject()), revoke));
+
+    EXPECT_EQ(QByteArrayLiteral("Bearer closing-session"),
+            lastReply()->request().rawHeader("Authorization"));
+    lastReply()->respond(401);
+
+    EXPECT_EQ(0, m_tokens.renewals);
+    ASSERT_TRUE(outcome.finished());
+    EXPECT_EQ(Error::Kind::Auth, outcome.result->error().kind);
+}
+
 TEST_F(CrateClientTest, ForwardsDownloadProgress) {
     const auto pClient = makeClient();
     Reply* pReply = pClient->get(QStringLiteral("/api/capabilities"));

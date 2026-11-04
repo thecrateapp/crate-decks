@@ -79,6 +79,8 @@ struct Client::Call {
     QUrl url;
     QByteArray body;
     bool authenticated = true;
+    /// RequestOptions::bearerToken.
+    std::optional<QString> bearerToken;
     /// Set for GETs, which share one call while it is active.
     QString sharedKey;
     int attemptsMade = 0;
@@ -235,7 +237,7 @@ Reply* Client::request(Method method,
     }
 
     QString sharedKey;
-    if (method == Method::Get) {
+    if (method == Method::Get && !options.bearerToken) {
         sharedKey = (options.authenticated ? QStringLiteral("auth ") : QStringLiteral("anon ")) +
                 url.toString(QUrl::FullyEncoded);
         for (const CallPtr& pActive : m_calls) {
@@ -251,6 +253,7 @@ Reply* Client::request(Method method,
     pCall->url = url;
     pCall->body = body;
     pCall->authenticated = options.authenticated;
+    pCall->bearerToken = options.bearerToken;
     pCall->sharedKey = sharedKey;
     pCall->subscribers.append(pReply);
     m_calls.push_back(pCall);
@@ -262,7 +265,7 @@ Reply* Client::request(Method method,
 void Client::pump() {
     while (m_inFlight < m_options.maxConcurrentRequests && !m_queue.isEmpty()) {
         const CallPtr pCall = m_queue.takeFirst();
-        if (pCall->authenticated && m_renewingToken) {
+        if (pCall->authenticated && !pCall->bearerToken && m_renewingToken) {
             m_waitingForToken.append(pCall);
             continue;
         }
@@ -278,11 +281,13 @@ void Client::send(const CallPtr& pCall) {
         request.setRawHeader("X-Device-Fingerprint", m_options.deviceFingerprint.toUtf8());
     }
     pCall->sentToken.clear();
-    if (pCall->authenticated && m_pTokenSource) {
+    if (pCall->bearerToken) {
+        pCall->sentToken = *pCall->bearerToken;
+    } else if (pCall->authenticated && m_pTokenSource) {
         pCall->sentToken = m_pTokenSource->accessToken();
-        if (!pCall->sentToken.isEmpty()) {
-            request.setRawHeader("Authorization", "Bearer " + pCall->sentToken.toUtf8());
-        }
+    }
+    if (!pCall->sentToken.isEmpty()) {
+        request.setRawHeader("Authorization", "Bearer " + pCall->sentToken.toUtf8());
     }
     if (pCall->method == Method::Post || pCall->method == Method::Put) {
         request.setHeader(QNetworkRequest::ContentTypeHeader,
@@ -363,6 +368,10 @@ void Client::onNetworkReplyFinished(const CallPtr& pCall) {
         return;
     }
 
+    if (status == 401 && pCall->bearerToken) {
+        complete({pCall}, Error::auth(QStringLiteral("The server rejected the token")));
+        return;
+    }
     if (status == 401 && pCall->authenticated) {
         onUnauthorized(pCall);
         return;
