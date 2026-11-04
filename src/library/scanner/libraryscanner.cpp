@@ -256,10 +256,6 @@ void LibraryScanner::slotStartScan() {
 
     kLogger.debug() << "Recursively scanning library.";
 
-    // Start scanning the library. This prepares insertion queries in TrackDAO
-    // (must be called before calling addTracksAdd) and begins a transaction.
-    m_trackDao.addTracksPrepare();
-
     // First Scan all known directories we have a hash for.
     // In a second stage, we scan all new directories. This guarantees,
     // that we discover always the same folder, in case of duplicated folders
@@ -438,10 +434,8 @@ void LibraryScanner::slotFinishUnhashedScan() {
         kLogger.debug() << "Recursive scanning interrupted by the user";
     }
 
-    // Finish adding the tracks -- rollback the transaction if the scan did not
-    // finish cleanly and the user did not cancel the transaction.
-    m_trackDao.addTracksFinish(!m_scannerGlobal->shouldCancel() &&
-                               !bScanFinishedCleanly);
+    // The new tracks and directory hashes have already been committed one
+    // by one, also if the scan has been canceled (see slotAddNewTrack()).
 
     if (!m_scannerGlobal->shouldCancel() && bScanFinishedCleanly) {
         cleanUpScan();
@@ -694,10 +688,18 @@ void LibraryScanner::slotAddNewTrack(const QString& trackPath) {
         return;
     }
     ScopedTimer timer(QStringLiteral("LibraryScanner::addNewTrack"));
+    // Add and commit each track in a transaction of its own. A transaction
+    // for the whole scan would keep the database locked until the scan has
+    // finished: writes from other connections, e.g. from the GUI thread,
+    // would wait for the busy timeout and then fail.
+    // https://github.com/mixxxdj/mixxx/issues/6631
+    m_trackDao.addTracksPrepare();
     // For statistics tracking and to detect moved tracks
     TrackPointer pTrack = m_trackDao.addTracksAddFile(
             trackPath,
             false);
+    // Roll back what has been written of a track that could not be added
+    m_trackDao.addTracksFinish(!pTrack);
     if (!pTrack) {
         // This happens only when there is an issue with the database which
         // has been logged already. No need for yet another warning here.
