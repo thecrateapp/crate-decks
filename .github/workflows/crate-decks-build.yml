@@ -235,3 +235,31 @@ jobs:
           # The runner has no display. The offscreen platform plugin is linked
           # into the static Qt of the AppImage (CMakeLists.txt, Qt_IS_STATIC).
           QT_QPA_PLATFORM: offscreen
+
+      - name: "Check the version of the AppImage"
+        # packaging/CPackConfig.cmake names the AppImage and
+        # crate::buildVersion() gives --version the same version, computed
+        # twice: check that they agree. Without a decks-vX.Y.Z tag, it is the
+        # product version (crate::kApplicationVersion) and the commit, never
+        # the version of Mixxx.
+        if: matrix.cpack_generator == 'AppImage'
+        run: |
+          VERSION=$(sed -n 's/^Crate Decks //p' /tmp/smoke.log | head -1)
+          APPIMAGE=$(basename "$(ls build/*.AppImage | head -1)")
+          echo "--version: ${VERSION}"
+          echo "AppImage: ${APPIMAGE}"
+          if [ -z "${VERSION}" ] || [ "${APPIMAGE}" != "crate-decks-${VERSION}-x86_64.AppImage" ]; then
+            echo "FAIL: the AppImage is not named after the version it prints"
+            exit 1
+          fi
+          if ! git describe --tags --match 'decks-v*' --first-parent >/dev/null 2>&1; then
+            PRODUCT_VERSION=$(sed -n 's/.*kApplicationVersion\[\] = "\([^"]*\)".*/\1/p' src/crate/appidentity.h)
+            COMMIT=${VERSION#"${PRODUCT_VERSION}-dev+g"}
+            # COMMIT must be an abbreviation of the commit that was built.
+            if [ -z "${PRODUCT_VERSION}" ] || [ "${COMMIT}" = "${VERSION}" ] ||
+              ! [[ "${COMMIT}" =~ ^[0-9a-f]+$ ]] || [[ "$(git rev-parse HEAD)" != "${COMMIT}"* ]]; then
+              echo "FAIL: without a decks-v tag the version must be ${PRODUCT_VERSION}-dev+g<commit>"
+              exit 1
+            fi
+          fi
+          echo "VERSION OK"
