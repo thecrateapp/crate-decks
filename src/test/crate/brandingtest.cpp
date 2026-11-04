@@ -9,6 +9,7 @@
 #include <QHash>
 #include <QImage>
 #include <QLabel>
+#include <QRegularExpression>
 #include <QString>
 #include <QTemporaryDir>
 #include <QTextBrowser>
@@ -94,7 +95,8 @@ TEST_F(CrateBrandingTest, ApplyApplicationIdentitySetsCrateIdentity) {
     EXPECT_QSTRING_EQ(QStringLiteral("app.cratemusic.decks"), QGuiApplication::desktopFileName());
 #endif
     // QCommandLineParser prints this version for --version.
-    EXPECT_QSTRING_EQ(QStringLiteral("0.1.0"), QCoreApplication::applicationVersion());
+    EXPECT_QSTRING_EQ(crate::buildVersion(VersionStore::gitDescribe()),
+            QCoreApplication::applicationVersion());
 }
 
 TEST_F(CrateBrandingTest, ProductVersionDoesNotReplaceTheConfigVersion) {
@@ -102,6 +104,64 @@ TEST_F(CrateBrandingTest, ProductVersionDoesNotReplaceTheConfigVersion) {
     // and compares it with Mixxx versions, so it must stay Mixxx's.
     EXPECT_QSTRING_EQ(QStringLiteral("0.1.0"), QString::fromUtf8(crate::kApplicationVersion));
     EXPECT_NE(QString::fromUtf8(crate::kApplicationVersion), VersionStore::version());
+}
+
+TEST_F(CrateBrandingTest, BuildVersionComesFromDecksTags) {
+    const QString product = QString::fromUtf8(crate::kApplicationVersion);
+    const struct {
+        QString gitDescribe;
+        QString version;
+    } cases[] = {
+            // Built from a decks-vX.Y.Z tag, or from commits after one.
+            {QStringLiteral("decks-v0.1.0"), QStringLiteral("0.1.0")},
+            {QStringLiteral("decks-v0.2.0-beta"), QStringLiteral("0.2.0-beta")},
+            {QStringLiteral("decks-v0.1.0-modified"), QStringLiteral("0.1.0-modified")},
+            {QStringLiteral("decks-v0.1.0-5-ge9ea8313bd"),
+                    QStringLiteral("0.1.0-5-ge9ea8313bd")},
+            {QStringLiteral("decks-v0.1.0-5-ge9ea8313bd-modified"),
+                    QStringLiteral("0.1.0-5-ge9ea8313bd-modified")},
+            // No decks-v tag yet: the product version and the commit.
+            {QStringLiteral("e9ea8313bd"), product + QStringLiteral("-dev+ge9ea8313bd")},
+            {QStringLiteral("e9ea8313bd-modified"),
+                    product + QStringLiteral("-dev+ge9ea8313bd-modified")},
+            // Unknown, which a Mixxx version also is.
+            {QString(), product + QStringLiteral("-unknown")},
+            {QStringLiteral("2.7-alpha-463-gbc801a2dfe"), product + QStringLiteral("-unknown")},
+    };
+    for (const auto& testCase : cases) {
+        SCOPED_TRACE(qPrintable(testCase.gitDescribe));
+        EXPECT_QSTRING_EQ(testCase.version, crate::buildVersion(testCase.gitDescribe));
+    }
+}
+
+// TEST_GAP: the package file names come from packaging/CPackConfig.cmake,
+// which computes the version like crate::buildVersion() and is not visible to
+// the tests. The AppImage job of .github/workflows/crate-decks-build.yml
+// checks that the AppImage is named after the version that --version prints.
+TEST_F(CrateBrandingTest, BuildIsVersionedOnlyByDecksTags) {
+    const QString gitDescribe = VersionStore::gitDescribe();
+    if (gitDescribe.isEmpty()) {
+        GTEST_SKIP() << "Built without git information";
+    }
+    const QString version = crate::buildVersion(gitDescribe);
+
+    // The Mixxx tags in the history (2.7-alpha) do not version the build.
+    const QString mixxxVersion = QStringLiteral("%1.%2").arg(
+            QString::number(VersionStore::versionNumber().majorVersion()),
+            QString::number(VersionStore::versionNumber().minorVersion()));
+    EXPECT_FALSE(gitDescribe.startsWith(mixxxVersion)) << qPrintable(gitDescribe);
+    EXPECT_FALSE(version.startsWith(mixxxVersion)) << qPrintable(version);
+    const QString tagPrefix = QStringLiteral("decks-v");
+    if (gitDescribe.startsWith(tagPrefix)) {
+        EXPECT_QSTRING_EQ(gitDescribe.mid(tagPrefix.size()), version);
+    } else {
+        // Without a decks-v tag, `git describe --always` gives the commit.
+        EXPECT_TRUE(QRegularExpression(QStringLiteral("^[0-9a-f]+(-modified)?$"))
+                        .match(gitDescribe)
+                        .hasMatch())
+                << qPrintable(gitDescribe);
+        EXPECT_QSTRING_EQ(QStringLiteral("0.1.0-dev+g") + gitDescribe, version);
+    }
 }
 
 TEST_F(CrateBrandingTest, DefaultSettingsPathIsNotMixxxs) {
@@ -232,7 +292,9 @@ TEST_F(CrateBrandingTest, SourceCodeUrlPointsAtTheBuiltSource) {
         QString gitDescribe;
         QString url;
     } cases[] = {
-            {QStringLiteral("0.1.0"), repository + QStringLiteral("/tree/0.1.0")},
+            {QStringLiteral("decks-v0.1.0"), repository + QStringLiteral("/tree/decks-v0.1.0")},
+            {QStringLiteral("decks-v0.1.0-5-ge9ea8313bd"),
+                    repository + QStringLiteral("/tree/e9ea8313bd")},
             {QStringLiteral("2.6-beta-3815-ge9ea8313bd"),
                     repository + QStringLiteral("/tree/e9ea8313bd")},
             {QStringLiteral("2.6-beta-3815-ge9ea8313bd-modified"),
@@ -252,7 +314,9 @@ TEST_F(CrateBrandingTest, AboutCreditsMixxxAndLinksTheSourceCode) {
     EXPECT_QSTRING_EQ(QStringLiteral("About Crate Decks"), about.windowTitle());
     const auto* pVersion = about.findChild<QLabel*>(QStringLiteral("version_label"));
     ASSERT_NE(nullptr, pVersion);
-    EXPECT_QSTRING_EQ(QStringLiteral("Crate Decks 0.1.0"), pVersion->text());
+    EXPECT_QSTRING_EQ(QStringLiteral("Crate Decks ") +
+                    crate::buildVersion(VersionStore::gitDescribe()),
+            pVersion->text());
     const auto* pBasedOn = about.findChild<QLabel*>(QStringLiteral("crate_based_on"));
     ASSERT_NE(nullptr, pBasedOn);
     const QString basedOn = pBasedOn->text();

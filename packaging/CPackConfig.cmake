@@ -6,10 +6,34 @@ set(CMAKE_CURRENT_SOURCE_DIR "${CPACK_SOURCE_DIR}")
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
 include(GitInfo)
 
-if(NOT GIT_DESCRIBE)
-  set(PACKAGE_VERSION "${CPACK_MIXXX_VERSION}-unknown")
+# Crate Decks: the packages carry the version of Crate Decks, computed like
+# crate::buildVersion() (src/crate/appidentity.cpp) does for About and
+# --version. GitInfo.cmake only describes the build with decks-vX.Y.Z tags, so
+# it is the version of the tag or, without one, the product version
+# (crate::kApplicationVersion) and the commit. The AppImage job of
+# .github/workflows/crate-decks-build.yml checks that both agree.
+file(
+  STRINGS
+  "${CMAKE_CURRENT_SOURCE_DIR}/src/crate/appidentity.h"
+  CRATE_APPLICATION_VERSION
+  REGEX "kApplicationVersion\\[\\] = \""
+)
+if(NOT CRATE_APPLICATION_VERSION MATCHES "= \"([^\"]+)\"")
+  message(
+    FATAL_ERROR
+    "crate::kApplicationVersion not found in src/crate/appidentity.h"
+  )
+endif()
+set(CRATE_APPLICATION_VERSION "${CMAKE_MATCH_1}")
+if(GIT_DESCRIBE MATCHES "^decks-v(.+)$")
+  set(PACKAGE_VERSION "${CMAKE_MATCH_1}")
+elseif(GIT_DESCRIBE MATCHES "^([0-9a-f]+)(-modified)?$")
+  set(
+    PACKAGE_VERSION
+    "${CRATE_APPLICATION_VERSION}-dev+g${CMAKE_MATCH_1}${CMAKE_MATCH_2}"
+  )
 else()
-  set(PACKAGE_VERSION "${GIT_DESCRIBE}")
+  set(PACKAGE_VERSION "${CRATE_APPLICATION_VERSION}-unknown")
 endif()
 set(
   CPACK_PACKAGE_FILE_NAME
@@ -22,8 +46,10 @@ set(CPACK_SOURCE_PACKAGE_FILE_NAME "${CPACK_PACKAGE_FILE_NAME}-source")
 # dpkg --compare-versions 2.3~alpha~1234~g8163 lt 2.3~beta~1234~g8163 && echo true
 # dpkg --compare-versions 2.3~beta~1234~g8163 lt 2.3.0 && echo true
 # dpkg --compare-versions 2.3.0 lt 2.3.0+2345+g163  && echo true
+# Crate Decks: the builds before a decks-vX.Y.Z tag ("-dev+g") come before the
+# version too: 0.1.0~dev+g8163 < 0.1.0.
 if(PACKAGE_VERSION MATCHES "^[0-9]+\\.[0-9]+[A-Za-z0-9.+~-]*$")
-  if(PACKAGE_VERSION MATCHES "(alpha|beta)")
+  if(PACKAGE_VERSION MATCHES "(alpha|beta|-dev\\+g)")
     string(REPLACE "-" "~" CPACK_DEBIAN_PACKAGE_VERSION "${PACKAGE_VERSION}")
   else()
     string(REPLACE "-g" "+g" CPACK_DEBIAN_PACKAGE_VERSION "${PACKAGE_VERSION}")
@@ -36,7 +62,13 @@ if(PACKAGE_VERSION MATCHES "^[0-9]+\\.[0-9]+[A-Za-z0-9.+~-]*$")
     )
   endif()
 else()
-  string(REPLACE "-" "~" CPACK_DEBIAN_PACKAGE_VERSION "${CPACK_MIXXX_VERSION}")
+  string(
+    REPLACE
+    "-"
+    "~"
+    CPACK_DEBIAN_PACKAGE_VERSION
+    "${CRATE_APPLICATION_VERSION}"
+  )
 endif()
 
 if(CPACK_GENERATOR STREQUAL "DEB")

@@ -1,7 +1,11 @@
 # Get the current commit ref
+# Crate Decks: only the decks-vX.Y.Z tags describe the build, not the Mixxx
+# tags in the history; without one, --always gives the commit hash.
 if(NOT GIT_DESCRIBE)
   execute_process(
-    COMMAND git describe --tags --always --first-parent --dirty=-modified
+    COMMAND
+      git describe --tags --match "decks-v*" --always --first-parent
+      --dirty=-modified
     WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
     OUTPUT_VARIABLE GIT_DESCRIBE
     OUTPUT_STRIP_TRAILING_WHITESPACE

@@ -26,8 +26,8 @@ DlgAbout::DlgAbout()
     pAppIcon->setPixmap(QIcon(MIXXX_ICON_PATH).pixmap(64, 64));
     horizontalLayout->insertWidget(0, pAppIcon);
 
-    version_label->setText(VersionStore::applicationName() +
-            QStringLiteral(" ") + crate::kApplicationVersion); // Crate Decks
+    version_label->setText(VersionStore::applicationName() + QStringLiteral(" ") +
+            crate::buildVersion(VersionStore::gitDescribe())); // Crate Decks
     git_version_label->setText(VersionStore::gitVersion());
     qt_version_label->setText(VersionStore::qtVersion());
     platform_label->setText(VersionStore::platform());

@@ -5,6 +5,8 @@
 #include <QRegularExpression>
 #include <QString>
 
+#include "util/versionstore.h"
+
 namespace crate {
 
 namespace {
@@ -13,6 +15,10 @@ namespace {
 const QString kModifiedSuffix = QStringLiteral("-modified");
 // `git describe` of a commit after a tag: "<tag>-<commits>-g<hash>".
 const QRegularExpression kCommitAfterTag(QStringLiteral("-[0-9]+-g([0-9a-f]+)$"));
+// Tags of Crate Decks versions, the only ones GitInfo.cmake describes with.
+const QString kTagPrefix = QStringLiteral("decks-v");
+// `git describe --always` without a tag: the abbreviated commit hash.
+const QRegularExpression kCommitOnly(QStringLiteral("^([0-9a-f]+)(-modified)?$"));
 
 } // namespace
 
@@ -31,7 +37,7 @@ void applyApplicationIdentity() {
 #endif
 
     // Printed by --version.
-    QCoreApplication::setApplicationVersion(QString::fromUtf8(kApplicationVersion));
+    QCoreApplication::setApplicationVersion(buildVersion(VersionStore::gitDescribe()));
 }
 
 QUrl sourceCodeUrl(const QString& gitDescribe) {
@@ -51,6 +57,21 @@ QUrl sourceCodeUrl(const QString& gitDescribe) {
     // Otherwise `ref` is a tag or, without tags, a commit hash.
     return QUrl(repository + QStringLiteral("/tree/") +
             QString::fromUtf8(QUrl::toPercentEncoding(ref, QByteArrayLiteral("/"))));
+}
+
+QString buildVersion(const QString& gitDescribe) {
+    const QString productVersion = QString::fromUtf8(kApplicationVersion);
+    const QString describe = gitDescribe.trimmed();
+    if (describe.startsWith(kTagPrefix) && describe.size() > kTagPrefix.size()) {
+        return describe.mid(kTagPrefix.size());
+    }
+    const QRegularExpressionMatch commitOnly = kCommitOnly.match(describe);
+    if (commitOnly.hasMatch()) {
+        // A development build towards the product version.
+        return productVersion + QStringLiteral("-dev+g") + commitOnly.captured(1) +
+                commitOnly.captured(2);
+    }
+    return productVersion + QStringLiteral("-unknown");
 }
 
 } // namespace crate
