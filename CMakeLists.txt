@@ -5312,6 +5312,22 @@ endif()
 option(CRATE "Crate server integration: library, analysis and Smart Mix" ON)
 if(CRATE)
   target_compile_definitions(mixxx-lib PUBLIC __CRATE__)
+  target_sources(
+    mixxx-lib
+    PRIVATE
+      src/crate/client/cratecapabilities.cpp
+      src/crate/client/cratejson.cpp
+  )
+  # The tests of the Crate integration are added here and not in the list of
+  # mixxx-test sources, which comes before this option.
+  if(BUILD_TESTING)
+    target_sources(
+      mixxx-test
+      PRIVATE
+        src/test/crate/cratecapabilities_test.cpp
+        src/test/crate/cratejson_test.cpp
+    )
+  endif()
 endif()
 
 # USB HID or/and Bulk controller support
