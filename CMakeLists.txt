@@ -5324,6 +5324,7 @@ if(CRATE)
       src/crate/session/crateloopbackserver.cpp
       src/crate/session/cratesecretstore.cpp
       src/crate/session/cratesession.cpp
+      src/crate/crateservers.cpp
   )
   # The tests of the Crate integration are added here and not in the list of
   # mixxx-test sources, which comes before this option.
@@ -5338,6 +5339,7 @@ if(CRATE)
         src/test/crate/cratesecretstore_test.cpp
         src/test/crate/crateserverprofiles_test.cpp
         src/test/crate/crateserverschema_test.cpp
+        src/test/crate/crateservers_test.cpp
         src/test/crate/dlgprefcrate_test.cpp
         src/test/crate/cratesession_test.cpp
     )

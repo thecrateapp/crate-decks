@@ -27,45 +27,9 @@ using crate::Session;
 using crate::SessionOptions;
 using crate::test::FakeNetworkAccessManager;
 using crate::test::FakeScheduler;
+using crate::test::FakeSecretStore;
 using crate::test::sendHttpRequest;
 using Status = crate::SecretStore::Status;
-
-/// A SecretStore in memory that the test can make unavailable.
-class FakeSecretStore : public crate::SecretStore {
-  public:
-    QHash<QString, QString> secrets;
-    bool unavailable = false;
-
-    void read(const QString& key, ReadDone done) override {
-        if (unavailable) {
-            done(Status::Unavailable, QString());
-            return;
-        }
-        const auto it = secrets.constFind(key);
-        if (it == secrets.cend()) {
-            done(Status::NotFound, QString());
-            return;
-        }
-        done(Status::Ok, it.value());
-    }
-
-    void write(const QString& key, const QString& secret, Done done) override {
-        if (unavailable) {
-            done(Status::Unavailable);
-            return;
-        }
-        secrets.insert(key, secret);
-        done(Status::Ok);
-    }
-
-    void remove(const QString& key, Done done) override {
-        if (unavailable) {
-            done(Status::Unavailable);
-            return;
-        }
-        done(secrets.remove(key) > 0 ? Status::Ok : Status::NotFound);
-    }
-};
 
 const QString kRefreshKey = QStringLiteral("5b0c:refresh");
 const QByteArray kLoginAnswer = QByteArrayLiteral(

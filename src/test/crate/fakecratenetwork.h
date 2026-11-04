@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QByteArray>
+#include <QHash>
 #include <QList>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
@@ -14,6 +15,7 @@
 #include <utility>
 
 #include "crate/client/crateclient.h"
+#include "crate/session/cratesecretstore.h"
 
 namespace crate::test {
 
@@ -199,6 +201,44 @@ inline QByteArray sendHttpRequest(quint16 port, const QByteArray& request) {
     }
     return socket.readAll();
 }
+
+/// A SecretStore in memory that the test can make unavailable.
+class FakeSecretStore : public crate::SecretStore {
+  public:
+    QHash<QString, QString> secrets;
+    bool unavailable = false;
+
+    void read(const QString& key, ReadDone done) override {
+        if (unavailable) {
+            done(crate::SecretStore::Status::Unavailable, QString());
+            return;
+        }
+        const auto it = secrets.constFind(key);
+        if (it == secrets.cend()) {
+            done(crate::SecretStore::Status::NotFound, QString());
+            return;
+        }
+        done(crate::SecretStore::Status::Ok, it.value());
+    }
+
+    void write(const QString& key, const QString& secret, Done done) override {
+        if (unavailable) {
+            done(crate::SecretStore::Status::Unavailable);
+            return;
+        }
+        secrets.insert(key, secret);
+        done(crate::SecretStore::Status::Ok);
+    }
+
+    void remove(const QString& key, Done done) override {
+        if (unavailable) {
+            done(crate::SecretStore::Status::Unavailable);
+            return;
+        }
+        done(secrets.remove(key) > 0 ? crate::SecretStore::Status::Ok
+                                     : crate::SecretStore::Status::NotFound);
+    }
+};
 
 /// A session whose renewal the test completes by hand.
 class FakeTokenSource : public crate::TokenSource {
