@@ -177,40 +177,57 @@ void Session::restore() {
     const int attempt = ++m_loginAttempt;
     setState(State::SigningIn);
     const QPointer<Session> pGuard(this);
-    store()->read(refreshTokenKey(m_profile.id),
-            [pGuard, attempt](SecretStore::Status status, const QString& secret) {
+    const QString key = refreshTokenKey(m_profile.id);
+    m_pSecretStore->read(key,
+            [pGuard, attempt, key](SecretStore::Status status, const QString& secret) {
                 if (!pGuard || pGuard->m_loginAttempt != attempt) {
                     return;
                 }
-                if (status == SecretStore::Status::Unavailable) {
-                    pGuard->m_useSessionOnlyStore = true;
-                    emit pGuard->secretStoreUnavailable();
-                    if (!pGuard) {
-                        return;
-                    }
-                }
-                if (status != SecretStore::Status::Ok || secret.isEmpty()) {
-                    pGuard->setState(State::SignedOut);
-                    if (pGuard) {
-                        emit pGuard->signedOut();
-                    }
+                if (status != SecretStore::Status::Unavailable) {
+                    pGuard->restoreWith(attempt,
+                            status == SecretStore::Status::Ok ? secret : QString());
                     return;
                 }
-                pGuard->m_refreshToken = secret;
-                pGuard->renewAccessToken([pGuard, attempt](Renewal renewal) {
-                    // SessionEnded already signed out. Unreachable still counts
-                    // as signed in: the access token comes once the server
-                    // answers.
-                    if (!pGuard || pGuard->m_loginAttempt != attempt ||
-                            renewal == Renewal::SessionEnded) {
-                        return;
-                    }
-                    pGuard->setState(State::SignedIn);
-                    if (pGuard) {
-                        emit pGuard->signedIn();
-                    }
-                });
+                pGuard->onKeychainUnavailable();
+                if (!pGuard) {
+                    return;
+                }
+                // A sign-in earlier in this run may be kept in memory.
+                pGuard->m_sessionOnlyStore.read(key,
+                        [pGuard, attempt](SecretStore::Status memoryStatus,
+                                const QString& memorySecret) {
+                            if (pGuard && pGuard->m_loginAttempt == attempt) {
+                                pGuard->restoreWith(attempt,
+                                        memoryStatus == SecretStore::Status::Ok
+                                                ? memorySecret
+                                                : QString());
+                            }
+                        });
             });
+}
+
+void Session::restoreWith(int attempt, const QString& refreshToken) {
+    if (refreshToken.isEmpty()) {
+        const QPointer<Session> pGuard(this);
+        setState(State::SignedOut);
+        if (pGuard) {
+            emit signedOut();
+        }
+        return;
+    }
+    m_refreshToken = refreshToken;
+    const QPointer<Session> pGuard(this);
+    renewAccessToken([pGuard, attempt](Renewal renewal) {
+        // SessionEnded already signed out. Unreachable still counts as signed
+        // in: the access token comes once the server answers.
+        if (!pGuard || pGuard->m_loginAttempt != attempt || renewal == Renewal::SessionEnded) {
+            return;
+        }
+        pGuard->setState(State::SignedIn);
+        if (pGuard) {
+            emit pGuard->signedIn();
+        }
+    });
 }
 
 void Session::loginWithPassword(const QString& email, const QString& password) {
@@ -472,7 +489,11 @@ void Session::endSession() {
     const bool wasSignedOut = m_state == State::SignedOut;
     m_accessToken.clear();
     m_refreshToken.clear();
-    store()->remove(refreshTokenKey(m_profile.id), [](SecretStore::Status status) {
+    // From both: a token written during a keychain outage is in memory, and
+    // one from an earlier run may still be in the keychain.
+    const QString key = refreshTokenKey(m_profile.id);
+    m_sessionOnlyStore.remove(key, [](SecretStore::Status) {});
+    m_pSecretStore->remove(key, [](SecretStore::Status status) {
         if (status == SecretStore::Status::Unavailable) {
             kLogger.warning() << "Could not delete the refresh token from the keychain";
         }
@@ -489,23 +510,22 @@ void Session::endSession() {
 
 void Session::storeRefreshToken(const QString& refreshToken, std::function<void()> then) {
     const QPointer<Session> pGuard(this);
-    store()->write(refreshTokenKey(m_profile.id),
+    const QString key = refreshTokenKey(m_profile.id);
+    m_pSecretStore->write(key,
             refreshToken,
-            [pGuard, refreshToken, then](SecretStore::Status status) {
+            [pGuard, key, refreshToken, then](SecretStore::Status status) {
                 if (!pGuard) {
                     return;
                 }
-                if (status == SecretStore::Status::Unavailable && !pGuard->m_useSessionOnlyStore) {
-                    kLogger.warning() << "The keychain is unavailable: the session lasts for "
-                                         "this run only";
-                    pGuard->m_useSessionOnlyStore = true;
-                    pGuard->m_sessionOnlyStore.write(refreshTokenKey(pGuard->m_profile.id),
-                            refreshToken,
-                            [](SecretStore::Status) {});
-                    emit pGuard->secretStoreUnavailable();
+                if (status == SecretStore::Status::Unavailable) {
+                    pGuard->m_sessionOnlyStore.write(key, refreshToken, [](SecretStore::Status) {});
+                    pGuard->onKeychainUnavailable();
                     if (!pGuard) {
                         return;
                     }
+                } else {
+                    pGuard->m_keychainUnavailable = false;
+                    pGuard->m_sessionOnlyStore.remove(key, [](SecretStore::Status) {});
                 }
                 if (then) {
                     then();
@@ -513,8 +533,13 @@ void Session::storeRefreshToken(const QString& refreshToken, std::function<void(
             });
 }
 
-SecretStore* Session::store() {
-    return m_useSessionOnlyStore ? &m_sessionOnlyStore : m_pSecretStore;
+void Session::onKeychainUnavailable() {
+    if (m_keychainUnavailable) {
+        return;
+    }
+    kLogger.warning() << "The keychain is unavailable: the session lasts for this run only";
+    m_keychainUnavailable = true;
+    emit secretStoreUnavailable();
 }
 
 void Session::schedule(std::chrono::milliseconds delay, std::function<void()> callback) {

@@ -209,6 +209,33 @@ TEST_F(CrateSessionTest, FallsBackToMemoryWhenKeychainUnavailable) {
     EXPECT_EQ(QStringLiteral("refresh-1"), field(lastSent(), "refresh_token"));
 }
 
+TEST_F(CrateSessionTest, LogoutAfterAKeychainOutageClearsTheKeychain) {
+    // A token from an earlier run is in the keychain, which then fails for a
+    // while: the sign-in of this run is kept in memory only.
+    m_store.secrets.insert(kRefreshKey, QStringLiteral("refresh-old"));
+    m_store.unavailable = true;
+    m_pSession->restore();
+    signIn();
+    m_store.unavailable = false;
+
+    m_pSession->logout();
+    m_pSession->restore();
+
+    EXPECT_FALSE(m_store.secrets.contains(kRefreshKey));
+    EXPECT_EQ(Session::State::SignedOut, m_pSession->state());
+}
+
+TEST_F(CrateSessionTest, KeychainIsTriedAgainAfterAnOutage) {
+    m_store.unavailable = true;
+    signIn();
+    m_store.unavailable = false;
+
+    m_pSession->loginWithPassword(QStringLiteral("other@crate.test"), QStringLiteral("pw"));
+    lastSent().pReply->respond(200, kOtherLoginAnswer);
+
+    EXPECT_EQ(QStringLiteral("refresh-b"), m_store.secrets.value(kRefreshKey));
+}
+
 TEST_F(CrateSessionTest, RefreshUsesStoredToken) {
     m_store.secrets.insert(kRefreshKey, QStringLiteral("refresh-0"));
     QSignalSpy signedIn(m_pSession.get(), &Session::signedIn);

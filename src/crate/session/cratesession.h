@@ -106,15 +106,20 @@ class Session : public QObject, public TokenSource {
     void failLogin(const Error& error);
     void endBrowserLogin();
     void endSession();
+    void restoreWith(int attempt, const QString& refreshToken);
     void storeRefreshToken(const QString& refreshToken, std::function<void()> then);
-    SecretStore* store();
+    void onKeychainUnavailable();
     void schedule(std::chrono::milliseconds delay, std::function<void()> callback);
 
     ServerProfile m_profile;
     const QPointer<Client> m_pClient;
     SecretStore* const m_pSecretStore;
+    /// Holds the refresh token while the keychain fails. The keychain is
+    /// still tried first on every write, and both are cleared on sign-out.
     SessionOnlySecretStore m_sessionOnlyStore;
-    bool m_useSessionOnlyStore = false;
+    /// The last keychain operation failed: secretStoreUnavailable() was
+    /// emitted for this outage.
+    bool m_keychainUnavailable = false;
     SessionOptions m_options;
 
     State m_state = State::SignedOut;
