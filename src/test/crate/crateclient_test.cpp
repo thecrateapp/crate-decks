@@ -5,6 +5,7 @@
 #include <QCoreApplication>
 #include <QEvent>
 #include <QJsonObject>
+#include <QSignalSpy>
 #include <QTemporaryDir>
 #include <memory>
 #include <optional>
@@ -33,7 +34,7 @@ struct Outcome {
     std::optional<JsonResult> result;
 
     explicit Outcome(Reply* pReply) {
-        QObject::connect(pReply, &Reply::finished, [this](const JsonResult& finished) {
+        QObject::connect(pReply, &Reply::finished, pReply, [this](const JsonResult& finished) {
             result = finished;
         });
     }
@@ -206,7 +207,8 @@ TEST_F(CrateClientTest, RefreshesOnceOn401AndReplaysQueuedRequests) {
         EXPECT_EQ(paths[i], replayed.url().path());
         EXPECT_EQ(QByteArrayLiteral("Bearer access-2"), replayed.rawHeader("Authorization"));
     }
-    for (FakeReply* pReply : m_network.openReplies()) {
+    const QList<FakeReply*> openReplies = m_network.openReplies();
+    for (FakeReply* pReply : openReplies) {
         pReply->respond(200, kOkBody);
     }
     ASSERT_TRUE(first.finished() && second.finished() && third.finished());
@@ -379,12 +381,13 @@ TEST_F(CrateClientTest, DeletingTheClientInsideFinishedIsSafe) {
     Reply* pFirst = pClient->get(QStringLiteral("/api/capabilities"));
     const QPointer<Reply> pSecond = pClient->get(QStringLiteral("/api/capabilities"));
     bool secondFinished = false;
-    QObject::connect(pFirst, &Reply::finished, [&pClient](const JsonResult&) {
-        pClient.reset();
+    QObject::connect(pFirst, &Reply::finished, pFirst, [pOwner = &pClient](const JsonResult&) {
+        pOwner->reset();
     });
-    QObject::connect(pSecond, &Reply::finished, [&secondFinished](const JsonResult&) {
-        secondFinished = true;
-    });
+    QObject::connect(pSecond,
+            &Reply::finished,
+            pSecond,
+            [pSecondFinished = &secondFinished](const JsonResult&) { *pSecondFinished = true; });
 
     lastReply()->respond(200, kOkBody);
     QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
@@ -398,10 +401,13 @@ TEST_F(CrateClientTest, DeletingTheReplyInsideFinishedIsSafe) {
     const auto pClient = makeClient();
     Reply* pReply = pClient->get(QStringLiteral("/api/capabilities"));
     bool finished = false;
-    QObject::connect(pReply, &Reply::finished, [pReply, &finished](const JsonResult&) {
-        finished = true;
-        delete pReply;
-    });
+    QObject::connect(pReply,
+            &Reply::finished,
+            pReply,
+            [pReply, pFinished = &finished](const JsonResult&) {
+                *pFinished = true;
+                delete pReply;
+            });
 
     lastReply()->respond(200, kOkBody);
     QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
@@ -418,12 +424,14 @@ TEST_F(CrateClientTest, CancellingFromProgressIsSafe) {
     Outcome cancelled(pCancelled);
     Outcome kept(pKept);
     bool keptProgress = false;
-    QObject::connect(pCancelled, &Reply::progress, [pCancelled](qint64, qint64) {
+    QObject::connect(pCancelled, &Reply::progress, pCancelled, [pCancelled](qint64, qint64) {
         pCancelled->cancel();
     });
-    QObject::connect(pKept, &Reply::progress, [&keptProgress](qint64, qint64) {
-        keptProgress = true;
-    });
+    QObject::connect(pKept,
+            &Reply::progress,
+            pKept,
+            [pKeptProgress = &keptProgress](
+                    qint64, qint64) { *pKeptProgress = true; });
 
     lastReply()->respond(200, kOkBody);
 
@@ -494,17 +502,13 @@ TEST_F(CrateClientTest, FailedRenewalIsNotRetriedByOtherRequests) {
 TEST_F(CrateClientTest, ForwardsDownloadProgress) {
     const auto pClient = makeClient();
     Reply* pReply = pClient->get(QStringLiteral("/api/capabilities"));
-    qint64 received = -1;
-    qint64 total = -1;
-    QObject::connect(pReply, &Reply::progress, [&](qint64 bytesReceived, qint64 bytesTotal) {
-        received = bytesReceived;
-        total = bytesTotal;
-    });
+    QSignalSpy progress(pReply, &Reply::progress);
 
     lastReply()->respond(200, kOkBody);
 
-    EXPECT_EQ(kOkBody.size(), received);
-    EXPECT_EQ(kOkBody.size(), total);
+    ASSERT_EQ(1, progress.count());
+    EXPECT_EQ(kOkBody.size(), progress.first().at(0).toLongLong());
+    EXPECT_EQ(kOkBody.size(), progress.first().at(1).toLongLong());
 }
 
 } // namespace

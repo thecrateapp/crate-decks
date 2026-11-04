@@ -55,11 +55,11 @@ struct Error {
 template<typename T>
 class Result {
   public:
-    Result(T value)
-            : m_value(std::move(value)) {
+    Result(const T& value)
+            : m_value(value) {
     }
-    Result(Error error)
-            : m_value(std::move(error)) {
+    Result(const Error& error)
+            : m_value(error) {
     }
 
     bool ok() const {
