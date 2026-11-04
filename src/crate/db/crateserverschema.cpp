@@ -1,0 +1,45 @@
+#include "crate/db/crateserverschema.h"
+
+#include <QSqlError>
+#include <QSqlQuery>
+#include <QStringList>
+
+#include "util/db/sqltransaction.h"
+#include "util/logger.h"
+
+namespace crate::db {
+
+namespace {
+
+const mixxx::Logger kLogger("crate::db::CrateServerSchema");
+
+// Each statement must be idempotent: they run at every start.
+const QStringList kStatements = {
+        QStringLiteral("CREATE TABLE IF NOT EXISTS crateserver_servers ("
+                       "id TEXT PRIMARY KEY NOT NULL, "
+                       "base_url TEXT NOT NULL UNIQUE, "
+                       "display_name TEXT NOT NULL DEFAULT '', "
+                       "account_email TEXT NOT NULL DEFAULT '', "
+                       "created_at TEXT NOT NULL)"),
+};
+
+} // namespace
+
+bool createCrateServerSchema(const QSqlDatabase& database) {
+    SqlTransaction transaction(database);
+    if (!transaction) {
+        kLogger.warning() << "Cannot start a transaction for the Crate tables";
+        return false;
+    }
+    for (const QString& statement : kStatements) {
+        QSqlQuery query(database);
+        if (!query.exec(statement)) {
+            kLogger.warning() << "Cannot create the Crate tables:" << query.lastError().text();
+            transaction.rollback();
+            return false;
+        }
+    }
+    return transaction.commit();
+}
+
+} // namespace crate::db

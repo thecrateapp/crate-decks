@@ -5318,6 +5318,8 @@ if(CRATE)
       src/crate/client/cratecapabilities.cpp
       src/crate/client/crateclient.cpp
       src/crate/client/cratejson.cpp
+      src/crate/db/crateserverschema.cpp
+      src/crate/session/cratesecretstore.cpp
   )
   # The tests of the Crate integration are added here and not in the list of
   # mixxx-test sources, which comes before this option.
@@ -5328,6 +5330,8 @@ if(CRATE)
         src/test/crate/cratecapabilities_test.cpp
         src/test/crate/crateclient_test.cpp
         src/test/crate/cratejson_test.cpp
+        src/test/crate/cratesecretstore_test.cpp
+        src/test/crate/crateserverschema_test.cpp
     )
   endif()
 endif()
