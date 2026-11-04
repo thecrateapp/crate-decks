@@ -138,4 +138,29 @@ TEST_F(CrateServersTest, ServerRemovedBeforeSigningInIsNeverSaved) {
     EXPECT_TRUE(m_network.sent.isEmpty());
 }
 
+TEST_F(CrateServersTest, RefusesPlainHttpOnTheInternet) {
+    const auto pServers = makeServers();
+    pServers->start();
+
+    EXPECT_EQ(nullptr, pServers->addServer(QUrl(QStringLiteral("http://8.8.8.8")), QString()));
+    EXPECT_NE(nullptr,
+            pServers->addServer(QUrl(QStringLiteral("http://192.168.1.10:8585")), QString()));
+    EXPECT_EQ(1, pServers->sessions().size());
+}
+
+TEST_F(CrateServersTest, DoesNotRestoreAPlainHttpServerOnTheInternet) {
+    ASSERT_TRUE(crate::db::createCrateServerSchema(dbConnection()));
+    ServerProfile saved;
+    saved.id = QStringLiteral("a");
+    saved.baseUrl = QUrl(QStringLiteral("http://8.8.8.8"));
+    ASSERT_TRUE(crate::db::saveServerProfile(dbConnection(), saved));
+    m_store.secrets.insert(QStringLiteral("a:refresh"), QStringLiteral("refresh-a"));
+    const auto pServers = makeServers();
+
+    pServers->start();
+
+    EXPECT_TRUE(pServers->sessions().isEmpty());
+    EXPECT_TRUE(m_network.sent.isEmpty());
+}
+
 } // namespace

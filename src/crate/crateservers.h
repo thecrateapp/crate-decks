@@ -53,8 +53,9 @@ class CrateServers : public QObject {
     Session* session(const QString& serverId) const;
     Client* client(const QString& serverId) const;
 
-    /// A new server at `origin` (see parseServerAddress()). Returns its
-    /// session, to sign in with; the server is kept once it signs in.
+    /// A new server at `origin`. Returns its session, to sign in with; the
+    /// server is kept once it signs in. Returns nullptr for an address that
+    /// parseServerAddress() rejects, such as plain HTTP on the internet.
     Session* addServer(const QUrl& origin, const QString& displayName);
     /// Signs out of the server, revoking its session, and forgets it.
     void removeServer(const QString& serverId);
@@ -63,13 +64,18 @@ class CrateServers : public QObject {
     /// That answer, or empty if there is none.
     QByteArray lastCapabilities(const QString& serverId) const;
 
+    /// Whether a server with this origin is kept or being added.
+    bool hasOrigin(const QUrl& origin) const;
+    /// Whether the server is saved: signed in once and stored.
+    bool isSaved(const QString& serverId) const;
+
   signals:
     void serversChanged();
 
   private:
     struct Server;
     Server* createServer(const ServerProfile& profile, bool saved);
-    void save(Server* pServer);
+    bool save(Server* pServer);
     QSqlDatabase database() const;
 
     Dependencies m_dependencies;

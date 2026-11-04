@@ -87,11 +87,21 @@ ServerAddress parseServerAddress(const QString& input) {
                 "Do not put a user name or a password in the address."));
     }
 
-    const QString host = url.host().toLower();
+    QString host = url.host().toLower();
+    // "nas." and "nas" are the same host.
+    while (host.endsWith(QLatin1Char('.'))) {
+        host.chop(1);
+    }
+    if (host.isEmpty() || url.port() == 0) {
+        return rejected(QCoreApplication::translate(
+                "crate::ServerAddress", "This is not a valid address."));
+    }
     ServerAddress address;
     address.origin.setScheme(scheme);
     address.origin.setHost(host);
-    if (url.port() != -1) {
+    // The default port is left out, so that one server has one origin.
+    const int defaultPort = scheme == QLatin1String("https") ? 443 : 80;
+    if (url.port(defaultPort) != defaultPort) {
         address.origin.setPort(url.port());
     }
     if (scheme == QLatin1String("https") || isLoopbackHost(host)) {

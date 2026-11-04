@@ -72,6 +72,8 @@ DlgPrefCrate::DlgPrefCrate(QWidget* pParent, CrateServers* pServers)
     m_pAdd->setObjectName(QStringLiteral("crateAddServer"));
     m_pRemove->setObjectName(QStringLiteral("crateRemoveServer"));
     m_pStatus->setObjectName(QStringLiteral("crateServerStatus"));
+    m_pStatus->setTextFormat(Qt::PlainText);
+    m_pKeychainWarning->setObjectName(QStringLiteral("crateKeychainWarning"));
     m_pStatus->setWordWrap(true);
     m_pKeychainWarning->setWordWrap(true);
     m_pKeychainWarning->setText(
@@ -130,10 +132,12 @@ void DlgPrefCrate::slotUpdate() {
         return;
     }
     const QList<Session*> sessions = m_pServers->sessions();
+    bool keychainAvailable = true;
     for (Session* pSession : sessions) {
+        keychainAvailable = keychainAvailable && pSession->keychainAvailable();
         const ServerProfile& profile = pSession->profile();
-        // A server still being added is shown once it has signed in.
-        if (pSession->state() != Session::State::SignedIn && profile.accountId.isEmpty()) {
+        // A server being added is listed once it is saved.
+        if (!m_pServers->isSaved(profile.id)) {
             continue;
         }
         const QString name =
@@ -149,12 +153,8 @@ void DlgPrefCrate::slotUpdate() {
                 this,
                 &DlgPrefCrate::showSelectedServer,
                 Qt::UniqueConnection);
-        connect(pSession,
-                &Session::secretStoreUnavailable,
-                m_pKeychainWarning,
-                &QWidget::show,
-                Qt::UniqueConnection);
     }
+    m_pKeychainWarning->setVisible(!keychainAvailable);
     if (!m_pServerList->currentItem() && m_pServerList->count() > 0) {
         m_pServerList->setCurrentRow(0);
     }

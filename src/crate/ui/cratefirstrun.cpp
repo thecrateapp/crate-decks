@@ -32,14 +32,14 @@ void markFirstRunOffered(const UserSettingsPointer& pConfig) {
     }
 }
 
-void offerFirstRun(const UserSettingsPointer& pConfig, CrateServers* pServers) {
+void offerFirstRun(const UserSettingsPointer& pConfig, CrateServers* pServers, QWidget* pParent) {
     if (!pServers || QGuiApplication::platformName() == QLatin1String("offscreen") ||
             !shouldOfferFirstRun(pConfig, *pServers)) {
         return;
     }
     markFirstRunOffered(pConfig);
 
-    QDialog dialog;
+    QDialog dialog(pParent);
     dialog.setWindowTitle(QCoreApplication::translate("crate::FirstRun", "Connect to Crate"));
     auto* pIntro = new QLabel(QCoreApplication::translate("crate::FirstRun",
                                       "Crate Decks plays the library of your Crate server. "

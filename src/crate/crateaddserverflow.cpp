@@ -36,6 +36,11 @@ void AddServerFlow::setAddress(const QString& address) {
         setStep(Step::EnterAddress, parsed.problem);
         return;
     }
+    if (m_pServers && m_pServers->hasOrigin(parsed.origin)) {
+        m_origin = QUrl();
+        setStep(Step::EnterAddress, tr("This Crate server is already added."));
+        return;
+    }
     m_origin = parsed.origin;
     if (parsed.security == ServerAddress::Security::LocalNetworkHttp) {
         setStep(Step::ConfirmLocalNetwork);
@@ -78,6 +83,10 @@ void AddServerFlow::checkServer() {
         return;
     }
     Session* const pSession = m_pServers->addServer(m_origin, m_origin.host());
+    if (!pSession) {
+        setStep(Step::EnterAddress, tr("Crate Decks cannot use this address."));
+        return;
+    }
     m_pSession = pSession;
     connect(pSession, &Session::openBrowser, this, &AddServerFlow::openBrowser);
     connect(pSession, &Session::signedIn, this, [this, pSession] {
@@ -86,6 +95,12 @@ void AddServerFlow::checkServer() {
         }
         // CrateServers saved the server first: its slot was connected first.
         const QString serverId = pSession->profile().id;
+        if (!m_pServers->isSaved(serverId)) {
+            // Signed in but not stored: it would be lost at the next start.
+            forgetPendingServer();
+            setStep(Step::EnterAddress, tr("Crate Decks could not save this server. Try again."));
+            return;
+        }
         m_pServers->rememberCapabilities(serverId, m_capabilitiesJson);
         m_pSession.clear();
         setStep(Step::Done);

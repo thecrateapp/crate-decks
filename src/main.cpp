@@ -16,6 +16,12 @@
 #include "controllers/controllermanager.h"
 #include "coreservices.h"
 #include "crate/appidentity.h"
+#ifdef __CRATE__
+#include <QTimer>
+
+#include "crate/crateservers.h"
+#include "crate/ui/cratefirstrun.h"
+#endif
 #include "errordialoghandler.h"
 #include "mixxxapplication.h"
 #ifdef MIXXX_USE_QML
@@ -136,6 +142,15 @@ int runMixxx(MixxxApplication* pApp, const CmdlineArgs& args) {
         } else {
             qDebug() << "Displaying main window";
             mainWindow.show();
+#ifdef __CRATE__
+            // Crate Decks: once, while there is no Crate server, offer to
+            // connect one over the main window.
+            QTimer::singleShot(0, &mainWindow, [&mainWindow, pCoreServices] {
+                crate::offerFirstRun(pCoreServices->getSettings(),
+                        crate::CrateServers::instance(),
+                        &mainWindow);
+            });
+#endif
 
             qDebug() << "Running Mixxx";
             exitCode = pApp->exec();

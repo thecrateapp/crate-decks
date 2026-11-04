@@ -74,6 +74,11 @@ class Session : public QObject, public TokenSource {
     State state() const {
         return m_state;
     }
+    /// False while the system keychain fails: the refresh token is then kept
+    /// for this run only (see secretStoreUnavailable()).
+    bool keychainAvailable() const {
+        return !m_keychainUnavailable;
+    }
 
     /// Signs in again with the refresh token kept from an earlier run, if
     /// there is one. Without a network the session counts as signed in and

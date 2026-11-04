@@ -52,6 +52,8 @@ AddServerWidget::AddServerWidget(CrateServers* pServers, QWidget* parent)
     // Plain HTTP on the local network.
     auto* pLocalNetworkPage = new QWidget(m_pSteps);
     auto* pLocalNetworkLayout = new QVBoxLayout(pLocalNetworkPage);
+    m_pLocalNetworkWarning->setObjectName(QStringLiteral("crateLocalNetworkWarning"));
+    m_pLocalNetworkWarning->setTextFormat(Qt::PlainText);
     m_pLocalNetworkWarning->setWordWrap(true);
     QPushButton* pConnectAnyway =
             button(tr("Connect without encryption"), "crateConnectAnyway", pLocalNetworkPage);
@@ -62,6 +64,7 @@ AddServerWidget::AddServerWidget(CrateServers* pServers, QWidget* parent)
     // Waiting for the server or for the browser.
     auto* pBusyPage = new QLabel(m_pSteps);
     pBusyPage->setObjectName(QStringLiteral("crateBusy"));
+    pBusyPage->setTextFormat(Qt::PlainText);
     pBusyPage->setWordWrap(true);
     m_pSteps->insertWidget(kBusyPage, pBusyPage);
 
@@ -87,6 +90,8 @@ AddServerWidget::AddServerWidget(CrateServers* pServers, QWidget* parent)
     m_pSteps->insertWidget(kSignInPage, pSignInPage);
 
     m_pError->setObjectName(QStringLiteral("crateError"));
+    // Server messages are shown as they are, never as rich text.
+    m_pError->setTextFormat(Qt::PlainText);
     m_pError->setWordWrap(true);
     QPushButton* pCancel = button(tr("Cancel"), "crateCancel", this);
     auto* pLayout = new QVBoxLayout(this);

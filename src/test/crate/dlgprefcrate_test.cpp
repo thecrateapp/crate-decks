@@ -3,10 +3,12 @@
 #include <gtest/gtest.h>
 
 #include <QJsonDocument>
+#include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
 #include <QPushButton>
 #include <QSignalSpy>
+#include <QSqlQuery>
 #include <QString>
 #include <QUrl>
 #include <memory>
@@ -79,6 +81,17 @@ TEST(CratePreferencesTest, AddServerRequiresHttpsExceptLoopbackAndPrivate) {
             EXPECT_EQ(QUrl(QString::fromUtf8(testCase.origin)), address.origin) << testCase.input;
         }
     }
+}
+
+TEST(CratePreferencesTest, AddressesOfTheSameServerHaveOneOrigin) {
+    EXPECT_EQ(QUrl(QStringLiteral("https://crate.example.com")),
+            parseServerAddress(QStringLiteral("https://crate.example.com:443")).origin);
+    EXPECT_EQ(QUrl(QStringLiteral("http://nas")),
+            parseServerAddress(QStringLiteral("http://nas:80")).origin);
+    EXPECT_EQ(QUrl(QStringLiteral("https://crate.example.com")),
+            parseServerAddress(QStringLiteral("https://crate.example.com./")).origin);
+    EXPECT_EQ(Security::Rejected,
+            parseServerAddress(QStringLiteral("https://crate.example.com:0")).security);
 }
 
 using crate::AddServerFlow;
@@ -261,6 +274,71 @@ TEST_F(CrateAddServerFlowTest, FirstRunIsNotOfferedWithAServer) {
     lastSent().pReply->respond(200, kLoginAnswer);
 
     EXPECT_FALSE(crate::shouldOfferFirstRun(config(), *m_pServers));
+}
+
+TEST_F(CrateAddServerFlowTest, AddingTheSameServerTwiceIsRefused) {
+    m_pFlow->setAddress(QStringLiteral("crate.test"));
+    lastSent().pReply->respond(200, kDecksCapabilities);
+    m_pFlow->loginWithPassword(QStringLiteral("dj@crate.test"), QStringLiteral("right"));
+    lastSent().pReply->respond(200, kLoginAnswer);
+    ASSERT_EQ(Step::Done, m_pFlow->step());
+    const qsizetype requests = m_network.sent.size();
+
+    AddServerFlow again(m_pServers.get());
+    again.setAddress(QStringLiteral("https://crate.test:443/"));
+
+    EXPECT_EQ(Step::EnterAddress, again.step());
+    EXPECT_FALSE(again.error().isEmpty());
+    EXPECT_EQ(requests, m_network.sent.size());
+    EXPECT_EQ(1, m_pServers->sessions().size());
+}
+
+TEST_F(CrateAddServerFlowTest, ServerThatCannotBeSavedIsNotAdded) {
+    QSqlQuery drop(dbConnection());
+    ASSERT_TRUE(drop.exec(QStringLiteral("DROP TABLE crateserver_servers")));
+
+    m_pFlow->setAddress(QStringLiteral("crate.test"));
+    lastSent().pReply->respond(200, kDecksCapabilities);
+    m_pFlow->loginWithPassword(QStringLiteral("dj@crate.test"), QStringLiteral("right"));
+    lastSent().pReply->respond(200, kLoginAnswer);
+
+    EXPECT_NE(Step::Done, m_pFlow->step());
+    EXPECT_FALSE(m_pFlow->error().isEmpty());
+    EXPECT_TRUE(m_pServers->sessions().isEmpty());
+}
+
+TEST_F(CrateAddServerFlowTest, PageWarnsWhenTheKeychainIsUnavailable) {
+    m_store.unavailable = true;
+    crate::DlgPrefCrate page(nullptr, m_pServers.get());
+    auto* pWarning = page.findChild<QLabel*>(QStringLiteral("crateKeychainWarning"));
+    ASSERT_TRUE(pWarning);
+    EXPECT_TRUE(pWarning->isHidden());
+
+    page.findChild<QPushButton*>(QStringLiteral("crateAddServer"))->click();
+    page.findChild<QLineEdit*>(QStringLiteral("crateServerAddress"))
+            ->setText(QStringLiteral("crate.test"));
+    page.findChild<QPushButton*>(QStringLiteral("crateConnect"))->click();
+    lastSent().pReply->respond(200, kDecksCapabilities);
+    page.findChild<QLineEdit*>(QStringLiteral("crateEmail"))
+            ->setText(QStringLiteral("dj@crate.test"));
+    page.findChild<QLineEdit*>(QStringLiteral("cratePassword"))->setText(QStringLiteral("pw"));
+    page.findChild<QPushButton*>(QStringLiteral("crateSignIn"))->click();
+    lastSent().pReply->respond(200, kLoginAnswer);
+
+    EXPECT_FALSE(pWarning->isHidden());
+}
+
+TEST_F(CrateAddServerFlowTest, ServerTextIsShownAsPlainText) {
+    crate::DlgPrefCrate page(nullptr, m_pServers.get());
+
+    for (const char* name : {"crateError",
+                 "crateBusy",
+                 "crateServerStatus",
+                 "crateLocalNetworkWarning"}) {
+        auto* pLabel = page.findChild<QLabel*>(QLatin1String(name));
+        ASSERT_TRUE(pLabel) << name;
+        EXPECT_EQ(Qt::PlainText, pLabel->textFormat()) << name;
+    }
 }
 
 } // namespace

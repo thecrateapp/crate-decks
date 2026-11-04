@@ -13,7 +13,6 @@
 #endif
 #ifdef __CRATE__
 #include "crate/crateservers.h"
-#include "crate/ui/cratefirstrun.h"
 #endif
 #include "control/controlindicatortimer.h"
 #include "controllers/controllermanager.h"
@@ -750,11 +749,6 @@ void CoreServices::initialize() {
             m_pPlayerManager->slotLoadToDeck(musicFiles.at(i), i + 1);
         }
     }
-
-#ifdef __CRATE__
-    // Crate Decks: once, while there is no Crate server, offer to connect one.
-    crate::offerFirstRun(pConfig, m_pCrateServers.get());
-#endif
 
     m_isInitialized = true;
 

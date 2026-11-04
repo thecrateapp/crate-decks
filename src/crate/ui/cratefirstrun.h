@@ -2,6 +2,8 @@
 
 #include "preferences/usersettings.h"
 
+class QWidget;
+
 namespace crate {
 
 class CrateServers;
@@ -13,8 +15,9 @@ bool shouldOfferFirstRun(const UserSettingsPointer& pConfig, const CrateServers&
 /// Remembers that connecting a server was offered on this installation.
 void markFirstRunOffered(const UserSettingsPointer& pConfig);
 
-/// Offers connecting a Crate server in a dialog, once per installation. Does
-/// nothing on the offscreen platform, where nobody could answer it (tests).
-void offerFirstRun(const UserSettingsPointer& pConfig, CrateServers* pServers);
+/// Offers connecting a Crate server in a dialog over `pParent`, once per
+/// installation. Call it once the main window is shown. Does nothing on the
+/// offscreen platform, where nobody could answer it (tests).
+void offerFirstRun(const UserSettingsPointer& pConfig, CrateServers* pServers, QWidget* pParent);
 
 } // namespace crate

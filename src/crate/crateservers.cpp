@@ -7,6 +7,7 @@
 #include <chrono>
 
 #include "crate/client/crateclient.h"
+#include "crate/client/crateserveraddress.h"
 #include "crate/db/crateserverprofiles.h"
 #include "crate/db/crateserverschema.h"
 #include "crate/session/cratesecretstore.h"
@@ -71,6 +72,14 @@ void CrateServers::start() {
     }
     const QList<ServerProfile> profiles = db::loadServerProfiles(database());
     for (const ServerProfile& profile : profiles) {
+        // The address rules hold for stored servers too: a public plain HTTP
+        // origin never gets a token.
+        if (parseServerAddress(profile.baseUrl.toString()).security ==
+                ServerAddress::Security::Rejected) {
+            kLogger.warning() << "Skipping the Crate server" << profile.id
+                              << "with an unsafe address" << profile.baseUrl;
+            continue;
+        }
         createServer(profile, true)->pSession->restore();
     }
     emit serversChanged();
@@ -103,9 +112,14 @@ Client* CrateServers::client(const QString& serverId) const {
 }
 
 Session* CrateServers::addServer(const QUrl& origin, const QString& displayName) {
+    const ServerAddress address = parseServerAddress(origin.toString());
+    if (address.security == ServerAddress::Security::Rejected) {
+        kLogger.warning() << "Refusing the Crate server address" << origin;
+        return nullptr;
+    }
     ServerProfile profile;
     profile.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
-    profile.baseUrl = origin;
+    profile.baseUrl = address.origin;
     profile.displayName = displayName;
     Session* pSession = createServer(profile, false)->pSession.get();
     emit serversChanged();
@@ -153,6 +167,19 @@ QByteArray CrateServers::lastCapabilities(const QString& serverId) const {
     return db::loadLastCapabilities(database(), serverId);
 }
 
+bool CrateServers::hasOrigin(const QUrl& origin) const {
+    const QUrl canonical = parseServerAddress(origin.toString()).origin;
+    return std::any_of(m_servers.cbegin(), m_servers.cend(), [&](const auto& pServer) {
+        return pServer->pSession->profile().baseUrl == canonical;
+    });
+}
+
+bool CrateServers::isSaved(const QString& serverId) const {
+    return std::any_of(m_servers.cbegin(), m_servers.cend(), [&](const auto& pServer) {
+        return pServer->saved && pServer->pSession->profile().id == serverId;
+    });
+}
+
 CrateServers::Server* CrateServers::createServer(const ServerProfile& profile, bool saved) {
     auto pServer = std::make_unique<Server>();
     ClientOptions options;
@@ -165,26 +192,32 @@ CrateServers::Server* CrateServers::createServer(const ServerProfile& profile, b
 
     Server* const pCreated = pServer.get();
     connect(pCreated->pSession.get(), &Session::signedIn, this, [this, pCreated] {
-        if (!pCreated->saved) {
+        // Marked as saved before anyone hears of it.
+        if (!pCreated->saved && save(pCreated)) {
             pCreated->saved = true;
-            save(pCreated);
+            emit serversChanged();
         }
     });
+    // The preferences page shows the keychain state of every session.
+    connect(pCreated->pSession.get(),
+            &Session::secretStoreUnavailable,
+            this,
+            &CrateServers::serversChanged);
     connect(pCreated->pSession.get(), &Session::profileChanged, this, [this, pCreated] {
-        if (pCreated->saved) {
-            save(pCreated);
+        if (pCreated->saved && save(pCreated)) {
+            emit serversChanged();
         }
     });
     m_servers.push_back(std::move(pServer));
     return pCreated;
 }
 
-void CrateServers::save(Server* pServer) {
+bool CrateServers::save(Server* pServer) {
     if (!db::saveServerProfile(database(), pServer->pSession->profile())) {
         kLogger.warning() << "Cannot save the Crate server" << pServer->pSession->profile().id;
-        return;
+        return false;
     }
-    emit serversChanged();
+    return true;
 }
 
 QSqlDatabase CrateServers::database() const {
