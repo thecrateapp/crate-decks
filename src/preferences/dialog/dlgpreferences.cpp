@@ -39,6 +39,12 @@
 #include "preferences/dialog/dlgprefbroadcast.h"
 #endif // __BROADCAST__
 
+#ifdef __CRATE__
+// Crate Decks: the Crate page (F2.C-PR3).
+#include "crate/crateservers.h"
+#include "crate/ui/dlgprefcrate.h"
+#endif // __CRATE__
+
 #include "preferences/dialog/dlgprefbeats.h"
 #include "preferences/dialog/dlgprefkey.h"
 #include "preferences/dialog/dlgprefrecord.h"
@@ -122,6 +128,16 @@ DlgPreferences::DlgPreferences(
                           new QTreeWidgetItem(contentsTreeWidget, QTreeWidgetItem::Type)),
             tr("Library"),
             "ic_preferences_library.svg");
+
+#ifdef __CRATE__
+    // Crate Decks: the Crate servers of this installation (F2.C-PR3).
+    if (crate::CrateServers* pCrateServers = crate::CrateServers::instance()) {
+        addPageWidget(PreferencesPage(new crate::DlgPrefCrate(this, pCrateServers),
+                              new QTreeWidgetItem(contentsTreeWidget, QTreeWidgetItem::Type)),
+                tr("Crate"),
+                "ic_preferences_library.svg");
+    }
+#endif // __CRATE__
 
     QTreeWidgetItem* pControllerRootItem =
             new QTreeWidgetItem(contentsTreeWidget, QTreeWidgetItem::Type);

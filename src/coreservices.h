@@ -16,6 +16,11 @@ class RecordingManager;
 #ifdef __BROADCAST__
 class BroadcastManager;
 #endif
+#ifdef __CRATE__
+namespace crate {
+class CrateServers;
+} // namespace crate
+#endif
 class ControllerManager;
 class VinylControlManager;
 class TrackCollectionManager;
@@ -140,6 +145,10 @@ class CoreServices : public QObject {
     std::shared_ptr<DbConnectionPool> m_pDbConnectionPool;
     std::shared_ptr<TrackCollectionManager> m_pTrackCollectionManager;
     std::shared_ptr<Library> m_pLibrary;
+#ifdef __CRATE__
+    // Crate Decks: the Crate servers of this installation (F2.C-PR3).
+    std::shared_ptr<crate::CrateServers> m_pCrateServers;
+#endif
 
     std::shared_ptr<KeyboardEventFilter> m_pKeyboardEventFilter;
 

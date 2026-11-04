@@ -11,6 +11,9 @@
 #ifdef __BROADCAST__
 #include "broadcast/broadcastmanager.h"
 #endif
+#ifdef __CRATE__
+#include "crate/crateservers.h"
+#endif
 #include "control/controlindicatortimer.h"
 #include "controllers/controllermanager.h"
 #include "controllers/keyboard/keyboardeventfilter.h"
@@ -582,6 +585,19 @@ void CoreServices::initialize() {
             m_pPlayerManager.get(),
             m_pRecordingManager.get());
 
+#ifdef __CRATE__
+    // Crate Decks: load the Crate servers and restore their sessions; the
+    // interface reaches them through crate::CrateServers::instance().
+    {
+        crate::CrateServers::Dependencies crateDependencies;
+        crateDependencies.pConfig = pConfig;
+        crateDependencies.pDbConnectionPool = m_pDbConnectionPool;
+        m_pCrateServers = std::make_shared<crate::CrateServers>(crateDependencies);
+        crate::CrateServers::setInstance(m_pCrateServers.get());
+        m_pCrateServers->start();
+    }
+#endif
+
     OverviewCache* pOverviewCache = OverviewCache::createInstance(pConfig, m_pDbConnectionPool);
     connect(&(m_pTrackCollectionManager->internalCollection()->getTrackDAO()),
             &TrackDAO::waveformSummaryUpdated,
@@ -855,6 +871,12 @@ void CoreServices::finalize() {
 
     Timer t("CoreServices::~CoreServices");
     t.start();
+
+#ifdef __CRATE__
+    // Crate Decks: before the database and the network go away.
+    crate::CrateServers::setInstance(nullptr);
+    m_pCrateServers.reset();
+#endif
 
 #ifdef MIXXX_USE_QML
     // Delete all the QML singletons in order to prevent controller leaks
