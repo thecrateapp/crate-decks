@@ -36,7 +36,7 @@ class FakeSecretStore : public crate::SecretStore {
     QHash<QString, QString> secrets;
     bool unavailable = false;
 
-    void read(const QString& key, ReadDone done) override {
+    void read(const QString& key, const ReadDone& done) override {
         if (unavailable) {
             done(Status::Unavailable, QString());
             return;
@@ -49,7 +49,7 @@ class FakeSecretStore : public crate::SecretStore {
         done(Status::Ok, it.value());
     }
 
-    void write(const QString& key, const QString& secret, Done done) override {
+    void write(const QString& key, const QString& secret, const Done& done) override {
         if (unavailable) {
             done(Status::Unavailable);
             return;
@@ -58,7 +58,7 @@ class FakeSecretStore : public crate::SecretStore {
         done(Status::Ok);
     }
 
-    void remove(const QString& key, Done done) override {
+    void remove(const QString& key, const Done& done) override {
         if (unavailable) {
             done(Status::Unavailable);
             return;
@@ -106,12 +106,18 @@ class CrateSessionTest : public testing::Test {
         profile.baseUrl = QUrl(QStringLiteral("https://crate.test"));
         m_pSession = std::make_unique<Session>(
                 profile, m_pClient.get(), &m_store, std::move(options));
-        QObject::connect(m_pSession.get(), &Session::loginFailed, [this](const Error& error) {
-            m_loginFailures.append(error);
-        });
-        QObject::connect(m_pSession.get(), &Session::openBrowser, [this](const QUrl& url) {
-            m_openedUrl = url;
-        });
+        QObject::connect(m_pSession.get(),
+                &Session::loginFailed,
+                m_pSession.get(),
+                [this](const Error& error) {
+                    m_loginFailures.append(error);
+                });
+        QObject::connect(m_pSession.get(),
+                &Session::openBrowser,
+                m_pSession.get(),
+                [this](const QUrl& url) {
+                    m_openedUrl = url;
+                });
     }
 
     FakeNetworkAccessManager::Sent lastSent() const {
@@ -162,9 +168,12 @@ class CrateSessionTest : public testing::Test {
 TEST_F(CrateSessionTest, PasswordLoginStoresRefreshInSecretStore) {
     QSignalSpy signedIn(m_pSession.get(), &Session::signedIn);
     int profileChanges = 0;
-    QObject::connect(m_pSession.get(), &Session::profileChanged, [&](const ServerProfile&) {
-        ++profileChanges;
-    });
+    QObject::connect(m_pSession.get(),
+            &Session::profileChanged,
+            m_pSession.get(),
+            [pChanges = &profileChanges](const ServerProfile&) {
+                ++*pChanges;
+            });
 
     m_pSession->loginWithPassword(
             QStringLiteral("dj@crate.test"), QStringLiteral("secret-password"));
@@ -267,9 +276,11 @@ TEST_F(CrateSessionTest, RestoreWithoutStoredTokenStaysSignedOut) {
 TEST_F(CrateSessionTest, RenewsTheAccessTokenForTheClient) {
     signIn();
     std::optional<JsonResult> result;
-    QObject::connect(m_pClient->get(QStringLiteral("/api/library")),
+    Reply* pLibrary = m_pClient->get(QStringLiteral("/api/library"));
+    QObject::connect(pLibrary,
             &Reply::finished,
-            [&](const JsonResult& finished) { result = finished; });
+            pLibrary,
+            [pResult = &result](const JsonResult& finished) { *pResult = finished; });
 
     lastSent().pReply->respond(401);
     const FakeNetworkAccessManager::Sent refresh = lastSent();
@@ -300,9 +311,11 @@ TEST_F(CrateSessionTest, RejectedRefreshEndsTheSession) {
 TEST_F(CrateSessionTest, UnreachableRefreshKeepsTheSession) {
     signIn();
     std::optional<JsonResult> result;
-    QObject::connect(m_pClient->get(QStringLiteral("/api/library")),
+    Reply* pLibrary = m_pClient->get(QStringLiteral("/api/library"));
+    QObject::connect(pLibrary,
             &Reply::finished,
-            [&](const JsonResult& finished) { result = finished; });
+            pLibrary,
+            [pResult = &result](const JsonResult& finished) { *pResult = finished; });
 
     lastSent().pReply->respond(401);
     lastSent().pReply->failNetwork();
@@ -347,9 +360,11 @@ TEST_F(CrateSessionTest, LateRejectedRenewalDoesNotEndANewSession) {
 TEST_F(CrateSessionTest, LogoutDuringARenewalStaysSignedOut) {
     signIn();
     std::optional<JsonResult> result;
-    QObject::connect(m_pClient->get(QStringLiteral("/api/library")),
+    Reply* pLibrary = m_pClient->get(QStringLiteral("/api/library"));
+    QObject::connect(pLibrary,
             &Reply::finished,
-            [&](const JsonResult& finished) { result = finished; });
+            pLibrary,
+            [pResult = &result](const JsonResult& finished) { *pResult = finished; });
     lastSent().pReply->respond(401);
     const FakeNetworkAccessManager::Sent renewal = lastSent();
 

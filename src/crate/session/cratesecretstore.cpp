@@ -41,7 +41,7 @@ class QtKeychainBackend : public KeychainBackend {
     void run(Operation operation,
             const QString& key,
             const QString& secret,
-            Finished finished) override {
+            const Finished& finished) override {
 #ifdef __QTKEYCHAIN__
         QKeychain::Job* pJob = nullptr;
         switch (operation) {
@@ -104,7 +104,7 @@ QString refreshTokenKey(const QString& serverId) {
     return serverId + QStringLiteral(":refresh");
 }
 
-void SessionOnlySecretStore::read(const QString& key, ReadDone done) {
+void SessionOnlySecretStore::read(const QString& key, const ReadDone& done) {
     const auto it = m_secrets.constFind(key);
     if (it == m_secrets.cend()) {
         done(Status::NotFound, QString());
@@ -113,12 +113,12 @@ void SessionOnlySecretStore::read(const QString& key, ReadDone done) {
     done(Status::Ok, it.value());
 }
 
-void SessionOnlySecretStore::write(const QString& key, const QString& secret, Done done) {
+void SessionOnlySecretStore::write(const QString& key, const QString& secret, const Done& done) {
     m_secrets.insert(key, secret);
     done(Status::Ok);
 }
 
-void SessionOnlySecretStore::remove(const QString& key, Done done) {
+void SessionOnlySecretStore::remove(const QString& key, const Done& done) {
     done(m_secrets.remove(key) > 0 ? Status::Ok : Status::NotFound);
 }
 
@@ -133,6 +133,8 @@ struct KeychainSecretStore::State {
     std::chrono::milliseconds timeout;
     std::unique_ptr<KeychainBackend> pBackend;
     Schedule schedule;
+    /// Context of the timeouts, which may outlive the store.
+    std::unique_ptr<QObject> pTimerContext = std::make_unique<QObject>();
     /// Per key, the operation running at the front and the waiting ones.
     QHash<QString, std::deque<Pending>> queues;
 
@@ -166,27 +168,27 @@ struct KeychainSecretStore::State {
 
 KeychainSecretStore::KeychainSecretStore(std::chrono::milliseconds timeout,
         std::unique_ptr<KeychainBackend> pBackend,
-        Schedule schedule)
+        const Schedule& schedule)
         : m_pState(std::make_shared<State>()) {
     m_pState->timeout = timeout;
     m_pState->pBackend = std::move(pBackend);
-    m_pState->schedule = std::move(schedule);
+    m_pState->schedule = schedule;
 }
 
 KeychainSecretStore::~KeychainSecretStore() = default;
 
-void KeychainSecretStore::read(const QString& key, ReadDone done) {
-    enqueue(KeychainBackend::Operation::Read, key, QString(), std::move(done));
+void KeychainSecretStore::read(const QString& key, const ReadDone& done) {
+    enqueue(KeychainBackend::Operation::Read, key, QString(), done);
 }
 
-void KeychainSecretStore::write(const QString& key, const QString& secret, Done done) {
+void KeychainSecretStore::write(const QString& key, const QString& secret, const Done& done) {
     enqueue(KeychainBackend::Operation::Write,
             key,
             secret,
             [done](Status status, const QString&) { done(status); });
 }
 
-void KeychainSecretStore::remove(const QString& key, Done done) {
+void KeychainSecretStore::remove(const QString& key, const Done& done) {
     enqueue(KeychainBackend::Operation::Remove,
             key,
             QString(),
@@ -196,9 +198,9 @@ void KeychainSecretStore::remove(const QString& key, Done done) {
 void KeychainSecretStore::enqueue(KeychainBackend::Operation operation,
         const QString& key,
         const QString& secret,
-        KeychainBackend::Finished done) {
+        const KeychainBackend::Finished& done) {
     auto pAnswer = std::make_shared<Answer>();
-    pAnswer->done = std::move(done);
+    pAnswer->done = done;
     // The caller waits at most the timeout, also while earlier operations on
     // the key are still running.
     auto giveUp = [pAnswer] {
@@ -210,7 +212,7 @@ void KeychainSecretStore::enqueue(KeychainBackend::Operation operation,
     if (m_pState->schedule) {
         m_pState->schedule(m_pState->timeout, std::move(giveUp));
     } else {
-        QTimer::singleShot(m_pState->timeout, std::move(giveUp));
+        QTimer::singleShot(m_pState->timeout, m_pState->pTimerContext.get(), std::move(giveUp));
     }
 
     std::deque<State::Pending>& queue = m_pState->queues[key];

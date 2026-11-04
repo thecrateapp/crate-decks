@@ -153,16 +153,16 @@ void revokeSession(const QPointer<Client>& pClient,
 
 } // namespace
 
-Session::Session(ServerProfile profile,
+Session::Session(const ServerProfile& profile,
         Client* pClient,
         SecretStore* pSecretStore,
-        SessionOptions options,
+        const SessionOptions& options,
         QObject* parent)
         : QObject(parent),
-          m_profile(std::move(profile)),
+          m_profile(profile),
           m_pClient(pClient),
           m_pSecretStore(pSecretStore),
-          m_options(std::move(options)) {
+          m_options(options) {
     m_pClient->setTokenSource(this);
 }
 
@@ -508,7 +508,7 @@ void Session::endSession() {
     }
 }
 
-void Session::storeRefreshToken(const QString& refreshToken, std::function<void()> then) {
+void Session::storeRefreshToken(const QString& refreshToken, const std::function<void()>& then) {
     const QPointer<Session> pGuard(this);
     const QString key = refreshTokenKey(m_profile.id);
     m_pSecretStore->write(key,
@@ -542,11 +542,11 @@ void Session::onKeychainUnavailable() {
     emit secretStoreUnavailable();
 }
 
-void Session::schedule(std::chrono::milliseconds delay, std::function<void()> callback) {
+void Session::schedule(std::chrono::milliseconds delay, const std::function<void()>& callback) {
     if (m_options.schedule) {
-        m_options.schedule(delay, std::move(callback));
+        m_options.schedule(delay, callback);
     } else {
-        QTimer::singleShot(delay, this, std::move(callback));
+        QTimer::singleShot(delay, this, callback);
     }
 }
 
