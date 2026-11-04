@@ -5324,6 +5324,7 @@ if(CRATE)
       src/crate/session/crateloopbackserver.cpp
       src/crate/session/cratesecretstore.cpp
       src/crate/session/cratesession.cpp
+      src/crate/crateaddserverflow.cpp
       src/crate/crateservers.cpp
   )
   # The tests of the Crate integration are added here and not in the list of

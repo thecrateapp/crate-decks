@@ -58,6 +58,8 @@ class CrateServers : public QObject {
     Session* addServer(const QUrl& origin, const QString& displayName);
     /// Signs out of the server, revoking its session, and forgets it.
     void removeServer(const QString& serverId);
+    /// Keeps the last `GET /api/capabilities` answer of a saved server.
+    void rememberCapabilities(const QString& serverId, const QByteArray& capabilitiesJson);
 
   signals:
     void serversChanged();

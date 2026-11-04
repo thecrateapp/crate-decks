@@ -138,6 +138,16 @@ void CrateServers::removeServer(const QString& serverId) {
     emit serversChanged();
 }
 
+void CrateServers::rememberCapabilities(
+        const QString& serverId, const QByteArray& capabilitiesJson) {
+    for (const auto& pServer : m_servers) {
+        if (pServer->pSession->profile().id == serverId && pServer->saved) {
+            db::saveLastCapabilities(database(), serverId, capabilitiesJson);
+            return;
+        }
+    }
+}
+
 CrateServers::Server* CrateServers::createServer(const ServerProfile& profile, bool saved) {
     auto pServer = std::make_unique<Server>();
     ClientOptions options;
