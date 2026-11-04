@@ -11,6 +11,7 @@
 #include <chrono>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "crate/client/crateresult.h"
@@ -182,6 +183,11 @@ class Client : public QObject {
     QList<CallPtr> m_waitingForToken;
     int m_inFlight = 0;
     bool m_renewingToken = false;
+    /// Tells the answer of the current renewal from that of an abandoned one.
+    quint64 m_renewalGeneration = 0;
+    /// The access token whose renewal failed, while the TokenSource still
+    /// returns it: requests rejected with it fail without renewing again.
+    std::optional<QString> m_rejectedToken;
 };
 
 } // namespace crate

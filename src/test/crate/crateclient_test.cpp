@@ -2,6 +2,8 @@
 
 #include <gtest/gtest.h>
 
+#include <QCoreApplication>
+#include <QEvent>
 #include <QJsonObject>
 #include <QTemporaryDir>
 #include <memory>
@@ -370,6 +372,123 @@ TEST_F(CrateClientTest, UnreachableServerIsANetworkError) {
     EXPECT_TRUE(m_scheduler.tasks.isEmpty());
     ASSERT_TRUE(outcome.finished());
     EXPECT_EQ(Error::Kind::Network, outcome.result->error().kind);
+}
+
+TEST_F(CrateClientTest, DeletingTheClientInsideFinishedIsSafe) {
+    auto pClient = makeClient();
+    Reply* pFirst = pClient->get(QStringLiteral("/api/capabilities"));
+    const QPointer<Reply> pSecond = pClient->get(QStringLiteral("/api/capabilities"));
+    bool secondFinished = false;
+    QObject::connect(pFirst, &Reply::finished, [&pClient](const JsonResult&) {
+        pClient.reset();
+    });
+    QObject::connect(pSecond, &Reply::finished, [&secondFinished](const JsonResult&) {
+        secondFinished = true;
+    });
+
+    lastReply()->respond(200, kOkBody);
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+
+    EXPECT_EQ(nullptr, pClient);
+    EXPECT_TRUE(pSecond.isNull());
+    EXPECT_FALSE(secondFinished);
+}
+
+TEST_F(CrateClientTest, DeletingTheReplyInsideFinishedIsSafe) {
+    const auto pClient = makeClient();
+    Reply* pReply = pClient->get(QStringLiteral("/api/capabilities"));
+    bool finished = false;
+    QObject::connect(pReply, &Reply::finished, [pReply, &finished](const JsonResult&) {
+        finished = true;
+        delete pReply;
+    });
+
+    lastReply()->respond(200, kOkBody);
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+
+    EXPECT_TRUE(finished);
+    pClient->get(QStringLiteral("/api/next"));
+    EXPECT_EQ(2, m_network.sent.size());
+}
+
+TEST_F(CrateClientTest, CancellingFromProgressIsSafe) {
+    const auto pClient = makeClient();
+    Reply* pCancelled = pClient->get(QStringLiteral("/api/capabilities"));
+    Reply* pKept = pClient->get(QStringLiteral("/api/capabilities"));
+    Outcome cancelled(pCancelled);
+    Outcome kept(pKept);
+    bool keptProgress = false;
+    QObject::connect(pCancelled, &Reply::progress, [pCancelled](qint64, qint64) {
+        pCancelled->cancel();
+    });
+    QObject::connect(pKept, &Reply::progress, [&keptProgress](qint64, qint64) {
+        keptProgress = true;
+    });
+
+    lastReply()->respond(200, kOkBody);
+
+    ASSERT_TRUE(cancelled.finished() && kept.finished());
+    EXPECT_EQ(Error::Kind::Cancelled, cancelled.result->error().kind);
+    EXPECT_TRUE(keptProgress);
+    EXPECT_TRUE(kept.result->ok());
+}
+
+TEST_F(CrateClientTest, TruncatedSuccessIsANetworkError) {
+    const auto pClient = makeClient();
+    Outcome empty(pClient->del(QStringLiteral("/api/playlists/7")));
+    Outcome partial(pClient->get(QStringLiteral("/api/a")));
+
+    m_network.sent[0].pReply->respondTruncated(
+            200, QByteArray(), QNetworkReply::RemoteHostClosedError);
+    m_network.sent[1].pReply->respondTruncated(
+            200, QByteArrayLiteral(R"({"ok": tr)"), QNetworkReply::RemoteHostClosedError);
+
+    ASSERT_TRUE(empty.finished() && partial.finished());
+    EXPECT_EQ(Error::Kind::Network, empty.result->error().kind);
+    EXPECT_EQ(Error::Kind::Network, partial.result->error().kind);
+}
+
+TEST_F(CrateClientTest, ChangingTheTokenSourceDuringARenewalFailsTheWaiters) {
+    const auto pClient = makeClient();
+    FakeTokenSource newSession;
+    newSession.token = QStringLiteral("other-1");
+    Outcome waiting(pClient->get(QStringLiteral("/api/a")));
+    lastReply()->respond(401);
+    ASSERT_TRUE(m_tokens.renewing());
+
+    pClient->setTokenSource(&newSession);
+
+    ASSERT_TRUE(waiting.finished());
+    EXPECT_EQ(Error::Kind::Auth, waiting.result->error().kind);
+    Outcome next(pClient->get(QStringLiteral("/api/b")));
+    ASSERT_EQ(2, m_network.sent.size());
+    EXPECT_EQ(QByteArrayLiteral("Bearer other-1"),
+            lastReply()->request().rawHeader("Authorization"));
+    lastReply()->respond(401);
+    EXPECT_EQ(1, newSession.renewals);
+    m_tokens.finishRenewal(false);
+    EXPECT_FALSE(next.finished());
+    newSession.finishRenewal(true, QStringLiteral("other-2"));
+    ASSERT_EQ(3, m_network.sent.size());
+    EXPECT_EQ(QByteArrayLiteral("Bearer other-2"),
+            lastReply()->request().rawHeader("Authorization"));
+}
+
+TEST_F(CrateClientTest, FailedRenewalIsNotRetriedByOtherRequests) {
+    const auto pClient = makeClient();
+    Outcome first(pClient->get(QStringLiteral("/api/a")));
+    Outcome second(pClient->get(QStringLiteral("/api/b")));
+    Outcome third(pClient->get(QStringLiteral("/api/c")));
+
+    m_network.sent[0].pReply->respond(401);
+    m_tokens.finishRenewal(false);
+    m_network.sent[1].pReply->respond(401);
+    m_network.sent[2].pReply->respond(401);
+
+    EXPECT_EQ(1, m_tokens.renewals);
+    ASSERT_TRUE(first.finished() && second.finished() && third.finished());
+    EXPECT_EQ(Error::Kind::Auth, second.result->error().kind);
+    EXPECT_EQ(Error::Kind::Auth, third.result->error().kind);
 }
 
 TEST_F(CrateClientTest, ForwardsDownloadProgress) {

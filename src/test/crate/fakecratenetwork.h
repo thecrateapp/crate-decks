@@ -53,6 +53,23 @@ class FakeReply : public QNetworkReply {
         emit finished();
     }
 
+    /// An HTTP answer whose transfer broke off after the headers, as Qt
+    /// reports it: the status stays, error() is set.
+    void respondTruncated(int status, const QByteArray& partialBody, NetworkError error) {
+        if (isFinished()) {
+            return;
+        }
+        setAttribute(QNetworkRequest::HttpStatusCodeAttribute, status);
+        setError(error, QStringLiteral("Remote host closed the connection"));
+        m_body = partialBody;
+        m_position = 0;
+        emit metaDataChanged();
+        emit readyRead();
+        emit errorOccurred(error);
+        setFinished(true);
+        emit finished();
+    }
+
     void failNetwork() {
         if (isFinished()) {
             return;

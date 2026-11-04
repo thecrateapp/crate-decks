@@ -94,6 +94,20 @@ TEST(CrateCapabilitiesTest, MalformedDecksSectionIsADecodeError) {
     EXPECT_EQ(Error::Kind::Decode, notAVersion.error().kind);
 }
 
+TEST(CrateCapabilitiesTest, MinClientVersionMustBeAVersion) {
+    const auto junk = Capabilities::fromJson(parse(R"({"decks": {
+        "available": true, "min_client_version": "1.2.three", "contract_version": 1, "features": []
+    }})"));
+    const auto preRelease = Capabilities::fromJson(parse(R"({"decks": {
+        "available": true, "min_client_version": "0.2.0-beta.1", "contract_version": 1, "features": []
+    }})"));
+
+    ASSERT_FALSE(junk.ok());
+    EXPECT_EQ(Error::Kind::Decode, junk.error().kind);
+    ASSERT_TRUE(preRelease.ok()) << preRelease.error().message.toStdString();
+    EXPECT_EQ(QVersionNumber(0, 2, 0), preRelease.value().minClientVersion());
+}
+
 TEST(CrateCapabilitiesTest, NonObjectAnswerIsADecodeError) {
     const auto result = Capabilities::fromJson(parse("[]"));
 

@@ -1,6 +1,7 @@
 #include "crate/client/cratecapabilities.h"
 
 #include <QJsonObject>
+#include <QRegularExpression>
 #include <optional>
 
 #include "crate/client/cratejson.h"
@@ -62,8 +63,13 @@ Result<Capabilities> Capabilities::fromJson(const QJsonDocument& document) {
         return reader.error();
     }
 
-    qsizetype suffixIndex = 0;
-    capabilities.m_minClientVersion = QVersionNumber::fromString(minClientVersion, &suffixIndex);
+    // Numbers separated by dots, then at most a pre-release or build suffix
+    // ("0.2.0-beta.1"); QVersionNumber alone would read "1.2.three" as 1.2.
+    static const QRegularExpression kVersionPattern(
+            QStringLiteral("^[0-9]+(\\.[0-9]+)*([-+][0-9A-Za-z.+-]*)?$"));
+    if (kVersionPattern.match(minClientVersion).hasMatch()) {
+        capabilities.m_minClientVersion = QVersionNumber::fromString(minClientVersion);
+    }
     if (capabilities.m_minClientVersion.isNull()) {
         return Error::decode(
                 QStringLiteral("decks.min_client_version is not a version: %1")

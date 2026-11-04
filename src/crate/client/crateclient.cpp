@@ -132,8 +132,10 @@ void Reply::finish(const JsonResult& result) {
         return;
     }
     m_finished = true;
-    emit finished(result);
+    // Posted before the signal and nothing after it: a slot may delete this
+    // Reply or the Client that owns it.
     deleteLater();
+    emit finished(result);
 }
 
 Client::Client(const QUrl& baseUrl,
@@ -166,7 +168,26 @@ Client::~Client() {
 }
 
 void Client::setTokenSource(TokenSource* pTokenSource) {
+    if (pTokenSource == m_pTokenSource) {
+        return;
+    }
     m_pTokenSource = pTokenSource;
+    m_rejectedToken.reset();
+    if (!m_renewingToken) {
+        return;
+    }
+    // The renewal in flight belongs to the previous session: its answer is
+    // ignored. The requests it rejected fail; the ones that only waited go
+    // out with the new session.
+    m_renewingToken = false;
+    ++m_renewalGeneration;
+    QList<CallPtr> rejected;
+    QList<CallPtr> waited;
+    for (const CallPtr& pCall : std::exchange(m_waitingForToken, {})) {
+        (pCall->renewalUsed ? rejected : waited).append(pCall);
+    }
+    m_queue = waited + m_queue;
+    complete(rejected, Error::auth(QStringLiteral("The session changed")));
 }
 
 Reply* Client::get(const QString& path, const RequestOptions& options) {
@@ -297,7 +318,9 @@ void Client::send(const CallPtr& pCall) {
             this,
             [weakCall](qint64 bytesReceived, qint64 bytesTotal) {
                 if (const CallPtr pActive = weakCall.lock()) {
-                    for (const QPointer<Reply>& pReply : std::as_const(pActive->subscribers)) {
+                    // A copy: a slot may cancel or delete Replies meanwhile.
+                    const QList<QPointer<Reply>> subscribers = pActive->subscribers;
+                    for (const QPointer<Reply>& pReply : subscribers) {
                         if (pReply) {
                             emit pReply->progress(bytesReceived, bytesTotal);
                         }
@@ -331,6 +354,14 @@ void Client::onNetworkReplyFinished(const CallPtr& pCall) {
     }
     const int status = statusAttribute.toInt();
     const QByteArray body = pNetworkReply->readAll();
+    // Qt keeps the status of the headers when the transfer breaks off later,
+    // or when a redirect is refused: that is not an answer.
+    if (status < 400 && pNetworkReply->error() != QNetworkReply::NoError) {
+        kLogger.warning() << "Request to" << pCall->url.path()
+                          << "broke off:" << pNetworkReply->errorString();
+        complete({pCall}, Error::network(pNetworkReply->errorString()));
+        return;
+    }
 
     if (status == 401 && pCall->authenticated) {
         onUnauthorized(pCall);
@@ -377,6 +408,14 @@ void Client::onUnauthorized(const CallPtr& pCall) {
         complete({pCall}, Error::auth(QStringLiteral("Not signed in")));
         return;
     }
+    if (m_rejectedToken) {
+        if (m_pTokenSource->accessToken() == *m_rejectedToken) {
+            // Its renewal already failed: do not ask again for every request.
+            complete({pCall}, Error::auth(QStringLiteral("The session could not be renewed")));
+            return;
+        }
+        m_rejectedToken.reset();
+    }
     if (pCall->renewalUsed) {
         complete({pCall}, Error::auth(QStringLiteral("The server rejected the renewed session")));
         return;
@@ -394,10 +433,12 @@ void Client::onUnauthorized(const CallPtr& pCall) {
         return;
     }
     m_renewingToken = true;
+    const quint64 generation = ++m_renewalGeneration;
     kLogger.debug() << "Renewing the access token";
     const QPointer<Client> pGuard(this);
-    m_pTokenSource->renewAccessToken([pGuard](bool renewed) {
-        if (pGuard) {
+    m_pTokenSource->renewAccessToken([pGuard, generation](bool renewed) {
+        // Ignore the answer of a renewal that setTokenSource() abandoned.
+        if (pGuard && pGuard->m_renewingToken && pGuard->m_renewalGeneration == generation) {
             pGuard->onAccessTokenRenewed(renewed);
         }
     });
@@ -416,7 +457,15 @@ void Client::onAccessTokenRenewed(bool renewed) {
         return;
     }
     kLogger.info() << "The session could not be renewed";
-    complete(waiting, Error::auth(QStringLiteral("The session could not be renewed")));
+    m_rejectedToken = m_pTokenSource ? m_pTokenSource->accessToken() : QString();
+    // The queued authenticated requests would go out with the rejected token.
+    QList<CallPtr> failed = waiting;
+    for (const CallPtr& pCall : std::as_const(m_queue)) {
+        if (pCall->authenticated) {
+            failed.append(pCall);
+        }
+    }
+    complete(failed, Error::auth(QStringLiteral("The session could not be renewed")));
 }
 
 void Client::scheduleRetry(const CallPtr& pCall, std::chrono::milliseconds delay) {
