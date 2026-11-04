@@ -15,7 +15,7 @@ const mixxx::Logger kLogger("crate::db::ServerProfiles");
 
 /// A null QString binds as SQL NULL; the text columns are NOT NULL.
 QString text(const QString& value) {
-    return value.isNull() ? QStringLiteral("") : value;
+    return value.isNull() ? QLatin1String("") : value;
 }
 
 bool run(QSqlQuery& query, const char* what) {
