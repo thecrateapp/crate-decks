@@ -45,7 +45,7 @@ class TokenSource {
     /// Starts renewing the access token and calls `done` once with the
     /// outcome. The Client never asks for a second renewal while one is in
     /// flight.
-    virtual void renewAccessToken(std::function<void(Renewal renewal)> done) = 0;
+    virtual void renewAccessToken(const std::function<void(Renewal renewal)>& done) = 0;
 };
 
 struct ClientOptions {
@@ -64,7 +64,8 @@ struct ClientOptions {
     std::chrono::milliseconds transferTimeout{30000};
     /// Runs `callback` after `delay`. Defaults to a single-shot QTimer;
     /// tests replace it to control time.
-    std::function<void(std::chrono::milliseconds delay, std::function<void()> callback)> schedule;
+    std::function<void(std::chrono::milliseconds delay, const std::function<void()>& callback)>
+            schedule;
     /// A number in [0, 1) for the jitter of the backoff. Defaults to
     /// QRandomGenerator; tests replace it.
     std::function<double()> random;
@@ -130,7 +131,7 @@ class Client : public QObject {
     /// The Client does not own `pNetworkAccessManager`.
     Client(const QUrl& baseUrl,
             QNetworkAccessManager* pNetworkAccessManager,
-            ClientOptions options,
+            const ClientOptions& options,
             QObject* parent = nullptr);
     ~Client() override;
 

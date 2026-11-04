@@ -185,9 +185,9 @@ class FakeScheduler {
 
     QList<Task> tasks;
 
-    std::function<void(std::chrono::milliseconds, std::function<void()>)> function() {
-        return [this](std::chrono::milliseconds delay, std::function<void()> callback) {
-            tasks.append({delay, std::move(callback)});
+    std::function<void(std::chrono::milliseconds, const std::function<void()>&)> function() {
+        return [this](std::chrono::milliseconds delay, const std::function<void()>& callback) {
+            tasks.append({delay, callback});
         };
     }
 
@@ -229,7 +229,7 @@ class FakeSecretStore : public crate::SecretStore {
     QHash<QString, QString> secrets;
     bool unavailable = false;
 
-    void read(const QString& key, ReadDone done) override {
+    void read(const QString& key, const ReadDone& done) override {
         if (unavailable) {
             done(crate::SecretStore::Status::Unavailable, QString());
             return;
@@ -242,7 +242,7 @@ class FakeSecretStore : public crate::SecretStore {
         done(crate::SecretStore::Status::Ok, it.value());
     }
 
-    void write(const QString& key, const QString& secret, Done done) override {
+    void write(const QString& key, const QString& secret, const Done& done) override {
         if (unavailable) {
             done(crate::SecretStore::Status::Unavailable);
             return;
@@ -251,7 +251,7 @@ class FakeSecretStore : public crate::SecretStore {
         done(crate::SecretStore::Status::Ok);
     }
 
-    void remove(const QString& key, Done done) override {
+    void remove(const QString& key, const Done& done) override {
         if (unavailable) {
             done(crate::SecretStore::Status::Unavailable);
             return;
@@ -271,9 +271,9 @@ class FakeTokenSource : public crate::TokenSource {
         return token;
     }
 
-    void renewAccessToken(std::function<void(Renewal)> done) override {
+    void renewAccessToken(const std::function<void(Renewal)>& done) override {
         ++renewals;
-        m_done = std::move(done);
+        m_done = done;
     }
 
     bool renewing() const {

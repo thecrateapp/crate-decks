@@ -27,9 +27,9 @@ class SecretStore {
 
     virtual ~SecretStore() = default;
 
-    virtual void read(const QString& key, ReadDone done) = 0;
-    virtual void write(const QString& key, const QString& secret, Done done) = 0;
-    virtual void remove(const QString& key, Done done) = 0;
+    virtual void read(const QString& key, const ReadDone& done) = 0;
+    virtual void write(const QString& key, const QString& secret, const Done& done) = 0;
+    virtual void remove(const QString& key, const Done& done) = 0;
 };
 
 /// Key of the refresh token of a server: "<server_id>:refresh".
@@ -39,9 +39,9 @@ QString refreshTokenKey(const QString& serverId);
 /// unavailable (F0 Q11): the user signs in again after a restart.
 class SessionOnlySecretStore : public SecretStore {
   public:
-    void read(const QString& key, ReadDone done) override;
-    void write(const QString& key, const QString& secret, Done done) override;
-    void remove(const QString& key, Done done) override;
+    void read(const QString& key, const ReadDone& done) override;
+    void write(const QString& key, const QString& secret, const Done& done) override;
+    void remove(const QString& key, const Done& done) override;
 
   private:
     QHash<QString, QString> m_secrets;
@@ -64,7 +64,7 @@ class KeychainBackend {
     virtual void run(Operation operation,
             const QString& key,
             const QString& secret,
-            Finished finished) = 0;
+            const Finished& finished) = 0;
 };
 
 /// QtKeychain with the service `app.cratemusic.decks`. Without QtKeychain in
@@ -83,24 +83,24 @@ std::unique_ptr<KeychainBackend> makeQtKeychainBackend();
 class KeychainSecretStore : public SecretStore {
   public:
     using Schedule = std::function<void(std::chrono::milliseconds delay,
-            std::function<void()> callback)>;
+            const std::function<void()>& callback)>;
 
     /// `schedule` defaults to a single-shot QTimer; tests replace it.
     explicit KeychainSecretStore(std::chrono::milliseconds timeout = std::chrono::seconds(3),
             std::unique_ptr<KeychainBackend> pBackend = makeQtKeychainBackend(),
-            Schedule schedule = Schedule());
+            const Schedule& schedule = Schedule());
     ~KeychainSecretStore() override;
 
-    void read(const QString& key, ReadDone done) override;
-    void write(const QString& key, const QString& secret, Done done) override;
-    void remove(const QString& key, Done done) override;
+    void read(const QString& key, const ReadDone& done) override;
+    void write(const QString& key, const QString& secret, const Done& done) override;
+    void remove(const QString& key, const Done& done) override;
 
   private:
     struct State;
     void enqueue(KeychainBackend::Operation operation,
             const QString& key,
             const QString& secret,
-            KeychainBackend::Finished done);
+            const KeychainBackend::Finished& done);
 
     // Shared with the operations in flight, which may finish after this
     // store is gone.

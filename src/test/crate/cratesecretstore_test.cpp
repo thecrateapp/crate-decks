@@ -38,8 +38,8 @@ class FakeKeychainBackend : public KeychainBackend {
     void run(Operation operation,
             const QString& key,
             const QString& secret,
-            Finished finished) override {
-        m_pRuns->append({operation, key, secret, std::move(finished)});
+            const Finished& finished) override {
+        m_pRuns->append({operation, key, secret, finished});
     }
 
   private:

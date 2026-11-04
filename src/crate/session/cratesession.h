@@ -35,7 +35,8 @@ struct SessionOptions {
     std::chrono::milliseconds browserLoginTimeout = std::chrono::minutes(5);
     /// Runs `callback` after `delay`. Defaults to a single-shot QTimer;
     /// tests replace it to control time.
-    std::function<void(std::chrono::milliseconds delay, std::function<void()> callback)> schedule;
+    std::function<void(std::chrono::milliseconds delay, const std::function<void()>& callback)>
+            schedule;
 };
 
 /// The session of this installation with one Crate server (S1).
@@ -60,10 +61,10 @@ class Session : public QObject, public TokenSource {
 
     /// Owns neither `pClient` nor `pSecretStore`, which must outlive it.
     /// The Session makes itself the Client's TokenSource.
-    Session(ServerProfile profile,
+    Session(const ServerProfile& profile,
             Client* pClient,
             SecretStore* pSecretStore,
-            SessionOptions options = SessionOptions(),
+            const SessionOptions& options = SessionOptions(),
             QObject* parent = nullptr);
     ~Session() override;
 
@@ -88,7 +89,7 @@ class Session : public QObject, public TokenSource {
     void logout();
 
     QString accessToken() const override;
-    void renewAccessToken(std::function<void(Renewal renewal)> done) override;
+    void renewAccessToken(const std::function<void(Renewal renewal)>& done) override;
 
   signals:
     void stateChanged(crate::Session::State state);
@@ -107,9 +108,9 @@ class Session : public QObject, public TokenSource {
     void endBrowserLogin();
     void endSession();
     void restoreWith(int attempt, const QString& refreshToken);
-    void storeRefreshToken(const QString& refreshToken, std::function<void()> then);
+    void storeRefreshToken(const QString& refreshToken, const std::function<void()>& then);
     void onKeychainUnavailable();
-    void schedule(std::chrono::milliseconds delay, std::function<void()> callback);
+    void schedule(std::chrono::milliseconds delay, const std::function<void()>& callback);
 
     ServerProfile m_profile;
     const QPointer<Client> m_pClient;
