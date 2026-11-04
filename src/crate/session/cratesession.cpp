@@ -253,9 +253,16 @@ void Session::renewAccessToken(std::function<void(Renewal renewal)> done) {
     const QJsonObject body{{QStringLiteral("refresh_token"), m_refreshToken}};
     Reply* pReply = m_pClient->post(
             QStringLiteral("/api/auth/refresh"), QJsonDocument(body), anonymous());
-    connect(pReply, &Reply::finished, this, [this, done](const JsonResult& result) {
+    const quint64 generation = m_sessionGeneration;
+    connect(pReply, &Reply::finished, this, [this, done, generation](const JsonResult& result) {
         // A copy: endSession() emits signals whose slots may delete this.
         const auto renewalDone = done;
+        if (generation != m_sessionGeneration) {
+            // Signed out or signed in again meanwhile: the answer is not for
+            // this session, whose token is current or gone.
+            renewalDone(m_accessToken.isEmpty() ? Renewal::SessionEnded : Renewal::Renewed);
+            return;
+        }
         if (!result.ok()) {
             const Error& error = result.error();
             if (error.kind == Error::Kind::Http &&
@@ -310,6 +317,7 @@ void Session::onLoginAnswer(int attempt, const JsonResult& result) {
         return;
     }
     endBrowserLogin();
+    ++m_sessionGeneration;
     m_accessToken = tokens.value().access;
     m_refreshToken = tokens.value().refresh;
     const QPointer<Session> pGuard(this);
@@ -395,6 +403,7 @@ void Session::endBrowserLogin() {
 }
 
 void Session::endSession() {
+    ++m_sessionGeneration;
     const bool wasSignedOut = m_state == State::SignedOut;
     m_accessToken.clear();
     m_refreshToken.clear();

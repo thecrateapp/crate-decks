@@ -72,6 +72,10 @@ const QByteArray kLoginAnswer = QByteArrayLiteral(
         R"({"id": 7, "email": "dj@crate.test", "role": "user", "token": "access-1",
             "refresh_token": "refresh-1", "session": {"id": "session-1"}})");
 
+const QByteArray kOtherLoginAnswer = QByteArrayLiteral(
+        R"({"id": 8, "email": "other@crate.test", "role": "user", "token": "access-b",
+            "refresh_token": "refresh-b"})");
+
 QJsonObject bodyOf(const FakeNetworkAccessManager::Sent& sent) {
     return QJsonDocument::fromJson(sent.body).object();
 }
@@ -280,6 +284,57 @@ TEST_F(CrateSessionTest, UnreachableRefreshKeepsTheSession) {
     EXPECT_EQ(Error::Kind::Network, result->error().kind);
     EXPECT_EQ(Session::State::SignedIn, m_pSession->state());
     EXPECT_EQ(QStringLiteral("refresh-1"), m_store.secrets.value(kRefreshKey));
+}
+
+TEST_F(CrateSessionTest, LoginDuringARenewalKeepsTheNewSession) {
+    signIn();
+    m_pClient->get(QStringLiteral("/api/library"));
+    lastSent().pReply->respond(401);
+    const FakeNetworkAccessManager::Sent oldRenewal = lastSent();
+
+    m_pSession->loginWithPassword(QStringLiteral("other@crate.test"), QStringLiteral("pw"));
+    lastSent().pReply->respond(200, kOtherLoginAnswer);
+    oldRenewal.pReply->respond(200,
+            QByteArrayLiteral(R"({"token": "access-old", "refresh_token": "refresh-old"})"));
+
+    EXPECT_EQ(QStringLiteral("access-b"), m_pSession->accessToken());
+    EXPECT_EQ(QStringLiteral("refresh-b"), m_store.secrets.value(kRefreshKey));
+    EXPECT_EQ(QByteArrayLiteral("Bearer access-b"), lastSent().request.rawHeader("Authorization"));
+}
+
+TEST_F(CrateSessionTest, LateRejectedRenewalDoesNotEndANewSession) {
+    signIn();
+    m_pClient->get(QStringLiteral("/api/library"));
+    lastSent().pReply->respond(401);
+    const FakeNetworkAccessManager::Sent oldRenewal = lastSent();
+
+    m_pSession->loginWithPassword(QStringLiteral("other@crate.test"), QStringLiteral("pw"));
+    lastSent().pReply->respond(200, kOtherLoginAnswer);
+    oldRenewal.pReply->respond(401);
+
+    EXPECT_EQ(Session::State::SignedIn, m_pSession->state());
+    EXPECT_EQ(QStringLiteral("access-b"), m_pSession->accessToken());
+    EXPECT_EQ(QStringLiteral("refresh-b"), m_store.secrets.value(kRefreshKey));
+}
+
+TEST_F(CrateSessionTest, LogoutDuringARenewalStaysSignedOut) {
+    signIn();
+    std::optional<JsonResult> result;
+    QObject::connect(m_pClient->get(QStringLiteral("/api/library")),
+            &Reply::finished,
+            [&](const JsonResult& finished) { result = finished; });
+    lastSent().pReply->respond(401);
+    const FakeNetworkAccessManager::Sent renewal = lastSent();
+
+    m_pSession->logout();
+    renewal.pReply->respond(200,
+            QByteArrayLiteral(R"({"token": "access-2", "refresh_token": "refresh-2"})"));
+
+    EXPECT_EQ(Session::State::SignedOut, m_pSession->state());
+    EXPECT_TRUE(m_pSession->accessToken().isEmpty());
+    EXPECT_FALSE(m_store.secrets.contains(kRefreshKey));
+    ASSERT_TRUE(result.has_value());
+    EXPECT_EQ(Error::Kind::Auth, result->error().kind);
 }
 
 TEST_F(CrateSessionTest, LogoutClearsSecretAndRevokes) {

@@ -122,6 +122,9 @@ class Session : public QObject, public TokenSource {
     QString m_refreshToken;
     /// Tells the answers of the current sign-in from those of an older one.
     int m_loginAttempt = 0;
+    /// Changes when the session ends or new tokens are installed, so that a
+    /// renewal answered later never touches a newer session.
+    quint64 m_sessionGeneration = 0;
     QPointer<LoopbackCallbackServer> m_pCallbackServer;
     QString m_codeVerifier;
     QString m_oauthState;
