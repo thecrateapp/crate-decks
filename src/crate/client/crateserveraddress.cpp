@@ -10,10 +10,6 @@ namespace crate {
 
 namespace {
 
-QString translate(const char* text) {
-    return QCoreApplication::translate("crate::ServerAddress", text);
-}
-
 bool isLoopbackHost(const QString& host) {
     if (host == QLatin1String("localhost")) {
         return true;
@@ -70,21 +66,25 @@ ServerAddress rejected(const QString& problem) {
 ServerAddress parseServerAddress(const QString& input) {
     QString text = input.trimmed();
     if (text.isEmpty()) {
-        return rejected(translate("Enter the address of your Crate server."));
+        return rejected(QCoreApplication::translate("crate::ServerAddress",
+                "Enter the address of your Crate server."));
     }
     if (!text.contains(QStringLiteral("://"))) {
         text.prepend(QStringLiteral("https://"));
     }
     const QUrl url(text);
     if (!url.isValid() || url.host().isEmpty()) {
-        return rejected(translate("This is not a valid address."));
+        return rejected(QCoreApplication::translate(
+                "crate::ServerAddress", "This is not a valid address."));
     }
     const QString scheme = url.scheme().toLower();
     if (scheme != QLatin1String("https") && scheme != QLatin1String("http")) {
-        return rejected(translate("Use an address that starts with https://."));
+        return rejected(QCoreApplication::translate("crate::ServerAddress",
+                "Use an address that starts with https://."));
     }
     if (!url.userInfo().isEmpty()) {
-        return rejected(translate("Do not put a user name or a password in the address."));
+        return rejected(QCoreApplication::translate("crate::ServerAddress",
+                "Do not put a user name or a password in the address."));
     }
 
     const QString host = url.host().toLower();
@@ -99,7 +99,7 @@ ServerAddress parseServerAddress(const QString& input) {
     } else if (isLocalNetworkHost(host)) {
         address.security = ServerAddress::Security::LocalNetworkHttp;
     } else {
-        return rejected(translate(
+        return rejected(QCoreApplication::translate("crate::ServerAddress",
                 "Use https://. Plain http:// is only allowed on this computer "
                 "or on your local network."));
     }

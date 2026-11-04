@@ -34,9 +34,9 @@ struct CrateServers::Server {
     bool saved = false;
 };
 
-CrateServers::CrateServers(Dependencies dependencies, QObject* parent)
+CrateServers::CrateServers(const Dependencies& dependencies, QObject* parent)
         : QObject(parent),
-          m_dependencies(std::move(dependencies)) {
+          m_dependencies(dependencies) {
     if (!m_dependencies.pNetworkAccessManager) {
         m_pOwnNetworkAccessManager = std::make_unique<QNetworkAccessManager>();
         m_dependencies.pNetworkAccessManager = m_pOwnNetworkAccessManager.get();
@@ -69,7 +69,8 @@ void CrateServers::start() {
         kLogger.warning() << "Crate tables unavailable: no Crate servers this run";
         return;
     }
-    for (const ServerProfile& profile : db::loadServerProfiles(database())) {
+    const QList<ServerProfile> profiles = db::loadServerProfiles(database());
+    for (const ServerProfile& profile : profiles) {
         createServer(profile, true)->pSession->restore();
     }
     emit serversChanged();

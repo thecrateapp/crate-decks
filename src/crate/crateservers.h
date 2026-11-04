@@ -38,7 +38,7 @@ class CrateServers : public QObject {
         SecretStore* pSecretStore = nullptr;
     };
 
-    explicit CrateServers(Dependencies dependencies, QObject* parent = nullptr);
+    explicit CrateServers(const Dependencies& dependencies, QObject* parent = nullptr);
     ~CrateServers() override;
 
     /// The instance CoreServices created, or nullptr.
