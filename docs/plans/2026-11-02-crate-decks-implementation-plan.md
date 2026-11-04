@@ -126,7 +126,7 @@ con la skin `CrateDecks`.
 | Fase | Resultado | PRs aproximados | Tamaño estimado |
 |---|---|---|---|
 | F0 | Informe del spike con respuestas medidas; código desechable | 0 (rama `spike/crate-decks` sin merge) | 7–10 días |
-| F1 | Repo independiente con marca propia, ajustes separados y CI Linux verde | 4 | 3–4 días |
+| F1 | Repo independiente con marca propia, ajustes separados y CI Linux verde | 5 | 3–4 días |
 | F2 | Cliente `decks` en el servidor; inicio de sesión y Keychain en Decks | 2 servidor + 3 cliente | 5–7 días |
 | F3 | Sección Crate navegable y búsqueda DJ | 1 servidor + 3 cliente | 6–8 días |
 | F4 | Cargar cualquier pista Crate en un deck con el análisis de Crate | 1 servidor + 4 cliente | 7–10 días |
@@ -330,7 +330,7 @@ de Mixxx, pasa el CI de Linux y sabe traer cambios de Mixxx cuando convenga.
 | `src/preferences/broadcastprofile.cpp` | Prefijo de los servicios del keychain (línea 64): `"Crate - "` en vez de `"Mixxx - "`, decidido en G0, para que los perfiles de emisión no compartan servicio con un Mixxx instalado. Es un identificador de Mixxx: excepción aprobada a AGENTS.md §5.2 (F0 Q12) |
 | `CMakeLists.txt` | Ejecutable `crate-decks` en Linux; `CPACK_PACKAGE_NAME` "Crate Decks" (paquete Debian `crate-decks`), contacto `Crate <hello@cratemusic.app>` y URL `https://cratemusic.app`; opción `CRATE` (ON). **Se mantiene `project(mixxx)`:** los recursos se encuentran por `mixxx_SOURCE_DIR` en `CMakeCache.txt` (builds) y por `../share/mixxx` (instalaciones), en `src/preferences/configobject.cpp` |
 | `res/linux/app.cratemusic.decks.desktop`, `res/linux/app.cratemusic.decks.metainfo.xml` | Nuevos. Los instalan `cmake --install` y la AppImage (`packaging/appimage/`, `packaging/CPackConfig.cmake`); los de Mixxx se quedan en el árbol sin instalar |
-| `res/images/icons/<tamaño>/apps/app.cratemusic.decks.png`, `res/crate.qrc` | Icono de Crate Decks, provisional hasta G1 (el de la app Listen de escritorio del monorepo), sin el logo de Mixxx. No se instalan los iconos de Mixxx |
+| `res/images/icons/<tamaño>/apps/app.cratemusic.decks.png`, `res/crate.qrc` | Icono de Crate Decks, provisional (el de la app Listen de escritorio del monorepo) hasta que V1 diseñe el definitivo (G1), sin el logo de Mixxx. No se instalan los iconos de Mixxx |
 | `src/dialog/dlgabout*` | "Crate Decks is based on Mixxx", con enlace al proyecto, la licencia GPL y el enlace al código fuente de esa versión (el tag o, si no, el commit) |
 
 La skin no se toca en F1: el rediseño visual es la línea V (V1–V4), que empieza tras G1.
@@ -361,7 +361,19 @@ de ficheros se quedan como están para no romper la sincronía con upstream ni l
 - `pre-commit` en el CI (clang-format) solo sobre ficheros cambiados.
 - Badge y comandos en `CRATE.md`.
 
-**Gate G1 (Diego):** marca, icono, identificadores y canal de distribución en Linux (AppImage, `.deb`; Flatpak más adelante).
+### F1.PR4 · Versión de Crate Decks en el build
+
+- **Problema:** el build saca la versión de `git describe` sobre los tags de Mixxx que trae la historia, así que el AppImage del CI se llama `crate-decks-2.7-alpha-460-g…`.
+- **Cambio:** los tags de Crate Decks son `decks-vX.Y.Z` (F9.PR1) y el build solo mira esos (`git describe --match 'decks-v*'`). Sin un tag propio, la versión es la de producto (`crate::kApplicationVersion`) más el commit.
+- **Dónde se ve:** nombre del AppImage y de los paquetes, `--version` y *About*. La versión de Mixxx de la base solo aparece en *About*.
+- **Test:** sin tag `decks-v*`, la versión del build es `0.1.0` más el commit y no contiene la de Mixxx; el CI comprueba el nombre del AppImage.
+- **Tags:** crear `decks-v0.1.0` sigue siendo cosa de Diego (AGENTS.md §2).
+
+**Gate G1 (Diego, cerrado el 2026-11-04):** marca, icono, identificadores y canal de distribución en Linux.
+- **Nombre e identificadores:** los de F1.PR2. `app.cratemusic.decks` también para Flatpak, en vez del `app.cratemusic.Decks` de D3: Flatpak exige el mismo ID que el `.desktop` y el metainfo, y cambiarlo después rompe los accesos de los usuarios.
+- **Icono:** el provisional hasta V1, que diseña el definitivo. Tiene que estar antes de F9.
+- **Versión:** tags propios `decks-vX.Y.Z` (F1.PR4).
+- **Linux:** releases de GitHub de `thecrateapp/crate-decks` (público) con AppImage y `.deb`, enlazadas desde cratemusic.app. Flatpak más adelante.
 
 ---
 
@@ -419,8 +431,8 @@ cd app && ../.venv/bin/python -m pytest tests/test_auth_decks_client.py tests/ -
 
 **Decisión aceptada:** `features` sigue vacía hasta S5. El planner ya sirve beatmatch a cualquier cliente, pero anunciarlo ahora daría a entender que existe `source="decks"`.
 
-**Gate G2 (Diego):** revisar el contrato S1 y S2 antes de mergear. El despliegue sigue el proceso
-normal de release y solo cuando Diego lo pida.
+**Gate G2 (Diego, cerrado el 2026-11-04):** revisar el contrato S1 y S2 antes de mergear. Diego lo dio
+por bueno: S1 y S2 están mergeados y desplegados en Crate 3.2.0.
 
 ### F2.C-PR1 · Cliente: `crate::Client` y `crate::Capabilities`
 
@@ -1081,7 +1093,8 @@ elegido en SG3 de smart-mix-3. Activarlo por defecto en el servidor es decisión
 
 ## V · Rediseño visual con el lenguaje del admin
 
-Diseño: D11 y §14 del documento de diseño. Empieza tras G1 y corre en paralelo con F2–F8.
+Diseño: D11 y §14 del documento de diseño. Empieza tras G1 y corre en paralelo con F2–F8. También
+diseña el icono definitivo de la app (G1), que tiene que estar antes de F9.
 
 ### V1 · Tokens, generador, fuentes y maquetas
 
@@ -1216,6 +1229,7 @@ Esquema previsto (se detallará en un plan propio cuando GU2 lo apruebe):
 ### F9.PR1 · Linux
 
 - AppImage (Ubuntu 22.04, igual que upstream) y `.deb` (Ubuntu 24.04) en el CI de tags `decks-vX.Y.Z`.
+- Se publican en las releases de GitHub de `thecrateapp/crate-decks`, enlazadas desde cratemusic.app (G1). Flatpak, más adelante, con el mismo ID `app.cratemusic.decks`.
 - `.desktop`, metainfo, iconos y asociación de tipo (ninguna por defecto).
 - **El `.deb` no debe chocar con un Mixxx instalado.** Hoy instala `share/mixxx`, `share/doc/mixxx` y la regla udev `mixxx-usb-uaccess.rules` con los mismos nombres que el paquete de Mixxx. Antes del primer `.deb`, instalar los recursos en una ruta de Crate Decks, adaptando la búsqueda de `../share/mixxx` en `src/preferences/configobject.cpp` (F1.PR2 mantuvo `project(mixxx)` por eso). La AppImage no choca.
 - **Smoke test en CI:** arrancar con `QT_QPA_PLATFORM=offscreen --settingsPath /tmp/x` y comprobar que crea los ajustes y sale limpio (requiere un flag `--smoke-test` o similar; si no existe, añadirlo de forma mínima).

@@ -117,7 +117,7 @@ Decks es el cliente de DJ de primera clase.
 
 **D3. Identidad de aplicación separada de Mixxx.**
 - **Nombre:** "Crate Decks".
-- **Identificadores:** organización `cratemusic.app` y bundle ID `app.cratemusic.decks`. Flatpak, cuando exista, `app.cratemusic.Decks`.
+- **Identificadores:** organización `cratemusic.app` y bundle ID `app.cratemusic.decks`. Flatpak, cuando exista, usa el mismo ID (G1): tiene que coincidir con el del `.desktop` y el metainfo.
 - **Ajustes:** directorio propio (`~/.cratedecks/` en Linux y el equivalente derivado de `QStandardPaths` en macOS y Windows). Así nunca pisa la base de datos ni la configuración de un Mixxx instalado.
 
 **D4. Audio: caché local completa; reproducción progresiva opcional (D14).**
@@ -499,10 +499,10 @@ Todas siguen las reglas del monorepo:
 | Gate | Cuándo | Qué decide Diego |
 |---|---|---|
 | G0 | Tras la fase 0 (spike) | Si se sigue; base de upstream (decidido: `main`, 2.7-alpha); D7 y límites de D8 (D1 ya decidido: repositorio independiente) |
-| G1 | Tras F1 | Branding, identificadores y canal de distribución en Linux |
+| G1 | Tras F1 | Branding, identificadores y canal de distribución en Linux. **Cerrado (2026-11-04):** identificadores de F1.PR2, también en Flatpak; icono definitivo en V1; tags `decks-vX.Y.Z`; releases de GitHub con AppImage y `.deb` |
 | GU1 | Tras V1 (tokens y maquetas), antes de construir la skin | Las adaptaciones DJ de §14.3 todavía abiertas (color por deck y Solar al 100 % ya decididos: rueda Camelot, knobs y faders de instrumento, vista del plan de Smart Mix, simplicidad, densidad, VU, paleta de forma de onda) y las maquetas de pantalla principal, biblioteca y preferencias |
 | GU2 | Cuando se cumplan los criterios de §14.4, nunca antes de la primera release | Si se migra a QML y con qué base |
-| G2 | Tras F2 | Contrato de autenticación del cliente `decks` (S1 y S2) antes de desplegarlo en el servidor |
+| G2 | Tras F2 | Contrato de autenticación del cliente `decks` (S1 y S2) antes de desplegarlo en el servidor. **Cerrado (2026-11-04):** S1 y S2 desplegados en Crate 3.2.0 |
 | G3 | Tras F4 | Experiencia de carga y caché en un set real |
 | G3b | Tras F4b, con el dato de F0 Q10 en WAN | Si la reproducción progresiva (D14) va activada por defecto. Construirla ya lo decidió G0 |
 | G4 | Tras F6 | Calidad de las transiciones de Smart Mix en los decks frente a Android (prueba de escucha) |
