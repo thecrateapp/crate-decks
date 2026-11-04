@@ -243,18 +243,28 @@ SMV corre en paralelo a SM2. Tiene que llegar antes del despliegue de `smart-mix
   - `test_threshold_chosen_by_cross_validation`
   - `test_scores_csv_matches_export_format`
 
+**Prueba previa (2026-11-04):**
+- Hecha fuera del repositorio, con las 64 pistas spike y las letras sincronizadas de LRCLIB como referencia.
+- Gana YAMNet: AUC 0,86 y 3,5 s de CPU por pista. Los resultados están en SM3-D13.
+- Diego elige YAMNet.
+- **La referencia definitiva:**
+  - Diego revisa una cola de 135 frases: las 71 en que YAMNet y la letra discrepan, las 24 de letra ambigua y una muestra de 40 coincidencias.
+  - La página le sugiere la etiqueta de la letra, sin enseñarle lo que dice el modelo.
+  - Las etiquetas finales son las revisadas y, para el resto, la de la letra cuando coincide con el modelo.
+- **Cola en el repositorio:** SMV.PR1 sube el script de medición, con YAMNet como modelo y los otros dos como comparación.
+
 **Gate SG1b (Diego):**
-- Modelo, licencia, coste por pista y precisión y recall.
+- Modelo, licencia, coste por pista y precisión y recall. Modelo ya elegido: YAMNet.
 - Si ningún candidato alcanza el umbral de §10 del diseño, la voz se queda apagada y SMV.PR2 y SMV.PR3 no se hacen.
 
 ### SMV.PR2 · Voz en el análisis y en el perfil
 
 | Fichero | Contenido |
 |---|---|
-| `app/crate/smart_mix/vocals.py` | Retira la heurística espectral y puntúa las frases con el modelo elegido: `score_phrases(audio, sample_rate, phrases) -> bytes`. Usa las clases de voz y el umbral de SG1b. Define `VOCAL_DETECTOR` (modelo y versión) |
+| `app/crate/smart_mix/vocals.py` | Retira la heurística espectral y puntúa las frases con YAMNet: `score_phrases(audio, sample_rate, phrases) -> bytes`. Usa las clases de voz de AudioSet (habla, canto, coro, cántico y rap) y el umbral de SG1b. Define `VOCAL_DETECTOR = "yamnet-1"` |
 | `app/crate/smart_mix/voice_model.py` | Carga perezosa del modelo, una vez por proceso, como PANNs en `audio_analysis.py`. Nunca descarga nada en ejecución: el fichero viene en la imagen |
 | `app/crate/worker_handlers/analysis.py` | `_handle_compute_smart_mix_profile` añade la voz al borrador después de `analyze_mix_profile`, si hay frases y modelo. Si la voz falla, el perfil se publica sin ella y queda un aviso en el log; la tarea no falla |
-| `app/scripts/download_models.sh` y `app/Dockerfile` | El modelo en la imagen del worker de análisis (x86_64), con checksum y su licencia junto al resto de terceros |
+| `app/scripts/download_models.sh` y `app/Dockerfile` | YAMNet en la imagen del worker de análisis (x86_64), con checksum y su licencia junto al resto de terceros. Se ejecuta con `essentia-tensorflow`, que ya está instalado. Antes del merge hay que confirmar la licencia del grafo: Essentia distribuye uno convertido (`audioset-yamnet-1.pb`), y si no es Apache-2.0 se convierte el original |
 | `app/crate/db/migrations/versions/<NNN>_smart_mix_vocal_detector.py` y el DDL de referencia | Columna `vocal_detector text` nula en `track_mix_profiles` |
 | Repositorio de perfiles | Escribe y lee `vocal_detector`. Entra en el hash de revisión del perfil, igual que `vocal_presence` |
 

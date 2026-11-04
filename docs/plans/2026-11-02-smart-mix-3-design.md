@@ -236,13 +236,27 @@ Solo hay refinamiento si los tres están activos. El admin puede limitar la acci
 - Hay un arnés de evaluación offline desde la primera fase (SM0). Mide v2, v3 determinista y v3 + IA sobre el mismo conjunto de aristas.
 - La IA se activa por defecto solo si mejora las métricas de §10 sin violaciones y pasa la escucha a ciegas de Diego.
 
-**SM3-D13. Voz por frase con un modelo pequeño de audio.** (decidido por Diego en SG1, 2026-11-04; el modelo concreto, pendiente SG1b)
+**SM3-D13. Voz por frase con un modelo pequeño de audio.** (decidido por Diego en SG1, 2026-11-04; modelo YAMNet, elegido por Diego el mismo día tras la prueba de SMV.PR1; pendientes en SG1b el umbral y la precisión y el recall con las etiquetas revisadas)
 - **Por qué:** la heurística espectral de SM1.PR4 marcó como voz 13 de 322 frases en 28 pistas spike. No encontró voz en pistas claramente cantadas (Boy Harsher, Joy Division, Marilyn Manson). Diego la dejó apagada sin etiquetar.
 - **Qué hace:** un clasificador de audio puntúa ventanas cortas de cada frase con sus clases de voz cantada o hablada. El byte de la frase es la fracción de ventanas con voz (0–255). `vocal_presence` sigue siendo un byte por frase, y nulo si no hay frases o no hay modelo.
 - **Candidatos**, medidos en SMV.PR1:
   - **YAMNet** (AudioSet, unos 3,7 M de parámetros, Apache-2.0): el pequeño de referencia, con clases de canto, habla y rap. Pesos del repositorio original para conservar la licencia.
   - **PANNs CNN14** (AudioSet): ya va en la imagen del worker de análisis para mood y energía, así que no añade modelo ni licencia, pero es grande (unos 80 M de parámetros) y más lento.
   - **Voz/instrumental de Essentia** (MusiCNN o EffNet-Discogs): pequeño y entrenado para esto, pero con licencia CC BY-NC-SA 4.0, no comercial. Solo entra si Diego acepta esa licencia. El proyecto ya retiró de la imagen los clasificadores de Essentia.
+- **Prueba previa (2026-11-04):**
+  - **Conjunto:** 649 frases de 64 pistas spike. La referencia sale de las letras sincronizadas de LRCLIB: 449 frases en 49 pistas.
+  - **Resultados:**
+
+    | Modelo | AUC | Precisión / recall de «voz» | Especificidad | s de CPU por pista |
+    | --- | ---: | ---: | ---: | ---: |
+    | YAMNet | 0,86 | 0,90 / 0,92 | 0,67 | 3,5 |
+    | PANNs CNN14 | 0,87 | 0,89 / 0,93 | 0,61 | 110 |
+    | Essentia voz/instrumental | 0,73 | 0,82 / 0,99 | 0,29 | 12,5 |
+
+  - **Lectura:**
+    - Essentia dice «voz» en casi todo, porque se entrenó con fragmentos etiquetados enteros. Aceptar su licencia no lo arregla.
+    - PANNs acierta casi lo mismo que YAMNet, pero cuesta 30 veces más.
+    - El orden no cambia al variar la regla de referencia.
 - **Dónde corre:** en el worker de análisis, como paso de Python después del perfil, venga de Rust o de Python, sobre las frases ya calculadas. No toca la paridad Python/Rust. Si el modelo no está en la imagen (ARM sin runtime), `vocal_presence` queda nulo. Si la voz falla, el perfil se guarda sin ella.
 - **Aceptación:** la de §10, frente a las frases etiquetadas a mano. El umbral de cada modelo se elige con validación cruzada sobre ese conjunto, no sobre todo él.
 - **Lo usan:** la métrica de choque de voces (§10), el prompt (§8) y una penalización en la puntuación de candidatos de v3 (SM3-D3) cuando las dos frases que se solapan tienen voz.
