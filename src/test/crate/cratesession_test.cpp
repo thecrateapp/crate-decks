@@ -323,14 +323,20 @@ TEST_F(CrateSessionTest, BrowserLoginExchangesTheCode) {
 
 TEST_F(CrateSessionTest, BrowserLoginRejectsMismatchedState) {
     const BrowserStart start = startBrowserLogin();
+    const auto port = static_cast<quint16>(start.callback.port());
 
-    sendHttpRequest(static_cast<quint16>(start.callback.port()),
-            callbackRequest(QStringLiteral("code=one-time-code-123456&state=forged-state-value")));
-
+    // Another local process or web page cannot end the sign-in.
+    const QByteArray forged = sendHttpRequest(port,
+            callbackRequest(QStringLiteral("state=forged-state-value&error=cancelled")));
+    EXPECT_TRUE(forged.startsWith("HTTP/1.1 400"));
     EXPECT_EQ(1, m_network.sent.size());
-    ASSERT_EQ(1, m_loginFailures.size());
-    EXPECT_EQ(Error::Kind::Auth, m_loginFailures.first().kind);
-    EXPECT_EQ(Session::State::SignedOut, m_pSession->state());
+    EXPECT_TRUE(m_loginFailures.isEmpty());
+    EXPECT_EQ(Session::State::SigningIn, m_pSession->state());
+    sendHttpRequest(port,
+            callbackRequest(QStringLiteral("code=one-time-code-123456&state=") + start.state));
+
+    ASSERT_EQ(2, m_network.sent.size());
+    EXPECT_EQ(QStringLiteral("/api/auth/native/exchange"), lastSent().request.url().path());
 }
 
 TEST_F(CrateSessionTest, BrowserLoginReportsCancellation) {

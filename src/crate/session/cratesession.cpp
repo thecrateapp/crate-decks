@@ -164,6 +164,7 @@ void Session::loginWithBrowser(const QString& provider) {
     }
     m_codeVerifier = randomBase64Url(64);
     m_oauthState = randomBase64Url(32);
+    pServer->setExpectedState(m_oauthState);
     connect(pServer,
             &LoopbackCallbackServer::callbackReceived,
             this,

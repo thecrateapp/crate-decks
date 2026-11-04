@@ -25,6 +25,10 @@ class LoopbackCallbackServer : public QObject {
     explicit LoopbackCallbackServer(QObject* parent = nullptr);
     ~LoopbackCallbackServer() override;
 
+    /// Only a callback with this `state` ends the wait; others get a 400
+    /// and the server keeps listening, so that no other local process or web
+    /// page can cancel the sign-in. Without it, any callback is accepted.
+    void setExpectedState(const QString& state);
     /// Listens on 127.0.0.1 on a free port. Returns false if it cannot.
     bool listen();
     bool isListening() const;
@@ -42,6 +46,7 @@ class LoopbackCallbackServer : public QObject {
     void onReadyRead(QTcpSocket* pSocket);
 
     QTcpServer* m_pServer;
+    QString m_expectedState;
 };
 
 } // namespace crate

@@ -38,6 +38,18 @@ QByteArray page(const QString& text) {
             .toUtf8();
 }
 
+/// Compares without stopping at the first difference.
+bool equalInConstantTime(const QByteArray& a, const QByteArray& b) {
+    if (a.size() != b.size()) {
+        return false;
+    }
+    char difference = 0;
+    for (qsizetype i = 0; i < a.size(); ++i) {
+        difference |= static_cast<char>(a[i] ^ b[i]);
+    }
+    return difference == 0;
+}
+
 void answer(QTcpSocket* pSocket, const QByteArray& response) {
     pSocket->write(response);
     // Sends what is buffered, then closes; the socket deletes itself when
@@ -57,6 +69,10 @@ LoopbackCallbackServer::LoopbackCallbackServer(QObject* parent)
 }
 
 LoopbackCallbackServer::~LoopbackCallbackServer() = default;
+
+void LoopbackCallbackServer::setExpectedState(const QString& state) {
+    m_expectedState = state;
+}
 
 bool LoopbackCallbackServer::listen() {
     if (m_pServer->isListening()) {
@@ -137,13 +153,26 @@ void LoopbackCallbackServer::onReadyRead(QTcpSocket* pSocket) {
         return;
     }
 
+    const QUrlQuery query(target);
+    if (!m_expectedState.isEmpty() &&
+            !equalInConstantTime(
+                    query.queryItemValue(QStringLiteral("state"), QUrl::FullyDecoded).toUtf8(),
+                    m_expectedState.toUtf8())) {
+        kLogger.warning() << "Ignored a callback for another sign-in";
+        answer(pSocket,
+                httpResponse(400,
+                        "Bad Request",
+                        page(tr("This is not the sign-in Crate Decks is waiting for."))));
+        return;
+    }
+
     m_pServer->close();
     answer(pSocket,
             httpResponse(200,
                     "OK",
                     page(tr("You can close this window and go back to Crate Decks."))));
     // Last: a slot may delete this server.
-    emit callbackReceived(QUrlQuery(target));
+    emit callbackReceived(query);
 }
 
 } // namespace crate

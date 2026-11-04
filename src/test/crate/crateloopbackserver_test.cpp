@@ -57,6 +57,25 @@ TEST(CrateLoopbackServerTest, AnswersEvenWhenDeletedRightAfterTheCallback) {
     EXPECT_TRUE(pDeleted.isNull());
 }
 
+TEST(CrateLoopbackServerTest, IgnoresCallbacksWithAnotherState) {
+    LoopbackCallbackServer server;
+    server.setExpectedState(QStringLiteral("the-state"));
+    ASSERT_TRUE(server.listen());
+    QSignalSpy received(&server, &LoopbackCallbackServer::callbackReceived);
+
+    const QByteArray forged = sendHttpRequest(server.port(),
+            "GET /callback?state=forged&error=cancelled HTTP/1.1\r\n\r\n");
+    EXPECT_TRUE(forged.startsWith("HTTP/1.1 400"));
+    EXPECT_EQ(0, received.count());
+    EXPECT_TRUE(server.isListening());
+    const QByteArray real = sendHttpRequest(server.port(),
+            "GET /callback?code=one-time-code&state=the-state HTTP/1.1\r\n\r\n");
+
+    EXPECT_TRUE(real.startsWith("HTTP/1.1 200"));
+    EXPECT_EQ(1, received.count());
+    EXPECT_FALSE(server.isListening());
+}
+
 TEST(CrateLoopbackServerTest, KeepsWaitingAfterOtherRequests) {
     LoopbackCallbackServer server;
     ASSERT_TRUE(server.listen());
