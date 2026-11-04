@@ -5316,6 +5316,7 @@ if(CRATE)
     mixxx-lib
     PRIVATE
       src/crate/client/cratecapabilities.cpp
+      src/crate/client/crateclient.cpp
       src/crate/client/cratejson.cpp
   )
   # The tests of the Crate integration are added here and not in the list of
@@ -5325,6 +5326,7 @@ if(CRATE)
       mixxx-test
       PRIVATE
         src/test/crate/cratecapabilities_test.cpp
+        src/test/crate/crateclient_test.cpp
         src/test/crate/cratejson_test.cpp
     )
   endif()
