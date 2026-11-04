@@ -57,7 +57,7 @@ class CrateClientTest : public testing::Test {
     }
 
     FakeReply* lastReply() const {
-        return m_network.sent.last().pReply.data();
+        return m_network.last().pReply.data();
     }
 
     FakeNetworkAccessManager m_network;

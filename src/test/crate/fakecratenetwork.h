@@ -1,5 +1,7 @@
 #pragma once
 
+#include <gtest/gtest.h>
+
 #include <QByteArray>
 #include <QHash>
 #include <QList>
@@ -130,6 +132,22 @@ class FakeNetworkAccessManager : public QNetworkAccessManager {
 
     QList<Sent> sent;
 
+    /// The last request. If none was sent, the test fails and a placeholder
+    /// with a reply nobody listens to comes back, so that a red test fails
+    /// instead of crashing.
+    Sent last() const {
+        if (sent.isEmpty()) {
+            ADD_FAILURE() << "No request was sent";
+            if (!m_pOrphanReply) {
+                m_pOrphanReply = new FakeReply(GetOperation,
+                        QNetworkRequest(),
+                        const_cast<FakeNetworkAccessManager*>(this));
+            }
+            return {GetOperation, QNetworkRequest(), QByteArray(), m_pOrphanReply};
+        }
+        return sent.last();
+    }
+
     /// The replies that have not finished, in the order they were sent.
     QList<FakeReply*> openReplies() const {
         QList<FakeReply*> replies;
@@ -152,6 +170,9 @@ class FakeNetworkAccessManager : public QNetworkAccessManager {
                 pReply});
         return pReply;
     }
+
+  private:
+    mutable QPointer<FakeReply> m_pOrphanReply;
 };
 
 /// Collects what the Client schedules, so tests decide when time passes.

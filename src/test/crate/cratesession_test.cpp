@@ -79,7 +79,7 @@ class CrateSessionTest : public testing::Test {
     }
 
     FakeNetworkAccessManager::Sent lastSent() const {
-        return m_network.sent.last();
+        return m_network.last();
     }
 
     void signIn() {

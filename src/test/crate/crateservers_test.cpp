@@ -44,7 +44,7 @@ class CrateServersTest : public MixxxDbTest {
     }
 
     FakeNetworkAccessManager::Sent lastSent() const {
-        return m_network.sent.last();
+        return m_network.last();
     }
 
     QList<ServerProfile> savedProfiles() const {
