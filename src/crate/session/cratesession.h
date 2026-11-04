@@ -23,7 +23,10 @@ struct ServerProfile {
     QString id;
     QUrl baseUrl;
     QString displayName;
-    /// Email of the signed-in account, as the server reports it.
+    /// Id of the signed-in user on that server (`account_id`).
+    QString accountId;
+    /// Email of the signed-in account, as the server reports it at sign-in.
+    /// Shown while signed in; not stored.
     QString accountEmail;
 };
 

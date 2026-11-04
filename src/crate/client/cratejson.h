@@ -37,6 +37,7 @@ class ObjectReader {
     bool optionalBool(QStringView key, bool defaultValue);
     /// A JSON number without a fractional part.
     qint64 requiredInteger(QStringView key);
+    std::optional<qint64> optionalInteger(QStringView key);
     QJsonObject requiredObject(QStringView key);
     std::optional<QJsonObject> optionalObject(QStringView key);
     /// An array whose items are all strings; empty if the field is missing.

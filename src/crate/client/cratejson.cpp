@@ -83,6 +83,20 @@ qint64 ObjectReader::requiredInteger(QStringView key) {
     return static_cast<qint64>(number);
 }
 
+std::optional<qint64> ObjectReader::optionalInteger(QStringView key) {
+    const QJsonValue value = field(key, false);
+    if (isAbsent(value)) {
+        return std::nullopt;
+    }
+    const double number = value.toDouble();
+    if (!value.isDouble() || std::trunc(number) != number ||
+            std::abs(number) > kMaxExactInteger) {
+        fail(key, QStringLiteral("is not an integer"));
+        return std::nullopt;
+    }
+    return static_cast<qint64>(number);
+}
+
 QJsonObject ObjectReader::requiredObject(QStringView key) {
     const QJsonValue value = field(key, true);
     if (isAbsent(value)) {

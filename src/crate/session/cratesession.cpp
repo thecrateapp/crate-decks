@@ -46,6 +46,7 @@ QString pkceChallenge(const QString& verifier) {
 struct Tokens {
     QString access;
     QString refresh;
+    QString accountId;
     QString email;
 };
 
@@ -60,6 +61,9 @@ Result<Tokens> readTokens(const QJsonDocument& document, bool withAccount) {
     tokens.access = reader.requiredString(u"token");
     tokens.refresh = reader.optionalString(u"refresh_token");
     if (withAccount) {
+        if (const std::optional<qint64> id = reader.optionalInteger(u"id")) {
+            tokens.accountId = QString::number(*id);
+        }
         tokens.email = reader.requiredString(u"email");
     }
     if (!reader.ok()) {
@@ -308,7 +312,9 @@ void Session::onLoginAnswer(int attempt, const JsonResult& result) {
     m_accessToken = tokens.value().access;
     m_refreshToken = tokens.value().refresh;
     const QPointer<Session> pGuard(this);
-    if (m_profile.accountEmail != tokens.value().email) {
+    if (m_profile.accountId != tokens.value().accountId ||
+            m_profile.accountEmail != tokens.value().email) {
+        m_profile.accountId = tokens.value().accountId;
         m_profile.accountEmail = tokens.value().email;
         emit profileChanged(m_profile);
         if (!pGuard) {

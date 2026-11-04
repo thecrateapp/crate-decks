@@ -15,11 +15,13 @@ const mixxx::Logger kLogger("crate::db::CrateServerSchema");
 
 // Each statement must be idempotent: they run at every start.
 const QStringList kStatements = {
+        // Design §5.2. No secrets: the refresh token is in the keychain.
         QStringLiteral("CREATE TABLE IF NOT EXISTS crateserver_servers ("
                        "id TEXT PRIMARY KEY NOT NULL, "
-                       "base_url TEXT NOT NULL UNIQUE, "
+                       "origin TEXT NOT NULL UNIQUE, "
+                       "account_id TEXT NOT NULL DEFAULT '', "
                        "display_name TEXT NOT NULL DEFAULT '', "
-                       "account_email TEXT NOT NULL DEFAULT '', "
+                       "last_capabilities_json TEXT NOT NULL DEFAULT '', "
                        "created_at TEXT NOT NULL)"),
 };
 

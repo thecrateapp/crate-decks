@@ -11,8 +11,10 @@ namespace crate::db {
 /// res/schema.xml; no Mixxx table is touched (AGENTS.md §5.2). Later phases
 /// add their tables here.
 ///
-/// - `crateserver_servers`: the servers this installation signed in to. `id`
-///   is a random UUID that also names the server's keychain entry.
+/// - `crateserver_servers` (design §5.2): the servers this installation
+///   signed in to. `id` is a random UUID that also names the server's
+///   keychain entry; `origin` is the server's scheme, host and port;
+///   `account_id` is the user's id on that server.
 ///
 /// Returns false, after rolling back, if any statement fails.
 bool createCrateServerSchema(const QSqlDatabase& database);

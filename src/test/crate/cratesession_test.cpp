@@ -69,7 +69,7 @@ class FakeSecretStore : public crate::SecretStore {
 
 const QString kRefreshKey = QStringLiteral("5b0c:refresh");
 const QByteArray kLoginAnswer = QByteArrayLiteral(
-        R"({"email": "dj@crate.test", "role": "user", "token": "access-1",
+        R"({"id": 7, "email": "dj@crate.test", "role": "user", "token": "access-1",
             "refresh_token": "refresh-1", "session": {"id": "session-1"}})");
 
 QJsonObject bodyOf(const FakeNetworkAccessManager::Sent& sent) {
@@ -176,6 +176,7 @@ TEST_F(CrateSessionTest, PasswordLoginStoresRefreshInSecretStore) {
     EXPECT_EQ(QStringLiteral("access-1"), m_pSession->accessToken());
     EXPECT_EQ(Session::State::SignedIn, m_pSession->state());
     EXPECT_EQ(1, signedIn.count());
+    EXPECT_EQ(QStringLiteral("7"), m_pSession->profile().accountId);
     EXPECT_EQ(QStringLiteral("dj@crate.test"), m_pSession->profile().accountEmail);
     EXPECT_EQ(1, profileChanges);
 }

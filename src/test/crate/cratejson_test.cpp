@@ -65,6 +65,24 @@ TEST(CrateJsonTest, WrongTypeFailsEvenWhenOptional) {
     EXPECT_EQ(QStringLiteral("label is not a string"), reader.error().message);
 }
 
+TEST(CrateJsonTest, OptionalIntegerIsReadOrMissing) {
+    ObjectReader reader(parse(R"({"id": 7, "cleared": null})"));
+
+    EXPECT_EQ(std::optional<qint64>(7), reader.optionalInteger(u"id"));
+    EXPECT_EQ(std::nullopt, reader.optionalInteger(u"absent"));
+    EXPECT_EQ(std::nullopt, reader.optionalInteger(u"cleared"));
+    EXPECT_TRUE(reader.ok());
+}
+
+TEST(CrateJsonTest, OptionalIntegerRejectsOtherTypes) {
+    ObjectReader reader(parse(R"({"id": "7"})"));
+
+    reader.optionalInteger(u"id");
+
+    ASSERT_FALSE(reader.ok());
+    EXPECT_EQ(QStringLiteral("id is not an integer"), reader.error().message);
+}
+
 TEST(CrateJsonTest, IntegerRejectsFractions) {
     ObjectReader reader(parse(R"({"count": 1.5})"));
 

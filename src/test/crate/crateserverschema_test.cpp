@@ -51,15 +51,17 @@ TEST_F(CrateServerSchemaTest, CreatesTablesIdempotently) {
     ASSERT_TRUE(crate::db::createCrateServerSchema(dbConnection()));
     QSqlQuery insert(dbConnection());
     ASSERT_TRUE(insert.exec(QStringLiteral(
-            "INSERT INTO crateserver_servers (id, base_url, created_at) "
+            "INSERT INTO crateserver_servers (id, origin, created_at) "
             "VALUES ('5b0c', 'https://crate.test', '2026-11-04T10:00:00Z')")));
 
     ASSERT_TRUE(crate::db::createCrateServerSchema(dbConnection()));
 
+    // The columns of design §5.2: no secrets.
     EXPECT_EQ(QStringList({QStringLiteral("id"),
-                      QStringLiteral("base_url"),
+                      QStringLiteral("origin"),
+                      QStringLiteral("account_id"),
                       QStringLiteral("display_name"),
-                      QStringLiteral("account_email"),
+                      QStringLiteral("last_capabilities_json"),
                       QStringLiteral("created_at")}),
             columns(QStringLiteral("crateserver_servers")));
     QSqlQuery count(dbConnection());
