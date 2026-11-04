@@ -5317,6 +5317,7 @@ if(CRATE)
     PRIVATE
       src/crate/client/cratecapabilities.cpp
       src/crate/client/crateclient.cpp
+      src/crate/client/crateserveraddress.cpp
       src/crate/client/cratejson.cpp
       src/crate/db/crateserverschema.cpp
       src/crate/session/crateloopbackserver.cpp
@@ -5335,6 +5336,7 @@ if(CRATE)
         src/test/crate/crateloopbackserver_test.cpp
         src/test/crate/cratesecretstore_test.cpp
         src/test/crate/crateserverschema_test.cpp
+        src/test/crate/dlgprefcrate_test.cpp
         src/test/crate/cratesession_test.cpp
     )
   endif()
