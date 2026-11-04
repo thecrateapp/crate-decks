@@ -352,6 +352,42 @@ TEST_F(CrateSessionTest, LogoutClearsSecretAndRevokes) {
     EXPECT_EQ(QByteArrayLiteral("Bearer access-1"), revoke.request.rawHeader("Authorization"));
 }
 
+TEST_F(CrateSessionTest, LogoutWithAnExpiredTokenRenewsThenRevokes) {
+    signIn();
+
+    m_pSession->logout();
+    lastSent().pReply->respond(401);
+    const FakeNetworkAccessManager::Sent renewal = lastSent();
+    EXPECT_EQ(QStringLiteral("/api/auth/refresh"), renewal.request.url().path());
+    EXPECT_EQ(QStringLiteral("refresh-1"), field(renewal, "refresh_token"));
+    renewal.pReply->respond(200,
+            QByteArrayLiteral(R"({"token": "access-fresh", "refresh_token": "refresh-x"})"));
+
+    EXPECT_EQ(QStringLiteral("/api/auth/logout"), lastSent().request.url().path());
+    EXPECT_EQ(QByteArrayLiteral("Bearer access-fresh"),
+            lastSent().request.rawHeader("Authorization"));
+    EXPECT_FALSE(m_store.secrets.contains(kRefreshKey));
+    EXPECT_TRUE(m_pSession->accessToken().isEmpty());
+}
+
+TEST_F(CrateSessionTest, LogoutAfterOfflineRestoreRenewsThenRevokes) {
+    m_store.secrets.insert(kRefreshKey, QStringLiteral("refresh-0"));
+    m_pSession->restore();
+    lastSent().pReply->failNetwork();
+    ASSERT_EQ(Session::State::SignedIn, m_pSession->state());
+    ASSERT_TRUE(m_pSession->accessToken().isEmpty());
+
+    m_pSession->logout();
+    const FakeNetworkAccessManager::Sent renewal = lastSent();
+    EXPECT_EQ(QStringLiteral("refresh-0"), field(renewal, "refresh_token"));
+    renewal.pReply->respond(200,
+            QByteArrayLiteral(R"({"token": "access-z", "refresh_token": "refresh-z"})"));
+
+    EXPECT_EQ(QStringLiteral("/api/auth/logout"), lastSent().request.url().path());
+    EXPECT_EQ(QByteArrayLiteral("Bearer access-z"), lastSent().request.rawHeader("Authorization"));
+    EXPECT_EQ(Session::State::SignedOut, m_pSession->state());
+}
+
 TEST_F(CrateSessionTest, BrowserLoginExchangesTheCode) {
     const BrowserStart start = startBrowserLogin();
     EXPECT_EQ(QStringLiteral("127.0.0.1"), start.callback.host());

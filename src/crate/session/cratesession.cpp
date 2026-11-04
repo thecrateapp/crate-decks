@@ -75,6 +75,82 @@ Result<Tokens> readTokens(const QJsonDocument& document, bool withAccount) {
     return tokens;
 }
 
+void logRevokeFailure(const Error& error) {
+    kLogger.info() << "Could not revoke the session on the server:" << error.message;
+}
+
+void revokeWith(const QPointer<Client>& pClient, const QString& accessToken);
+
+/// Gets a fresh access token for the session of `refreshToken`, only to
+/// revoke that session with it. Nothing is stored.
+void renewThenRevoke(const QPointer<Client>& pClient, const QString& refreshToken) {
+    if (!pClient || refreshToken.isEmpty()) {
+        return;
+    }
+    const QJsonObject body{{QStringLiteral("refresh_token"), refreshToken}};
+    Reply* pReply = pClient->post(
+            QStringLiteral("/api/auth/refresh"), QJsonDocument(body), anonymous());
+    QObject::connect(pReply, &Reply::finished, pReply, [pClient](const JsonResult& result) {
+        if (!result.ok()) {
+            logRevokeFailure(result.error());
+            return;
+        }
+        const Result<Tokens> tokens = readTokens(result.value(), false);
+        if (!tokens.ok()) {
+            logRevokeFailure(tokens.error());
+            return;
+        }
+        revokeWith(pClient, tokens.value().access);
+    });
+}
+
+void revokeWith(const QPointer<Client>& pClient, const QString& accessToken) {
+    if (!pClient) {
+        return;
+    }
+    RequestOptions revoke;
+    revoke.bearerToken = accessToken;
+    Reply* pReply = pClient->post(
+            QStringLiteral("/api/auth/logout"), QJsonDocument(QJsonObject()), revoke);
+    QObject::connect(pReply, &Reply::finished, pReply, [](const JsonResult& result) {
+        if (!result.ok()) {
+            logRevokeFailure(result.error());
+        }
+    });
+}
+
+/// Revokes the session on the server with `accessToken`. If the server
+/// rejects it, as after an hour without requests, or there is none, as
+/// after an offline restore, it renews the session once to revoke it.
+void revokeSession(const QPointer<Client>& pClient,
+        const QString& accessToken,
+        const QString& refreshToken) {
+    if (!pClient) {
+        return;
+    }
+    if (accessToken.isEmpty()) {
+        renewThenRevoke(pClient, refreshToken);
+        return;
+    }
+    RequestOptions revoke;
+    revoke.bearerToken = accessToken;
+    Reply* pReply = pClient->post(
+            QStringLiteral("/api/auth/logout"), QJsonDocument(QJsonObject()), revoke);
+    QObject::connect(pReply,
+            &Reply::finished,
+            pReply,
+            [pClient, refreshToken](const JsonResult& result) {
+                if (result.ok()) {
+                    return;
+                }
+                if (result.error().kind == Error::Kind::Auth) {
+                    renewThenRevoke(pClient, refreshToken);
+                    return;
+                }
+                logRevokeFailure(result.error());
+            });
+}
+
 } // namespace
 
 Session::Session(ServerProfile profile,
@@ -225,19 +301,8 @@ void Session::cancelLogin() {
 void Session::logout() {
     endBrowserLogin();
     ++m_loginAttempt;
-    // Revoke with the token the session had: it is cleared right after.
-    if (!m_accessToken.isEmpty() && m_pClient) {
-        RequestOptions revoke;
-        revoke.bearerToken = m_accessToken;
-        Reply* pReply = m_pClient->post(
-                QStringLiteral("/api/auth/logout"), QJsonDocument(QJsonObject()), revoke);
-        connect(pReply, &Reply::finished, pReply, [](const JsonResult& result) {
-            if (!result.ok()) {
-                kLogger.info() << "Could not revoke the session on the server:"
-                               << result.error().message;
-            }
-        });
-    }
+    // With copies of the tokens: the session is cleared right after.
+    revokeSession(m_pClient, m_accessToken, m_refreshToken);
     endSession();
 }
 
