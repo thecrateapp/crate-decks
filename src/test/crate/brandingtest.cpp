@@ -156,10 +156,8 @@ TEST_F(CrateBrandingTest, BuildIsVersionedOnlyByDecksTags) {
         EXPECT_QSTRING_EQ(gitDescribe.mid(tagPrefix.size()), version);
     } else {
         // Without a decks-v tag, `git describe --always` gives the commit.
-        EXPECT_TRUE(QRegularExpression(QStringLiteral("^[0-9a-f]+(-modified)?$"))
-                        .match(gitDescribe)
-                        .hasMatch())
-                << qPrintable(gitDescribe);
+        static const QRegularExpression kCommitOnly(QStringLiteral("^[0-9a-f]+(-modified)?$"));
+        EXPECT_TRUE(kCommitOnly.match(gitDescribe).hasMatch()) << qPrintable(gitDescribe);
         EXPECT_QSTRING_EQ(QStringLiteral("0.1.0-dev+g") + gitDescribe, version);
     }
 }

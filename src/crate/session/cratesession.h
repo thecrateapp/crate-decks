@@ -88,7 +88,7 @@ class Session : public QObject, public TokenSource {
     void logout();
 
     QString accessToken() const override;
-    void renewAccessToken(std::function<void(Renewal renewal)> done) override;
+    void renewAccessToken(const std::function<void(Renewal renewal)>& done) override;
 
   signals:
     void stateChanged(crate::Session::State state);

@@ -327,7 +327,7 @@ QString Session::accessToken() const {
     return m_accessToken;
 }
 
-void Session::renewAccessToken(std::function<void(Renewal renewal)> done) {
+void Session::renewAccessToken(const std::function<void(Renewal renewal)>& done) {
     if (m_refreshToken.isEmpty() || !m_pClient) {
         done(Renewal::SessionEnded);
         return;

@@ -162,9 +162,9 @@ class FakeScheduler {
 
     QList<Task> tasks;
 
-    std::function<void(std::chrono::milliseconds, std::function<void()>)> function() {
-        return [this](std::chrono::milliseconds delay, std::function<void()> callback) {
-            tasks.append({delay, std::move(callback)});
+    std::function<void(std::chrono::milliseconds, const std::function<void()>&)> function() {
+        return [this](std::chrono::milliseconds delay, const std::function<void()>& callback) {
+            tasks.append({delay, callback});
         };
     }
 
@@ -210,9 +210,9 @@ class FakeTokenSource : public crate::TokenSource {
         return token;
     }
 
-    void renewAccessToken(std::function<void(Renewal)> done) override {
+    void renewAccessToken(const std::function<void(Renewal)>& done) override {
         ++renewals;
-        m_done = std::move(done);
+        m_done = done;
     }
 
     bool renewing() const {

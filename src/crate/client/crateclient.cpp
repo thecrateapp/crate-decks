@@ -142,12 +142,12 @@ void Reply::finish(const JsonResult& result) {
 
 Client::Client(const QUrl& baseUrl,
         QNetworkAccessManager* pNetworkAccessManager,
-        ClientOptions options,
+        const ClientOptions& options,
         QObject* parent)
         : QObject(parent),
           m_baseUrl(baseUrl),
           m_pNetworkAccessManager(pNetworkAccessManager),
-          m_options(std::move(options)) {
+          m_options(options) {
 }
 
 Client::~Client() {
@@ -185,7 +185,8 @@ void Client::setTokenSource(TokenSource* pTokenSource) {
     ++m_renewalGeneration;
     QList<CallPtr> rejected;
     QList<CallPtr> waited;
-    for (const CallPtr& pCall : std::exchange(m_waitingForToken, {})) {
+    const QList<CallPtr> waiting = std::exchange(m_waitingForToken, {});
+    for (const CallPtr& pCall : waiting) {
         (pCall->renewalUsed ? rejected : waited).append(pCall);
     }
     m_queue = waited + m_queue;
