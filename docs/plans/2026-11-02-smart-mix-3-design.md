@@ -237,7 +237,7 @@ Solo hay refinamiento si los tres están activos. El admin puede limitar la acci
 - La IA se activa por defecto solo si mejora las métricas de §10 sin violaciones y pasa la escucha a ciegas de Diego.
 
 **SM3-D13. Voz por frase con un modelo pequeño de audio.** (decidido por Diego en SG1, 2026-11-04; el modelo concreto, pendiente SG1b)
-- **Por qué:** la heurística espectral de SM1.PR4 marcó como voz 13 de 322 frases en 28 pistas spike. Tuvo falsos positivos en un instrumental (Carpenter Brut) y ninguna voz en pistas claramente cantadas (Boy Harsher, Joy Division, Marilyn Manson). Diego la dejó apagada sin etiquetar.
+- **Por qué:** la heurística espectral de SM1.PR4 marcó como voz 13 de 322 frases en 28 pistas spike. No encontró voz en pistas claramente cantadas (Boy Harsher, Joy Division, Marilyn Manson). Diego la dejó apagada sin etiquetar.
 - **Qué hace:** un clasificador de audio puntúa ventanas cortas de cada frase con sus clases de voz cantada o hablada. El byte de la frase es la fracción de ventanas con voz (0–255). `vocal_presence` sigue siendo un byte por frase, y nulo si no hay frases o no hay modelo.
 - **Candidatos**, medidos en SMV.PR1:
   - **YAMNet** (AudioSet, unos 3,7 M de parámetros, Apache-2.0): el pequeño de referencia, con clases de canto, habla y rap. Pesos del repositorio original para conservar la licencia.

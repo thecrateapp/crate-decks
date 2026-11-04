@@ -213,7 +213,7 @@ SMV corre en paralelo a SM2. Tiene que llegar antes del despliegue de `smart-mix
 - Decisión sobre el detector de voz.
 
 **Decisión de voz en SG1 (Diego, 2026-11-04):**
-- La heurística espectral se queda apagada sin etiquetar. Marcó como voz 13 de 322 frases de 28 pistas spike: tres en un instrumental y ninguna en pistas claramente cantadas.
+- La heurística espectral se queda apagada sin etiquetar. Marcó como voz 13 de 322 frases de 28 pistas spike y ninguna en pistas claramente cantadas.
 - La voz pasa a un modelo pequeño de audio: fase SMV (SM3-D13).
 - La revisión visual de las frases sigue pendiente.
 
