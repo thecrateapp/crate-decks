@@ -15,6 +15,7 @@
 #include "crate/crateaddserverflow.h"
 #include "crate/crateservers.h"
 #include "crate/db/crateserverprofiles.h"
+#include "crate/ui/cratefirstrun.h"
 #include "test/crate/fakecratenetwork.h"
 #include "test/mixxxdbtest.h"
 
@@ -241,6 +242,25 @@ TEST_F(CrateAddServerFlowTest, PageAddsAServer) {
 
     ASSERT_EQ(1, pList->count());
     EXPECT_TRUE(pList->item(0)->text().contains(QStringLiteral("https://crate.test")));
+}
+
+// TEST_GAP: offerFirstRun() shows a modal dialog, so it is checked by hand;
+// the tests cover when it is offered.
+TEST_F(CrateAddServerFlowTest, FirstRunIsOfferedOnceWhileThereIsNoServer) {
+    EXPECT_TRUE(crate::shouldOfferFirstRun(config(), *m_pServers));
+
+    crate::markFirstRunOffered(config());
+
+    EXPECT_FALSE(crate::shouldOfferFirstRun(config(), *m_pServers));
+}
+
+TEST_F(CrateAddServerFlowTest, FirstRunIsNotOfferedWithAServer) {
+    m_pFlow->setAddress(QStringLiteral("https://crate.test"));
+    lastSent().pReply->respond(200, kDecksCapabilities);
+    m_pFlow->loginWithPassword(QStringLiteral("dj@crate.test"), QStringLiteral("right"));
+    lastSent().pReply->respond(200, kLoginAnswer);
+
+    EXPECT_FALSE(crate::shouldOfferFirstRun(config(), *m_pServers));
 }
 
 } // namespace

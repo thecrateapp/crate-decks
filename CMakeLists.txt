@@ -5327,6 +5327,7 @@ if(CRATE)
       src/crate/crateaddserverflow.cpp
       src/crate/crateservers.cpp
       src/crate/ui/crateaddserverwidget.cpp
+      src/crate/ui/cratefirstrun.cpp
       src/crate/ui/dlgprefcrate.cpp
   )
   # The tests of the Crate integration are added here and not in the list of
