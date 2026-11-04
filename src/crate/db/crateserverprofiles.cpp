@@ -13,6 +13,11 @@ namespace {
 
 const mixxx::Logger kLogger("crate::db::ServerProfiles");
 
+/// A null QString binds as SQL NULL; the text columns are NOT NULL.
+QString text(const QString& value) {
+    return value.isNull() ? QStringLiteral("") : value;
+}
+
 bool run(QSqlQuery& query, const char* what) {
     if (query.exec()) {
         return true;
@@ -53,8 +58,8 @@ bool saveServerProfile(const QSqlDatabase& database, const ServerProfile& profil
             "account_id = excluded.account_id, display_name = excluded.display_name"));
     query.bindValue(QStringLiteral(":id"), profile.id);
     query.bindValue(QStringLiteral(":origin"), profile.baseUrl.toString(QUrl::FullyEncoded));
-    query.bindValue(QStringLiteral(":account_id"), profile.accountId);
-    query.bindValue(QStringLiteral(":display_name"), profile.displayName);
+    query.bindValue(QStringLiteral(":account_id"), text(profile.accountId));
+    query.bindValue(QStringLiteral(":display_name"), text(profile.displayName));
     query.bindValue(QStringLiteral(":created_at"),
             QDateTime::currentDateTimeUtc().toString(Qt::ISODate));
     return run(query, "save a Crate server");
@@ -66,7 +71,7 @@ bool saveLastCapabilities(const QSqlDatabase& database,
     QSqlQuery query(database);
     query.prepare(QStringLiteral(
             "UPDATE crateserver_servers SET last_capabilities_json = :json WHERE id = :id"));
-    query.bindValue(QStringLiteral(":json"), QString::fromUtf8(capabilitiesJson));
+    query.bindValue(QStringLiteral(":json"), text(QString::fromUtf8(capabilitiesJson)));
     query.bindValue(QStringLiteral(":id"), serverId);
     return run(query, "save the capabilities of a Crate server") && query.numRowsAffected() == 1;
 }

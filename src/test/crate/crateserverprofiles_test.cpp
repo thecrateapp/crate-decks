@@ -48,6 +48,19 @@ TEST_F(CrateServerProfilesTest, SavesLoadsAndRemovesProfiles) {
     ASSERT_EQ(1, crate::db::loadServerProfiles(dbConnection()).size());
 }
 
+TEST_F(CrateServerProfilesTest, SavesAProfileWithoutAccountOrName) {
+    ServerProfile bare;
+    bare.id = QStringLiteral("a");
+    bare.baseUrl = QUrl(QStringLiteral("https://a.test"));
+
+    ASSERT_TRUE(crate::db::saveServerProfile(dbConnection(), bare));
+
+    const QList<ServerProfile> loaded = crate::db::loadServerProfiles(dbConnection());
+    ASSERT_EQ(1, loaded.size());
+    EXPECT_TRUE(loaded.first().accountId.isEmpty());
+    EXPECT_TRUE(loaded.first().displayName.isEmpty());
+}
+
 TEST_F(CrateServerProfilesTest, SavingAgainUpdatesTheProfile) {
     ASSERT_TRUE(crate::db::saveServerProfile(dbConnection(), profile("a", "https://a.test")));
     ServerProfile renamed = profile("a", "https://a.test");
