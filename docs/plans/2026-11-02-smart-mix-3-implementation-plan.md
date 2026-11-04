@@ -279,6 +279,29 @@ SMV corre en paralelo a SM2. Tiene que llegar antes del despliegue de `smart-mix
   - `test_voice_overhead_within_budget`, marcado como benchmark, con el presupuesto aprobado en SG1b.
   - El test que hoy comprueba que el analizador no llama al detector pasa a comprobar que solo lo llama el handler.
 
+### Estado de SMV (2026-11-04)
+
+Las tres PRs están hechas en commits locales, sin subir, y unidas en `integ/sm3-sg1` (`fbcc1cc5`), que es lo que corre el stack dev.
+
+- **SMV.PR1** (`feat/sm3-voice-eval`). Respecto a lo previsto:
+  - `score` guarda las puntuaciones de cada ventana (`vocals_windows_<backend>.csv`, con seis cifras significativas) en lugar de un byte por frase, para que `evaluate` pueda elegir el umbral de ventana sin decodificar de nuevo.
+  - El par de umbrales recomendado se ajusta con todas las etiquetas y se marca como no validado aparte. Los pares de cada fold se listan para ver lo estable que es la elección. Esto viene de la revisión.
+  - Reproduce exactamente los AUC de la prueba previa.
+- **SMV.PR2** (`feat/sm3-voice`):
+  - **Port a PyTorch.** El grafo de YAMNet que distribuye Essentia tiene su licencia no comercial y la imagen no lleva TensorFlow, así que YAMNet es un port a PyTorch con los pesos originales de Google (Apache-2.0).
+  - **Fidelidad:** frente a la referencia de Google en TensorFlow la diferencia máxima es de 5·10⁻⁶.
+  - **Coste:** unos 0,7 s de CPU por minuto de audio.
+  - **Imagen:** una etapa de la imagen descarga y convierte los pesos, con checksums.
+  - **Base de datos:** la migración 144 añade `vocal_detector`. Un borrador que trae un detector nuevo reemplaza el perfil de la misma versión y calidad, y uno sin voz nunca la borra.
+  - **Dónde corre:** el paso va en `compute_smart_mix_profile`, después del análisis.
+- **SMV.PR3** (en la misma rama): el endpoint del admin sirve el detector, la franja de frases dibuja el carril de voz, y `smart-mix-operations.md` documenta modelo, licencia, coste, umbrales y recálculo.
+- **Resultado en dev:**
+  - Las 64 pistas spike con frases guardan voz.
+  - Frente a la referencia de las letras de LRCLIB y con los umbrales provisionales (ventana 0,003 y byte 64), consigue AUC 0,895, precisión 0,92, recall 0,88 y especificidad 0,76.
+- **Pendiente para SG1b:**
+  - La revisión de Diego de las 135 frases.
+  - Con ella, fijar los umbrales y decidir la regla del byte. En la validación cruzada de SMV.PR1, la fracción de ventanas dio umbrales inestables entre folds y menos especificidad que umbralizar la media de la frase (0,49 frente a 0,67). Con los umbrales provisionales, en dev, la fracción sí funciona (0,76).
+
 ### SMV.PR3 · Admin y documentación
 
 - **Admin:** carril de voz en `SmartMixStructure.tsx`, de 1 px por frase con la opacidad del byte, y el detector en la ficha. Su test: `renders the voice lane per phrase`.
