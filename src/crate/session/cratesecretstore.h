@@ -4,6 +4,7 @@
 #include <QString>
 #include <chrono>
 #include <functional>
+#include <memory>
 
 namespace crate {
 
@@ -46,22 +47,64 @@ class SessionOnlySecretStore : public SecretStore {
     QHash<QString, QString> m_secrets;
 };
 
-/// The OS keychain through QtKeychain, service `app.cratemusic.decks`.
+/// The operations of the OS keychain, for KeychainSecretStore. Tests replace
+/// it to decide when each operation finishes.
+class KeychainBackend {
+  public:
+    enum class Operation {
+        Read,
+        Write,
+        Remove,
+    };
+    using Finished = std::function<void(SecretStore::Status status, const QString& secret)>;
+
+    virtual ~KeychainBackend() = default;
+
+    /// Runs one operation and calls `finished` exactly once, however late.
+    virtual void run(Operation operation,
+            const QString& key,
+            const QString& secret,
+            Finished finished) = 0;
+};
+
+/// QtKeychain with the service `app.cratemusic.decks`. Without QtKeychain in
+/// the build, every operation finishes as Unavailable.
+std::unique_ptr<KeychainBackend> makeQtKeychainBackend();
+
+/// The OS keychain.
 ///
-/// Each operation gives up after `timeout` and reports Unavailable, without
-/// a nested event loop: without a Secret Service, QtKeychain waits until
-/// D-Bus gives up (F0 Q11). A job that finishes after its timeout is ignored.
-/// Without QtKeychain in the build, every operation reports Unavailable.
+/// - Each operation reports Unavailable after `timeout` if the keychain has
+///   not answered, without a nested event loop: without a Secret Service,
+///   QtKeychain waits until D-Bus gives up (F0 Q11). A later answer is
+///   ignored.
+/// - The operations on one key run one at a time, in the order they were
+///   asked for, even after a timeout: a remove asked after a slow write
+///   always runs after it.
 class KeychainSecretStore : public SecretStore {
   public:
-    explicit KeychainSecretStore(std::chrono::milliseconds timeout = std::chrono::seconds(3));
+    using Schedule = std::function<void(std::chrono::milliseconds delay,
+            std::function<void()> callback)>;
+
+    /// `schedule` defaults to a single-shot QTimer; tests replace it.
+    explicit KeychainSecretStore(std::chrono::milliseconds timeout = std::chrono::seconds(3),
+            std::unique_ptr<KeychainBackend> pBackend = makeQtKeychainBackend(),
+            Schedule schedule = Schedule());
+    ~KeychainSecretStore() override;
 
     void read(const QString& key, ReadDone done) override;
     void write(const QString& key, const QString& secret, Done done) override;
     void remove(const QString& key, Done done) override;
 
   private:
-    const std::chrono::milliseconds m_timeout;
+    struct State;
+    void enqueue(KeychainBackend::Operation operation,
+            const QString& key,
+            const QString& secret,
+            KeychainBackend::Finished done);
+
+    // Shared with the operations in flight, which may finish after this
+    // store is gone.
+    std::shared_ptr<State> m_pState;
 };
 
 } // namespace crate
