@@ -119,7 +119,7 @@ Si el LLM no mejora el resultado (SG3), no se activa, y el trabajo de estructura
 - **Qué se añade al perfil de mezcla:**
   - **Frases:** límites cada 8, 16 o 32 compases sobre los downbeats. Cada frase lleva su posición en beats y ms, su longitud en compases, su energía media y su cambio respecto a la anterior, y un tipo heurístico (`intro`, `build`, `peak`, `break`, `outro`, `body`).
   - **Curva de energía:** un valor por compás, cuantizado a 8 bits.
-  - **Presencia de voz por frase (opcional y aparte):** solo si una heurística espectral barata alcanza la precisión mínima de §10. Si no, se omite: no se mete un modelo de separación de fuentes en el camino del análisis.
+  - **Presencia de voz por frase (opcional y aparte):** la calcula un modelo pequeño de audio (SM3-D13). La heurística espectral que se probó primero no alcanzó §10 y se quedó apagada en SG1. Sigue sin meterse un modelo de separación de fuentes en el camino del análisis.
 - **Implementación:**
   - En Python y en Rust, con paridad comprobada como hoy.
   - `ANALYZER_VERSION` pasa a `smart-mix-audio-v7` (S8 de Crate Decks ya usó v6) y `PROFILE_SCHEMA_VERSION` a 2.
@@ -236,6 +236,18 @@ Solo hay refinamiento si los tres están activos. El admin puede limitar la acci
 - Hay un arnés de evaluación offline desde la primera fase (SM0). Mide v2, v3 determinista y v3 + IA sobre el mismo conjunto de aristas.
 - La IA se activa por defecto solo si mejora las métricas de §10 sin violaciones y pasa la escucha a ciegas de Diego.
 
+**SM3-D13. Voz por frase con un modelo pequeño de audio.** (decidido por Diego en SG1, 2026-11-04; el modelo concreto, pendiente SG1b)
+- **Por qué:** la heurística espectral de SM1.PR4 marcó como voz 13 de 322 frases en 28 pistas spike. Tuvo falsos positivos en un instrumental (Carpenter Brut) y ninguna voz en pistas claramente cantadas (Boy Harsher, Joy Division, Marilyn Manson). Diego la dejó apagada sin etiquetar.
+- **Qué hace:** un clasificador de audio puntúa ventanas cortas de cada frase con sus clases de voz cantada o hablada. El byte de la frase es la fracción de ventanas con voz (0–255). `vocal_presence` sigue siendo un byte por frase, y nulo si no hay frases o no hay modelo.
+- **Candidatos**, medidos en SMV.PR1:
+  - **YAMNet** (AudioSet, unos 3,7 M de parámetros, Apache-2.0): el pequeño de referencia, con clases de canto, habla y rap. Pesos del repositorio original para conservar la licencia.
+  - **PANNs CNN14** (AudioSet): ya va en la imagen del worker de análisis para mood y energía, así que no añade modelo ni licencia, pero es grande (unos 80 M de parámetros) y más lento.
+  - **Voz/instrumental de Essentia** (MusiCNN o EffNet-Discogs): pequeño y entrenado para esto, pero con licencia CC BY-NC-SA 4.0, no comercial. Solo entra si Diego acepta esa licencia. El proyecto ya retiró de la imagen los clasificadores de Essentia.
+- **Dónde corre:** en el worker de análisis, como paso de Python después del perfil, venga de Rust o de Python, sobre las frases ya calculadas. No toca la paridad Python/Rust. Si el modelo no está en la imagen (ARM sin runtime), `vocal_presence` queda nulo. Si la voz falla, el perfil se guarda sin ella.
+- **Aceptación:** la de §10, frente a las frases etiquetadas a mano. El umbral de cada modelo se elige con validación cruzada sobre ese conjunto, no sobre todo él.
+- **Lo usan:** la métrica de choque de voces (§10), el prompt (§8) y una penalización en la puntuación de candidatos de v3 (SM3-D3) cuando las dos frases que se solapan tienen voz.
+- **Versión:** la voz entra en `smart-mix-audio-v7`, que aún no está desplegado, para que el backfill final la calcule en la misma pasada. Si SG1b dice que ningún modelo vale, v7 se despliega sin voz. Si cuando llegue ya hay perfiles v7 fuera de desarrollo, sube a v8.
+
 ## 5. Arquitectura
 
 ```mermaid
@@ -273,7 +285,8 @@ sequenceDiagram
 |---|---|---|
 | `phrases` | `jsonb` | `[{start_beat, start_ms, bars, energy, delta_energy, kind}]`, con 120 frases como máximo |
 | `energy_curve` | `bytea` | Un byte por compás (energía 0–255), con un máximo de 2.048 compases |
-| `vocal_presence` | `bytea` o nulo | Un byte por frase (0–255); nulo si el detector no se activa |
+| `vocal_presence` | `bytea` o nulo | Un byte por frase (0–255) del modelo de voz (SM3-D13); nulo sin modelo o sin frases |
+| `vocal_detector` | `text` o nulo | Modelo y versión que calcularon la voz, por ejemplo `yamnet-1`; nulo si no hay voz |
 | `structure_confidence` | `real` | Confianza global de la segmentación |
 
 **Tabla `smart_mix_refined_plans`:**
@@ -384,7 +397,7 @@ No se guarda el prompt ni la respuesta cruda, igual que el resto de la capa de I
 - **Render:** script de evaluación con FFmpeg, siguiendo el plan (cues, ratio, ganancia, curva y bajos). Vive en `tools/smart-mix-eval/`, fuera del camino de producción.
 - **Criterio:** Diego puntúa del 1 al 5; la IA tiene que ganar o empatar en ≥ 60 % de los pares sin que ninguno sea peor que 2.
 
-**Detector de voz:** precisión ≥ 0,8 y recall ≥ 0,7 frente a 100 frases etiquetadas a mano. Si no, se omite (SM3-D2).
+**Detector de voz:** precisión ≥ 0,8 y recall ≥ 0,7 frente a al menos 100 frases etiquetadas a mano (`tools/smart-mix-eval/vocals_labels.csv`). Si ningún modelo de SM3-D13 lo alcanza, la voz se omite.
 
 ## 11. Presupuestos
 
@@ -392,6 +405,7 @@ No se guarda el prompt ni la respuesta cruda, igual que el resto de la capa de I
 |---|---|
 | API de transition plans | Sin cambio: p95 < 50 ms en caché y < 150 ms sin caché. Los refinamientos se leen en el mismo `mget`; ninguna consulta extra a PostgreSQL en el camino caliente salvo un fallo de caché, que es una lectura por clave primaria `ANY(:keys)` |
 | Análisis estructural | ≤ 10 % más de tiempo que `smart-mix-audio-v6` por pista; el backfill en cola heavy no compite con la reproducción |
+| Voz por frase | El tiempo de CPU por pista que apruebe Diego en SG1b con la medición de SMV.PR1, aparte del presupuesto anterior |
 | Familia `ai` | `ai`: 2 hilos por defecto, ≤ 300 s por tarea, espera en cola p95 ≤ 5 s para refinamientos de Smart Mix con la conexión libre. `ai_bulk`: 1 hilo y lotes largos. Ninguna tarea de IA en `fast`, `default`, `heavy` ni `maintenance`; ninguna llamada a modelo en HTTP |
 | Coste | Estimación: 3–6 K tokens de entrada y ~500 de salida por transición; con modelos tipo `deepseek-flash`, del orden de $0,001 por transición antes de caché. Verificar precios oficiales al configurar; cambiaron varias veces en 2026. Los presupuestos diarios de la conexión (llamadas y tokens) se respetan |
 | Base de datos | Una fila por refinamiento; índice por `(from_entity_uid, to_entity_uid)` para invalidar; limpieza a 180 días sin lectura |
@@ -408,6 +422,8 @@ No se guarda el prompt ni la respuesta cruda, igual que el resto de la capa de I
 | Coste descontrolado | Factura | Reserva previa existente, límites diarios, caché por combinación, `aiRefinement` explícito por petición |
 | Privacidad o jurisdicción | Datos fuera del servidor | Solo números (SM3-D6), aviso y confirmación del admin, local por defecto (SM3-D11) |
 | Paridad Python/Rust en el análisis nuevo | Perfiles distintos según el camino | Extender `test_smart_mix_rust_parity.py` y los tests de `tools/crate-cli` antes del merge |
+| Ningún modelo de voz alcanza §10 con voces distorsionadas o sintes en la banda de la voz | Sin voz por frase | La voz se queda apagada; v3 y el refinamiento funcionan sin ella (SM3-D13) |
+| La voz alarga el backfill final | Más horas de CPU en la cola heavy | Medir en SMV.PR1; si no cabe, muestrear ventanas dentro de cada frase; decide SG1b |
 | Proveedor `openai_compatible` como vector de SSRF | Seguridad | Plantillas de origen, confirmación de orígenes arbitrarios, fijado de dirección como Ollama, sin redirecciones; revisión en SG2 |
 | Cambios de ID de modelo (Moonshot retira alias) | Acción rota | Manifiesto declarado con IDs fijos; `ai_catalog_refresh` avisa en el admin si desaparece |
 
@@ -416,7 +432,8 @@ No se guarda el prompt ni la respuesta cruda, igual que el resto de la capa de I
 | Gate | Cuándo | Qué decide Diego |
 |---|---|---|
 | SG0 | Antes de SM1 | Este diseño: estructura primero, menú de candidatos, minimización y activación en tres niveles. Familia `ai` ya decidida; se confirman los carriles `ai`/`ai_bulk` y la UX asíncrona de Music Paths |
-| SG1 | Tras SM1 | Calidad de la segmentación (revisión visual en el admin sobre 30 pistas variadas) y si se incluye el detector de voz |
+| SG1 | Tras SM1 | Calidad de la segmentación (revisión visual en el admin sobre 30 pistas variadas) y si se incluye el detector de voz. Decidido el 2026-11-04: la heurística se queda apagada y la voz pasa a un modelo (SM3-D13) |
+| SG1b | Tras SMV.PR1 | Modelo de voz: candidato, licencia, coste por pista y precisión y recall frente a las frases etiquetadas |
 | SG2 | Tras SM3 | Seguridad del proveedor `openai_compatible` y plantillas de origen |
 | SG3 | Tras SM5 | Go/no-go de la IA con las métricas y la escucha a ciegas |
 | SG4 | Tras SM6 | Activar por defecto y modelo recomendado; despliegue en producción con el proceso normal de release |

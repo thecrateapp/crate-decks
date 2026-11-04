@@ -5,7 +5,7 @@
 > con el proceso normal de release de Crate y solo cuando Diego lo pida.
 >
 > Diseño: [2026-11-02-smart-mix-3-design.md](2026-11-02-smart-mix-3-design.md). Las decisiones se citan como
-> SM3-D1…D12. Cliente que lo consume primero: Crate Decks F6b
+> SM3-D1…D13. Cliente que lo consume primero: Crate Decks F6b
 > ([plan](2026-11-02-crate-decks-implementation-plan.md)).
 
 **Fecha:** 2026-11-02. **Base:** `origin/main` en `a0fa13aaa` (3.1.2). La última migración es la 142: revalida
@@ -41,6 +41,9 @@ flowchart TD
   SM0 --> SM1[SM1 · Análisis estructural · Python + Rust]
   SM1 --> SG1{{SG1 · calidad de frases}}
   SG1 --> SM2[SM2 · Planner smart-mix-v3 y candidatos]
+  SG1 --> SMV[SMV · Voz por frase con un modelo pequeño]
+  SMV --> SG1b{{SG1b · modelo de voz}}
+  SG1b -. voz si existe .-> SM2
   SG0 --> SM3[SM3 · Proveedor openai_compatible]
   SG0 --> SMQ[SMQ · Familia de colas ai + migración de toda la inferencia]
   SMQ --> SM4
@@ -58,6 +61,7 @@ flowchart TD
 |---|---|---|---|
 | SM0 | Conjunto de aristas, métricas objetivas, render offline y baseline de v2 | 2 | 4–6 días |
 | SM1 | Frases, curva de energía y voz opcional en Python y Rust; perfil schema 2; backfill | 4 | 10–15 días |
+| SMV | Voz por frase con un modelo pequeño de audio (SM3-D13): medición de candidatos, voz en el análisis y en el perfil, y vista en el admin | 3 | 5–8 días |
 | SM2 | Planner v3 con menú de candidatos; la API acepta v3 | 3 | 7–10 días |
 | SM3 | Proveedor `openai_compatible` (Kimi, DashScope, OpenRouter, vLLM) | 3 | 6–9 días |
 | SMQ | Colas `ai` y `ai_bulk`, migración de todas las tareas de IA y paso a asíncrono de las llamadas síncronas en HTTP | 5–6 | 8–12 días |
@@ -66,6 +70,8 @@ flowchart TD
 | SM6 | Admin (binding, aviso de jurisdicción, estadísticas), SSE opcional, documentación y activación | 3 | 5–8 días |
 
 SM3 es independiente: SM4 y SM5 funcionan con DeepSeek y Ollama sin ella. SMQ corre en paralelo a SM1–SM3 y tiene que estar terminada antes de SM4.
+
+SMV corre en paralelo a SM2. Tiene que llegar antes del despliegue de `smart-mix-audio-v7` y de su backfill final, para no pagar dos pasadas por la biblioteca (SM3-D13).
 
 ---
 
@@ -206,6 +212,68 @@ SM3 es independiente: SM4 y SM5 funcionan con DeepSeek y Ollama sin ella. SMQ co
 - Informe de `run_eval.py` con v2 y estructura disponible.
 - Decisión sobre el detector de voz.
 
+**Decisión de voz en SG1 (Diego, 2026-11-04):**
+- La heurística espectral se queda apagada sin etiquetar. Marcó como voz 13 de 322 frases de 28 pistas spike: tres en un instrumental y ninguna en pistas claramente cantadas.
+- La voz pasa a un modelo pequeño de audio: fase SMV (SM3-D13).
+- La revisión visual de las frases sigue pendiente.
+
+---
+
+## SMV · Voz por frase con un modelo pequeño (SM3-D13)
+
+**Objetivo:** una voz por frase lo bastante fiable para no solapar voces, con un modelo que quepa en el análisis.
+
+### SMV.PR1 · Medición y elección del modelo
+
+| Fichero | Contenido |
+|---|---|
+| `tools/smart-mix-eval/vocals/compare_models.py` | Para las pistas de un fichero de `entity_uid`, decodifica el audio a la frecuencia de cada candidato y puntúa cada frase guardada. Escribe `vocals_scores_<modelo>.csv`, con el mismo formato que `export_phrases.py --score`, y el tiempo de CPU por pista y por frase. Fuera del camino de producción y solo contra una base de datos local |
+| `tools/smart-mix-eval/vocals/README.md` | Cómo descargar cada candidato con su checksum y su licencia, y cómo medir |
+
+- **Candidatos:** YAMNet, PANNs CNN14 y, solo si Diego acepta la licencia CC BY-NC-SA 4.0, voz/instrumental de Essentia (SM3-D13).
+- **Verdad de referencia:** al menos 100 frases etiquetadas a mano en `tools/smart-mix-eval/vocals_labels.csv`, repartidas entre pistas con voz e instrumentales. Se etiquetan con la página de etiquetado del material de SG1.
+- **Por cada candidato:**
+  - precisión y recall con el umbral elegido por validación cruzada en 5 partes;
+  - tiempo de CPU por pista, con su p50 y p95;
+  - memoria del proceso;
+  - tamaño del modelo.
+- **Informe:** en `docs/plans/` de Crate Decks, con la recomendación.
+- **Tests**, en `tools/smart-mix-eval/tests/test_compare_models.py`:
+  - `test_phrase_byte_is_fraction_of_voiced_windows`
+  - `test_threshold_chosen_by_cross_validation`
+  - `test_scores_csv_matches_export_format`
+
+**Gate SG1b (Diego):**
+- Modelo, licencia, coste por pista y precisión y recall.
+- Si ningún candidato alcanza el umbral de §10 del diseño, la voz se queda apagada y SMV.PR2 y SMV.PR3 no se hacen.
+
+### SMV.PR2 · Voz en el análisis y en el perfil
+
+| Fichero | Contenido |
+|---|---|
+| `app/crate/smart_mix/vocals.py` | Retira la heurística espectral y puntúa las frases con el modelo elegido: `score_phrases(audio, sample_rate, phrases) -> bytes`. Usa las clases de voz y el umbral de SG1b. Define `VOCAL_DETECTOR` (modelo y versión) |
+| `app/crate/smart_mix/voice_model.py` | Carga perezosa del modelo, una vez por proceso, como PANNs en `audio_analysis.py`. Nunca descarga nada en ejecución: el fichero viene en la imagen |
+| `app/crate/worker_handlers/analysis.py` | `_handle_compute_smart_mix_profile` añade la voz al borrador después de `analyze_mix_profile`, si hay frases y modelo. Si la voz falla, el perfil se publica sin ella y queda un aviso en el log; la tarea no falla |
+| `app/scripts/download_models.sh` y `app/Dockerfile` | El modelo en la imagen del worker de análisis (x86_64), con checksum y su licencia junto al resto de terceros |
+| `app/crate/db/migrations/versions/<NNN>_smart_mix_vocal_detector.py` y el DDL de referencia | Columna `vocal_detector text` nula en `track_mix_profiles` |
+| Repositorio de perfiles | Escribe y lee `vocal_detector`. Entra en el hash de revisión del perfil, igual que `vocal_presence` |
+
+- **Versión:** la voz entra en `smart-mix-audio-v7` sin subir la versión, porque v7 aún no está desplegado. En desarrollo, los perfiles v7 sin voz se recalculan forzando la tarea, porque si no el almacén los da por `unchanged`.
+- **Tests:**
+  - `test_smart_mix_vocals.py`:
+    - `test_no_voice_without_phrases`
+    - `test_missing_model_leaves_voice_null`
+    - `test_precision_recall_on_labelled_set` (salta si no existe el CSV)
+  - `test_smart_mix_analysis_storage.py`, ampliado: `test_persists_vocal_detector`.
+  - Test del handler: `test_profile_publishes_without_voice_when_the_model_fails`.
+  - `test_voice_overhead_within_budget`, marcado como benchmark, con el presupuesto aprobado en SG1b.
+  - El test que hoy comprueba que el analizador no llama al detector pasa a comprobar que solo lo llama el handler.
+
+### SMV.PR3 · Admin y documentación
+
+- **Admin:** carril de voz en `SmartMixStructure.tsx`, de 1 px por frase con la opacidad del byte, y el detector en la ficha. Su test: `renders the voice lane per phrase`.
+- **Documentación:** `docs/technical/smart-mix-design.md` y `-operations.md`: modelo, licencia, coste y cómo se recalcula la voz.
+
 ---
 
 ## SM2 · Planner `smart-mix-v3` (SM3-D3)
@@ -215,7 +283,7 @@ SM3 es independiente: SM4 y SM5 funcionan con DeepSeek y Ollama sin ella. SMQ co
 | Fichero | Contenido |
 |---|---|
 | `app/crate/smart_mix/policy.py` | `PLANNER_POLICY_V3`: copia de v2 con su propio `identifier="smart-mix-v3"` y `rules_revision=1`. Mismos límites de seguridad; añade `phrase_lengths=(8,16,32)` y `max_candidates=8` |
-| `app/crate/smart_mix/candidates.py` | `plan_transition_candidates(outgoing, incoming, context, policy) -> list[TransitionCandidate]`. Combina frases de salida (las 4 últimas válidas) × frases de entrada (las 3 primeras) × longitud × bajos × curva; filtra con la política; puntúa (alineación de frases, Δ energía, compatibilidad armónica, estabilidad); deduplica; devuelve como máximo 8. Sin estructura usa la heurística de compases de v2 |
+| `app/crate/smart_mix/candidates.py` | `plan_transition_candidates(outgoing, incoming, context, policy) -> list[TransitionCandidate]`. Combina frases de salida (las 4 últimas válidas) × frases de entrada (las 3 primeras) × longitud × bajos × curva; filtra con la política; puntúa (alineación de frases, Δ energía, compatibilidad armónica, estabilidad y, si los dos perfiles tienen voz, una penalización por solapar frases con voz; SM3-D13); deduplica; devuelve como máximo 8. Sin estructura usa la heurística de compases de v2 |
 | `app/crate/smart_mix/planner.py` | `plan_transition_v3` devuelve el mejor candidato como `TransitionPlan`, más la lista de candidatos para SM4. `plan_transition` (v2) no cambia |
 | `app/crate/smart_mix/models.py` | `TransitionCandidate` (índice, frases, longitud, modo, bajos, curva, puntuación y desglose) con `to_plan()`, que pasa por el constructor de `TransitionPlan` |
 
@@ -224,6 +292,7 @@ SM3 es independiente: SM4 y SM5 funcionan con DeepSeek y Ollama sin ella. SMQ co
 - `test_at_most_eight_candidates`
 - `test_falls_back_to_bar_heuristic_without_structure`
 - `test_best_candidate_prefers_phrase_aligned`
+- `test_vocal_overlap_penalised_only_with_voice_on_both_sides`
 - `test_v2_planner_unchanged` (los mismos planes que antes para un conjunto fijo)
 - `test_candidates_deterministic` (misma entrada, misma salida)
 
@@ -558,6 +627,8 @@ Sin disponibilidad: `unavailable` con `reasonCode` |
 |---|---|---|
 | La segmentación no alcanza calidad en SG1 | Frases visiblemente mal en el admin | Iterar SM1 antes de SM2; si un género falla, `structure_confidence` bajo y fallback a la heurística |
 | La paridad Python/Rust se rompe con el algoritmo nuevo | `test_smart_mix_rust_parity.py` en rojo | No mergear SM1.PR3 sin paridad; ajustar tolerancias solo con justificación |
+| Ningún modelo de voz alcanza el umbral | Informe de SMV.PR1 | Voz apagada; SM2 y SM4 funcionan sin ella |
+| La voz no llega antes del despliegue de v7 | SMV.PR2 sin mergear cuando Diego pide desplegar | Desplegar v7 sin voz y rellenarla después con una tarea aparte, que vuelve a decodificar el audio; lo decide Diego |
 | v3 sin caché supera 150 ms | Benchmark de SM2.PR2 | Precalcular candidatos en el worker de perfiles |
 | La familia `ai` no se despliega bien | Tareas `ai` o `ai_bulk` sin consumir | El preflight de despliegue falla sin consumidores (SMQ.PR1) |
 | Los lotes de taxonomía ocupan `ai` | Refinamientos de Smart Mix tardan | Van a `ai_bulk` con su propio pool; un test impide tareas de más de 300 s en `ai` |
