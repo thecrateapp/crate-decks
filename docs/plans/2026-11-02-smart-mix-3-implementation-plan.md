@@ -65,7 +65,7 @@ flowchart TD
 | SM0 | Conjunto de aristas, métricas objetivas, render offline y baseline de v2 | 2 | 4–6 días |
 | SM1 | Frases, curva de energía y voz opcional en Python y Rust; perfil schema 2; backfill | 4 | 10–15 días |
 | SMV | Voz por frase con un modelo pequeño de audio (SM3-D13): medición de candidatos, voz en el análisis y en el perfil, y vista en el admin | 3 | 5–8 días |
-| SMB | Beats y downbeats de Beat This! con DBN en Python y Rust, columna `beat_tracker` y nueva medición de SG1 (SM3-D14) | 4 | 5–7 días |
+| SMB | Beats y downbeats de Beat This! con DBN en Python y Rust, columna `beat_tracker`, señales guardadas por pista y nueva medición de SG1 (SM3-D14, SM3-D16) | 5 | 6–8 días |
 | SMN | Ventana nocturna del backfill configurable en Admin (SM3-D15) | 1 | 2–3 días |
 | SM2 | Planner v3 con menú de candidatos; la API acepta v3 | 3 | 7–10 días |
 | SM3 | Proveedor `openai_compatible` (Kimi, DashScope, OpenRouter, vLLM) | 3 | 6–9 días |
@@ -394,6 +394,32 @@ Viene de la primera medición de SMB.PR3 (Diego, 2026-11-05: «con DBN»; SM3-D1
   - los pesos ausentes se avisan con *warning*.
 - **Tests:** los de cada punto, en rojo primero. Comprobación de la imagen: versiones de torch y numpy sin cambios, madmom instalado y los beats coinciden con los de la medición en dos pistas. Suite completa en cuatro partes.
 
+### SMB.PR2c · Señales de los modelos guardadas y compás del DBN (SM3-D16)
+
+Va detrás de SMB.PR2b. La migración es la siguiente a la 145.
+
+| Fichero | Contenido |
+|---|---|
+| Migración `<NNN>_smart_mix_track_signals.py`, DDL de referencia y repositorio | Tabla `smart_mix_track_signals`, nombre a revalidar con las convenciones del monorepo. Una fila por pista: `track_id` (clave y FK con borrado en cascada), `source_revision`, `beat_tracker`, `beats_ms integer[]`, `downbeats_ms integer[]`, `beats_per_bar smallint`, `vocal_detector`, `voice_hop_ms smallint`, `voice_scores bytea` (un byte por ventana, la misma escala logarítmica que las frases) y `updated_at`. Creación idempotente, como el resto de migraciones |
+| `app/crate/smart_mix/beat_model.py` | `BeatTrack` gana `beats_per_bar`: los beats que hay entre downbeats consecutivos, que con DBN son constantes (3 o 4). Si no son constantes (no debería pasar con DBN), es `None` |
+| `app/crate/worker_handlers/analysis.py` (`_smart_mix_beats`) | Antes de ejecutar el modelo, busca las señales de la pista. Si coinciden `source_revision` y `beat_tracker` con los actuales, usa los beats guardados sin ejecutar Beat This!. Si no, ejecuta el modelo y guarda el resultado. Si falla al guardar, aviso en el log y el perfil sigue |
+| `app/crate/smart_mix/vocals.py` (`add_vocal_presence`) | Lo mismo con las ventanas de voz: reutiliza las guardadas si coinciden `source_revision` y `vocal_detector`; si no, ejecuta YAMNet y las guarda. Solo se calculan cuando la pista tiene frases, como ahora |
+| `app/crate/smart_mix/analyzer.py`, `phrase_grid.py`, `tools/crate-cli` (`beat_tracking.rs`, `analyze.rs`) y `crate_cli.py` | `--beats` acepta `beats_per_bar` opcional. Con 3, el perfil sale con `time_signature = 3`, sin downbeat ni frases, en Python y en Rust. Con 4 o sin el campo, como ahora (`time_signature = 4` si hay downbeat). Hay que reconstruir el binario de `crate-cli` |
+
+**Tests:**
+- `test_smart_mix_track_signals.py`:
+  - `test_reuses_stored_beats_when_source_and_tracker_match`, con el modelo sustituido por un doble que falla si se llama;
+  - `test_recomputes_when_source_revision_changes`;
+  - `test_recomputes_when_tracker_changes`;
+  - `test_reuses_stored_voice_windows`;
+  - `test_signal_store_failure_keeps_profile`.
+- `test_smart_mix_beat_model.py`: `test_beats_per_bar_from_downbeats`, con 3, 4 y downbeats irregulares.
+- `test_smart_mix_audio_analysis.py` y `cargo test`: `test_three_four_meter_gets_no_phrases` y `three_four_meter_gets_no_phrases`.
+- `test_smart_mix_rust_parity.py`: los dos analizadores coinciden con `beats_per_bar` 3 y 4.
+- Migración: creación idempotente y borrado en cascada con la pista.
+
+**Tamaño:** se comprueba en dev con las pistas spike. Debe quedar en unos 3–4 KB por pista.
+
 ### SMB.PR3 · Medición y documentación
 
 - **Medición:** reanalizar con el v7 corregido las pistas spike y las de la muestra de producción, y repetir la comparación con All-In-One y madmom, por downbeat y por secciones. Compara `small0` con `final0` y elige `final0` solo si acierta claramente más (Diego, 2026-11-05). Mide también el coste por pista y la memoria del proceso.
@@ -409,9 +435,14 @@ Viene de la primera medición de SMB.PR3 (Diego, 2026-11-05: «con DBN»; SM3-D1
 
   - `final0` no acierta más que `small0`: se queda `small0`.
   - La regla del 60 % se mantiene: con DBN, las 12 pistas que rechaza estarían todas mal ancladas.
-  - Falta repetir la medición con la imagen de SMB.PR2b.
+  - Falta repetir la medición con la imagen de SMB.PR2b y SMB.PR2c.
+- **Métricas** (Diego, 2026-11-05, tras una revisión externa):
+  - **Límites de sección:** precisión, recall y F1 con `mir_eval.segment.detection`, con emparejamiento uno a uno, sin los límites triviales de inicio y fin, a ±0,5 s, ±3 s y ±1 compás. El recall solo puede inflarse añadiendo cortes, así que no basta.
+  - **Downbeat:** acierto condicionado a la cobertura, es decir, cuántas pistas tienen downbeat y cuántas de ellas aciertan. Cuenta igual de bien abstenerse (crossfade) que no publicar uno erróneo.
+  - **Lectura:** All-In-One es una referencia automática. El subconjunto con árbitro (All-In-One y madmom de acuerdo) es una selección y no demuestra un acierto general. El informe lo dice así.
+  - **Compás:** cuántas pistas salen con `time_signature = 3`, y en qué géneros.
 - **Scripts:** suben a `tools/smart-mix-eval/structure/` como herramienta offline, fuera del camino de producción.
-- **Documentación:** `docs/technical/smart-mix-operations.md` (modelo, licencia, coste, procedencia y recálculo) y `smart-mix-design.md`.
+- **Documentación:** `docs/technical/smart-mix-operations.md` (modelo, licencia, coste, procedencia, recálculo y señales guardadas: qué se reutiliza y cómo lo aprovecha una versión posterior sin repetir los modelos) y `smart-mix-design.md`.
 - **Gate SG1:** Diego cierra SG1 con esa comparación.
 
 ---

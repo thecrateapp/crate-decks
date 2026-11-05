@@ -301,6 +301,23 @@ Solo hay refinamiento si los tres están activos. El admin puede limitar la acci
   - **Cambio de franja:** se aplica en el siguiente lote, sin interrumpir análisis en curso.
 - **Despliegue:** `crate-analysis-worker` arranca con tantos procesos como el máximo nocturno, con CPU y memoria acordes. Así no hace falta reiniciar ni escalar desde fuera; Crate no tiene acceso al socket de Docker.
 
+**SM3-D16. Señales de los modelos guardadas por pista** (decidido por Diego, 2026-11-05, tras una revisión externa del pipeline)
+- **Por qué:** Beat This! es unas tres cuartas partes del coste del perfil.
+  - Hoy, cualquier mejora futura de la rejilla, del downbeat o de las frases obliga a repetirlo en un backfill de 12–13 días.
+  - Con sus beats guardados, una versión posterior (por ejemplo, la segmentación por novelty de v8) solo necesita el paso de Rust: unos 4–6 s por pista y un backfill de unos 3 días.
+  - Lo mismo pasa con YAMNet si cambian las frases.
+- **Qué se guarda,** en una tabla propia por pista, aparte del perfil:
+  - los beats y downbeats de Beat This! tras el DBN, con su `beat_tracker`;
+  - el compás que elige el DBN (`beats_per_bar`, 3 o 4);
+  - las puntuaciones de voz de YAMNet por ventana (0,48 s), en el mismo byte logarítmico que las frases, con su `vocal_detector`.
+  - Las ventanas de voz se guardan solo cuando ya se calculan, que es cuando la pista tiene frases: no añaden coste.
+- **Tamaño:** unos 3–4 KB por pista, menos de 1 GB para 140.000 pistas. No se guardan los logits del modelo (unos 13 GB): solo harían falta para volver a cambiar el post-proceso.
+- **Cuándo se reutilizan:** cuando coinciden la revisión de la fuente (`smart_mix_source_revision`: tamaño, mtime e inodo) y el nombre del tracker o del detector actuales. Si no coinciden, se recalculan y se reemplazan.
+- **Compás de 3 tiempos:** si el DBN elige 3, el perfil lo dice (`time_signature = 3`) y se queda sin downbeat ni frases, y por tanto va a crossfade. Hoy esto ocurre por accidente, cuando no se llega al 60 %. Las frases y los consumidores (planificador, Crate Decks) asumen compases de 4.
+- **Fuera de esta decisión,** como propuestas sin aprobar:
+  - segmentación por novelty de timbre y armonía con preferencia por 8/16/32 compases (v8, después del backfill);
+  - Beat This! exportado a ONNX para ganar velocidad.
+
 ## 5. Arquitectura
 
 ```mermaid
