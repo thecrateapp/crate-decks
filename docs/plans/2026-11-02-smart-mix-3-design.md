@@ -262,6 +262,34 @@ Solo hay refinamiento si los tres están activos. El admin puede limitar la acci
 - **Lo usan:** la métrica de choque de voces (§10), el prompt (§8) y una penalización en la puntuación de candidatos de v3 (SM3-D3) cuando las dos frases que se solapan tienen voz.
 - **Versión:** la voz entra en `smart-mix-audio-v7`, que aún no está desplegado, para que el backfill final la calcule en la misma pasada. Si SG1b dice que ningún modelo vale, v7 se despliega sin voz. Si cuando llegue ya hay perfiles v7 fuera de desarrollo, sube a v8.
 
+**SM3-D14. Beats y downbeats con Beat This!** (decidido por Diego en SG1, 2026-11-05)
+- **Por qué:** SG1 comparó v7 con All-In-One (`allin1` 1.1.0, MIT, solo offline) y con madmom.
+  - En 25 pistas de géneros de mezcla por frases en las que esos dos coinciden en al menos el 90 % de los downbeats, la heurística de v7 acierta el downbeat en 10. Esa heurística (onsets graves y cambio de acorde, mejor fase módulo 4) es la misma en Python y en Rust. Beat This! acierta en 21.
+  - En las pistas que falla, todas las frases empiezan un tiempo antes o después del «1» real.
+  - La rejilla también falla: cuenta a medio tempo en punk rápido, toma un tempo equivocado y deriva en grabaciones en directo. Por eso corregir solo la fase deja 14 de 25.
+  - `structure_confidence` no separa las pistas buenas de las malas.
+- **Qué hace:** Beat This! (CPJKU, ISMIR 2024; código y pesos MIT; sin DBN) da los beats y los downbeats.
+  - **Checkpoint:** `small0` (8 MB). `final0` (77 MB) solo si en la medición de SMB acierta claramente más.
+  - **Dónde corre:** el worker de análisis lo ejecuta en Python, con torch como YAMNet, antes del análisis.
+  - **Cómo llega a los analizadores:** pasa el resultado a Rust (`crate-cli analyze --beats <json>`) y al analizador de Python.
+  - **Qué hacen con él:** los dos analizadores usan esos beats en lugar de su tracker y conservan el ajuste a rejilla constante. El downbeat es la fase módulo 4 de la rejilla que recoge más downbeats de Beat This!, siempre que recoja al menos el 60 %. Si no llega, la pista se queda sin downbeat ni frases.
+  - **Sin modelo** (pesos ausentes, ARM o `PANNS=off`), si el modelo falla o si la pista pasa del máximo de duración: el comportamiento de antes, con un aviso en el log.
+- **Procedencia:** una columna `beat_tracker` (por ejemplo, `beat-this-small0`), nula con el tracker propio. Funciona como `vocal_detector`: un borrador que trae tracker sustituye a un perfil de la misma versión que no lo tiene.
+- **Coste**, con 1 hilo y pistas de hasta 240 s:
+  - En desarrollo (Core Ultra 9 185H): `small0`, unos 15 s por pista; `final0`, unos 25 s. Sin Beat This!, v7 cuesta 4–6 s (Rust 1–3 s más YAMNet).
+  - En producción (i7-7700, 4 núcleos y 8 hilos) se calcula 1,4 veces más.
+- **Versión:** entra en `smart-mix-audio-v7`, que no está desplegado.
+
+**SM3-D15. Ventana nocturna para el backfill** (decidido por Diego, 2026-11-05)
+- **Por qué:** producción tiene casi 140.000 pistas y un i7-7700 de 4 núcleos y 8 hilos, con `crate-analysis-worker` a 4 procesos.
+  - Con v7 y `small0` (unos 28 s por pista en producción), el backfill dura unos 15 días con 4 procesos todo el día.
+  - Con ventana nocturna, unos 12–13.
+- **Qué hace:** el backfill tiene una ventana nocturna configurable en Admin.
+  - **Por defecto:** de 01:00 a 08:00, hora de `Europe/Madrid`, con 8 análisis del backfill en vuelo; fuera de la ventana, 4.
+  - **Qué cuenta:** el coordinador nunca tiene en vuelo más hijos del backfill que el límite de la hora actual. Las importaciones y los reanálisis manuales no cuentan.
+  - **Cambio de franja:** se aplica en el siguiente lote, sin interrumpir análisis en curso.
+- **Despliegue:** `crate-analysis-worker` arranca con tantos procesos como el máximo nocturno, con CPU y memoria acordes. Así no hace falta reiniciar ni escalar desde fuera; Crate no tiene acceso al socket de Docker.
+
 ## 5. Arquitectura
 
 ```mermaid
@@ -446,7 +474,7 @@ No se guarda el prompt ni la respuesta cruda, igual que el resto de la capa de I
 | Gate | Cuándo | Qué decide Diego |
 |---|---|---|
 | SG0 | Antes de SM1 | Este diseño: estructura primero, menú de candidatos, minimización y activación en tres niveles. Familia `ai` ya decidida; se confirman los carriles `ai`/`ai_bulk` y la UX asíncrona de Music Paths |
-| SG1 | Tras SM1 | Calidad de la segmentación (revisión visual en el admin sobre 30 pistas variadas) y si se incluye el detector de voz. Decidido el 2026-11-04: la heurística se queda apagada y la voz pasa a un modelo (SM3-D13) |
+| SG1 | Tras SM1 | Calidad de la segmentación (revisión visual en el admin sobre 30 pistas variadas) y si se incluye el detector de voz. Decidido el 2026-11-04: la heurística se queda apagada y la voz pasa a un modelo (SM3-D13). El 2026-11-05 la revisión visual se sustituye por la comparación con All-In-One y madmom: el downbeat no pasa, y beats y downbeats pasan a Beat This! (SM3-D14). SG1 se cierra con la misma comparación sobre el v7 corregido |
 | SG1b | Tras SMV.PR1 | Modelo de voz: candidato, licencia, coste por pista y precisión y recall frente a las frases etiquetadas |
 | SG2 | Tras SM3 | Seguridad del proveedor `openai_compatible` y plantillas de origen |
 | SG3 | Tras SM5 | Go/no-go de la IA con las métricas y la escucha a ciegas |

@@ -5,7 +5,7 @@
 > con el proceso normal de release de Crate y solo cuando Diego lo pida.
 >
 > Diseño: [2026-11-02-smart-mix-3-design.md](2026-11-02-smart-mix-3-design.md). Las decisiones se citan como
-> SM3-D1…D13. Cliente que lo consume primero: Crate Decks F6b
+> SM3-D1…D15. Cliente que lo consume primero: Crate Decks F6b
 > ([plan](2026-11-02-crate-decks-implementation-plan.md)).
 
 **Fecha:** 2026-11-02. **Base:** `origin/main` en `a0fa13aaa` (3.1.2). La última migración es la 142: revalida
@@ -40,7 +40,10 @@ flowchart TD
   SG0{{SG0 · diseño}} --> SM0[SM0 · Arnés de evaluación y baseline v2]
   SM0 --> SM1[SM1 · Análisis estructural · Python + Rust]
   SM1 --> SG1{{SG1 · calidad de frases}}
+  SM1 --> SMB[SMB · Beats y downbeats con Beat This!]
+  SMB --> SG1
   SG1 --> SM2[SM2 · Planner smart-mix-v3 y candidatos]
+  SG0 --> SMN[SMN · Ventana nocturna del backfill]
   SG1 --> SMV[SMV · Voz por frase con un modelo pequeño]
   SMV --> SG1b{{SG1b · modelo de voz}}
   SG1b -. voz si existe .-> SM2
@@ -62,6 +65,8 @@ flowchart TD
 | SM0 | Conjunto de aristas, métricas objetivas, render offline y baseline de v2 | 2 | 4–6 días |
 | SM1 | Frases, curva de energía y voz opcional en Python y Rust; perfil schema 2; backfill | 4 | 10–15 días |
 | SMV | Voz por frase con un modelo pequeño de audio (SM3-D13): medición de candidatos, voz en el análisis y en el perfil, y vista en el admin | 3 | 5–8 días |
+| SMB | Beats y downbeats de Beat This! en Python y Rust, columna `beat_tracker` y nueva medición de SG1 (SM3-D14) | 3 | 4–6 días |
+| SMN | Ventana nocturna del backfill configurable en Admin (SM3-D15) | 1 | 2–3 días |
 | SM2 | Planner v3 con menú de candidatos; la API acepta v3 | 3 | 7–10 días |
 | SM3 | Proveedor `openai_compatible` (Kimi, DashScope, OpenRouter, vLLM) | 3 | 6–9 días |
 | SMQ | Colas `ai` y `ai_bulk`, migración de todas las tareas de IA y paso a asíncrono de las llamadas síncronas en HTTP | 5–6 | 8–12 días |
@@ -70,6 +75,8 @@ flowchart TD
 | SM6 | Admin (binding, aviso de jurisdicción, estadísticas), SSE opcional, documentación y activación | 3 | 5–8 días |
 
 SM3 es independiente: SM4 y SM5 funcionan con DeepSeek y Ollama sin ella. SMQ corre en paralelo a SM1–SM3 y tiene que estar terminada antes de SM4.
+
+SMB y SMN tienen que llegar antes del backfill de v7. SMN no depende de v7 y sale de `main`, como SMQ.
 
 SMV corre en paralelo a SM2. Tiene que llegar antes del despliegue de `smart-mix-audio-v7` y de su backfill final, para no pagar dos pasadas por la biblioteca (SM3-D13).
 
@@ -217,6 +224,22 @@ SMV corre en paralelo a SM2. Tiene que llegar antes del despliegue de `smart-mix
 - La voz pasa a un modelo pequeño de audio: fase SMV (SM3-D13).
 - La revisión visual de las frases sigue pendiente.
 
+**Comparación con modelos de referencia (Diego, 2026-11-05):**
+- Diego no puede escuchar las frases, así que la revisión visual se sustituye por una comparación con All-In-One (`allin1` 1.1.0, MIT, solo offline, ensemble `harmonix-all`).
+- **Muestra:** pistas spike más 64 de producción de la calibración de SG1b, 4 por cada uno de los 16 géneros de mezcla por frases.
+- **Crossfade:** el metal extremo (black metal, death metal, metalcore y metal industrial) va a crossfade casi siempre, así que no cuenta.
+- **El downbeat lo arbitran All-In-One y madmom** (modelos CC BY-NC-SA, válidos porque Crate es libre y gratuito, pero solo como árbitro). En 25 pistas en las que los dos coinciden en al menos el 90 % de los downbeats:
+
+  | Detector | Acierta el downbeat |
+  |---|---:|
+  | v7 (heurística, igual en Python y Rust) | 10 |
+  | v7 con la fase elegida por Beat This! | 14 |
+  | Beat This! `final0` | 21 |
+
+- **Secciones:** las frases encuentran el 52 % de los cambios de sección de All-In-One a ±1 compás (al azar, un 17 %) y el 60 % de los cambios de etiqueta. Un 20 % de las pistas de mezcla por frases se queda sin frases, y All-In-One ve al menos tres secciones en todas ellas.
+- **Decisión:** el downbeat no pasa. Los beats y los downbeats pasan a Beat This! (fase SMB, SM3-D14) y SG1 se cierra con la misma comparación sobre el v7 corregido.
+- **Material:** scripts en `tools/smart-mix-eval/structure/` desde SMB.PR3. Hasta entonces, en el scratchpad de la sesión: `compare_structure.py`, `diag_structure.py`, `madmom_downbeats.py`, `beat_this_run.py` y `bench_beatthis.py`.
+
 ---
 
 ## SMV · Voz por frase con un modelo pequeño (SM3-D13)
@@ -317,6 +340,75 @@ Las tres PRs están hechas en commits locales, sin subir, y unidas en `integ/sm3
 
 - **Admin:** carril de voz en `SmartMixStructure.tsx`, de 1 px por frase, y el detector en la ficha. Tras SG1b, el endpoint sirve `voiced` por frase con el corte calibrado: el carril enciende las frases con voz y deja tenues las demás, y la tabla dice sí o no. Su test: `lights the voice lane on phrases with voice and dims the rest`.
 - **Documentación:** `docs/technical/smart-mix-design.md` y `-operations.md`: modelo, licencia, coste y cómo se recalcula la voz.
+
+---
+
+## SMB · Beats y downbeats con Beat This! (SM3-D14)
+
+**Objetivo:** que las frases empiecen en el «1» real del compás. Va dentro de `smart-mix-audio-v7`, antes del backfill.
+
+**Rama:** `feat/sm3-beats`, encima de `feat/sm3-audio-profile-ui`, que es la punta de la pila de Smart Mix 3. La migración va detrás de la 144.
+
+### SMB.PR1 · Beat This! en el worker y en el analizador de Python
+
+| Fichero | Contenido |
+|---|---|
+| `app/crate/smart_mix/beat_model.py` | `track_beats(audio, sample_rate) -> BeatTrack \| None`, con `beats_ms` y `downbeats_ms`. Carga perezosa del checkpoint, una vez por proceso, como `voice_model.py`. Nunca descarga en ejecución: los pesos vienen en la imagen (`CRATE_BEAT_THIS_WEIGHTS`). Usa `torch.set_num_threads` según `TORCH_NUM_THREADS`. Devuelve `None` sin torch, sin pesos, si falla o si la pista pasa de `BEAT_MODEL_MAX_SECONDS` (600). Define `BEAT_TRACKER = "beat-this-small0"` |
+| `app/crate/smart_mix/analyzer.py` | `analyze_mix_profile(filepath, beats=None)`. Con `beats`, usa `beats_ms` como beats seguidos en lugar de `librosa.beat.beat_track`, mantiene `fit_tempo` y elige el downbeat con `downbeat_anchor_from_model`. Sin `beats`, el comportamiento de antes |
+| `app/crate/smart_mix/beat_grid.py` o `phrase_grid.py` | `downbeat_anchor_from_model(beat_grid_ms, downbeats_ms, *, tolerance_ms=70, min_share=0.6) -> int \| None`: la fase módulo 4 de la rejilla que recoge más downbeats del modelo, o `None` si no llega a `min_share` |
+| `app/crate/audio_analysis.py` y `app/crate/worker_handlers/analysis.py` | `compute_smart_mix_profile` decodifica y ejecuta `track_beats` antes del análisis y pasa los beats a Rust (SMB.PR2) y al analizador de Python. Si el modelo no da beats, el análisis de siempre y un aviso en el log |
+| Migración `<NNN>_smart_mix_beat_tracker.py`, el DDL de referencia y el repositorio de perfiles | Columna `beat_tracker text` nula en `track_mix_profiles`. Entra en el hash de revisión. Un borrador con tracker sustituye a un perfil de la misma versión y calidad que no lo tiene, como `vocal_detector` |
+| `app/Dockerfile` y `requirements-worker-analysis.txt` (o donde se instale torch) | Etapa `beat-this-weights` que descarga el checkpoint con sha256, y `beat-this` con sus dependencias (`einops`, `rotary-embedding-torch`, `soxr`) sin actualizar torch. Licencia MIT junto al resto de terceros |
+
+**Tests:**
+- `test_smart_mix_beat_model.py`:
+  - `test_missing_weights_returns_none`
+  - `test_long_track_skips_model`
+  - `test_returns_milliseconds`, con el modelo sustituido por un doble.
+- `test_smart_mix_downbeat_anchor.py`:
+  - `test_picks_phase_with_most_model_downbeats`
+  - `test_no_anchor_below_min_share`
+  - `test_tolerates_jitter_within_tolerance`
+- `test_smart_mix_audio_analysis.py`, ampliado: `test_external_beats_replace_tracker_and_pick_downbeat`.
+- Test del handler: `test_profile_falls_back_when_beat_model_fails`.
+- `test_smart_mix_analysis_storage.py`, ampliado: `test_persists_beat_tracker` y `test_draft_with_tracker_replaces_same_version`.
+- `test_beat_model_overhead_within_budget`, marcado como benchmark, con un presupuesto de 25 s por pista de 240 s y 1 hilo.
+
+### SMB.PR2 · Beats externos en Rust
+
+- `tools/crate-cli`: `analyze --beats <fichero JSON>`, con `{"beats_ms": [...], "downbeats_ms": [...]}`. `beat_tracking.rs` usa esos beats como seguidos y elige el downbeat con la misma regla que Python (mismas constantes). Sin `--beats`, todo igual.
+- `app/crate/crate_cli.py`: `run_analyze(..., beats_path=None)` escribe el JSON temporal y pasa la opción solo si el binario la soporta (`supports_command`/ayuda), para no romper con un `crate-cli` antiguo.
+- **Tests:**
+  - En `cargo test`: `external_beats_replace_tracker`, `downbeat_phase_from_model_downbeats` y `no_downbeat_below_min_share`.
+  - `test_smart_mix_rust_parity.py`: los dos analizadores reciben los mismos beats externos, y las frases y los downbeats coinciden como hoy.
+
+### SMB.PR3 · Medición y documentación
+
+- **Medición:** reanalizar con el v7 corregido las pistas spike y las de la muestra de producción, y repetir la comparación con All-In-One y madmom, por downbeat y por secciones. Compara `small0` con `final0` y elige `final0` solo si acierta claramente más (Diego, 2026-11-05). Mide también el coste por pista y la memoria del proceso.
+- **Scripts:** suben a `tools/smart-mix-eval/structure/` como herramienta offline, fuera del camino de producción.
+- **Documentación:** `docs/technical/smart-mix-operations.md` (modelo, licencia, coste, procedencia y recálculo) y `smart-mix-design.md`.
+- **Gate SG1:** Diego cierra SG1 con esa comparación.
+
+---
+
+## SMN · Ventana nocturna del backfill (SM3-D15)
+
+**Rama:** `feat/backfill-night-window`, desde `origin/main`. No depende de v7.
+
+### SMN.PR1 · Límite de análisis en vuelo por franja horaria
+
+- **Ajustes del backfill** (Admin y API de backfill), junto a `batchSize` y `maxAttempts`, validados y con valores por defecto:
+  - `nightWindow`: `{start: "01:00", end: "08:00", timezone: "Europe/Madrid"}`, que puede cruzar la medianoche;
+  - `nightConcurrency`: 8;
+  - `dayConcurrency`: 4.
+- **Coordinador:** `backfill_smart_mix_profiles` calcula el límite de la hora actual y nunca deja en vuelo más hijos del backfill que ese límite. Los análisis que no son del backfill no cuentan. El cambio de franja se aplica en el siguiente lote, sin cancelar nada.
+- **Admin:** muestra la franja activa y el límite vigente junto al estado del backfill.
+- **Despliegue:** en `docker-compose.yaml`, `ANALYSIS_WORKER_PROCESSES` documentado como máximo nocturno, con los límites de CPU y memoria de `crate-analysis-worker` acordes. El runbook del backfill de v7 explica cómo fijarlo en producción (4 núcleos y 8 hilos: 8 procesos).
+- **Tests:**
+  - `test_backfill_limit_follows_night_window`, incluida la ventana que cruza la medianoche y el horario de verano;
+  - `test_non_backfill_analysis_not_counted`;
+  - `test_settings_validation_rejects_bad_window`;
+  - el test del componente de Admin para los ajustes nuevos.
 
 ---
 
