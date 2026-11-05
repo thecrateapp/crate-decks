@@ -314,9 +314,49 @@ Solo hay refinamiento si los tres están activos. El admin puede limitar la acci
 - **Tamaño:** unos 3–4 KB por pista, menos de 1 GB para 140.000 pistas. No se guardan los logits del modelo (unos 13 GB): solo harían falta para volver a cambiar el post-proceso.
 - **Cuándo se reutilizan:** cuando coinciden la revisión de la fuente (`smart_mix_source_revision`: tamaño, mtime e inodo) y el nombre del tracker o del detector actuales. Si no coinciden, se recalculan y se reemplazan.
 - **Compás de 3 tiempos:** si el DBN elige 3, el perfil lo dice (`time_signature = 3`) y se queda sin downbeat ni frases, y por tanto va a crossfade. Hoy esto ocurre por accidente, cuando no se llega al 60 %. Las frases y los consumidores (planificador, Crate Decks) asumen compases de 4.
-- **Fuera de esta decisión,** como propuestas sin aprobar:
-  - segmentación por novelty de timbre y armonía con preferencia por 8/16/32 compases (v8, después del backfill);
-  - Beat This! exportado a ONNX para ganar velocidad.
+- **Fuera de esta decisión:**
+  - la segmentación por novelty de timbre y armonía, que entra antes del backfill con SM3-D17;
+  - Beat This! exportado a ONNX para ganar velocidad, como propuesta sin aprobar.
+
+**SM3-D17. Novelty de armonía y timbre en la segmentación** (decidido por Diego, 2026-11-06, al cerrar SG1: «aprobado, pero v8 antes del backfill»)
+- **Por qué:** la novelty de v7 solo mide energía y balance de tres bandas, así que no ve una sección que cambia de armonía o de timbre sin cambiar de volumen.
+  - Frente a las secciones de All-In-One, el F1 de las fronteras es 0,49 a ±3 s en las 131 pistas de mezcla por frases con downbeat.
+- **Alcance de v8, decidido con datos:**
+  - **Anclaje por tramos: descartado.** Se simuló sobre las 131 pistas con los downbeats guardados del modelo: arregla 2–3 pistas y estropea 4–7, con cambios de fase de 4, 8 o 16 compases.
+    - El DBN mantiene un solo compás por pista, así que los «cambios de fase» salían de proyectar sus downbeats sobre la rejilla constante.
+    - Los desacuerdos que quedan son del modelo frente a All-In-One, y madmom no apoya a ninguno de los dos en 23 de 34.
+  - **Novelty: entra aunque no llega al umbral acordado** (+0,05 de F1 a ±3 s sin bajar la precisión). Diego la aceptó con la mejora medida.
+- **Qué hace:**
+  - **Rasgos nuevos por compás,** sobre las mismas tramas centradas que las bandas y sin los 50 ms de cada extremo:
+    - la media del chroma (12 notas);
+    - la media de 13 MFCC (transformada del coseno del espectrograma mel), estandarizados por coeficiente sobre los compases que van del primero al último con música (los huecos cortos incluidos).
+  - **Novelty en cada frontera:** la de v7 (`max(0, nivel + 0,5 · bandas − 0,5)`) más dos términos, con las mismas reglas de huecos y bordes:
+    - 2 × la distancia coseno entre el chroma medio de los 4 compases anteriores y el de los 4 siguientes;
+    - 8 × la distancia entre sus MFCC medios, dividida por √13.
+  - **Coste por frontera** del programa dinámico: de 1,0 a 4,0 dB. Recupera la precisión que bajaban los términos nuevos.
+  - **Sin cambios:** la rejilla de 8 compases con sus bonificaciones de 16 y 32, los picos, los tipos de frase y la fórmula de `structure_confidence`. Su valor sí se mueve, porque hay más picos.
+- **Medición del prototipo:** reutiliza las funciones de producción con los rasgos de Python sobre la rejilla de Rust. Los pesos se eligieron con las pistas spike y la mitad de las de producción; la otra mitad quedó reservada.
+
+  | F1 / precisión a ±3 s | v7 | v7 con SM3-D17 |
+  |---|---|---|
+  | Ajuste (102 pistas) | 0,512 / 0,569 | 0,538 / 0,571 |
+  | Reservadas (29) | 0,410 / 0,474 | 0,493 / 0,519 |
+  | Todas (131) | 0,490 | 0,528 |
+
+  - Quedan 11,7 frases por pista (antes 10,5), y el 77 % son de 8 compases (antes el 69 %): el planificador no pierde puntos de mezcla.
+  - La variante B (kernel de Foote sobre la autosimilitud por compás) daba casi lo mismo en las pistas de ajuste y menos en las reservadas.
+- **Paridad:**
+  - Python y Rust usan el mismo algoritmo y las mismas constantes, y con los mismos rasgos dan las mismas frases. Lo vigila una fixture de estructura con chroma y MFCC por compás.
+  - Rust reutiliza su chroma por trama y su banco mel. Como su chroma no es idéntico al de librosa (pasa lo mismo con las bandas), la paridad sobre audio real mantiene su tolerancia.
+- **Contrato y datos:**
+  - No cambian la API ni el esquema, y la versión sigue siendo `smart-mix-audio-v7`.
+  - Los rasgos nuevos no se guardan (serían unos 15 KB por pista); se recalculan del audio, que el análisis lee de todas formas.
+- **Coste:** como mucho 0,5 s más por pista, medido en SMB.PR3. La estimación del backfill no cambia.
+- **Aceptación** con la imagen final sobre las mismas 131 pistas:
+  - F1 a ±3 s de 0,52 o más;
+  - precisión no menor que la de v7;
+  - como mucho 0,5 s más por pista.
+  - Si no se cumple, se para y se informa.
 
 ## 5. Arquitectura
 
