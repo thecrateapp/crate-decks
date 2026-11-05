@@ -232,6 +232,7 @@ SMV corre en paralelo a SM2. Tiene que llegar antes del despliegue de `smart-mix
 
 - **Candidatos:** YAMNet, PANNs CNN14 y, solo si Diego acepta la licencia CC BY-NC-SA 4.0, voz/instrumental de Essentia (SM3-D13).
 - **Verdad de referencia:** al menos 100 frases etiquetadas a mano en `tools/smart-mix-eval/vocals_labels.csv`, repartidas entre pistas con voz e instrumentales. Se etiquetan con la página de etiquetado del material de SG1.
+  - En SG1b se sustituyó por una calibración con letras sincronizadas sobre pistas de producción, porque Diego no podía revisar las frases a mano (ver «Estado de SMV»).
 - **Por cada candidato:**
   - precisión y recall con el umbral elegido por validación cruzada en 5 partes;
   - tiempo de CPU por pista, con su p50 y p95;
@@ -256,6 +257,11 @@ SMV corre en paralelo a SM2. Tiene que llegar antes del despliegue de `smart-mix
 **Gate SG1b (Diego):**
 - Modelo, licencia, coste por pista y precisión y recall. Modelo ya elegido: YAMNet.
 - Si ningún candidato alcanza el umbral de §10 del diseño, la voz se queda apagada y SMV.PR2 y SMV.PR3 no se hacen.
+
+**Decisión de SG1b (Diego, 2026-11-05): aprobado.**
+- La voz se enciende con YAMNet, detector `yamnet-2`.
+- El byte es la media geométrica de las puntuaciones de voz de la frase en escala logarítmica (de 10⁻⁴ a 1). No graba ningún umbral, así que el corte se puede mover sin volver a analizar la biblioteca.
+- El corte de lectura es `VOCAL_THRESHOLD = 90` (una puntuación media de unos 0,0026). Lo aplica el servidor.
 
 ### SMV.PR2 · Voz en el análisis y en el perfil
 
@@ -298,13 +304,18 @@ Las tres PRs están hechas en commits locales, sin subir, y unidas en `integ/sm3
 - **Resultado en dev:**
   - Las 64 pistas spike con frases guardan voz.
   - Frente a la referencia de las letras de LRCLIB y con los umbrales provisionales (ventana 0,003 y byte 64), consigue AUC 0,895, precisión 0,92, recall 0,88 y especificidad 0,76.
-- **Pendiente para SG1b:**
-  - La revisión de Diego de las 135 frases.
-  - Con ella, fijar los umbrales y decidir la regla del byte. En la validación cruzada de SMV.PR1, la fracción de ventanas dio umbrales inestables entre folds y menos especificidad que umbralizar la media de la frase (0,49 frente a 0,67). Con los umbrales provisionales, en dev, la fracción sí funciona (0,76).
+- **Calibración de SG1b (2026-11-05):**
+  - **Sin revisión a mano.** Diego no podía revisar las 135 frases y autorizó leer audio de producción (solo lectura, por SSH) para calibrar con letras sincronizadas.
+  - **Muestra:** 358 pistas de producción con letra sincronizada de LRCLIB, de 20 géneros, como mucho una por álbum. Se analizaron con v7 fuera de la base de datos. Quedan fuera 23 pistas cuya letra es de otra versión (la duración difiere más de 2 s).
+  - **Etiqueta:** una frase tiene voz si las líneas de la letra cubren al menos un 25 %, y no tiene si ninguna la toca. Las intermedias se descartan.
+  - **Resultado:** 2.721 frases de 275 pistas, un 76 % con voz. La fracción de ventanas, la media aritmética y la media geométrica separan igual (AUC 0,79–0,80), y sus umbrales son estables entre folds. Con la media geométrica y byte ≥ 90: precisión 0,88, recall 0,78 y especificidad 0,66. Cumple §10 del diseño. La letra no recoge coros ni ad-libs, así que estas cifras son una cota inferior.
+  - **Por género:** YAMNet va bien en rock alternativo, post-punk, new wave, pop y hip-hop (AUC 0,86–1,0) y flojo en black y death metal, metal industrial, post-hardcore, synthpop y trip-hop (0,64–0,67).
+  - **Dato para SG1:** v7 no encontró frases en 66 de las 358 pistas, sobre todo de metal extremo e industrial.
+  - **Material:** `~/Code/Ninja/crate-main/sg1-2026-11-04/calibration/` (`report.md`, `labels.csv`, scripts y audio). En el monorepo, la sección de voz de `docs/technical/smart-mix-operations.md`.
 
 ### SMV.PR3 · Admin y documentación
 
-- **Admin:** carril de voz en `SmartMixStructure.tsx`, de 1 px por frase con la opacidad del byte, y el detector en la ficha. Su test: `renders the voice lane per phrase`.
+- **Admin:** carril de voz en `SmartMixStructure.tsx`, de 1 px por frase, y el detector en la ficha. Tras SG1b, el endpoint sirve `voiced` por frase con el corte calibrado: el carril enciende las frases con voz y deja tenues las demás, y la tabla dice sí o no. Su test: `lights the voice lane on phrases with voice and dims the rest`.
 - **Documentación:** `docs/technical/smart-mix-design.md` y `-operations.md`: modelo, licencia, coste y cómo se recalcula la voz.
 
 ---
