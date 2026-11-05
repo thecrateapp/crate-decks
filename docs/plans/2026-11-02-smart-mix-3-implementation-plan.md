@@ -420,6 +420,10 @@ Va detrás de SMB.PR2b. La migración es la siguiente a la 145.
 
 **Tamaño:** se comprueba en dev con las pistas spike. Debe quedar en unos 3–4 KB por pista.
 
+### SMB.PR2d y SMB.PR2e · Novelty de armonía y timbre (SM3-D17) y arreglos de la revisión
+
+Plan en inglés: [`2026-11-06-smart-mix-v7-novelty-implementation-plan.md`](2026-11-06-smart-mix-v7-novelty-implementation-plan.md).
+
 ### SMB.PR3 · Medición y documentación
 
 - **Medición:** reanalizar con el v7 corregido las pistas spike y las de la muestra de producción, y repetir la comparación con All-In-One y madmom, por downbeat y por secciones. Compara `small0` con `final0` y elige `final0` solo si acierta claramente más (Diego, 2026-11-05). Mide también el coste por pista y la memoria del proceso.
@@ -441,9 +445,20 @@ Va detrás de SMB.PR2b. La migración es la siguiente a la 145.
   - **Downbeat:** acierto condicionado a la cobertura, es decir, cuántas pistas tienen downbeat y cuántas de ellas aciertan. Cuenta igual de bien abstenerse (crossfade) que no publicar uno erróneo.
   - **Lectura:** All-In-One es una referencia automática. El subconjunto con árbitro (All-In-One y madmom de acuerdo) es una selección y no demuestra un acierto general. El informe lo dice así.
   - **Compás:** cuántas pistas salen con `time_signature = 3`, y en qué géneros.
-- **Scripts:** suben a `tools/smart-mix-eval/structure/` como herramienta offline, fuera del camino de producción.
+- **Medición final de SMB.PR2c (2026-11-05), 144 pistas de mezcla por frases y 96 con árbitro:**
+  - frases en 131 (antes 119);
+  - downbeat correcto en 84 de 92 con árbitro (91 %), y en 97 de 131 frente a All-In-One;
+  - fronteras de frase sobre el downbeat en 61 (antes 32);
+  - F1 de secciones a ±0,5 s, ±3 s y ±1 compás: 0,33, 0,49 y 0,43 (antes 0,25, 0,45 y 0,38);
+  - el DBN ve 3 tiempos en 5 pistas, y All-In-One en 3 de ellas.
+- **Medición con SMB.PR2d y SMB.PR2e,** con la imagen nueva y sobre las mismas 131 pistas con downbeat. Criterio de aceptación de SM3-D17:
+  - F1 de secciones a ±3 s de 0,52 o más;
+  - precisión no menor que la de SMB.PR2c;
+  - como mucho 0,5 s más por pista.
+  - Si no se cumple, se para y se informa a Diego.
+- **Scripts:** suben a `tools/smart-mix-eval/structure/` como herramienta offline, fuera del camino de producción: la comparación con All-In-One y madmom, la evaluación con `mir_eval` y el prototipo de novelty.
 - **Documentación:** `docs/technical/smart-mix-operations.md` (modelo, licencia, coste, procedencia, recálculo y señales guardadas: qué se reutiliza y cómo lo aprovecha una versión posterior sin repetir los modelos) y `smart-mix-design.md`.
-- **Gate SG1:** Diego cierra SG1 con esa comparación.
+- **Gate SG1:** cerrado por Diego el 2026-11-05 («aprobado, pero v8 antes del backfill»). v8 es SM3-D17.
 
 ---
 
