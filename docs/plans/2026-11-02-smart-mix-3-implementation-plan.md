@@ -65,7 +65,7 @@ flowchart TD
 | SM0 | Conjunto de aristas, métricas objetivas, render offline y baseline de v2 | 2 | 4–6 días |
 | SM1 | Frases, curva de energía y voz opcional en Python y Rust; perfil schema 2; backfill | 4 | 10–15 días |
 | SMV | Voz por frase con un modelo pequeño de audio (SM3-D13): medición de candidatos, voz en el análisis y en el perfil, y vista en el admin | 3 | 5–8 días |
-| SMB | Beats y downbeats de Beat This! en Python y Rust, columna `beat_tracker` y nueva medición de SG1 (SM3-D14) | 3 | 4–6 días |
+| SMB | Beats y downbeats de Beat This! con DBN en Python y Rust, columna `beat_tracker` y nueva medición de SG1 (SM3-D14) | 4 | 5–7 días |
 | SMN | Ventana nocturna del backfill configurable en Admin (SM3-D15) | 1 | 2–3 días |
 | SM2 | Planner v3 con menú de candidatos; la API acepta v3 | 3 | 7–10 días |
 | SM3 | Proveedor `openai_compatible` (Kimi, DashScope, OpenRouter, vLLM) | 3 | 6–9 días |
@@ -353,7 +353,7 @@ Las tres PRs están hechas en commits locales, sin subir, y unidas en `integ/sm3
 
 | Fichero | Contenido |
 |---|---|
-| `app/crate/smart_mix/beat_model.py` | `track_beats(audio, sample_rate) -> BeatTrack \| None`, con `beats_ms` y `downbeats_ms`. Carga perezosa del checkpoint, una vez por proceso, como `voice_model.py`. Nunca descarga en ejecución: los pesos vienen en la imagen (`CRATE_BEAT_THIS_WEIGHTS`). Usa `torch.set_num_threads` según `TORCH_NUM_THREADS`. Devuelve `None` sin torch, sin pesos, si falla o si la pista pasa de `BEAT_MODEL_MAX_SECONDS` (600). Define `BEAT_TRACKER = "beat-this-small0"` |
+| `app/crate/smart_mix/beat_model.py` | `track_beats(audio, sample_rate) -> BeatTrack \| None`, con `beats_ms` y `downbeats_ms`. Carga perezosa del checkpoint, una vez por proceso, como `voice_model.py`. Nunca descarga en ejecución: los pesos vienen en la imagen (`CRATE_BEAT_THIS_WEIGHTS`). Usa `torch.set_num_threads` según `TORCH_NUM_THREADS`. Devuelve `None` sin torch, sin pesos, si falla o si la pista pasa de `BEAT_MODEL_MAX_SECONDS` (600). Define `BEAT_TRACKER = "beat-this-small0"` (con DBN desde SMB.PR2b: `beat-this-small0-dbn`) |
 | `app/crate/smart_mix/analyzer.py` | `analyze_mix_profile(filepath, beats=None)`. Con `beats`, usa `beats_ms` como beats seguidos en lugar de `librosa.beat.beat_track`, mantiene `fit_tempo` y elige el downbeat con `downbeat_anchor_from_model`. Sin `beats`, el comportamiento de antes |
 | `app/crate/smart_mix/beat_grid.py` o `phrase_grid.py` | `downbeat_anchor_from_model(beat_grid_ms, downbeats_ms, *, tolerance_ms=70, min_share=0.6) -> int \| None`: la fase módulo 4 de la rejilla que recoge más downbeats del modelo, o `None` si no llega a `min_share` |
 | `app/crate/audio_analysis.py` y `app/crate/worker_handlers/analysis.py` | `compute_smart_mix_profile` decodifica y ejecuta `track_beats` antes del análisis y pasa los beats a Rust (SMB.PR2) y al analizador de Python. Si el modelo no da beats, el análisis de siempre y un aviso en el log |
@@ -382,9 +382,34 @@ Las tres PRs están hechas en commits locales, sin subir, y unidas en `integ/sm3
   - En `cargo test`: `external_beats_replace_tracker`, `downbeat_phase_from_model_downbeats` y `no_downbeat_below_min_share`.
   - `test_smart_mix_rust_parity.py`: los dos analizadores reciben los mismos beats externos, y las frases y los downbeats coinciden como hoy.
 
+### SMB.PR2b · Post-proceso DBN y arreglos de la revisión
+
+Viene de la primera medición de SMB.PR3 (Diego, 2026-11-05: «con DBN»; SM3-D14).
+- `app/crate/smart_mix/beat_model.py`: `Audio2Beats(..., dbn=True)` y `BEAT_TRACKER = "beat-this-small0-dbn"`. Si madmom no se puede importar, el modelo cuenta como ausente, con un aviso en el log. Nunca vuelve a `dbn=False`.
+- `app/Dockerfile`: una etapa compila la rueda de madmom desde el commit `27f032e8947204902c675e5e341a3faf5dc86dae`, con el mismo numpy que la imagen, y la instala en `worker-analysis-deps` sin mover torch ni numpy. La imagen final no lleva compiladores. La licencia de madmom va junto a las demás.
+- **Arreglos de la revisión:**
+  - torch y torchaudio con versiones coherentes, para que la imagen no deje de construirse cuando cambie torch;
+  - con un `crate-cli` que no soporta `--beats`, aviso en el log y el analizador de Python usa los beats, en lugar de perderlos en silencio;
+  - un `False` debido a una excepción o a un timeout no se cachea;
+  - los pesos ausentes se avisan con *warning*.
+- **Tests:** los de cada punto, en rojo primero. Comprobación de la imagen: versiones de torch y numpy sin cambios, madmom instalado y los beats coinciden con los de la medición en dos pistas. Suite completa en cuatro partes.
+
 ### SMB.PR3 · Medición y documentación
 
 - **Medición:** reanalizar con el v7 corregido las pistas spike y las de la muestra de producción, y repetir la comparación con All-In-One y madmom, por downbeat y por secciones. Compara `small0` con `final0` y elige `final0` solo si acierta claramente más (Diego, 2026-11-05). Mide también el coste por pista y la memoria del proceso.
+- **Primera medición (2026-11-05), 127 pistas de mezcla por frases con referencia de All-In-One:**
+
+  | | v7 anterior | `small0` sin DBN | `small0` con DBN |
+  |---|---:|---:|---:|
+  | Con frases | 104 | 84 | 115 |
+  | Downbeat correcto (≥90 % de los de All-In-One) | — | 65 | 86 |
+  | Fronteras de frase sobre un downbeat de All-In-One (≥90 %) | 28 | 48 | 55 |
+  | Cambios de sección encontrados a ±1 compás | 42 % | 50 % | 48 % |
+  | Con árbitro (37 pistas): downbeat correcto | — | 27 de 31 | 34 de 35 |
+
+  - `final0` no acierta más que `small0`: se queda `small0`.
+  - La regla del 60 % se mantiene: con DBN, las 12 pistas que rechaza estarían todas mal ancladas.
+  - Falta repetir la medición con la imagen de SMB.PR2b.
 - **Scripts:** suben a `tools/smart-mix-eval/structure/` como herramienta offline, fuera del camino de producción.
 - **Documentación:** `docs/technical/smart-mix-operations.md` (modelo, licencia, coste, procedencia y recálculo) y `smart-mix-design.md`.
 - **Gate SG1:** Diego cierra SG1 con esa comparación.

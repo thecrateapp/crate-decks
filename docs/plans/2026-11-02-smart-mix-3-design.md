@@ -268,15 +268,26 @@ Solo hay refinamiento si los tres están activos. El admin puede limitar la acci
   - En las pistas que falla, todas las frases empiezan un tiempo antes o después del «1» real.
   - La rejilla también falla: cuenta a medio tempo en punk rápido, toma un tempo equivocado y deriva en grabaciones en directo. Por eso corregir solo la fase deja 14 de 25.
   - `structure_confidence` no separa las pistas buenas de las malas.
-- **Qué hace:** Beat This! (CPJKU, ISMIR 2024; código y pesos MIT; sin DBN) da los beats y los downbeats.
-  - **Checkpoint:** `small0` (8 MB). `final0` (77 MB) solo si en la medición de SMB acierta claramente más.
+- **Qué hace:** Beat This! (CPJKU, ISMIR 2024; código y pesos MIT) da los beats y los downbeats, con su post-proceso DBN.
+  - **Checkpoint:** `small0` (8 MB). En la medición de SMB, `final0` (77 MB) no acierta más: en 56 pistas, sus downbeats coinciden con los de All-In-One en 37 y los de `small0` en 38; con árbitro, 30 y 31.
+  - **Post-proceso DBN** (Diego, 2026-11-05, tras la medición de SMB): el `DBNDownBeatTrackingProcessor` de madmom (compases de 3 o 4 tiempos), el mismo que ofrece Beat This! con `dbn=True`.
+    - Sin él, el modelo deja beats espurios a 80–100 ms en la mitad de las pistas. Cuando la rejilla no es constante, la fase módulo 4 se desplaza en cada uno.
+    - En 127 pistas de mezcla por frases:
+
+      | Post-proceso | Con downbeat | Downbeat correcto | Con árbitro (37): correcto |
+      |---|---:|---:|---:|
+      | Ninguno (`dbn=False`) | 84 | 65 | 27 de 31 |
+      | DBN | 115 | 86 | 34 de 35 |
+
+    - Cuesta 1–3 s por pista, un 5 % de lo que tarda el modelo.
+    - madmom se compila desde git (commit `27f032e8`), porque la versión de PyPI no compila en Python 3.13. El código es BSD. El paquete trae modelos CC BY-NC-SA que Crate no usa.
   - **Dónde corre:** el worker de análisis lo ejecuta en Python, con torch como YAMNet, antes del análisis.
   - **Cómo llega a los analizadores:** pasa el resultado a Rust (`crate-cli analyze --beats <json>`) y al analizador de Python.
   - **Qué hacen con él:** los dos analizadores usan esos beats en lugar de su tracker y conservan el ajuste a rejilla constante. El downbeat es la fase módulo 4 de la rejilla que recoge más downbeats de Beat This!, siempre que recoja al menos el 60 %. Si no llega, la pista se queda sin downbeat ni frases.
-  - **Sin modelo** (pesos ausentes, ARM o `PANNS=off`), si el modelo falla o si la pista pasa del máximo de duración: el comportamiento de antes, con un aviso en el log.
-- **Procedencia:** una columna `beat_tracker` (por ejemplo, `beat-this-small0`), nula con el tracker propio. Funciona como `vocal_detector`: un borrador que trae tracker sustituye a un perfil de la misma versión que no lo tiene.
+  - **Sin modelo** (pesos o madmom ausentes, ARM o `PANNS=off`), si el modelo falla o si la pista pasa del máximo de duración: el comportamiento de antes, con un aviso en el log. Nunca se usa el modelo sin DBN.
+- **Procedencia:** una columna `beat_tracker` (por ejemplo, `beat-this-small0-dbn`), nula con el tracker propio. Funciona como `vocal_detector`: un borrador que trae tracker sustituye a un perfil de la misma versión que no lo tiene.
 - **Coste**, con 1 hilo y pistas de hasta 240 s:
-  - En desarrollo (Core Ultra 9 185H): `small0`, unos 15 s por pista; `final0`, unos 25 s. Sin Beat This!, v7 cuesta 4–6 s (Rust 1–3 s más YAMNet).
+  - En desarrollo (Core Ultra 9 185H): `small0`, unos 15 s por pista, más 1–3 s de DBN; `final0`, unos 25 s. Sin Beat This!, v7 cuesta 4–6 s (Rust 1–3 s más YAMNet).
   - En producción (i7-7700, 4 núcleos y 8 hilos) se calcula 1,4 veces más.
 - **Versión:** entra en `smart-mix-audio-v7`, que no está desplegado.
 
