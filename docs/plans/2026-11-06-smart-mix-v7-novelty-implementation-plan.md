@@ -144,3 +144,21 @@ Done by the plan owner after Tasks 1–3 are on `feat/sm3-beats`.
   If it fails, stop and report to Diego.
 - [ ] **Step 4: Move the evaluation scripts** to `tools/smart-mix-eval/structure/` as an offline tool (All-In-One and madmom runners, Beat This! runner, `mir_eval` evaluation, novelty prototype), with paths as arguments and a README. Not in any production path.
 - [ ] **Step 5: Docs.** `docs/technical/smart-mix-operations.md` and `smart-mix-design.md`: model, licences, cost, provenance, stored signals, novelty and the measurement. Update the SMB.PR3 entry in the Smart Mix 3 plan.
+
+## Status (2026-11-06)
+
+- **Tasks 1–2 done** on `feat/sm3-beats`:
+  - `91e526f1` (Python novelty), `f8fd1eec` (Rust novelty) and `8df51b55` (rebuilt binary).
+  - Deviation: harmony alone is at most 2 dB, under the 4 dB boundary cost, so the pure-harmony test pairs the chord change with a band shift.
+- **Task 3 done** on `feat/sm3-beats-review`, rebased without conflicts and fast-forwarded into `feat/sm3-beats`:
+  - `d19e4c3a` (madmom only with torch), `3dccb805` (signals only for their source), `4bb7625f` (in-place rewrite note) and `8dc81c8c` (probe back-off).
+  - Voice byte path against float at the 90 cut: precision 0.8824 vs 0.8825, recall 0.7832 vs 0.7837, so nothing changes.
+  - The step 4 note says to `touch` the file before reanalysing, because a reanalysis with the same identity reuses the stored signals.
+- **Task 4, step 3 acceptance: passed.** Measured with the branch's committed Rust binary on the 131 phrase-genre tracks with a downbeat:
+  - section F1 at ±3 s is 0.53 (SMB.PR2c: 0.49; required ≥ 0.52);
+  - precision is 0.55 (SMB.PR2c: 0.54);
+  - the extra cost is about 4 ms (Rust) and 6 ms (Python) per track.
+  - At ±0.5 s and ±1 bar, F1 goes 0.33 → 0.36 and 0.43 → 0.47.
+  - Phrase boundaries on All-In-One downbeats: 66 tracks (was 61).
+  - Arbiter subset (96 tracks), F1 at ±3 s: 0.50 → 0.54.
+- **Task 4, steps 4–5** (tool, docs, deferred minor review items, full suite, final image) are in progress.
