@@ -161,4 +161,10 @@ Done by the plan owner after Tasks 1–3 are on `feat/sm3-beats`.
   - At ±0.5 s and ±1 bar, F1 goes 0.33 → 0.36 and 0.43 → 0.47.
   - Phrase boundaries on All-In-One downbeats: 66 tracks (was 61).
   - Arbiter subset (96 tracks), F1 at ±3 s: 0.50 → 0.54.
-- **Task 4, steps 4–5** (tool, docs, deferred minor review items, full suite, final image) are in progress.
+- **Task 4, steps 4–5 done** (`f337645a`..`98d889ac`, HEAD `98d889ac`):
+  - the offline tool `tools/smart-mix-eval/structure/` (runners, `mir_eval` evaluation, novelty prototype, README, 77 tests);
+  - docs in `smart-mix-operations.md` and `smart-mix-design.md`;
+  - all seven deferred minor review items fixed;
+  - full suite: no new failures; `cargo test` 183 passed;
+  - image `crate-smb-analysis-worker:final` reproduces the measured profile through the worker path.
+- **Open design observation:** per-track MFCC standardisation can create spurious timbre boundaries on near-static loops (seen on a synthetic 48-bar loop, not on the measured tracks). A floor on the standard deviation would remove it.
