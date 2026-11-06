@@ -583,6 +583,13 @@ Independiente. Puede ir en paralelo a SM1 y SM2.
 
 **Gate SG2 (Diego):** revisión de seguridad (SSRF, secretos, plantillas) antes del merge de PR2.
 
+**SG2 cerrado (Diego, 2026-11-06: «se aceptan los riesgos»).** Riesgos residuales aceptados:
+- un origen personalizado puede apuntar a loopback o a un servicio interno, como Ollama; solo vuelve si cada ID de modelo aparece en la lista;
+- los hosts de las plantillas no pasan por la comprobación de direcciones, como Gemini y DeepSeek;
+- las direcciones 100.64/10 (Tailscale) cuentan como públicas y necesitan HTTPS.
+
+Implementación: rama `feat/sm3-openai-compatible`, migración 146. Si entra en `main` antes que la pila de análisis, la pila renumera sus migraciones a 147–150.
+
 ---
 
 ## SMQ · Familia de colas `ai` para toda la inferencia (SM3-D8)
