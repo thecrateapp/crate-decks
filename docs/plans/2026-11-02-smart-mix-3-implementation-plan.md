@@ -321,7 +321,7 @@ Las tres PRs están hechas en commits locales, sin subir, y unidas en `integ/sm3
   - **Fidelidad:** frente a la referencia de Google en TensorFlow la diferencia máxima es de 5·10⁻⁶.
   - **Coste:** unos 0,7 s de CPU por minuto de audio.
   - **Imagen:** una etapa de la imagen descarga y convierte los pesos, con checksums.
-  - **Base de datos:** la migración 144 añade `vocal_detector`. Un borrador que trae un detector nuevo reemplaza el perfil de la misma versión y calidad, y uno sin voz nunca la borra.
+  - **Base de datos:** la migración 148 (144 antes de integrar) añade `vocal_detector`. Un borrador que trae un detector nuevo reemplaza el perfil de la misma versión y calidad, y uno sin voz nunca la borra.
   - **Dónde corre:** el paso va en `compute_smart_mix_profile`, después del análisis.
 - **SMV.PR3** (en la misma rama): el endpoint del admin sirve el detector, la franja de frases dibuja el carril de voz, y `smart-mix-operations.md` documenta modelo, licencia, coste, umbrales y recálculo.
 - **Resultado en dev:**
@@ -348,6 +348,8 @@ Las tres PRs están hechas en commits locales, sin subir, y unidas en `integ/sm3
 **Objetivo:** que las frases empiecen en el «1» real del compás. Va dentro de `smart-mix-audio-v7`, antes del backfill.
 
 **Rama:** `feat/sm3-beats`, encima de `feat/sm3-audio-profile-ui`, que es la punta de la pila de Smart Mix 3. La migración va detrás de la 144.
+
+**Integración (2026-11-06):** la pila de análisis (SM0, SM1, SMV, la interfaz del perfil y SMB) está encima de `main` (`af4171ec`) en 7 PRs apilados, del #389 al #395. `main` ya usaba de la 143 a la 146 (la bandeja de errores), así que las migraciones de la pila pasan a 147 (estructura), 148 (`vocal_detector`), 149 (`beat_tracker`) y 150 (`track_mix_signals`).
 
 ### SMB.PR1 · Beat This! en el worker y en el analizador de Python
 
@@ -396,7 +398,7 @@ Viene de la primera medición de SMB.PR3 (Diego, 2026-11-05: «con DBN»; SM3-D1
 
 ### SMB.PR2c · Señales de los modelos guardadas y compás del DBN (SM3-D16)
 
-Va detrás de SMB.PR2b. La migración es la siguiente a la 145.
+Va detrás de SMB.PR2b. La migración es la siguiente a la 149 (150 tras la integración; 146 antes de ella).
 
 | Fichero | Contenido |
 |---|---|
@@ -588,7 +590,7 @@ Independiente. Puede ir en paralelo a SM1 y SM2.
 - los hosts de las plantillas no pasan por la comprobación de direcciones, como Gemini y DeepSeek;
 - las direcciones 100.64/10 (Tailscale) cuentan como públicas y necesitan HTTPS.
 
-Implementación: rama `feat/sm3-openai-compatible`, migración 146. Si entra en `main` antes que la pila de análisis, la pila renumera sus migraciones a 147–150.
+Implementación: rama `feat/sm3-openai-compatible`, migración 146 en su rama. `main` ya usa la 146 y la pila de análisis la 147–150, así que el proveedor se renumera detrás de lo que esté en `main` al mergear.
 
 ---
 
