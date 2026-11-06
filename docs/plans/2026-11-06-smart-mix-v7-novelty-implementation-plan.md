@@ -167,4 +167,7 @@ Done by the plan owner after Tasks 1–3 are on `feat/sm3-beats`.
   - all seven deferred minor review items fixed;
   - full suite: no new failures; `cargo test` 183 passed;
   - image `crate-smb-analysis-worker:final` reproduces the measured profile through the worker path.
-- **Open design observation:** per-track MFCC standardisation can create spurious timbre boundaries on near-static loops (seen on a synthetic 48-bar loop, not on the measured tracks). A floor on the standard deviation would remove it.
+- **MFCC deviation floor** (Diego, 2026-11-06): `MFCC_STD_FLOOR = 1.0` in Python and Rust (`ff847868`..`225a2bb8`).
+  - Before the floor, per-track MFCC standardisation created spurious timbre boundaries on near-static loops.
+  - Floors from 0.25 to 2.0 left the 131-track scores unchanged and removed the loop's boundaries.
+  - With 1.0, all 145 measurement profiles are identical to the run without it, and the loop gets no inner boundary.
