@@ -1,0 +1,30 @@
+# Pinned environment for tools/crate-stems: export_htdemucs.py, check_export.py and
+# make_fixtures.py. Tested with Python 3.14.9 on Linux x86_64.
+#
+#   python -m venv .venv && .venv/bin/pip install -r tools/crate-stems/requirements.txt
+#
+# The export and the fixtures run on the CPU. The check also needs an NVIDIA GPU for the
+# CUDA provider: onnxruntime-gpu 1.31.1 uses CUDA 13 and cuDNN 9, loaded from the
+# nvidia-* wheels below with onnxruntime.preload_dlls().
+--extra-index-url https://download.pytorch.org/whl/cu128
+
+torch==2.11.0+cu128
+demucs==4.1.0
+einops==0.8.2
+huggingface_hub==2.4.0
+safetensors==0.8.0
+PyYAML==6.0.3
+numpy==2.5.4
+onnx==1.23.2
+# Only for the opset 23 Attention comparison (dynamo exporter).
+onnxscript==0.7.2
+onnx-ir==1.1.0
+
+onnxruntime-gpu==1.31.1
+nvidia-cuda-runtime==13.5.37
+nvidia-cuda-nvrtc==13.5.37
+nvidia-nvjitlink==13.5.37
+nvidia-cublas==13.10.0.20
+nvidia-cufft==12.5.0.14
+nvidia-curand==10.4.5.25
+nvidia-cudnn-cu13==9.28.1.4
