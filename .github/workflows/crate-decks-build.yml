@@ -17,6 +17,26 @@ permissions:
   contents: read #  to fetch code (actions/checkout)
 
 jobs:
+  design-tokens:
+    # The theme files generated from res/crate-design/tokens.json are
+    # committed. Fail if they are out of date, and run the generator's tests.
+    name: Design tokens
+    runs-on: ubuntu-24.04
+    steps:
+      - name: "Check out repository"
+        uses: actions/checkout@v7
+
+      - name: "Install pytest"
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends python3-pytest
+
+      - name: "Check the generated design files"
+        run: python3 tools/crate-design/generate.py --check
+
+      - name: "Test the design generator"
+        run: python3 -m pytest -p no:cacheprovider tools/crate-design
+
   build:
     permissions:
       contents: read #  to fetch code (actions/checkout)
