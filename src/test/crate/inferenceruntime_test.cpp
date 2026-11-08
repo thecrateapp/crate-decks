@@ -24,6 +24,7 @@ using crate::InferenceOutput;
 using crate::InferenceProvider;
 using crate::InferenceRuntime;
 using crate::InferenceSession;
+using crate::InferenceSessionConfig;
 using crate::InferenceSystem;
 
 constexpr qint64 kMiB = 1024 * 1024;
@@ -250,6 +251,43 @@ TEST_F(InferenceRuntimeTest, RejectsInputsThatDoNotMatchTheirShape) {
             &error));
     EXPECT_FALSE(error.isEmpty());
     EXPECT_TRUE(outputs.empty());
+}
+
+TEST_F(InferenceRuntimeTest, RunsCudaInParallelToKeepVideoMemoryDown) {
+    InferenceRuntime::Options options;
+    options.intraOpThreads = 6;
+    const InferenceRuntime runtime(options, machineWithCuda());
+
+    const InferenceSessionConfig config = runtime.sessionConfig(InferenceProvider::Cuda);
+
+    // The parallel executor does not keep the encoder's buffers for the
+    // decoder: 630 MiB of VRAM for htdemucs instead of 2-4 GB. With one
+    // inter-op thread ONNX Runtime runs in order again.
+    EXPECT_TRUE(config.parallelExecution);
+    EXPECT_EQ(2, config.interOpThreads);
+    EXPECT_EQ(6, config.intraOpThreads);
+    EXPECT_FALSE(config.memoryPattern);
+}
+
+TEST_F(InferenceRuntimeTest, RunsOtherProvidersInOrder) {
+    InferenceRuntime::Options options;
+    options.intraOpThreads = 6;
+    const InferenceRuntime runtime(options, std::make_shared<FakeInferenceSystem>());
+
+    const InferenceSessionConfig cpu = runtime.sessionConfig(InferenceProvider::Cpu);
+    EXPECT_FALSE(cpu.parallelExecution);
+    EXPECT_EQ(1, cpu.interOpThreads);
+    EXPECT_EQ(6, cpu.intraOpThreads);
+    EXPECT_TRUE(cpu.memoryPattern);
+    // DirectML runs only in order and without the memory pattern.
+    for (const InferenceProvider provider : {InferenceProvider::DirectMl,
+                 InferenceProvider::CoreMl,
+                 InferenceProvider::WebGpu}) {
+        const InferenceSessionConfig gpu = runtime.sessionConfig(provider);
+        EXPECT_FALSE(gpu.parallelExecution) << crate::inferenceProviderName(provider).toStdString();
+        EXPECT_EQ(1, gpu.interOpThreads);
+        EXPECT_FALSE(gpu.memoryPattern);
+    }
 }
 
 // GPU tests: only with CRATE_TEST_GPU=1, on a machine with the GPU runtime.

@@ -91,6 +91,18 @@ struct InferenceOptions {
     QString providerLibraryDirectory;
 };
 
+/// How a session of one provider runs its graph.
+struct InferenceSessionConfig {
+    /// Runs independent nodes at the same time (ONNX Runtime's parallel
+    /// executor) instead of one after another.
+    bool parallelExecution = false;
+    int interOpThreads = 1;
+    /// 0 lets ONNX Runtime choose.
+    int intraOpThreads = 0;
+    /// Plans the memory of a run from the first one. Costs VRAM on GPUs.
+    bool memoryPattern = true;
+};
+
 class InferenceSession;
 
 /// Runs ONNX graphs with ONNX Runtime (STEM-D7), on the GPU when the machine
@@ -123,6 +135,8 @@ class InferenceRuntime {
     /// the CPU first. Detected on first use and remembered.
     QList<Provider> availableProviders() const;
     InferenceProviderStatus providerStatus(Provider provider) const;
+    /// How createSession() runs graphs on `provider`.
+    InferenceSessionConfig sessionConfig(Provider provider) const;
 
     /// Loads the graph at `modelPath` for `preferred`. Falls back to the CPU,
     /// with the reason in InferenceSession::fallbackReason(), when that

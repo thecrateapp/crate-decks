@@ -411,6 +411,28 @@ InferenceProviderStatus InferenceRuntime::providerStatus(Provider provider) cons
     return status;
 }
 
+InferenceSessionConfig InferenceRuntime::sessionConfig(Provider provider) const {
+    InferenceSessionConfig config;
+    config.intraOpThreads = m_options.intraOpThreads;
+    if (provider == Provider::Cpu) {
+        return config;
+    }
+    // Measured in ST0: the memory pattern costs 2.3 GB of VRAM with the
+    // htdemucs graph. DirectML needs it off, and runs only in order.
+    config.memoryPattern = false;
+    if (provider == Provider::Cuda) {
+        // In order, ONNX Runtime keeps the encoder's buffers of htdemucs for
+        // the decoder tensors of the same shape, through the whole
+        // transformer: 2.2 GB of VRAM at the peak, against 630 MiB with the
+        // parallel executor, for about 15% more time (ST4.PR2 export check).
+        // With one inter-op thread ONNX Runtime runs in order again.
+        // TEST_GAP: only the GPU measurement shows the VRAM.
+        config.parallelExecution = true;
+        config.interOpThreads = 2;
+    }
+    return config;
+}
+
 InferenceProviderStatus InferenceRuntime::detectStatus(Provider provider) const {
     InferenceProviderStatus status;
     status.provider = provider;
@@ -555,15 +577,16 @@ std::unique_ptr<InferenceSession> InferenceRuntime::createSession(const QString&
             -> std::unique_ptr<InferenceSession> {
         const ScopedCLocale cLocale;
         try {
+            const InferenceSessionConfig config = sessionConfig(sessionProvider);
             Ort::SessionOptions options;
-            options.SetIntraOpNumThreads(m_options.intraOpThreads);
-            options.SetInterOpNumThreads(1);
+            options.SetExecutionMode(config.parallelExecution ? ORT_PARALLEL : ORT_SEQUENTIAL);
+            options.SetIntraOpNumThreads(config.intraOpThreads);
+            options.SetInterOpNumThreads(config.interOpThreads);
             // Waiting threads sleep instead of spinning: the audio engine
             // needs the CPU more than a separation does.
             options.AddConfigEntry(kOrtSessionOptionsConfigAllowIntraOpSpinning, "0");
-            if (sessionProvider != Provider::Cpu) {
-                // Measured in ST0: the memory pattern costs 2.3 GB of VRAM
-                // with the htdemucs graph.
+            options.AddConfigEntry(kOrtSessionOptionsConfigAllowInterOpSpinning, "0");
+            if (!config.memoryPattern) {
                 options.DisableMemPattern();
             }
             switch (sessionProvider) {
@@ -580,7 +603,6 @@ std::unique_ptr<InferenceSession> InferenceRuntime::createSession(const QString&
             }
             case Provider::DirectMl:
 #ifdef CRATE_INFERENCE_DIRECTML
-                options.SetExecutionMode(ORT_SEQUENTIAL);
                 Ort::ThrowOnError(OrtSessionOptionsAppendExecutionProvider_DML(
                         options, m_options.deviceId));
 #endif
