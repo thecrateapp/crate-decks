@@ -14,6 +14,8 @@ TOKENS = {
         "color": {
             "bgApp": {"value": "#0a0a0f"},
             "border": {"value": "#f1f5f9", "alpha": 0.1},
+            "borderHover": {"value": "#f1f5f9", "alpha": 0.2},
+            "textPrimary": {"value": "#f1f5f9"},
             "accentHi": {"value": "#67e8f9"},
             "textMuted": {"value": "#999ca0"},
             "textFaint": {"value": "#4a4c52"},
@@ -40,6 +42,8 @@ TOKENS = {
             "knobSweep": {"value": 270, "unit": "deg"},
             "knobTickCount": {"value": 24},
             "knobTickEvery": {"value": 2},
+            "knobTickLong": {"value": 4.5, "unit": "px"},
+            "knobTickShort": {"value": 2, "unit": "px"},
             "faderRail": {"value": 1, "unit": "px"},
             "faderTickStep": {"value": 10, "unit": "%"},
             "faderHandleWidth": {"value": 18, "unit": "px"},

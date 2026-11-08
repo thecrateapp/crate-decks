@@ -74,6 +74,7 @@ QtObject {
     readonly property color vuWarning: "#fbbf24"
     readonly property color vuClip: "#ef4444"
     readonly property color vuTrack: "#0ff1f5f9"
+    readonly property color vuClipTrack: "#2eef4444"
     readonly property real vuWarningDb: -6
     readonly property real vuBarWidth: 4
 
@@ -100,6 +101,7 @@ QtObject {
     readonly property real fontSizeLegend: 9
     readonly property real fontSizeTable: 11
     readonly property real fontSizeDeckNumber: 34
+    readonly property real fontSizeDeckNumberCompact: 26
 
     // tracking
     readonly property real trackingCaps: 0.14
@@ -181,10 +183,18 @@ QtObject {
     readonly property real opacityLevel: 0.55
     readonly property real glowPulseRadius: 3
     readonly property real glowPulseAlpha: 0.7
+    readonly property real wheelCanvas: 760
+    readonly property real camelotRingA: 196
+    readonly property real camelotRingB: 292
+    readonly property real tickPhrase: 10
+    readonly property real hotcueRadius: 10
     readonly property real levelRingRadius: 7
 
     // knob
-    readonly property real knobSize: 40
+    readonly property real knobSize: 36
+    readonly property real knobSizeCompact: 30
+    readonly property real knobTickLong: 4.5
+    readonly property real knobTickShort: 2
     readonly property real knobSweep: 270
     readonly property real knobTickCount: 24
     readonly property real knobTickEvery: 2

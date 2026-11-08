@@ -74,6 +74,7 @@ QtObject {
     readonly property color vuWarning: "{{vuWarning}}"
     readonly property color vuClip: "{{vuClip}}"
     readonly property color vuTrack: "{{vuTrack}}"
+    readonly property color vuClipTrack: "{{vuClipTrack}}"
     readonly property real vuWarningDb: {{vuWarningDb}}
     readonly property real vuBarWidth: {{vuBarWidth}}
 
@@ -100,6 +101,7 @@ QtObject {
     readonly property real fontSizeLegend: {{fontSizeLegend}}
     readonly property real fontSizeTable: {{fontSizeTable}}
     readonly property real fontSizeDeckNumber: {{fontSizeDeckNumber}}
+    readonly property real fontSizeDeckNumberCompact: {{fontSizeDeckNumberCompact}}
 
     // tracking
     readonly property real trackingCaps: {{trackingCaps}}
@@ -181,10 +183,18 @@ QtObject {
     readonly property real opacityLevel: {{opacityLevel}}
     readonly property real glowPulseRadius: {{glowPulseRadius}}
     readonly property real glowPulseAlpha: {{glowPulseAlpha}}
+    readonly property real wheelCanvas: {{wheelCanvas}}
+    readonly property real camelotRingA: {{camelotRingA}}
+    readonly property real camelotRingB: {{camelotRingB}}
+    readonly property real tickPhrase: {{tickPhrase}}
+    readonly property real hotcueRadius: {{hotcueRadius}}
     readonly property real levelRingRadius: {{levelRingRadius}}
 
     // knob
     readonly property real knobSize: {{knobSize}}
+    readonly property real knobSizeCompact: {{knobSizeCompact}}
+    readonly property real knobTickLong: {{knobTickLong}}
+    readonly property real knobTickShort: {{knobTickShort}}
     readonly property real knobSweep: {{knobSweep}}
     readonly property real knobTickCount: {{knobTickCount}}
     readonly property real knobTickEvery: {{knobTickEvery}}

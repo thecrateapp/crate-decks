@@ -277,45 +277,43 @@ def knob_scale(t, used):
         "knobSweep",
         "knobTickCount",
         "knobTickEvery",
-        "tickLong",
-        "tickShort",
+        "knobTickLong",
+        "knobTickShort",
         "strokeHairline",
         "border",
+        "borderHover",
         "textFaint",
     )
     used.update(names)
     size = t["knobSize"].value
     centre = size / 2
-    outer = centre - 0.5
-    ring = outer - t["tickLong"].value - 2
+    ring = centre - 0.5 - t["knobTickLong"].value - 1.5
     width = number(t["strokeHairline"].value)
-    colour = t["border"].value
-    opacity = number(t["border"].alpha)
-    tick_colour = t["textFaint"].value
     half_sweep = t["knobSweep"].value / 2
     step = 360 / t["knobTickCount"].value
     body = [
         f'<circle cx="{number(centre)}" cy="{number(centre)}" '
-        f'r="{ring:.2f}" fill="none" stroke="{colour}" '
-        f'stroke-opacity="{opacity}" stroke-width="{width}"/>'
+        f'r="{ring:.2f}" fill="none" stroke="{t["border"].value}" '
+        f'stroke-opacity="{number(t["border"].alpha)}" '
+        f'stroke-width="{width}"/>'
     ]
     count = int(half_sweep // step)
     for k in range(-count, count + 1):
         angle = math.radians(k * step - 90)
-        length = (
-            t["tickLong"].value
-            if k % t["knobTickEvery"].value == 0
-            else t["tickShort"].value
-        )
-        start = ring + 1
+        is_long = k % t["knobTickEvery"].value == 0
+        length = t["knobTickLong" if is_long else "knobTickShort"].value
+        colour = t["textFaint" if is_long else "borderHover"]
+        opacity = "" if colour.alpha is None else number(colour.alpha)
+        start = ring + 1.5
         body.append(
             stroke_line(
                 centre + math.cos(angle) * start,
                 centre + math.sin(angle) * start,
                 centre + math.cos(angle) * (start + length),
                 centre + math.sin(angle) * (start + length),
-                tick_colour,
+                colour.value,
                 width,
+                f' stroke-opacity="{opacity}"' if opacity else "",
             )
         )
     return svg_document(size, size, body)
@@ -330,15 +328,17 @@ def fader_scale(t, used, vertical, length=120):
         "tickLong",
         "tickShort",
         "strokeHairline",
-        "border",
+        "borderHover",
         "textFaint",
+        "textMuted",
     )
     used.update(names)
     across = t["faderHandleWidth"].value + 2 * t["tickLong"].value
     middle = across / 2
     rail = number(t["faderRail"].value)
     width = number(t["strokeHairline"].value)
-    tick_colour = t["textFaint"].value
+    rail_colour = t["borderHover"]
+    rail_opacity = f' stroke-opacity="{number(rail_colour.alpha)}"'
     steps = int(100 // t["faderTickStep"].value)
     handle_half = t["faderHandleWidth"].value / 2
     body = []
@@ -349,9 +349,9 @@ def fader_scale(t, used, vertical, length=120):
                 0,
                 middle,
                 length,
-                t["border"].value,
+                rail_colour.value,
                 rail,
-                f' stroke-opacity="{number(t["border"].alpha)}"',
+                rail_opacity,
             )
         )
     else:
@@ -361,15 +361,16 @@ def fader_scale(t, used, vertical, length=120):
                 middle,
                 length,
                 middle,
-                t["border"].value,
+                rail_colour.value,
                 rail,
-                f' stroke-opacity="{number(t["border"].alpha)}"',
+                rail_opacity,
             )
         )
     for i in range(steps + 1):
         position = 0.5 + (length - 1) * i / steps
         centre_tick = 2 * i == steps
         size = t["tickLong"].value if centre_tick else t["tickShort"].value
+        tick_colour = t["textMuted" if centre_tick else "textFaint"].value
         for side in (-1, 1):
             a = middle + side * handle_half
             b = a + side * size
@@ -394,6 +395,7 @@ def fader_handle(t, used, vertical, state):
         "strokeHairline",
         "radiusSm",
         "bgApp",
+        "textPrimary",
         STATES[state],
     )
     used.update(names)
@@ -418,7 +420,7 @@ def fader_handle(t, used, vertical, state):
                 if vertical
                 else (width / 2, height * 0.25, width / 2, height * 0.75)
             ),
-            t["bgApp"].value if state == "active" else colour,
+            t["bgApp"].value if state == "active" else t["textPrimary"].value,
             stroke,
         ),
     ]

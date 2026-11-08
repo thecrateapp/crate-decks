@@ -40,9 +40,9 @@ Diseño: §14 del [documento de diseño](../../docs/plans/2026-11-02-crate-decks
 | `iconState` | `iconIdle`, `iconHover`, `iconActive`, `iconDisabled`, `iconOnAccent` | Color de cada estado de los iconos y controles generados |
 | `deck` | `deckA` … `deckD` | Color por deck (decidido): A y C en `accentHi`, B y D en `textPrimary` |
 | `waveform` | `waveLowAccent` … `waveHighNeutral`, `wavePlayhead`, `waveBeat`, `waveDownbeat`, `waveBg`, `waveOverviewBg`, `waveOverviewPlayed` | Paleta "filtered" de 3 bandas: cian del logo en A y C, grises fríos en B y D |
-| `meter` | `vuLevel`, `vuWarning`, `vuClip`, `vuTrack`, `vuWarningDb`, `vuBarWidth` | VU `accentHi` → `warning` desde −6 dBFS → `danger` en clip |
+| `meter` | `vuLevel`, `vuWarning`, `vuClip`, `vuTrack`, `vuClipTrack`, `vuWarningDb`, `vuBarWidth` | VU `accentHi` → `warning` desde −6 dBFS → `danger` en clip |
 | `font` | `fontBody`, `fontDisplay`, `fontMono`, `fontWeight*` | Roboto, Bricolage Grotesque y JetBrains Mono, y sus pesos |
-| `fontSize` | `fontSizeCounter` … `fontSizeBody`, `fontSizeTitle`, `fontSizeDisplay`, `fontSizeLegend`, `fontSizeTable`, `fontSizeDeckNumber` | Escala del admin (8 a 15 px), títulos de 30 y 40 px, leyendas de 9 px y las propuestas DJ |
+| `fontSize` | `fontSizeCounter` … `fontSizeBody`, `fontSizeTitle`, `fontSizeDisplay`, `fontSizeLegend`, `fontSizeTable`, `fontSizeDeckNumber`, `fontSizeDeckNumberCompact` | Escala del admin (8 a 15 px), títulos de 30 y 40 px, leyendas de 9 px y las propuestas DJ |
 | `tracking` | `trackingCaps`, `trackingKicker`, `trackingEyebrow`, `trackingTitle`, `trackingNumeral` | Espaciado en `em`: rótulos en mayúsculas, títulos y numerales |
 | `height` | `heightControl*`, `heightTableCell`, `heightTrackRow*`, `heightTableHeader`, `heightLibraryRow`, `heightSearch` | Alturas del admin (preferencias y diálogos) y la densidad "cabina" de la biblioteca |
 | `layout` | `sidebarWidth`, `sidebarWidthCollapsed`, `topbarHeight`, `activeBarWidth`, `focusRingWidth` | Barra lateral de 240 px, barra superior de 64 px, barra de activo de 2 px y anillo de foco |
@@ -50,26 +50,28 @@ Diseño: §14 del [documento de diseño](../../docs/plans/2026-11-02-crate-decks
 | `radius` | `radiusSm` … `radiusXl`, `radiusPanel`, `radiusPill` | 2–8 px en controles, 14 px en paneles y pastillas |
 | `motion` | `motionFast`, `motionNormal`, `motionEaseSnap` | Solo para QML; QSS no anima |
 | `iconSize` | `iconNano` … `iconXl` | Escala de iconos del admin (18 px por defecto) |
-| `geometry` | Trazos, nodos, marcas, patrones de trazo, opacidades, brillo y `levelRingRadius` | La gramática de GenreWheel y StackMap (§14.5 del diseño) |
-| `knob` | `knobSize`, `knobSweep`, `knobTickCount`, `knobTickEvery`, `knobArcWidth`, `knobDot` | Knob de instrumento: anillo, marcas, arco de valor y punto |
+| `geometry` | Trazos, nodos, marcas, patrones de trazo, opacidades, brillo, `wheelCanvas`, `camelotRing*`, `tickPhrase`, `hotcueRadius` y `levelRingRadius` | La gramática de GenreWheel y StackMap (§14.5 del diseño), más la rueda Camelot, la marca de frase, los hotcues como nodos y el anillo de caché |
+| `knob` | `knobSize`, `knobSizeCompact`, `knobSweep`, `knobTickCount`, `knobTickEvery`, `knobTickLong`, `knobTickShort`, `knobArcWidth`, `knobDot` | Knob de instrumento: anillo, marcas, arco de valor y punto |
 | `fader` | `faderRail`, `faderTickStep`, `faderHandleWidth`, `faderHandleHeight` | Fader con carril de 1 px, marcas cada 10 % y tirador de contorno |
 | `deckDisplay` | `deckNumberFont`, `deckNumberWeight` | Fuente de BPM y tiempo restante en el deck |
 
 ## Pendiente de GU1
 
-Las maquetas de V1.3 muestran estas propuestas, con las alternativas lado a lado. GU1 las cierra: entonces se quita `pending` y `options` y se dejan los valores elegidos.
+Las maquetas de V1.3 (fuera del repositorio) muestran estas propuestas, con las alternativas lado a lado. Los valores de aquí son los de las maquetas. GU1 las cierra: entonces se quitan `pending` y `options` y se dejan los valores elegidos.
 
 | Tokens | Propuesta | Alternativas |
 | --- | --- | --- |
 | `waveform` | Cian del logo en A y C, grises en B y D | — |
-| `meter` | VU de 4 px | 3 px |
+| `meter` | VU de 4 px; tramo de clip apagado en rojo al 18 % | 3 px |
 | `fontSizeTable` | 11 px | 10,5 px (la del admin) |
-| `fontSizeDeckNumber`, `deckNumberFont`, `deckNumberWeight` | Bricolage 700, 34 px, con cifras tabulares | JetBrains Mono 400 |
+| `fontSizeDeckNumber*`, `deckNumberFont`, `deckNumberWeight` | Bricolage 700, 34 px (26 con 4 decks), con cifras tabulares | JetBrains Mono 400 |
 | `heightLibraryRow` | 30 px | 28 y 32 px |
 | `levelRingRadius` | 7 px | 6 y 8 px |
-| `knob` | 40 px, 270°, 24 marcas con una larga cada 30° | 48 marcas con una larga cada 4, como StackMap |
+| `knob` | 36 px (30 con 4 decks o a 768 px de alto), 270°, 24 marcas de 4,5 y 2 px con una larga cada 30° | 48 marcas con una larga cada 4, como StackMap |
 | `fader` | Carril de 1 px, marcas cada 10 %, tirador de 18 × 10 px | — |
-| `iconOnAccent` | Icono en `onAccent` sobre el relleno `accentHi` de un botón activo | — |
+| `iconOnAccent` | Icono en `onAccent` sobre el relleno `accentHi` de un botón activo | Contorno `accentHi` con tinte del 10 % |
+| `camelotRingA`, `camelotRingB` | Anillos de la rueda Camelot a r 196 y 292 en el lienzo de 760 px de GenreWheel (sus guías están a 132 y 212), para dejar libre la cifra del centro | Las radios de GenreWheel |
+| `tickPhrase`, `hotcueRadius` | Regla de frase del deck (beat 3, compás 7, frase 10 px) y hotcues como nodos de r 10 | — |
 
 ## Generador
 

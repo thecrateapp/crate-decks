@@ -24,6 +24,8 @@
   <SetVariable name="CrateDeckNumberFont">Bricolage Grotesque</SetVariable>
   <SetVariable name="CrateDeckNumberWeight">700</SetVariable>
   <SetVariable name="CrateDeckNumberSize">34</SetVariable>
+  <SetVariable name="CrateDeckNumberSizeCompact">26</SetVariable>
+  <SetVariable name="CrateHotcueRadius">10</SetVariable>
 
   <!-- Deck colours (design 14.3): A and C cyan, B and D cold white -->
   <SetVariable name="CrateDeckA">#67e8f9</SetVariable>
@@ -50,11 +52,14 @@
   <SetVariable name="CrateVuWarning">#fbbf24</SetVariable>
   <SetVariable name="CrateVuClip">#ef4444</SetVariable>
   <SetVariable name="CrateVuTrack">#0ff1f5f9</SetVariable>
+  <SetVariable name="CrateVuClipTrack">#2eef4444</SetVariable>
   <SetVariable name="CrateVuWarningDb">-6</SetVariable>
   <SetVariable name="CrateVuBarWidth">4</SetVariable>
 
-  <!-- Knobs: the arc is painted by WKnobComposed over knob-scale.svg -->
-  <SetVariable name="CrateKnobSize">40</SetVariable>
+  <!-- Knobs: the arc is painted by WKnobComposed over knob-scale.svg, in
+       the colour of the deck (CrateDeckA to CrateDeckD) -->
+  <SetVariable name="CrateKnobSize">36</SetVariable>
+  <SetVariable name="CrateKnobSizeCompact">30</SetVariable>
   <SetVariable name="CrateKnobArcColor">#67e8f9</SetVariable>
   <SetVariable name="CrateKnobArcWidth">1.5</SetVariable>
   <SetVariable name="CrateKnobDot">3</SetVariable>

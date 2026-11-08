@@ -24,6 +24,8 @@
   <SetVariable name="CrateDeckNumberFont">{{deckNumberFont}}</SetVariable>
   <SetVariable name="CrateDeckNumberWeight">{{deckNumberWeight}}</SetVariable>
   <SetVariable name="CrateDeckNumberSize">{{fontSizeDeckNumber}}</SetVariable>
+  <SetVariable name="CrateDeckNumberSizeCompact">{{fontSizeDeckNumberCompact}}</SetVariable>
+  <SetVariable name="CrateHotcueRadius">{{hotcueRadius}}</SetVariable>
 
   <!-- Deck colours (design 14.3): A and C cyan, B and D cold white -->
   <SetVariable name="CrateDeckA">{{deckA}}</SetVariable>
@@ -50,11 +52,14 @@
   <SetVariable name="CrateVuWarning">{{vuWarning}}</SetVariable>
   <SetVariable name="CrateVuClip">{{vuClip}}</SetVariable>
   <SetVariable name="CrateVuTrack">{{vuTrack}}</SetVariable>
+  <SetVariable name="CrateVuClipTrack">{{vuClipTrack}}</SetVariable>
   <SetVariable name="CrateVuWarningDb">{{vuWarningDb}}</SetVariable>
   <SetVariable name="CrateVuBarWidth">{{vuBarWidth}}</SetVariable>
 
-  <!-- Knobs: the arc is painted by WKnobComposed over knob-scale.svg -->
+  <!-- Knobs: the arc is painted by WKnobComposed over knob-scale.svg, in
+       the colour of the deck (CrateDeckA to CrateDeckD) -->
   <SetVariable name="CrateKnobSize">{{knobSize}}</SetVariable>
+  <SetVariable name="CrateKnobSizeCompact">{{knobSizeCompact}}</SetVariable>
   <SetVariable name="CrateKnobArcColor">{{accentHi}}</SetVariable>
   <SetVariable name="CrateKnobArcWidth">{{knobArcWidth}}</SetVariable>
   <SetVariable name="CrateKnobDot">{{knobDot}}</SetVariable>
