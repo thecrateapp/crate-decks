@@ -351,6 +351,26 @@ Las tres PRs están hechas en commits locales, sin subir, y unidas en `integ/sm3
 
 **Integración (2026-11-06):** la pila de análisis (SM0, SM1, SMV, la interfaz del perfil y SMB) está encima de `main` (`af4171ec`) en 7 PRs apilados, del #389 al #395. `main` ya usaba de la 143 a la 146 (la bandeja de errores), así que las migraciones de la pila pasan a 147 (estructura), 148 (`vocal_detector`), 149 (`beat_tracker`) y 150 (`track_mix_signals`).
 
+**Release and deploy (2026-11-06):** a single integration PR, #398, merged the stack (#389–#395), SM2, SM4, SMN (#385), the `openai_compatible` provider (#386), the Ollama key fix (#397) and #396 into `main` as `d0316e5a`, with one CI run and one image build. The provider migration became 153 (stack 147–150, SM4 151–152). Deployed to production by SHA, without a release tag, with `ANALYSIS_WORKER_PROCESSES=8`. The v7 backfill started the same evening.
+
+**v7 backfill paused (2026-11-07):** two problems showed up overnight.
+
+1. **Throughput:** about 3,500 tracks a day instead of about 11,000.
+   - The resource governor deferred the analyses on host load from other work. `max_load_ratio` was raised from 0.85 to 1.5 in the runtime policy, so no deploy was needed.
+   - The claim pass ranks the whole library in about 13 s to take 1–4 tracks.
+2. **Quality:** v7 marked far fewer profiles `full` than v5. On 120 electronic tracks, production had 67 `full` and v7 gave 33. The root cause had two parts:
+   - v5 was overconfident: only 51 % of its electronic `full` grids were right against madmom and All-In-One.
+   - v7 had real measurement bugs with Beat This! beats: jitter read from onset peaks, DBN half-tempo stretches breaking the cue regression and the global tempo stability, and 20 ms quantization.
+
+**SMB.PR4 · `smart-mix-audio-v8` (2026-11-08):**
+
+- **The fix:** stability and confidence are measured on the track's own grid. Grid, downbeats and phrases stay byte-identical.
+- **Results:**
+  - Electronic tracks: 33 → 47 `full` at 97 % precision, and beatmatch on 53 of 112 electronic edges instead of 39.
+  - Non-electronic tracks: 37 → 67 `full` at 96 % precision.
+- **Versioning (Diego):** a new analyzer version, so the backfill redoes the 2,710 v7 rows, reusing the stored model signals.
+- **Release:** it ships in one release with the cheaper claim pass, the SM4 bass handoff fix and the SM5 evaluation tooling. The backfill resumes as a v8 campaign.
+
 ### SMB.PR1 · Beat This! en el worker y en el analizador de Python
 
 | Fichero | Contenido |
@@ -796,9 +816,29 @@ Sin disponibilidad: `unavailable` con `reasonCode` |
 **Gate SG3 (Diego):** go/no-go con los criterios de §10 del diseño.
 - **Si es no-go:** se cierra la línea de IA (SM6 solo documenta) y v3 determinista sigue adelante.
 
+**What SM5 actually ran (2026-11-07):**
+
+- **Models:** only Gemini, the key already installed in the dev stack. `gemini-3.8-flash` ran in both rounds, and `gemini-3.1-pro-preview` only in round 1. There was no Qwen or Ollama; DeepSeek can be added later with the same harness.
+- **No blind listening:** Diego could not listen. It is replaced by automatic metrics on rendered transitions: beat phase in the overlap (Beat This!), voice on voice (YAMNet) and EBU R128 level jumps.
+- **Data sets:**
+  - the 184 phrase edges of SM2;
+  - in round 2, 112 electronic edges built from 120 production tracks copied read-only.
+
+**Results, from the report [2026-11-07-smart-mix-3-ai-eval-report.md](2026-11-07-smart-mix-3-ai-eval-report.md):**
+
+- **Rejection:** 43.5 % (Flash) and 26.8 % (Pro) in round 1, almost all from an SM4 defect. The menu invited `balanced` bass handoffs on crossfade candidates. After the fix (`sm3-refine-2`) it falls to 0.5–2.7 %.
+- **The served plans still do not improve any §10 metric.** Phrase alignment and energy continuity keep failing.
+- **On electronic edges the AI makes the audio worse:** 5 better against 16 worse, p = 0.03.
+- **v3 deterministic beats v2 on the automatic metrics:** 102 against 37 on the phrase set and 59 against 28 on the electronic set.
+- **Total cost:** 2.66 USD.
+
+**SG3 closed: no-go (Diego, 2026-11-07).** AI refinement stays off. The SM4 code stays, with the bass handoff fix, and SM6 only documents.
+
 ---
 
 ## SM6 · Admin, documentación y activación
+
+**After the SG3 no-go (2026-11-07), SM6 only documents.** SM6.PR1 (admin binding and panel) and SM6.PR2 (SSE event) are not built. SM6.PR3 limits itself to documenting, in `docs/technical/smart-mix-design.md` and `ai-agents.md`, that AI Assisted Mixing was evaluated, failed SG3 and stays off. `smart_mix_ai_enabled` stays false and the capability keeps reporting it unavailable. Gate SG4 does not apply.
 
 ### SM6.PR1 · Admin
 
