@@ -168,6 +168,7 @@ flowchart TD
   - `GET /api/smart-mix/playlists?sinceRevision=N`;
   - `GET /api/smart-mix/playlists/{playlistId}`.
 - Playlist list and detail schemas gain `smartMix: {enabled, ready, total}`.
+- `stems.max_tracks_per_user` (optional, off by default) in the existing Smart Mix settings (`/api/settings/smart-mix`), where ST2.PR3's stem quota also goes.
 - Adding tracks to a Smart Mix playlist queues jobs for the new tracks. Removing them leaves analyses alone.
 - OpenAPI regenerated; docs in `docs/technical/`.
 
