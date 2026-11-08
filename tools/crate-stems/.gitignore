@@ -1,0 +1,4 @@
+# Exports, check reports and golden sets go outside the repository (release assets).
+*.onnx
+*.onnx.data
+*.check.json
