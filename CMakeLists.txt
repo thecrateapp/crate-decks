@@ -5348,6 +5348,60 @@ if(CRATE)
         src/test/crate/cratesession_test.cpp
     )
   endif()
+
+  # Local inference with ONNX Runtime (STEM-D7): on when ONNX Runtime is
+  # found, off otherwise. ONNXRUNTIME_ROOT points at an ONNX Runtime release
+  # package, the directory with include/ and lib/. GPU runtimes come from the
+  # user's system at run time and are never part of the build.
+  set(
+    ONNXRUNTIME_ROOT
+    ""
+    CACHE PATH
+    "ONNX Runtime package (include/ and lib/) for Crate inference"
+  )
+  find_path(
+    ONNXRUNTIME_INCLUDE_DIR
+    onnxruntime_cxx_api.h
+    HINTS ${ONNXRUNTIME_ROOT}
+    ENV ONNXRUNTIME_ROOT
+    PATH_SUFFIXES include include/onnxruntime
+  )
+  find_library(
+    ONNXRUNTIME_LIBRARY
+    onnxruntime
+    HINTS ${ONNXRUNTIME_ROOT}
+    ENV ONNXRUNTIME_ROOT
+    PATH_SUFFIXES lib lib64
+  )
+  cmake_dependent_option(
+    CRATE_INFERENCE
+    "Crate local inference with ONNX Runtime (stems)"
+    ON
+    "ONNXRUNTIME_INCLUDE_DIR;ONNXRUNTIME_LIBRARY"
+    OFF
+  )
+  if(CRATE_INFERENCE)
+    message(STATUS "Crate inference with ONNX Runtime: ${ONNXRUNTIME_LIBRARY}")
+    target_sources(mixxx-lib PRIVATE src/crate/inference/inferenceruntime.cpp)
+    # Only the runtime sees ONNX Runtime's headers, so the rest of mixxx-lib
+    # compiles the same with and without it.
+    set_source_files_properties(
+      src/crate/inference/inferenceruntime.cpp
+      PROPERTIES INCLUDE_DIRECTORIES "${ONNXRUNTIME_INCLUDE_DIR}"
+    )
+    target_link_libraries(mixxx-lib PRIVATE "${ONNXRUNTIME_LIBRARY}")
+    if(BUILD_TESTING)
+      target_sources(
+        mixxx-test
+        PRIVATE src/test/crate/inferenceruntime_test.cpp
+      )
+    endif()
+  else()
+    message(
+      STATUS
+      "Crate inference off: no ONNX Runtime (set ONNXRUNTIME_ROOT)"
+    )
+  endif()
 endif()
 
 # USB HID or/and Bulk controller support
