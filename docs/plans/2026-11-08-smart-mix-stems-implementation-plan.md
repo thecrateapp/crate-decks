@@ -3,7 +3,7 @@
 > **For agents:** execute the phases in order. Each PR starts with the failing tests it names. Do not pass a gate (STEM-G0, G1, G2) without Diego's explicit approval. If the code does not match this plan (paths, APIs), stop, report and propose the change to the plan.
 
 **Goal:** stems for Smart Mix in two places.
-- On the server, for the tracks of playlists marked as Smart Mix sessions.
+- On the server, for the tracks of Smart Mix playlists (playlists their owner marks for Smart Mix).
 - In Crate Decks, on the local GPU, with stems playback and local plan refinement.
 
 Both producers share the `stem-analysis/1` format.
@@ -37,7 +37,7 @@ Both producers share the `stem-analysis/1` format.
 - **Fixed values:**
   - `hopMs` 250;
   - levels map −60 dBFS → 0 and 0 dBFS → 255;
-  - session caps of 300 tracks per playlist and 600 per user;
+  - Smart Mix playlist caps of 300 tracks per playlist and 600 per user;
   - server stem quota 50 GiB by default, on the music volume only;
   - uploads ≤ 64 KiB;
   - new endpoints p95 ≤ 150 ms with ≤ 3 bounded queries;
@@ -51,10 +51,10 @@ Both producers share the `stem-analysis/1` format.
 
 1. **A track file changes after its stems were analysed.** The old analysis must stop applying: it is ignored on read, and a stale upload is rejected (tests in ST1.PR1 and ST1.PR2).
 2. **A hostile or malformed upload from a client** (levels longer than the track, wrong sources, a track the user cannot see, a weaker separator overwriting a stronger one) must be rejected without affecting other users' plans (ST1.PR2).
-3. **Disk.** Server stems never land on the root disk and stay within the quota. Decks counts stems in its cache quota and never evicts pinned session tracks (ST2.PR2, ST5.PR2).
+3. **Disk.** Server stems never land on the root disk and stay within the quota. Decks counts stems in its cache quota and never evicts pinned Smart Mix playlist tracks (ST2.PR3, ST5.PR2).
 4. **A live set while Decks separates.** Separation must pause when a deck plays (unless the preference allows it) and never touch the engine thread (ST5.PR2).
 5. **Switching a known track to its `.stem.mp4`** must not duplicate it in the Mixxx library nor lose local cues and loops (ST6.PR1).
-6. **A 300-track session while the backfill runs.** The session goes first, and the backfill still progresses when the session ends (ST2.PR2).
+6. **A 300-track Smart Mix playlist while the backfill runs.** The playlist goes first, and the backfill still progresses when its work ends (ST2.PR3).
 
 ## Phase map
 
@@ -62,7 +62,7 @@ Both producers share the `stem-analysis/1` format.
 flowchart TD
   ST0[ST0 · Spike: speed, licence, ONNX, NI STEM] --> G0{{STEM-G0}}
   G0 --> ST1[ST1 · Server: format, storage, API]
-  ST1 --> ST2[ST2 · Server: sessions and separation]
+  ST1 --> ST2[ST2 · Server: Smart Mix playlists and separation]
   ST2 --> ST3[ST3 · Server: planner stems layer, decks menu]
   ST3 --> G1{{STEM-G1}}
   G0 --> ST4[ST4 · Decks: inference runtime and models]
@@ -88,7 +88,7 @@ flowchart TD
 **Questions:**
 1. **Speed of `htdemucs` and `htdemucs_ft`** per 5-minute track:
    - on the development GPU (RTX 4060 Laptop);
-   - on CPU limited to 8 threads, as a proxy for the server's i7-7700. Extrapolate to a 50-track session.
+   - on CPU limited to 8 threads, as a proxy for the server's i7-7700. Extrapolate to a 50-track playlist.
 2. **The licence of the published Demucs weights.**
 3. **Do the stem levels say what the planner needs?** On one track per genre, compare:
    - vocal stem activity against YAMNet windows, especially in industrial metal, where YAMNet fails;
@@ -135,7 +135,7 @@ flowchart TD
 - `app/crate/api/decks_stems.py`: `GET` and `PUT /api/decks/tracks/{uid}/stem-analysis`.
 - The permission catalogue: `smart_mix.stems.contribute`, granted to admins by default.
 - The profile serialization: optional `stems` layer.
-- `app/crate/api/capabilities.py`: `smart_mix.stems{available, sessions, storage}` and `decks.features += stems, stem_upload, local_refinement`, each as the phase that delivers it lands.
+- `app/crate/api/capabilities.py`: `smart_mix.stems{available, playlists, storage}` and `decks.features += stems, stem_upload, local_refinement`, each as the phase that delivers it lands.
 - The regenerated OpenAPI documents.
 
 **Tests:**
@@ -151,9 +151,41 @@ flowchart TD
 
 ---
 
-## ST2 · Server: sessions and separation
+## ST2 · Server: Smart Mix playlists and separation
 
-### ST2.PR1 · Separation in the analysis worker (ONNX Runtime CPU)
+### ST2.PR1 · Smart Mix playlists
+
+**Files:**
+- Migration and schema section: tables `smart_mix_playlists` and `track_stem_jobs` (§5 of the design), plus the per-user revision sequence.
+- `app/crate/db/orm/smart_mix.py`: ORM rows.
+- `app/crate/db/repositories/smart_mix_playlists.py`:
+  - `set_smart_mix_playlist(playlist_id: int, *, user_id: int, enabled: bool, session=None) -> SmartMixPlaylistState`, which enforces owner only and the caps (300 per playlist, 600 per user), bumps the revision and queues `track_stem_jobs` rows for tracks without a current server analysis;
+  - `list_smart_mix_playlists(user_id: int, *, since_revision: int | None, session=None) -> list[SmartMixPlaylistState]`;
+  - `smart_mix_playlist_status(playlist_id: int, *, session=None) -> SmartMixPlaylistStatus` (counts per state, per-track states, estimate);
+  - `smart_mix_summaries(playlist_ids: Sequence[int], *, session=None) -> dict[int, SmartMixSummary]` for playlist responses, in one query.
+- `app/crate/api/smart_mix_playlists.py`:
+  - `PUT /api/smart-mix/playlists/{playlistId}` with `{enabled}`;
+  - `GET /api/smart-mix/playlists?sinceRevision=N`;
+  - `GET /api/smart-mix/playlists/{playlistId}`.
+- Playlist list and detail schemas gain `smartMix: {enabled, ready, total}`.
+- Adding tracks to a Smart Mix playlist queues jobs for the new tracks. Removing them leaves analyses alone.
+- OpenAPI regenerated; docs in `docs/technical/`.
+
+**Tests:**
+- `test_smart_mix_playlists_repository.py`:
+  - `only the owner turns a playlist on`;
+  - `caps at 300 per playlist and 600 per user`;
+  - `turning on queues jobs only for tracks without a current analysis`;
+  - `a track in two playlists has one job`;
+  - `revision grows on every change and lists changes since a revision, including turned off`;
+  - `deleting the playlist removes its row`.
+- `test_smart_mix_playlists_api.py`:
+  - `put toggles and returns the state`;
+  - `status lists per-track states`;
+  - `playlist responses carry the smartMix summary without extra queries per playlist`;
+  - `adding tracks to an enabled playlist queues them`.
+
+### ST2.PR2 · Separation in the analysis worker (ONNX Runtime CPU)
 
 **Files:**
 - `app/requirements.txt`: pinned `onnxruntime` (CPU build). No PyTorch for separation.
@@ -173,38 +205,35 @@ flowchart TD
   - `scratch files are removed on success and on failure`.
 - `test_smart_mix_separation_dsp.py`: STFT and iSTFT match the reference fixture of ST4.PR2 within 1e-5.
 - `test_smart_mix_separation_onnx.py`: separates 10 s of fixture audio in the analysis image; skipped unless `CRATE_REQUIRE_SEPARATION=1`.
-- **Measurement:** time a 50-track session on the server after deploy, inside the night window, and record it in `docs/technical/smart-mix-operations.md`.
+- **Measurement:** time a 50-track Smart Mix playlist on the server after deploy, inside the night window, and record it in `docs/technical/smart-mix-operations.md`.
 
-### ST2.PR2 · Sessions, task, stem files and quota
+### ST2.PR3 · Task, stem files and quota
 
 **Files:**
-- Migration: `playlists.smart_mix_session`, `smart_mix_session_at`, table `track_stem_files`.
-- `app/crate/api/playlists.py` and its schema: `smartMixSession` with the caps (STEM-D2).
-- `app/crate/api/smart_mix_sessions.py`: `GET /api/smart-mix/sessions/{playlistId}`.
-- `app/crate/worker_handlers/smart_mix_stems.py`: `analyze_session_stems`, registered in `TASK_POOL_CONFIG` on `heavy`, with a priority above `backfill_smart_mix_profiles`.
+- Migration: table `track_stem_files`.
+- `app/crate/worker_handlers/smart_mix_stems.py`: `analyze_playlist_stems`, which claims `track_stem_jobs` rows. It is registered in `TASK_POOL_CONFIG` on `heavy`, with a priority above `backfill_smart_mix_profiles`.
 - `app/crate/smart_mix/stem_files.py`:
   - `write_stem_file(stems: SeparatedStems, out: Path) -> int`: one MP4 with three AAC streams at 256 kbps (drums, bass, vocals; STEM-D6). `other` is not stored;
   - `enforce_stem_quota(limit_bytes: int) -> int` (LRU over `last_used_at`).
 - `GET /api/decks/tracks/{uid}/stems` with Range support.
 
 **Tests:**
-- `test_smart_mix_sessions_api.py`:
-  - `only the owner turns a session on`;
-  - `caps at 300 per playlist and 600 per user`;
-  - `turning off keeps analyses and releases files to the LRU`.
-- `test_analyze_session_stems.py`:
-  - `skips tracks with a current server analysis`;
-  - `session tasks run before the backfill coordinator`;
-  - `the backfill resumes when the session ends`.
+- `test_analyze_playlist_stems.py`:
+  - `claims pending jobs and marks them ready or failed with attempts`;
+  - `playlist work runs before the backfill coordinator`;
+  - `the backfill resumes when no playlist work is pending`.
 - `test_stem_files.py`:
   - `files are written under the music volume only`;
-  - `quota evicts least recently used session files`;
+  - `quota evicts least recently used files of disabled playlists first`;
   - `range download`.
 
-### ST2.PR3 · Interfaces
+### ST2.PR4 · Interfaces
 
-- **Listen:** a "Smart Mix session" toggle in the playlist menu and a status chip. This is a client change shipped with a tagged release.
-- **Admin:** a sessions panel (states per session) and the quota setting.
+- **Listen and the web app:**
+  - all playlists stay listed; Smart Mix playlists carry a chip or icon from the design tokens, with their analysis state (`ready` of `total`);
+  - a "Smart Mix" toggle in the playlist menu.
+  - Listen is a client change shipped with a tagged release.
+- **Admin:** a Smart Mix playlists panel (states per playlist) and the quota setting.
 - **Tests:** next to each component, following the existing patterns.
 
 ---
@@ -221,7 +250,7 @@ flowchart TD
   - `vocal_free_exit`.
 - `app/crate/smart_mix/policy.py`: new `rules_revision` for `smart-mix-v3`.
 - `stemsUsed` on the plan.
-- Calibrate the presence cuts of the design (§5) on the session evaluation set before fixing them.
+- Calibrate the presence cuts of the design (§5) on the evaluation set (below) before fixing them.
 
 **Tests:**
 - `test_candidates_stems.py`:
@@ -239,7 +268,7 @@ flowchart TD
 
 ### ST3.PR3 · Evaluation
 
-- Extend the SM5 harness (`tools/smart-mix-eval`) with stems on a session-like set: the 120 electronic tracks plus a non-electronic set.
+- Extend the SM5 harness (`tools/smart-mix-eval`) with stems on a set shaped like a Smart Mix playlist: the 120 electronic tracks plus a non-electronic set.
 - Compare v3 with v3 plus the stems layer using the automatic listening metrics.
 - Report in `docs/plans/`.
 
@@ -310,7 +339,8 @@ flowchart TD
 - `src/crate/stems/stemanalyzer.{h,cpp}`: `stem-analysis/1`, with the same encoding as the server. A shared fixture checks that both sides produce identical bytes.
 - `src/crate/stems/stemsync.{h,cpp}`: download the server analysis and stem file first; upload our own analysis when the server allows it.
 - `src/crate/stems/stemjobs.{h,cpp}`: the scheduling.
-  - Session playlists and offline sets are separated before their tracks' first load, plus any track on demand.
+  - Smart Mix playlists (which are Decks' offline sets, STEM-D2) are synced with `GET /api/smart-mix/playlists?sinceRevision=N`, downloaded after a size check, pinned, and separated before their tracks' first load, plus any track on demand.
+  - The Crate library view marks Smart Mix playlists with the chip from the tokens and their state.
   - Jobs pause while any deck plays, unless the preference allows it.
 - Table `crateserver_stems`.
 - `DlgPrefCrate`: provider, model and "separate while playing".
@@ -328,7 +358,8 @@ flowchart TD
   - `discards results for a changed source revision`.
 - `stemjobs_test.cpp`:
   - `pauses while a deck plays`;
-  - `stems count in the cache quota and pinned session tracks are never evicted`.
+  - `stems count in the cache quota and pinned Smart Mix playlist tracks are never evicted`;
+  - `turning a playlist off on the server unpins its tracks`.
 
 ---
 

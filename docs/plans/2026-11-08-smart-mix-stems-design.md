@@ -17,8 +17,8 @@
 
 Use source separation (stems) where it pays for itself, without separating the whole library.
 
-**Path A, Smart Mix sessions on the server.**
-- A user marks a playlist (a set of 30–300 tracks prepared for a show) as a Smart Mix session.
+**Path A, Smart Mix playlists on the server.**
+- A user marks a playlist (a set of 30–300 tracks prepared for a show) as a Smart Mix playlist.
 - For those tracks only, the server separates stems and analyses them.
 - It stores the results, and the Smart Mix planner uses them.
 - Android and Crate Decks both get better plans from it.
@@ -54,7 +54,7 @@ Use source separation (stems) where it pays for itself, without separating the w
 **Disk.**
 - Music lives on `/mnt/music`: 5.5 TB, about 1.1 TB free. The root disk has 12 GB free.
 - Stems for the whole library would be about 139,000 × 40 MB ≈ 5.5 TB, which is not viable.
-- A 300-track session is about 9 GB as three AAC stems per track (STEM-D6), which is viable.
+- A 300-track Smart Mix playlist is about 9 GB as three AAC stems per track (STEM-D6), which is viable.
 
 **Mixxx.** The Crate Decks fork already contains Mixxx's NI STEM support behind the `__STEM__` build flag.
 
@@ -69,7 +69,7 @@ Use source separation (stems) where it pays for itself, without separating the w
 
 **STEM-D1. Two producers, one format.**
 - Stem analysis has one versioned format, `stem-analysis/1` (§5).
-- Two producers can write it: the server (CPU, sessions) and Crate Decks (GPU or CPU).
+- Two producers can write it: the server (CPU, Smart Mix playlists) and Crate Decks (GPU or CPU).
 - The server stores it per track and producer. The planner and Decks read it.
 - **What it holds:**
   - per-stem level curves;
@@ -78,13 +78,20 @@ Use source separation (stems) where it pays for itself, without separating the w
 - **What it never holds:** audio.
 - **Size:** 2–4 KB per track.
 
-**STEM-D2. Smart Mix sessions (path A).**
-- A playlist gains `smart_mix_session` (owner only), with a cap of 300 tracks per session and 600 per user across sessions.
-- **Turning it on** queues `analyze_session_stems` for the tracks that lack a current server stem analysis.
+**STEM-D2. Smart Mix playlists (path A; named by Diego, 2026-11-08).**
+- **One concept for every client.** A Smart Mix playlist is a playlist its owner marks for Smart Mix. The same mark serves Listen, the web app and Crate Decks, and it replaces Decks' offline sets (D4 of the Crate Decks design).
+- **Every client lists all of the user's playlists.** Smart Mix playlists stand out with a chip or icon from the design tokens, plus their analysis state.
+- **Model:** its own table, `smart_mix_playlists`, one row per playlist (§5), rather than more columns on `playlists`. It carries the playlist's Smart Mix state: owner, on or off, when it was turned on, last use and a revision for client sync.
+- **Caps:** 300 tracks per Smart Mix playlist and 600 per user across them.
+- **Turning it on** queues `analyze_playlist_stems` for the tracks that lack a current server stem analysis.
   - The task runs on the `heavy` queue, ahead of the library backfill. Its priority is above `backfill_smart_mix_profiles` and below interactive work.
   - The resource governor applies. Night windows do not.
-- **Status:** a per-playlist endpoint reports each track's state (`pending`, `analyzing`, `ready`, `failed`) and an estimate.
-- **Turning it off** keeps the analyses, which are small and shared by track, and releases the stem files (STEM-D6) to the LRU.
+- **Work is per track, not per playlist.** `track_stem_jobs` holds one row per track with its state (`pending`, `analyzing`, `ready`, `failed`), attempts and last error. A track in two Smart Mix playlists is separated once.
+- **Status:** a per-playlist endpoint reports each track's state and an estimate.
+- **In Crate Decks** a Smart Mix playlist is also an offline set:
+  - Decks downloads its tracks, after showing the size, and pins them in the cache;
+  - it fetches the server's stems or separates locally.
+- **Turning it off** keeps the analyses, which are small and shared by track. It releases the stem files (STEM-D6) to the LRU and unpins the tracks in Decks.
 
 **STEM-D3. Separation model.**
 - **Baseline:** Demucs v4 `htdemucs`, four stems (drums, bass, other, vocals). The code is MIT. The weights have no stated licence of their own and were trained partly on research-only data; Diego accepted them at STEM-G0, because Crate is free and non-commercial.
@@ -113,11 +120,11 @@ Use source separation (stems) where it pays for itself, without separating the w
 - Plans say `stemsUsed: true`.
 - **Evaluation:** with the SM5 harness and automatic listening metrics. Gate STEM-G1 decides whether the layer is on by default. Diego's position is to keep it unless it measures worse.
 
-**STEM-D6. Stem audio on the server, for sessions only.**
-- The server may keep separated audio for session tracks:
+**STEM-D6. Stem audio on the server, for Smart Mix playlists only.**
+- The server may keep separated audio for the tracks of Smart Mix playlists:
   - format: one MP4 per track with three AAC streams at 256 kbps (drums, bass, vocals). `other` is not stored: Decks rebuilds it as the residual against its own decode (STEM-D9);
   - location: a dedicated directory on the music volume, never on the root disk;
-  - quota: 50 GiB by default (admin setting), evicted by LRU over the last session use.
+  - quota: 50 GiB by default (admin setting), evicted by LRU over the last use of the playlists that hold the track.
 - Decks can download these files instead of separating locally.
 - Android never downloads stems.
 
@@ -137,7 +144,7 @@ Use source separation (stems) where it pays for itself, without separating the w
 - **While a deck is playing,** separation pauses by default. A preference allows it, at the lowest GPU and CPU priority.
 
 **STEM-D8. What Decks separates and shares.**
-- **Which tracks:** those of session playlists and offline sets (D4), and any track on demand.
+- **Which tracks:** those of Smart Mix playlists (which are also Decks' offline sets, STEM-D2), and any track on demand.
 - **For each track, Decks:**
   - writes a lossless stem sidecar next to the cached file (STEM-D9);
   - computes `stem-analysis/1`;
@@ -181,14 +188,14 @@ Use source separation (stems) where it pays for itself, without separating the w
 - Crate Decks §12 no longer lists stems as out of scope.
 - D15 (AI Assisted Mixing) is obsolete after SG3. F6b is replaced by the local refinement phase of this design.
 - D8 is amended by STEM-D10.
-- SM3-D2 ("no source separation in the analysis path") still holds for the library-wide analysis. Separation only runs for sessions and in Decks.
+- SM3-D2 ("no source separation in the analysis path") still holds for the library-wide analysis. Separation only runs for Smart Mix playlists and in Decks.
 
 ## 4. Architecture
 
 ```mermaid
 flowchart LR
   subgraph Server[Crate server]
-    PL[Playlist · smart_mix_session] --> Q[analyze_session_stems · heavy queue]
+    PL[smart_mix_playlists] --> Q[analyze_playlist_stems · heavy queue]
     Q --> SEP[Demucs CPU] --> SA[stem-analysis/1]
     SEP --> SF[Three AAC stems · quota, LRU]
     SA --> T[(track_stem_signals)]
@@ -231,15 +238,21 @@ flowchart LR
 **Stems layer** (derived on read, never stored). For each phrase of the profile:
 - `vocals`, `drums`, `bass`, `other`: the mean level byte over the phrase;
 - `vocalPresent`: a cut calibrated in ST3 against lyrics labels where they exist, and against the YAMNet byte;
-- `bassPresent` and `drumsPresent`: a −35 dB cut, to be confirmed in ST3.
+- `bassPresent` and `drumsPresent`: from levels relative to the track. ST0 showed that an absolute −35 dB cut contradicts what tracks contain, so ST3 calibrates it.
 
-**Session columns on playlists.**
-- `smart_mix_session` (bool) and `smart_mix_session_at`.
+**Smart Mix playlists and stem work.**
+- `smart_mix_playlists`:
+  - `(playlist_id PK → playlists ON DELETE CASCADE, user_id → users, enabled, enabled_at, disabled_at, last_used_at, revision, updated_at)`;
+  - `revision` comes from a per-user sequence, so Decks syncs with "changes since revision N";
+  - turning a playlist off keeps its row with `enabled = false`, so the LRU and clients see the change.
+- `track_stem_jobs`: `(track_id PK → library_tracks ON DELETE CASCADE, state, attempts, last_error, requested_at, started_at, finished_at, source_revision)`.
 - The table `track_stem_files` holds `(track_id, path, bytes, separator_model, source_revision, last_used_at)`.
 
 **API.**
-- `PATCH /api/playlists/{id}` accepts `smartMixSession: bool` (owner), with the caps of STEM-D2.
-- `GET /api/smart-mix/sessions/{playlistId}` returns the counts per state, per-track states and the estimated time left.
+- `PUT /api/smart-mix/playlists/{playlistId}` with `{enabled: bool}`: owner only, with the caps of STEM-D2.
+- `GET /api/smart-mix/playlists?sinceRevision=N`: the user's Smart Mix playlists changed since a revision, including those turned off. This is what Decks syncs.
+- `GET /api/smart-mix/playlists/{playlistId}` returns the counts per state, per-track states and the estimated time left.
+- Playlist list and detail responses gain `smartMix: {enabled, ready, total}`, so every client can mark them without another request.
 - `GET` and `PUT /api/decks/tracks/{uid}/stem-analysis`:
   - `PUT` needs `smart_mix.stems.contribute`;
   - the body is at most 64 KiB;
@@ -247,7 +260,7 @@ flowchart LR
 - `GET /api/decks/tracks/{uid}/stems` serves the three-stem MP4 (drums, bass, vocals) with Range support. It answers 404 when the file is not stored.
 - `POST /api/playback/transition-plans` in the `decks` context with `features.local_refinement` returns `candidates` (the v3 menu with each candidate's score breakdown) and `policyLimits`.
 - **Capabilities:**
-  - `smart_mix.stems{available, sessions, storage}`;
+  - `smart_mix.stems{available, playlists, storage}`;
   - `decks.features` gains `stems`, `stem_upload` and `local_refinement`.
 - **S6:** `transition_source` gains `decks_local`.
 
@@ -260,11 +273,11 @@ flowchart LR
 
 | Area | Budget |
 |---|---|
-| Server separation | Estimated in ST0 at 3–5 h per 50-track session on the i7-7700 with ONNX Runtime CPU, and measured on the server in ST2.PR1. A 50-track session must finish within one night (8 h) next to the backfill |
+| Server separation | Estimated in ST0 at 3–5 h per 50-track Smart Mix playlist on the i7-7700 with ONNX Runtime CPU, and measured on the server in ST2.PR1. A 50-track Smart Mix playlist must finish within one night (8 h) next to the backfill |
 | Server storage | Stem file quota of 50 GiB by default on the music volume; nothing on the root disk; analysis rows ≤ 4 KB |
 | Decks separation | GPU target ≤ 30 s per 5-minute track with `htdemucs` (ST0: about 8 s on a laptop RTX 4060) and peak VRAM ≤ 1.5 GB; CPU fallback allowed and reported |
 | Decks UI and engine | Main thread never blocked > 16 ms; no inference on the engine thread; separation paused while a deck plays unless the preference says otherwise |
-| Decks disk | Stems counted in the cache quota (D4) with their own pin rules for sessions and offline sets; a size estimate shown before separating a session |
+| Decks disk | Stems counted in the cache quota (D4) with pin rules for Smart Mix playlists (D4's offline sets); a size estimate shown before downloading or separating one |
 | API | New endpoints p95 ≤ 150 ms and at most 3 bounded queries; uploads ≤ 64 KiB |
 
 ## 7. Security and licensing
@@ -291,7 +304,7 @@ flowchart LR
 | DirectML, CoreML or WebGPU miss ops or parity | No GPU on that platform | Measured in ST4.PR1 with the same parity test; CPU fallback always |
 | GPU runtime packaging across Linux, Windows and macOS | Users without inference | CPU fallback always; providers detected at runtime; clear status in preferences |
 | Separation competes with a live set | Dropouts on stage | Paused while decks play by default; lowest priority; never on the engine thread |
-| Server CPU: sessions against the backfill | One starves the other | Sessions ahead of the backfill, capped per user; the governor applies to both |
+| Server CPU: Smart Mix playlists against the backfill | One starves the other | Playlist work ahead of the backfill, capped per user; the governor applies to both |
 | Sidecar out of step with the original (decoder delay, sample rate) | Comb filtering when a stem is muted | Separation reads Decks' own decode; sidecar stores rate, frames and a PCM fingerprint and is ignored on mismatch; alignment test with a click |
 | Small quality gain | Work with little effect | Diego chose to build anyway; the gains are measured (ST0, ST3) and defaults set by gates |
 | Disk exhaustion (server root, DJ disk) | Failures | Server stems only on the music volume with a quota; Decks counts stems in its cache quota |
