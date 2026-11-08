@@ -253,6 +253,26 @@ TEST_F(InferenceRuntimeTest, RejectsInputsThatDoNotMatchTheirShape) {
     EXPECT_TRUE(outputs.empty());
 }
 
+TEST_F(InferenceRuntimeTest, TerminatedSessionFailsItsRunsUntilCleared) {
+    const InferenceRuntime runtime;
+    const auto pSession = runtime.createSession(fixturePath(), InferenceProvider::Cpu, 0);
+    ASSERT_NE(nullptr, pSession);
+    const std::vector<float> data(6);
+    std::vector<InferenceOutput> outputs;
+    QString error;
+
+    pSession->terminate();
+
+    EXPECT_FALSE(pSession->run({{QStringLiteral("x"), {1, 2, 3}, data},
+                                       {QStringLiteral("y"), {1, 2, 3}, data}},
+            &outputs,
+            &error));
+    EXPECT_FALSE(error.isEmpty());
+    EXPECT_TRUE(outputs.empty());
+    pSession->clearTermination();
+    expectFixtureRuns(pSession.get());
+}
+
 TEST_F(InferenceRuntimeTest, RunsCudaInParallelToKeepVideoMemoryDown) {
     InferenceRuntime::Options options;
     options.intraOpThreads = 6;

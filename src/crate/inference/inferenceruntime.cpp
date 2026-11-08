@@ -370,6 +370,9 @@ struct InferenceSession::Impl {
     Ort::Session session{nullptr};
     std::vector<std::string> inputNames;
     std::vector<std::string> outputNames;
+    /// Every run uses these. Their terminate flag is atomic in ONNX Runtime,
+    /// and the executors check it before each node.
+    Ort::RunOptions runOptions;
 };
 
 InferenceRuntime::InferenceRuntime(const Options& options, std::shared_ptr<InferenceSystem> pSystem)
@@ -744,7 +747,7 @@ bool InferenceSession::run(const std::vector<InferenceInput>& inputs,
         for (const std::string& name : m_pImpl->outputNames) {
             outputNamePointers.push_back(name.c_str());
         }
-        std::vector<Ort::Value> outputValues = m_pImpl->session.Run(Ort::RunOptions{nullptr},
+        std::vector<Ort::Value> outputValues = m_pImpl->session.Run(m_pImpl->runOptions,
                 inputNamePointers.data(),
                 inputValues.data(),
                 inputValues.size(),
@@ -769,6 +772,14 @@ bool InferenceSession::run(const std::vector<InferenceInput>& inputs,
     } catch (const Ort::Exception& exception) {
         return fail(errorText(exception));
     }
+}
+
+void InferenceSession::terminate() {
+    m_pImpl->runOptions.SetTerminate();
+}
+
+void InferenceSession::clearTermination() {
+    m_pImpl->runOptions.UnsetTerminate();
 }
 
 } // namespace crate
