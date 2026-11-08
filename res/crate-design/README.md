@@ -109,6 +109,7 @@ Filtros: `.hex`, `.alpha` (0–1), `.argb`, `.rgba`, `.number`, `.unit` y `.list
 **Falla** si una plantilla usa un token que no existe (con fichero y línea), si un token no lo usa ninguna plantilla ni ningún SVG generado (un `ref` cuenta como uso de su destino), si un SVG no tiene `currentColor`, o si un color no es `#rrggbb`. `Theme.qml.in` expone todos los tokens: al añadir uno, se añade también ahí.
 
 **A tener en cuenta en V2:**
+
 - QSS no tiene `letter-spacing` ni `text-transform`. El tracking y las mayúsculas de MonoLabel se aplican con `QFont::setLetterSpacing` y `QFont::setCapitalization` desde C++.
 - `QFont` toma tamaños de píxel enteros: 10,5 y 11,5 px necesitan tamaño en puntos o `setPixelSize` redondeado.
 
