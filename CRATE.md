@@ -17,6 +17,7 @@ Es un repositorio independiente basado en el código de [Mixxx](https://mixxx.or
 - **Ficheros de Mixxx que cambiamos:** [CRATE_PATCHES.md](CRATE_PATCHES.md).
 - **Licencia:** GPL-2.0-or-later, como Mixxx ([LICENSE](LICENSE)). Crate Decks se distribuye con su código fuente, y el código de Crate que se compila en Decks también es GPL. El servidor Crate no queda afectado: habla con Decks por HTTP.
 - **Créditos:** Mixxx es obra de sus contribuidores. Se conservan los avisos de copyright y los créditos de Mixxx en *About*. El nombre y los logos de Mixxx no se usan en el producto, salvo en los créditos.
+- **Fuentes:** Roboto, Bricolage Grotesque y JetBrains Mono, las del admin de Crate, bajo SIL OFL 1.1 (`res/fonts/*.OFL.txt`).
 - **Iconos:** Solar Icons Set de 480 Design, bajo CC BY 4.0, extraídos del paquete `@solar-icons/react` (MIT). Licencias y atribución en `tools/crate-design/svg/solar/`.
 
 ## Fallos y sugerencias

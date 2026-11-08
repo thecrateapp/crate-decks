@@ -118,3 +118,19 @@ Filtros: `.hex`, `.alpha` (0–1), `.argb`, `.rgba`, `.number`, `.unit` y `.list
 - **Licencia:** el paquete es MIT (`svg/solar/LICENSE`) e incluye los iconos del Solar Icons Set de 480 Design bajo CC BY 4.0 (`svg/solar/LICENSE-THIRD-PARTY`).
   - CC BY 4.0 pide atribución visible y decir qué se cambió. El texto está en `svg/solar/ATTRIBUTION` y en los créditos de `CRATE.md`.
   - Cuando V2 empaquete los iconos, la atribución va también en *About* y en el paquete.
+
+## Fuentes
+
+Las tres fuentes del admin están en `res/fonts/`, como TTF variables oficiales de la misma versión que los woff2 del admin (`app/shared/fonts/`). Qt carga TTF de forma fiable en todas las plataformas; woff2 depende de la versión y la plataforma. Todas son OFL 1.1, con su licencia al lado (`*.OFL.txt`).
+
+| Fichero | Familia | Versión | Ejes | Origen (`google/fonts`) | SHA-256 |
+| --- | --- | --- | --- | --- | --- |
+| `Roboto-Variable.ttf` | Roboto | 3.015 | `wght` 100–900, `wdth` 75–100 | `6183fc0d2636`, `ofl/roboto/Roboto[wdth,wght].ttf` | `d7598e12c5dbef09…` |
+| `BricolageGrotesque-Variable.ttf` | Bricolage Grotesque | 1.001 | `opsz` 12–96, `wght` 200–800, `wdth` 75–100 | `b9f6c712059d`, `ofl/bricolagegrotesque/BricolageGrotesque[opsz,wdth,wght].ttf` | `413e7357809ddd12…` |
+| `JetBrainsMono-Variable.ttf` | JetBrains Mono | 2.211 | `wght` 100–800 (por defecto 400) | `2e05c1cf00a6`, `ofl/jetbrainsmono/JetBrainsMono[wght].ttf` | `48715a42ec242c21…` |
+
+- **Versiones:** se comprobaron con el campo `fontRevision` y el nombre 5 de los woff2 del admin en `8d1430fa`. Los woff2 del admin son subconjuntos (latín y latín extendido) de estos mismos ficheros.
+- **Registro:** `FontUtils::initializeFonts()` registra al arrancar todo lo que hay en `res/fonts/`. En Linux, Mixxx no instala `res/fonts/` (espera los paquetes de la distribución), pero estas tres casi nunca están empaquetadas: `CMakeLists.txt` las instala en todas las plataformas.
+- **Ejes variables:** con Qt 6.12, `QFont::setVariableAxis()` aplica `wght` y `opsz`, así que no hacen falta instancias estáticas. Los navegadores ajustan `opsz` al tamaño de letra (`font-optical-sizing: auto`); en Qt hay que fijarlo con `setVariableAxis(QFont::Tag("opsz"), tamaño en px)`, entre 12 y 96.
+- **Cifras:** JetBrains Mono y Roboto tienen cifras tabulares por defecto. Las de Bricolage Grotesque son proporcionales; con `QFont::setFeature(QFont::Tag("tnum"), 1)` pasan a tabulares, que es lo que pide §14.3 para el BPM y el tiempo del deck.
+- **Test:** `src/test/crate/fontstest.cpp` (`RegistersAdminFonts`, `MonoHasTabularDigits` y `VariableAxesChangeTheGlyphs`) comprueba las familias, que se usan estos ficheros y no otras copias del sistema, las cifras y los ejes.

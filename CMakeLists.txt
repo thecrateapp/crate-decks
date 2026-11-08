@@ -2611,6 +2611,19 @@ if(APPLE OR WIN32)
     DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/res/fonts"
     DESTINATION "${MIXXX_INSTALL_DATADIR}"
   )
+else()
+  # Crate Decks: the fonts of the Crate admin are not packaged by most
+  # distributions, so they are installed everywhere.
+  install(
+    FILES
+      "${CMAKE_CURRENT_SOURCE_DIR}/res/fonts/BricolageGrotesque-Variable.ttf"
+      "${CMAKE_CURRENT_SOURCE_DIR}/res/fonts/BricolageGrotesque.OFL.txt"
+      "${CMAKE_CURRENT_SOURCE_DIR}/res/fonts/JetBrainsMono-Variable.ttf"
+      "${CMAKE_CURRENT_SOURCE_DIR}/res/fonts/JetBrainsMono.OFL.txt"
+      "${CMAKE_CURRENT_SOURCE_DIR}/res/fonts/Roboto-Variable.ttf"
+      "${CMAKE_CURRENT_SOURCE_DIR}/res/fonts/Roboto.OFL.txt"
+    DESTINATION "${MIXXX_INSTALL_DATADIR}/fonts"
+  )
 endif()
 
 # Keyboard mapping(s)
@@ -3026,6 +3039,7 @@ if(BUILD_TESTING)
     src-mixxx-test
     ${src-mixxx-test}
     src/test/crate/brandingtest.cpp
+    src/test/crate/fontstest.cpp
     src/test/crate/visiblestringstest.cpp
   )
 
