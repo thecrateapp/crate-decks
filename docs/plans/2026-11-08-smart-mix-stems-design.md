@@ -2,6 +2,8 @@
 
 **Date:** 2026-11-08. **Decided by Diego:** build both paths below, including local GPU inference in Crate Decks, "however little it adds".
 
+**Gate STEM-G0 passed (2026-11-08)** with the [ST0 spike report](2026-11-08-smart-mix-stems-spike-report.md): `htdemucs` and its weights accepted; ONNX Runtime in Decks and on the server; server separation goes ahead; stems play from a lossless sidecar (STEM-D9). STEM-D3, D6, D7, D8 and D9 below carry those decisions.
+
 **Repositories:**
 - Server work: the Crate monorepo (`thecrateapp/crate`).
 - Client work: Crate Decks (this repository).
@@ -52,7 +54,7 @@ Use source separation (stems) where it pays for itself, without separating the w
 **Disk.**
 - Music lives on `/mnt/music`: 5.5 TB, about 1.1 TB free. The root disk has 12 GB free.
 - Stems for the whole library would be about 139,000 × 40 MB ≈ 5.5 TB, which is not viable.
-- A 300-track session is about 12 GB as NI STEM (AAC), which is viable.
+- A 300-track session is about 9 GB as three AAC stems per track (STEM-D6), which is viable.
 
 **Mixxx.** The Crate Decks fork already contains Mixxx's NI STEM support behind the `__STEM__` build flag.
 
@@ -85,8 +87,9 @@ Use source separation (stems) where it pays for itself, without separating the w
 - **Turning it off** keeps the analyses, which are small and shared by track, and releases the stem files (STEM-D6) to the LRU.
 
 **STEM-D3. Separation model.**
-- **Baseline:** Demucs v4 `htdemucs`, four stems (drums, bass, other, vocals). The code is MIT; ST0 verifies the licence of the published weights before anything ships.
-- **Server:** `htdemucs` on CPU.
+- **Baseline:** Demucs v4 `htdemucs`, four stems (drums, bass, other, vocals). The code is MIT. The weights have no stated licence of their own and were trained partly on research-only data; Diego accepted them at STEM-G0, because Crate is free and non-commercial.
+- **One graph for both producers:** the `htdemucs` network exported to ONNX (opset 17, fp32), with STFT, iSTFT, segmentation and overlap-add outside the graph. The export is published as a Crate Decks release asset with attribution and a note on the training data.
+- **Server:** that graph on ONNX Runtime CPU, with the DSP in numpy. No PyTorch in the worker for separation.
 - **Decks:** `htdemucs` by default, or `htdemucs_ft` (a bag of four fine-tuned models, about 4× the cost) when the GPU allows it.
 - The six-stem model is out: guitar and piano stems do not feed any planner signal.
 - A different model needs a new separator identifier and a gate.
@@ -112,7 +115,7 @@ Use source separation (stems) where it pays for itself, without separating the w
 
 **STEM-D6. Stem audio on the server, for sessions only.**
 - The server may keep separated audio for session tracks:
-  - format: one NI STEM file per track (`.stem.mp4`: stereo master plus four stems, AAC 256 kbps);
+  - format: one MP4 per track with three AAC streams at 256 kbps (drums, bass, vocals). `other` is not stored: Decks rebuilds it as the residual against its own decode (STEM-D9);
   - location: a dedicated directory on the music volume, never on the root disk;
   - quota: 50 GiB by default (admin setting), evicted by LRU over the last session use.
 - Decks can download these files instead of separating locally.
@@ -120,11 +123,14 @@ Use source separation (stems) where it pays for itself, without separating the w
 
 **STEM-D7. Local inference in Crate Decks.**
 - **Runtime:** ONNX Runtime (MIT) behind a CMake option `CRATE_INFERENCE`.
+- **The graph is the `htdemucs` network only.** Decks implements the STFT, iSTFT, segmentation and overlap-add in C++, with the parameters measured in ST0 (§5 of the spike report).
 - **Execution providers:**
-  - CUDA on Linux and Windows with NVIDIA;
+  - CUDA on Linux and Windows with NVIDIA, used only when the system has the CUDA and cuDNN libraries ONNX Runtime needs; the CUDA provider library is an optional download;
   - DirectML on Windows;
   - CoreML on macOS;
+  - WebGPU, evaluated in ST4 as the driver-only GPU path on Linux;
   - CPU always, as the fallback.
+- **Memory:** peak VRAM under 1.5 GB per separation, so 4 GB GPUs work. The export uses memory-efficient attention; when free VRAM is short, the runtime picks CPU.
 - **GPU runtimes are loaded from the user's system.** Proprietary NVIDIA libraries are never bundled with a GPL program.
 - **Models** are not in the installer. They download on first use from pinned URLs, are checked by SHA-256 and stored in the Decks data directory.
 - **Threads:** inference runs in its own worker, never on the main thread or the engine thread.
@@ -133,17 +139,29 @@ Use source separation (stems) where it pays for itself, without separating the w
 **STEM-D8. What Decks separates and shares.**
 - **Which tracks:** those of session playlists and offline sets (D4), and any track on demand.
 - **For each track, Decks:**
-  - writes a `.stem.mp4` next to the cached file;
+  - writes a lossless stem sidecar next to the cached file (STEM-D9);
   - computes `stem-analysis/1`;
   - uploads it with `PUT /api/decks/tracks/{uid}/stem-analysis` when the server allows it (permission `smart_mix.stems.contribute`, granted to admins by default).
 - **Before separating,** Decks downloads what the server already has (analysis or stem file).
 
-**STEM-D9. Stems playback in Crate Decks.**
+**STEM-D9. Stems playback in Crate Decks: lossless sidecar (decided at STEM-G0).**
 - **Build:** the fork turns `__STEM__` on.
-- **Which file a Crate track uses:**
-  - a track separated before its first load uses the `.stem.mp4` as its cache file (the master stream plays as the normal track), so there is one identity per D5;
-  - a track that Mixxx already knows keeps its original file until the user converts it. Conversion moves local cues and loops to the new file.
-- ST0 checks whether Mixxx's internal relocation path can do that conversion without a public API.
+- **The original file stays the track's file and identity.** Library rows, cues, beats and Mixxx's own analysis keep reading it. Samplers and the preview deck play it.
+- **The sidecar:**
+  - an 8-channel FLAC beside the cached file (drums, bass, other, vocals, in that order), at the original's sample rate;
+  - drums, bass and vocals are resampled back to the original's rate and quantised;
+  - `other` is the integer residual: original − drums − bass − vocals. The four stems add up to the original, so a deck with no stem touched sounds like the original.
+- **Alignment:**
+  - Demucs reads the original decoded by Decks' own `SoundSourceProxy`.
+  - The sidecar stores the sample rate, the frame count and a PCM fingerprint of that decode. Decks ignores a sidecar that does not match them.
+- **Server stems** (STEM-D6): Decks decodes the three downloaded stems, computes `other` against its own decode and writes its sidecar.
+- **Playback:** a main deck loading a track with a valid sidecar reads it through the fork's 8-channel stem path. Patches to Mixxx files (listed in `CRATE_PATCHES.md`):
+  - a hook after `openAudioSource` in the caching reader worker that swaps in the sidecar source;
+  - a public `StemInfo` setter on `Track`;
+  - an analyser hook, so the waveform is not redone on every load.
+- **Stems that finish while the track is in a deck** apply on the next load. A stopped deck reloads by itself and keeps its position.
+- **With keylock,** a stem deck sounds like the sum of four stretched stems. STEM-G2 includes a listening check with keylock on.
+- **NI STEM export** (`.stem.mp4`) is an optional action for other software. It is not the playback format.
 - **Controls:** stem volume and mute on the CrateDecks skin, following the fork's stem controls.
 
 **STEM-D10. Local plan refinement in Crate Decks (amends D8).**
@@ -172,7 +190,7 @@ flowchart LR
   subgraph Server[Crate server]
     PL[Playlist · smart_mix_session] --> Q[analyze_session_stems · heavy queue]
     Q --> SEP[Demucs CPU] --> SA[stem-analysis/1]
-    SEP --> SF[NI STEM file · quota, LRU]
+    SEP --> SF[Three AAC stems · quota, LRU]
     SA --> T[(track_stem_signals)]
     T --> L[stems layer of the profile]
     L --> P[smart-mix-v3 planner · menu]
@@ -181,7 +199,7 @@ flowchart LR
     SF --> DL[GET stems file]
   end
   subgraph Decks[Crate Decks]
-    C[Audio cache] --> GPU[ONNX Runtime · Demucs GPU/CPU] --> ST[.stem.mp4 + stem-analysis/1]
+    C[Audio cache] --> GPU[ONNX Runtime · Demucs GPU/CPU] --> ST[Lossless sidecar + stem-analysis/1]
     ST --> UP
     DL --> C
     API --> R[Local refiner · local stem evidence] --> D[SmartMixDirector · stem actions]
@@ -226,7 +244,7 @@ flowchart LR
   - `PUT` needs `smart_mix.stems.contribute`;
   - the body is at most 64 KiB;
   - the source revision must match the current file.
-- `GET /api/decks/tracks/{uid}/stems` serves the NI STEM file with Range support. It answers 404 when the file is not stored.
+- `GET /api/decks/tracks/{uid}/stems` serves the three-stem MP4 (drums, bass, vocals) with Range support. It answers 404 when the file is not stored.
 - `POST /api/playback/transition-plans` in the `decks` context with `features.local_refinement` returns `candidates` (the v3 menu with each candidate's score breakdown) and `policyLimits`.
 - **Capabilities:**
   - `smart_mix.stems{available, sessions, storage}`;
@@ -242,9 +260,9 @@ flowchart LR
 
 | Area | Budget |
 |---|---|
-| Server separation | Measured in ST0 on a CPU comparable to the i7-7700. A 50-track session must finish within one night (8 h) next to the backfill |
-| Server storage | NI STEM quota of 50 GiB by default on the music volume; nothing on the root disk; analysis rows ≤ 4 KB |
-| Decks separation | GPU target ≤ 30 s per 5-minute track with `htdemucs`; CPU fallback allowed and reported |
+| Server separation | Estimated in ST0 at 3–5 h per 50-track session on the i7-7700 with ONNX Runtime CPU, and measured on the server in ST2.PR1. A 50-track session must finish within one night (8 h) next to the backfill |
+| Server storage | Stem file quota of 50 GiB by default on the music volume; nothing on the root disk; analysis rows ≤ 4 KB |
+| Decks separation | GPU target ≤ 30 s per 5-minute track with `htdemucs` (ST0: about 8 s on a laptop RTX 4060) and peak VRAM ≤ 1.5 GB; CPU fallback allowed and reported |
 | Decks UI and engine | Main thread never blocked > 16 ms; no inference on the engine thread; separation paused while a deck plays unless the preference says otherwise |
 | Decks disk | Stems counted in the cache quota (D4) with their own pin rules for sessions and offline sets; a size estimate shown before separating a session |
 | API | New endpoints p95 ≤ 150 ms and at most 3 bounded queries; uploads ≤ 64 KiB |
@@ -259,7 +277,7 @@ flowchart LR
 
 **Licences.**
 - ONNX Runtime (MIT) is compatible with Decks' GPL-2.0-or-later.
-- Demucs code is MIT. The weights' licence is checked in ST0, and a model ships only if it allows redistribution and use in Crate.
+- Demucs code is MIT. The weights state no licence of their own and were trained partly on research-only data (MUSDB18). Diego accepted them at STEM-G0 for a free, non-commercial project. The ONNX export ships with attribution and a note on the training data.
 - NVIDIA runtime libraries are never bundled. The CUDA provider loads them from the system.
 - Models download over HTTPS with pinned hashes.
 
@@ -269,11 +287,12 @@ flowchart LR
 
 | Risk | Impact | Mitigation |
 |---|---|---|
-| `htdemucs` does not export cleanly to ONNX (its STFT and iSTFT) | No GPU path in Decks | STFT and iSTFT in C++ around an ONNX core; alternatives checked in ST0: a C++ port, or a model exported with STFT ops (opset ≥ 17). Gate STEM-G0 picks the path |
+| Exported graph needs 3 GB of VRAM (ST0: materialised attention) | 4 GB GPUs fall back to CPU | Memory-efficient attention in the export (ST4.PR2), VRAM check before choosing a provider |
+| DirectML, CoreML or WebGPU miss ops or parity | No GPU on that platform | Measured in ST4.PR1 with the same parity test; CPU fallback always |
 | GPU runtime packaging across Linux, Windows and macOS | Users without inference | CPU fallback always; providers detected at runtime; clear status in preferences |
 | Separation competes with a live set | Dropouts on stage | Paused while decks play by default; lowest priority; never on the engine thread |
 | Server CPU: sessions against the backfill | One starves the other | Sessions ahead of the backfill, capped per user; the governor applies to both |
-| Stem file identity in Mixxx | Duplicate tracks or lost local cues | Separate before first load; explicit conversion for known tracks; tests on cue migration |
+| Sidecar out of step with the original (decoder delay, sample rate) | Comb filtering when a stem is muted | Separation reads Decks' own decode; sidecar stores rate, frames and a PCM fingerprint and is ignored on mismatch; alignment test with a click |
 | Small quality gain | Work with little effect | Diego chose to build anyway; the gains are measured (ST0, ST3) and defaults set by gates |
 | Disk exhaustion (server root, DJ disk) | Failures | Server stems only on the music volume with a quota; Decks counts stems in its cache quota |
 
@@ -281,7 +300,7 @@ flowchart LR
 
 | Gate | When | What Diego decides |
 |---|---|---|
-| STEM-G0 | After ST0 | Separator model and weights licence; Decks inference path (ONNX Runtime providers or alternative); server feasibility from the measured times |
+| STEM-G0 | After ST0 | Separator model and weights licence; Decks inference path (ONNX Runtime providers or alternative); server feasibility from the measured times. **Passed 2026-11-08** (see the header) |
 | STEM-G1 | After ST3 | Whether the planner uses the stems layer by default, from the automatic listening metrics |
 | STEM-G2 | After ST7 | Stems playback and local refinement in Decks, tested with a real DJ setup (Crate Decks AGENTS.md: changes to audio, engine, AutoDJ or Smart Mix are tested by Diego before merge) |
 

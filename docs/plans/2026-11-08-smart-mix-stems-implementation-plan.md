@@ -11,11 +11,11 @@ Both producers share the `stem-analysis/1` format.
 **Architecture:**
 - Separation produces small per-stem level curves (and optional drum-stem beats), stored per track and producer in the server.
 - The server derives a per-phrase stems layer that `smart-mix-v3` scores with.
-- Crate Decks separates with ONNX Runtime, plays NI STEM files, and refines the server's candidate menu locally.
+- Crate Decks separates with ONNX Runtime, plays stems from a lossless sidecar beside the original, and refines the server's candidate menu locally.
 
 **Tech stack:**
 - Server: Python 3.13, FastAPI, PostgreSQL, Dramatiq `heavy` queue, PyTorch CPU and Demucs v4 in the analysis worker.
-- Client: C++20 and Qt 6 in the Mixxx fork, ONNX Runtime (CUDA, DirectML, CoreML, CPU), FFmpeg for NI STEM files.
+- Client: C++20 and Qt 6 in the Mixxx fork, ONNX Runtime (CUDA, DirectML, CoreML, WebGPU, CPU), FLAC sidecars, libav for the optional NI STEM export.
 
 **Spec:** [Smart Mix Stems design](2026-11-08-smart-mix-stems-design.md). Decisions are cited by ID (STEM-D1–D11).
 
@@ -41,8 +41,10 @@ Both producers share the `stem-analysis/1` format.
   - server stem quota 50 GiB by default, on the music volume only;
   - uploads ≤ 64 KiB;
   - new endpoints p95 ≤ 150 ms with ≤ 3 bounded queries;
-  - Decks GPU target ≤ 30 s per 5-minute track with `htdemucs`.
-- **Licences:** ONNX Runtime MIT; Demucs code MIT, with the weights' licence confirmed at STEM-G0. Proprietary GPU runtimes are never bundled.
+  - Decks GPU target ≤ 30 s per 5-minute track with `htdemucs`, peak VRAM ≤ 1.5 GB;
+  - separator identifier `htdemucs-onnx-1` on both producers;
+  - sidecar: 8-channel FLAC, drums, bass, other, vocals, `other` as the integer residual.
+- **Licences:** ONNX Runtime MIT; Demucs code MIT; `htdemucs` weights accepted at STEM-G0 and shipped with attribution. Proprietary GPU runtimes are never bundled.
 - **Never print secrets.** Never commit audio, stems or model weights.
 
 ## Review focus
@@ -64,10 +66,10 @@ flowchart TD
   ST2 --> ST3[ST3 · Server: planner stems layer, decks menu]
   ST3 --> G1{{STEM-G1}}
   G0 --> ST4[ST4 · Decks: inference runtime and models]
-  ST4 --> ST5[ST5 · Decks: separation, NI STEM, analysis, sync]
+  ST4 --> ST5[ST5 · Decks: separation, sidecar, analysis, sync]
   ST1 --> ST5
   F4[Decks F4 · cache] --> ST5
-  ST5 --> ST6[ST6 · Decks: stems playback, stem actions]
+  ST5 --> ST6[ST6 · Decks: sidecar playback, stem actions]
   F6[Decks F6 · SmartMixDirector] --> ST6
   ST3 --> ST7[ST7 · Decks: local refinement]
   ST6 --> ST7
@@ -97,7 +99,7 @@ flowchart TD
 
 **Deliverable:** `docs/plans/2026-11-XX-smart-mix-stems-spike-report.md` with the numbers and a recommendation per question.
 
-**Gate STEM-G0 (Diego):** separator model and weights licence, Decks inference path, and server feasibility.
+**Gate STEM-G0 (Diego):** separator model and weights licence, Decks inference path, and server feasibility. **Passed 2026-11-08** with the [spike report](2026-11-08-smart-mix-stems-spike-report.md); the decisions are in the design header and STEM-D3, D6, D7 and D9.
 
 ---
 
@@ -151,22 +153,27 @@ flowchart TD
 
 ## ST2 · Server: sessions and separation
 
-### ST2.PR1 · Demucs in the analysis worker
+### ST2.PR1 · Separation in the analysis worker (ONNX Runtime CPU)
 
 **Files:**
-- `app/requirements-demucs.txt` (pinned Demucs, under the torch constraint that Beat This! uses).
-- A weights stage in `app/Dockerfile` with pinned SHA-256, like `beat-this-weights`.
+- `app/requirements.txt`: pinned `onnxruntime` (CPU build). No PyTorch for separation.
+- A model stage in `app/Dockerfile` that downloads the `htdemucs` ONNX export from the Crate Decks release (ST4.PR2) with a pinned SHA-256, like `beat-this-weights`.
 - `app/crate/smart_mix/separation.py`:
-  - `separate(path: Path, *, model: str = "htdemucs", threads: int, scratch: Path) -> SeparatedStems`;
+  - `separate(path: Path, *, threads: int, scratch: Path) -> SeparatedStems`, running the graph on ONNX Runtime CPU;
+  - the DSP around the graph in numpy, with the parameters of §5 of the spike report: normalisation by the mono mix, segments of 343,980 samples with a stride of 257,985, STFT/iSTFT (n_fft 4096, hop 1024, periodic Hann, normalised, reflect padding, centre), triangular overlap-add, `shifts=0`;
   - `analyze_stems(stems: SeparatedStems, *, hop_ms: int = 250) -> StemAnalysis`;
   - `drum_beats(stems: SeparatedStems) -> list[int]` (Beat This! + DBN on the drum stem; stored, not used for the grid, STEM-D4).
 - Scratch audio goes to a configured directory on the music volume, never to `/tmp` or the root disk.
+- Separator identifier: `htdemucs-onnx-1`, the same string Decks uses for the same graph.
 
 **Tests:**
-- `test_smart_mix_separation.py` with an injected fake separator:
+- `test_smart_mix_separation.py` with an injected fake graph:
   - `levels follow each stem`;
+  - `overlap-add with an identity graph reconstructs the input`;
   - `scratch files are removed on success and on failure`.
-- `test_smart_mix_separation_demucs.py`: separates 10 s of fixture audio in the analysis image; skipped unless `CRATE_REQUIRE_DEMUCS=1`.
+- `test_smart_mix_separation_dsp.py`: STFT and iSTFT match the reference fixture of ST4.PR2 within 1e-5.
+- `test_smart_mix_separation_onnx.py`: separates 10 s of fixture audio in the analysis image; skipped unless `CRATE_REQUIRE_SEPARATION=1`.
+- **Measurement:** time a 50-track session on the server after deploy, inside the night window, and record it in `docs/technical/smart-mix-operations.md`.
 
 ### ST2.PR2 · Sessions, task, stem files and quota
 
@@ -176,7 +183,7 @@ flowchart TD
 - `app/crate/api/smart_mix_sessions.py`: `GET /api/smart-mix/sessions/{playlistId}`.
 - `app/crate/worker_handlers/smart_mix_stems.py`: `analyze_session_stems`, registered in `TASK_POOL_CONFIG` on `heavy`, with a priority above `backfill_smart_mix_profiles`.
 - `app/crate/smart_mix/stem_files.py`:
-  - `write_ni_stem(master: Path, stems: SeparatedStems, out: Path) -> int` (FFmpeg, AAC 256 kbps, `stem` atom);
+  - `write_stem_file(stems: SeparatedStems, out: Path) -> int`: one MP4 with three AAC streams at 256 kbps (drums, bass, vocals; STEM-D6). `other` is not stored;
   - `enforce_stem_quota(limit_bytes: int) -> int` (LRU over `last_used_at`).
 - `GET /api/decks/tracks/{uid}/stems` with Range support.
 
@@ -245,21 +252,31 @@ flowchart TD
 ### ST4.PR1 · Runtime
 
 **Files:**
-- `CMakeLists.txt`: option `CRATE_INFERENCE`, on when ONNX Runtime is found and off otherwise. Listed in `CRATE_PATCHES.md`.
+- `CMakeLists.txt`: option `CRATE_INFERENCE`, on when ONNX Runtime is found and off otherwise; `ONNXRUNTIME_ROOT` points at a release package for development. Listed in `CRATE_PATCHES.md`.
 - `src/crate/inference/inferenceruntime.{h,cpp}`:
-  - `crate::InferenceRuntime::availableProviders() -> QList<Provider>`, detected at runtime, with GPU libraries loaded from the system;
-  - `createSession(const QString& modelPath, Provider preferred) -> std::unique_ptr<InferenceSession>`, falling back to CPU with the reason reported.
+  - `crate::InferenceRuntime::availableProviders() -> QList<Provider>`, detected at runtime;
+  - CUDA only when the system has the CUDA and cuDNN libraries the ONNX Runtime build needs (checked with `dlopen`/`LoadLibrary`), never bundled; the CUDA provider library is an optional download;
+  - `createSession(const QString& modelPath, Provider preferred, qint64 requiredVramBytes) -> std::unique_ptr<InferenceSession>`, falling back to CPU with the reason reported, also when free VRAM is short;
+  - session options from ST0: `enable_mem_pattern=false` on GPU, intra-op threads from the preference.
 
 **Tests:**
 - `src/test/crate/inferenceruntime_test.cpp`:
   - `runs a tiny ONNX fixture on CPU`;
-  - `falls back to CPU when the preferred provider is missing`.
+  - `falls back to CPU when the preferred provider is missing`;
+  - `falls back to CPU when free VRAM is below the requirement`.
 - GPU tests run only when `CRATE_TEST_GPU=1`.
 
-### ST4.PR2 · Model store
+**Measurements in the PR** (same parity and speed test as ST0 §5, on real machines): CUDA, DirectML, CoreML and WebGPU. Each provider that misses ops or parity stays off and is reported.
 
+### ST4.PR2 · Model export and model store
+
+- **Export tool:** `tools/crate-stems/export_htdemucs.py` (Python, outside the app).
+  - It exports the `htdemucs` network as in ST0 (inputs `mix` and `spec`, outputs per-stem spectrogram and waveform), with memory-efficient attention so peak VRAM stays ≤ 1.5 GB.
+  - It writes reference fixtures for the C++ and server tests: a 10 s input, its STFT, the graph outputs and the four stems, from a numpy reference of the DSP.
+  - Its check: SDR ≥ 60 dB per stem against PyTorch on CPU, and the measured peak VRAM.
+  - The `.onnx` file is a release asset of this repository, with attribution and a note on the training data. Fixtures go to the tests only if they are small; otherwise they are a release asset too.
 - `src/crate/inference/modelstore.{h,cpp}`: `crate::ModelStore`.
-  - A manifest of name, version, URL, SHA-256 and size. The ONNX exports from ST0 are published as release assets of this repository.
+  - A manifest of name, version, URL, SHA-256 and size.
   - Download with resume, verification, and table `crateserver_models`.
 - **Tests:** `modelstore_test.cpp` with a mocked network:
   - `rejects a file whose hash differs`;
@@ -268,22 +285,28 @@ flowchart TD
 
 ---
 
-## ST5 · Crate Decks: separation, NI STEM, analysis and sync
+## ST5 · Crate Decks: separation, sidecar, analysis and sync
 
 ### ST5.PR1 · Separation core
 
 - `src/crate/stems/stemseparator.{h,cpp}`: `crate::StemSeparator`, which owns its worker thread.
-  - It decodes to float stereo at the model's rate.
-  - It processes overlapping segments, applies STFT and iSTFT around the ONNX core (as decided at STEM-G0), and overlap-adds.
-  - The result is four stems.
+  - It decodes the original with Decks' own `SoundSourceProxy` and resamples to 44.1 kHz stereo float.
+  - It implements the DSP of §5 of the spike report around the graph: normalisation, segments with a stride of 257,985 samples, STFT and iSTFT (n_fft 4096, hop 1024, periodic Hann, normalised, reflect padding, centre), triangular overlap-add.
+  - The result is four stems at 44.1 kHz.
 - **Tests:**
   - `stemseparator_test.cpp` with an identity mock model: `overlap-add reconstructs the input`, and `cancels promptly`.
-  - A golden test against the PyTorch reference from ST0 on a 10 s fixture, within the ST0 tolerance.
+  - `stft matches the reference fixture` and `istft matches the reference fixture` (1e-5).
+  - A golden test against the ST4.PR2 reference stems on the 10 s fixture: SDR ≥ 60 dB per stem.
 
 ### ST5.PR2 · Files, analysis, sync and scheduling
 
 **Files:**
-- `src/crate/stems/stemfilewriter.{h,cpp}`: NI STEM via FFmpeg.
+- `src/crate/stems/stemsidecar.{h,cpp}`: the lossless sidecar of STEM-D9.
+  - It resamples drums, bass and vocals back to the original's rate, quantises them, and writes `other` as the integer residual against Decks' decode of the original.
+  - It writes an 8-channel FLAC (drums, bass, other, vocals) with the sample rate, frame count and PCM fingerprint of that decode.
+  - `isValidFor(const TrackPointer&) -> bool` checks rate, frames and fingerprint.
+- `src/crate/stems/nistemexport.{h,cpp}`: optional NI STEM export for other software (libav: five AAC streams, `stem` atom written as the first child of `moov/udta`, compressor and limiter off, colours from tokens).
+- Patch `src/track/steminfoimporter.cpp`: read 64-bit box sizes in big-endian order. Listed in `CRATE_PATCHES.md`.
 - `src/crate/stems/stemanalyzer.{h,cpp}`: `stem-analysis/1`, with the same encoding as the server. A shared fixture checks that both sides produce identical bytes.
 - `src/crate/stems/stemsync.{h,cpp}`: download the server analysis and stem file first; upload our own analysis when the server allows it.
 - `src/crate/stems/stemjobs.{h,cpp}`: the scheduling.
@@ -294,8 +317,13 @@ flowchart TD
 
 **Tests:**
 - `stemanalyzer_test.cpp`: `matches the server fixture byte for byte`.
+- `stemsidecar_test.cpp`:
+  - `stems add up to the original exactly`;
+  - `a 48 kHz original gets a 48 kHz sidecar`;
+  - `a sidecar with another fingerprint is not valid`.
+- `nistemexport_test.cpp`: `the exported file opens as a stem file with four stems and our colours`.
 - `stemsync_test.cpp`:
-  - `prefers the server stem file`;
+  - `prefers the server stem file and rebuilds other as the residual against the local decode`;
   - `does not upload without the capability`;
   - `discards results for a changed source revision`.
 - `stemjobs_test.cpp`:
@@ -306,18 +334,29 @@ flowchart TD
 
 ## ST6 · Crate Decks: stems playback and stem actions
 
-### ST6.PR1 · Playback and identity
+### ST6.PR1 · Sidecar playback
 
 **Files:**
 - Turn `__STEM__` on for `CRATE` builds.
-- The identity rule of STEM-D9: a track separated before its first load uses the stem file as its cache file. A "convert to stems" action moves local cues and loops, through the path chosen in ST0.
+- `src/crate/stems/sidecarsource.{h,cpp}`: an `AudioSource` that serves the sidecar's 8 channels for a track whose sidecar is valid.
+- Patches to Mixxx files (STEM-D9), each listed in `CRATE_PATCHES.md` and §5.2 of the Crate Decks design:
+  - `src/engine/cachingreader/cachingreaderworker.cpp`: a hook after `openAudioSource` that swaps in the sidecar source on main decks;
+  - `src/track/track.{h,cpp}`: a public `StemInfo` setter;
+  - the analyser hook (`analyzerthread.cpp` or `analyzerwaveform.cpp`) so the waveform is not redone on every load.
+- `src/crate/stems/stemreload.{h,cpp}`: stems that finish while the track is in a deck apply on the next load; a stopped deck reloads by itself and keeps its position.
 - Stem controls on the CrateDecks skin, from tokens.
-- Update `CRATE_PATCHES.md`.
 
 **Tests:**
-- `stemidentity_test.cpp`:
-  - `separated before first load keeps a single library row`;
-  - `conversion keeps cues and loops`.
+- `sidecarplayback_test.cpp`:
+  - `a deck with no stem touched plays the original within -120 dBFS`;
+  - `an invalid sidecar falls back to the original`;
+  - `samplers and the preview deck play the original`;
+  - `the waveform is not reanalysed on every load`;
+  - `a click lands on the same frame ±1 in the original and the sidecar`.
+- `stemreload_test.cpp`:
+  - `stems apply on the next load`;
+  - `a stopped deck reloads keeping its position`;
+  - `a playing deck is never reloaded`.
 - The skin loads without parser warnings.
 
 ### ST6.PR2 · Stem actions in the director
@@ -326,7 +365,7 @@ flowchart TD
   - mute the outgoing vocals across the overlap;
   - start the incoming track on drums only;
   - hand off the bass on the stems.
-- It uses the stem controls named in ST0 and updates no control above 60 Hz.
+- It uses the stem controls listed in §6 of the spike report (`[ChannelN_StemM]` `volume` and `mute`) and updates no control above 60 Hz.
 - **Tests:** `smartmixdirector_stems_test.cpp` with fake controls:
   - `ramps stem volume within the overlap`;
   - `restores stems when a transition is cancelled`.
