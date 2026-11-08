@@ -2,7 +2,7 @@
 """Generate the Crate Decks theme files from res/crate-design/tokens.json.
 
 Standard library only. Reads the tokens and writes, under
-res/crate-design/generated/:
+res/skins/CrateDecks/generated/ (the skin's generated files):
 
 * every template in tools/crate-design/templates/ (``<name>.<ext>.in``),
   with ``{{token}}`` and ``{{token.filter}}`` placeholders replaced;
@@ -32,7 +32,7 @@ REPO = HERE.parent.parent
 TOKENS = REPO / "res" / "crate-design" / "tokens.json"
 TEMPLATES = HERE / "templates"
 SVG = HERE / "svg"
-OUT = REPO / "res" / "crate-design" / "generated"
+OUT = REPO / "res" / "skins" / "CrateDecks" / "generated"
 
 MARKER = "GENERATED"
 MARKER_TEXT = (

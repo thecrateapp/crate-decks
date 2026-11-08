@@ -75,14 +75,14 @@ Diego cerró GU1 el 2026-11-09: aprobó las maquetas de V1.3 tal cual, con todas
 ## Generador
 
 ```shell
-python3 tools/crate-design/generate.py           # regenera res/crate-design/generated/
+python3 tools/crate-design/generate.py           # regenera res/skins/CrateDecks/generated/
 python3 tools/crate-design/generate.py --check   # falla si lo commiteado no está al día (CI)
 python3 -m pytest tools/crate-design             # tests del generador
 ```
 
 Python 3 estándar, sin dependencias. Las salidas se commitean, y el job `design-tokens` de `crate-decks-build.yml` ejecuta `--check` y los tests.
 
-**Qué escribe** en `res/crate-design/generated/` (no se edita a mano; lo marca el fichero `GENERATED`):
+**Qué escribe** en `res/skins/CrateDecks/generated/`, dentro de la skin que lo usa y se instala con ella (§14.5 del diseño). No se edita a mano; lo marca el fichero `GENERATED`:
 
 | Salida | Desde | Contenido |
 | --- | --- | --- |
