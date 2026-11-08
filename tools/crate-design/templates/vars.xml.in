@@ -1,0 +1,71 @@
+<!--
+  Crate Decks skin variables, from res/crate-design/tokens.json.
+  Template for tools/crate-design/generate.py. Colours are #rrggbb, or
+  #aarrggbb when they have alpha; lengths are in pixels.
+-->
+<Template>
+  <!-- Surfaces and text -->
+  <SetVariable name="CrateBgApp">{{bgApp}}</SetVariable>
+  <SetVariable name="CrateBgPanel">{{bgPanel}}</SetVariable>
+  <SetVariable name="CrateBgRaised">{{bgRaised}}</SetVariable>
+  <SetVariable name="CrateBorder">{{border}}</SetVariable>
+  <SetVariable name="CrateTextPrimary">{{textPrimary}}</SetVariable>
+  <SetVariable name="CrateTextMuted">{{textMuted}}</SetVariable>
+  <SetVariable name="CrateTextSubtle">{{textSubtle}}</SetVariable>
+  <SetVariable name="CrateAccent">{{accent}}</SetVariable>
+  <SetVariable name="CrateAccentHi">{{accentHi}}</SetVariable>
+  <SetVariable name="CrateWarning">{{warning}}</SetVariable>
+  <SetVariable name="CrateDanger">{{danger}}</SetVariable>
+
+  <!-- Fonts -->
+  <SetVariable name="CrateFontBody">{{fontBody}}</SetVariable>
+  <SetVariable name="CrateFontDisplay">{{fontDisplay}}</SetVariable>
+  <SetVariable name="CrateFontMono">{{fontMono}}</SetVariable>
+  <SetVariable name="CrateDeckNumberFont">{{deckNumberFont}}</SetVariable>
+  <SetVariable name="CrateDeckNumberWeight">{{deckNumberWeight}}</SetVariable>
+  <SetVariable name="CrateDeckNumberSize">{{fontSizeDeckNumber}}</SetVariable>
+
+  <!-- Deck colours (design 14.3): A and C cyan, B and D cold white -->
+  <SetVariable name="CrateDeckA">{{deckA}}</SetVariable>
+  <SetVariable name="CrateDeckB">{{deckB}}</SetVariable>
+  <SetVariable name="CrateDeckC">{{deckC}}</SetVariable>
+  <SetVariable name="CrateDeckD">{{deckD}}</SetVariable>
+
+  <!-- Waveforms and overviews -->
+  <SetVariable name="CrateWaveBg">{{waveBg}}</SetVariable>
+  <SetVariable name="CrateWaveLowAccent">{{waveLowAccent}}</SetVariable>
+  <SetVariable name="CrateWaveMidAccent">{{waveMidAccent}}</SetVariable>
+  <SetVariable name="CrateWaveHighAccent">{{waveHighAccent}}</SetVariable>
+  <SetVariable name="CrateWaveLowNeutral">{{waveLowNeutral}}</SetVariable>
+  <SetVariable name="CrateWaveMidNeutral">{{waveMidNeutral}}</SetVariable>
+  <SetVariable name="CrateWaveHighNeutral">{{waveHighNeutral}}</SetVariable>
+  <SetVariable name="CrateWavePlayhead">{{wavePlayhead}}</SetVariable>
+  <SetVariable name="CrateWaveBeat">{{waveBeat}}</SetVariable>
+  <SetVariable name="CrateWaveDownbeat">{{waveDownbeat}}</SetVariable>
+  <SetVariable name="CrateWaveOverviewBg">{{waveOverviewBg}}</SetVariable>
+  <SetVariable name="CrateWaveOverviewPlayed">{{waveOverviewPlayed}}</SetVariable>
+
+  <!-- Level meters -->
+  <SetVariable name="CrateVuLevel">{{vuLevel}}</SetVariable>
+  <SetVariable name="CrateVuWarning">{{vuWarning}}</SetVariable>
+  <SetVariable name="CrateVuClip">{{vuClip}}</SetVariable>
+  <SetVariable name="CrateVuTrack">{{vuTrack}}</SetVariable>
+  <SetVariable name="CrateVuWarningDb">{{vuWarningDb}}</SetVariable>
+  <SetVariable name="CrateVuBarWidth">{{vuBarWidth}}</SetVariable>
+
+  <!-- Knobs: the arc is painted by WKnobComposed over knob-scale.svg -->
+  <SetVariable name="CrateKnobSize">{{knobSize}}</SetVariable>
+  <SetVariable name="CrateKnobArcColor">{{accentHi}}</SetVariable>
+  <SetVariable name="CrateKnobArcWidth">{{knobArcWidth}}</SetVariable>
+  <SetVariable name="CrateKnobDot">{{knobDot}}</SetVariable>
+  <SetVariable name="CrateKnobSweep">{{knobSweep}}</SetVariable>
+
+  <!-- Faders -->
+  <SetVariable name="CrateFaderRail">{{faderRail}}</SetVariable>
+  <SetVariable name="CrateFaderHandleWidth">{{faderHandleWidth}}</SetVariable>
+  <SetVariable name="CrateFaderHandleHeight">{{faderHandleHeight}}</SetVariable>
+
+  <!-- Cache and download level ring -->
+  <SetVariable name="CrateLevelRingRadius">{{levelRingRadius}}</SetVariable>
+  <SetVariable name="CrateLevelRingWidth">{{strokeActive}}</SetVariable>
+</Template>

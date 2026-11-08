@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">
+  <circle cx="20" cy="20" r="10.50" fill="none" stroke="#f1f5f9" stroke-opacity="0.1" stroke-width="1"/>
+  <line x1="11.87" y1="28.13" x2="9.75" y2="30.25" stroke="#4a4c52" stroke-width="1"/>
+  <line x1="10.04" y1="25.75" x2="3.98" y2="29.25" stroke="#4a4c52" stroke-width="1"/>
+  <line x1="8.89" y1="22.98" x2="5.99" y2="23.75" stroke="#4a4c52" stroke-width="1"/>
+  <line x1="8.50" y1="20.00" x2="1.50" y2="20.00" stroke="#4a4c52" stroke-width="1"/>
+  <line x1="8.89" y1="17.02" x2="5.99" y2="16.25" stroke="#4a4c52" stroke-width="1"/>
+  <line x1="10.04" y1="14.25" x2="3.98" y2="10.75" stroke="#4a4c52" stroke-width="1"/>
+  <line x1="11.87" y1="11.87" x2="9.75" y2="9.75" stroke="#4a4c52" stroke-width="1"/>
+  <line x1="14.25" y1="10.04" x2="10.75" y2="3.98" stroke="#4a4c52" stroke-width="1"/>
+  <line x1="17.02" y1="8.89" x2="16.25" y2="5.99" stroke="#4a4c52" stroke-width="1"/>
+  <line x1="20.00" y1="8.50" x2="20.00" y2="1.50" stroke="#4a4c52" stroke-width="1"/>
+  <line x1="22.98" y1="8.89" x2="23.75" y2="5.99" stroke="#4a4c52" stroke-width="1"/>
+  <line x1="25.75" y1="10.04" x2="29.25" y2="3.98" stroke="#4a4c52" stroke-width="1"/>
+  <line x1="28.13" y1="11.87" x2="30.25" y2="9.75" stroke="#4a4c52" stroke-width="1"/>
+  <line x1="29.96" y1="14.25" x2="36.02" y2="10.75" stroke="#4a4c52" stroke-width="1"/>
+  <line x1="31.11" y1="17.02" x2="34.01" y2="16.25" stroke="#4a4c52" stroke-width="1"/>
+  <line x1="31.50" y1="20.00" x2="38.50" y2="20.00" stroke="#4a4c52" stroke-width="1"/>
+  <line x1="31.11" y1="22.98" x2="34.01" y2="23.75" stroke="#4a4c52" stroke-width="1"/>
+  <line x1="29.96" y1="25.75" x2="36.02" y2="29.25" stroke="#4a4c52" stroke-width="1"/>
+  <line x1="28.13" y1="28.13" x2="30.25" y2="30.25" stroke="#4a4c52" stroke-width="1"/>
+</svg>

@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="{{iconSm}}" height="{{iconSm}}" viewBox="0 0 16 16" fill="none">
+  <rect x="2" y="2" width="12" height="12" rx="{{radiusSm}}" fill="currentColor"/>
+  <path d="M5 8.2 7 10.2 11 5.8" stroke="{{onAccent}}" stroke-width="{{strokeActive}}" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

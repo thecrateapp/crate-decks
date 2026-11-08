@@ -1,0 +1,71 @@
+<!--
+  Crate Decks skin variables, from res/crate-design/tokens.json.
+  Template for tools/crate-design/generate.py. Colours are #rrggbb, or
+  #aarrggbb when they have alpha; lengths are in pixels.
+-->
+<Template>
+  <!-- Surfaces and text -->
+  <SetVariable name="CrateBgApp">#0a0a0f</SetVariable>
+  <SetVariable name="CrateBgPanel">#0d0e14</SetVariable>
+  <SetVariable name="CrateBgRaised">#0f1016</SetVariable>
+  <SetVariable name="CrateBorder">#1af1f5f9</SetVariable>
+  <SetVariable name="CrateTextPrimary">#f1f5f9</SetVariable>
+  <SetVariable name="CrateTextMuted">#999ca0</SetVariable>
+  <SetVariable name="CrateTextSubtle">#7e8084</SetVariable>
+  <SetVariable name="CrateAccent">#06b6d4</SetVariable>
+  <SetVariable name="CrateAccentHi">#67e8f9</SetVariable>
+  <SetVariable name="CrateWarning">#fbbf24</SetVariable>
+  <SetVariable name="CrateDanger">#ef4444</SetVariable>
+
+  <!-- Fonts -->
+  <SetVariable name="CrateFontBody">Roboto</SetVariable>
+  <SetVariable name="CrateFontDisplay">Bricolage Grotesque</SetVariable>
+  <SetVariable name="CrateFontMono">JetBrains Mono</SetVariable>
+  <SetVariable name="CrateDeckNumberFont">Bricolage Grotesque</SetVariable>
+  <SetVariable name="CrateDeckNumberWeight">700</SetVariable>
+  <SetVariable name="CrateDeckNumberSize">34</SetVariable>
+
+  <!-- Deck colours (design 14.3): A and C cyan, B and D cold white -->
+  <SetVariable name="CrateDeckA">#67e8f9</SetVariable>
+  <SetVariable name="CrateDeckB">#f1f5f9</SetVariable>
+  <SetVariable name="CrateDeckC">#67e8f9</SetVariable>
+  <SetVariable name="CrateDeckD">#f1f5f9</SetVariable>
+
+  <!-- Waveforms and overviews -->
+  <SetVariable name="CrateWaveBg">#0a0a0f</SetVariable>
+  <SetVariable name="CrateWaveLowAccent">#0e7490</SetVariable>
+  <SetVariable name="CrateWaveMidAccent">#06b6d4</SetVariable>
+  <SetVariable name="CrateWaveHighAccent">#67e8f9</SetVariable>
+  <SetVariable name="CrateWaveLowNeutral">#4a4c52</SetVariable>
+  <SetVariable name="CrateWaveMidNeutral">#999ca0</SetVariable>
+  <SetVariable name="CrateWaveHighNeutral">#f1f5f9</SetVariable>
+  <SetVariable name="CrateWavePlayhead">#f1f5f9</SetVariable>
+  <SetVariable name="CrateWaveBeat">#33f1f5f9</SetVariable>
+  <SetVariable name="CrateWaveDownbeat">#66f1f5f9</SetVariable>
+  <SetVariable name="CrateWaveOverviewBg">#0d0e14</SetVariable>
+  <SetVariable name="CrateWaveOverviewPlayed">#8c0a0a0f</SetVariable>
+
+  <!-- Level meters -->
+  <SetVariable name="CrateVuLevel">#67e8f9</SetVariable>
+  <SetVariable name="CrateVuWarning">#fbbf24</SetVariable>
+  <SetVariable name="CrateVuClip">#ef4444</SetVariable>
+  <SetVariable name="CrateVuTrack">#0ff1f5f9</SetVariable>
+  <SetVariable name="CrateVuWarningDb">-6</SetVariable>
+  <SetVariable name="CrateVuBarWidth">4</SetVariable>
+
+  <!-- Knobs: the arc is painted by WKnobComposed over knob-scale.svg -->
+  <SetVariable name="CrateKnobSize">40</SetVariable>
+  <SetVariable name="CrateKnobArcColor">#67e8f9</SetVariable>
+  <SetVariable name="CrateKnobArcWidth">1.5</SetVariable>
+  <SetVariable name="CrateKnobDot">3</SetVariable>
+  <SetVariable name="CrateKnobSweep">270</SetVariable>
+
+  <!-- Faders -->
+  <SetVariable name="CrateFaderRail">1</SetVariable>
+  <SetVariable name="CrateFaderHandleWidth">18</SetVariable>
+  <SetVariable name="CrateFaderHandleHeight">10</SetVariable>
+
+  <!-- Cache and download level ring -->
+  <SetVariable name="CrateLevelRingRadius">7</SetVariable>
+  <SetVariable name="CrateLevelRingWidth">1.5</SetVariable>
+</Template>
