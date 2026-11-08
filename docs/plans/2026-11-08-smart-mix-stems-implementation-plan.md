@@ -193,7 +193,7 @@ flowchart TD
 
 **Files:**
 - `app/requirements.txt`: pinned `onnxruntime` (CPU build). No PyTorch for separation.
-- A model stage in `app/Dockerfile` that downloads the `htdemucs` ONNX export from the Crate Decks release (ST4.PR2) with a pinned SHA-256, like `beat-this-weights`.
+- A model stage in `app/Dockerfile` that downloads the `htdemucs` ONNX export from the Crate Decks release `models-htdemucs-onnx-1` (ST4.PR2) with a pinned SHA-256, like `beat-this-weights`.
 - `app/crate/smart_mix/separation.py`:
   - `separate(path: Path, *, threads: int, scratch: Path) -> SeparatedStems`, running the graph on ONNX Runtime CPU;
   - the DSP around the graph in numpy, with the parameters of §5 of the spike report: normalisation by the mono mix, segments of 343,980 samples with a stride of 257,985, STFT/iSTFT (n_fft 4096, hop 1024, periodic Hann, normalised, reflect padding, centre), triangular overlap-add, `shifts=0`;
@@ -307,7 +307,7 @@ flowchart TD
   - It exports the `htdemucs` network as in ST0 (inputs `mix` and `spec`, outputs per-stem spectrogram and waveform), with memory-efficient attention so peak VRAM stays ≤ 1.5 GB.
   - It writes reference fixtures for the C++ and server tests: a 10 s input, its STFT, the graph outputs and the four stems, from a numpy reference of the DSP.
   - Its check: SDR ≥ 60 dB per stem against PyTorch on CPU, and the measured peak VRAM.
-  - The `.onnx` file is a release asset of this repository, with attribution and a note on the training data. Fixtures go to the tests only if they are small; otherwise they are a release asset too.
+  - The `.onnx` file is a release asset of this repository, with attribution and a note on the training data. The release is `models-htdemucs-onnx-1` (name approved by Diego, 2026-11-09), with the `.onnx`, its JSON manifest and the attribution. It is published only when Diego asks, before ST2 is integrated. Fixtures go to the tests only if they are small; otherwise they are a release asset too.
 - `src/crate/inference/modelstore.{h,cpp}`: `crate::ModelStore`.
   - A manifest of name, version, URL, SHA-256 and size.
   - Download with resume, verification, and table `crateserver_models`.
