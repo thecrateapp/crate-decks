@@ -68,6 +68,14 @@ QtObject {
     readonly property color waveDownbeat: "{{waveDownbeat}}"
     readonly property color waveOverviewBg: "{{waveOverviewBg}}"
     readonly property color waveOverviewPlayed: "{{waveOverviewPlayed}}"
+    // "Accent" (logo bands) or "Neutral" (the reserve: greys on every deck)
+    readonly property string wavePaletteDeckAC: "{{wavePaletteDeckAC}}"
+    readonly property color waveLowDeckAC: "{{waveLowDeckAC}}"
+    readonly property color waveMidDeckAC: "{{waveMidDeckAC}}"
+    readonly property color waveHighDeckAC: "{{waveHighDeckAC}}"
+    readonly property color waveLowDeckBD: "{{waveLowDeckBD}}"
+    readonly property color waveMidDeckBD: "{{waveMidDeckBD}}"
+    readonly property color waveHighDeckBD: "{{waveHighDeckBD}}"
 
     // meter
     readonly property color vuLevel: "{{vuLevel}}"

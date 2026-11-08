@@ -46,6 +46,14 @@
   <SetVariable name="CrateWaveDownbeat">#66f1f5f9</SetVariable>
   <SetVariable name="CrateWaveOverviewBg">#0d0e14</SetVariable>
   <SetVariable name="CrateWaveOverviewPlayed">#8c0a0a0f</SetVariable>
+  <!-- Bands per deck pair: wavePaletteDeckAC picks the logo bands
+       (Accent) or the reserve greys for decks A and C -->
+  <SetVariable name="CrateWaveLowAC">#0e7490</SetVariable>
+  <SetVariable name="CrateWaveMidAC">#06b6d4</SetVariable>
+  <SetVariable name="CrateWaveHighAC">#67e8f9</SetVariable>
+  <SetVariable name="CrateWaveLowBD">#4a4c52</SetVariable>
+  <SetVariable name="CrateWaveMidBD">#999ca0</SetVariable>
+  <SetVariable name="CrateWaveHighBD">#f1f5f9</SetVariable>
 
   <!-- Level meters -->
   <SetVariable name="CrateVuLevel">#67e8f9</SetVariable>

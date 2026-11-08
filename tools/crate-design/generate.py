@@ -42,6 +42,7 @@ MARKER_TEXT = (
 NAME_RE = re.compile(r"^[a-z][A-Za-z0-9]*$")
 HEX_RE = re.compile(r"^#[0-9a-f]{6}$")
 PLACEHOLDER_RE = re.compile(r"\{\{\s*([A-Za-z0-9_.]+)\s*\}\}")
+SELECTOR_RE = re.compile(r"\{([A-Za-z0-9]+)\}")
 FORMATS = ("qss", "xml", "qml", "svg")
 FILTERS = ("hex", "alpha", "argb", "rgba", "number", "list", "unit")
 
@@ -86,9 +87,8 @@ def number(value):
     return repr(float(value))
 
 
-def load_tokens(path):
-    """Read tokens.json and return {name: Token} with refs resolved."""
-    data = json.loads(Path(path).read_text(encoding="utf-8"))
+def raw_tokens(data):
+    """Return ({name: (group, entry)}, problems) for the tokens of data."""
     problems = []
     raw = {}
     for group, entries in data["tokens"].items():
@@ -100,11 +100,37 @@ def load_tokens(path):
                     f"{name}: defined in {raw[name][0]} and {group}"
                 )
             raw[name] = (group, entry)
+    return raw, problems
+
+
+def expand_ref(name, ref, raw):
+    """Return (target, selectors) for a ref.
+
+    A ref may name a palette switch: in "waveLow{wavePaletteDeckAC}" the
+    braces take the text value of that token ("Accent" or "Neutral"), so one
+    token picks the palette of several refs.
+    """
+    selectors = SELECTOR_RE.findall(ref)
+    for selector in selectors:
+        entry = raw.get(selector, (None, {}))[1]
+        value = entry.get("value")
+        if selector not in raw or "ref" in entry or not isinstance(value, str):
+            raise GeneratorError(
+                [f"{name}: {{{selector}}} must name a token with a text value"]
+            )
+    target = SELECTOR_RE.sub(lambda m: raw[m.group(1)][1]["value"], ref)
+    return target, selectors
+
+
+def load_tokens(path):
+    """Read tokens.json and return {name: Token} with refs resolved."""
+    data = json.loads(Path(path).read_text(encoding="utf-8"))
+    raw, problems = raw_tokens(data)
 
     def resolve(name, seen):
         group, entry = raw[name]
         if "ref" in entry:
-            target = entry["ref"]
+            target, _ = expand_ref(name, entry["ref"], raw)
             if target not in raw:
                 raise GeneratorError(
                     [f"{name}: ref to unknown token {target}"]
@@ -149,15 +175,20 @@ def load_tokens(path):
     return tokens
 
 
-def refs(path):
-    """Return {name: referenced token name} for the tokens that are refs."""
+def ref_graph(path):
+    """Return {name: (target, selectors)} for the tokens that are refs."""
     data = json.loads(Path(path).read_text(encoding="utf-8"))
+    raw, _ = raw_tokens(data)
     return {
-        name: entry["ref"]
-        for entries in data["tokens"].values()
-        for name, entry in entries.items()
+        name: expand_ref(name, entry["ref"], raw)
+        for name, (_, entry) in raw.items()
         if "ref" in entry
     }
+
+
+def refs(path):
+    """Return {name: referenced token name} for the tokens that are refs."""
+    return {name: target for name, (target, _) in ref_graph(path).items()}
 
 
 def rgb(token):
@@ -481,14 +512,15 @@ def build(tokens_path, templates_dir, svg_dir, out_dir):
                 fader_handle(tokens, used, vertical, state)
             )
 
-    # A ref uses the token it points to
-    references = refs(tokens_path)
+    # A ref uses the token it points to and the palette switch it names
+    graph = ref_graph(tokens_path)
     pending = list(used)
     while pending:
-        target = references.get(pending.pop())
-        if target and target not in used:
-            used.add(target)
-            pending.append(target)
+        target, selectors = graph.get(pending.pop(), (None, []))
+        for name in ([target] if target else []) + selectors:
+            if name not in used:
+                used.add(name)
+                pending.append(name)
     unused = sorted(set(tokens) - used)
     for name in unused:
         problems.append(f"{name}: token is not used by any template or SVG")

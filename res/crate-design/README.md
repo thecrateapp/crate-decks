@@ -22,10 +22,8 @@ Diseño: §14 del [documento de diseño](../../docs/plans/2026-11-02-crate-decks
 | `value` | Color `#rrggbb` en minúsculas, número o texto |
 | `alpha` | Opacidad del color, de 0 a 1 |
 | `unit` | `px`, `em`, `ms`, `deg`, `dB` o `%`. Solo informa, salvo en QSS (ver abajo) |
-| `ref` | Alias de otro token: toma su valor, su unidad y su alfa |
+| `ref` | Alias de otro token: toma su valor, su unidad y su alfa. Puede nombrar un interruptor de paleta entre llaves: `waveLow{wavePaletteDeckAC}` apunta a `waveLowAccent` o a `waveLowNeutral` según el texto de `wavePaletteDeckAC` |
 | `source` | De dónde sale el valor |
-| `pending` | `"GU1"` si es una propuesta de §14.3 que GU1 aún no ha cerrado |
-| `options` | Alternativas que muestran las maquetas para GU1 |
 
 ## Qué es cada token
 
@@ -39,7 +37,7 @@ Diseño: §14 del [documento de diseño](../../docs/plans/2026-11-02-crate-decks
 | `color` | `logoStart`, `logoEnd`, `logoShade` | Colores del logo, base de la paleta de onda |
 | `iconState` | `iconIdle`, `iconHover`, `iconActive`, `iconDisabled`, `iconOnAccent` | Color de cada estado de los iconos y controles generados |
 | `deck` | `deckA` … `deckD` | Color por deck (decidido): A y C en `accentHi`, B y D en `textPrimary` |
-| `waveform` | `waveLowAccent` … `waveHighNeutral`, `wavePlayhead`, `waveBeat`, `waveDownbeat`, `waveBg`, `waveOverviewBg`, `waveOverviewPlayed` | Paleta "filtered" de 3 bandas: cian del logo en A y C, grises fríos en B y D |
+| `waveform` | `waveLowAccent` … `waveHighNeutral`, `wavePlayhead`, `waveBeat`, `waveDownbeat`, `waveBg`, `waveOverviewBg`, `waveOverviewPlayed`, `wavePaletteDeckAC`, `wave*DeckAC`, `wave*DeckBD` | Paleta "filtered" de 3 bandas: cian del logo en A y C, grises fríos en B y D. `wavePaletteDeckAC` elige la paleta de A y C (`Accent` o la reserva `Neutral`) |
 | `meter` | `vuLevel`, `vuWarning`, `vuClip`, `vuTrack`, `vuClipTrack`, `vuWarningDb`, `vuBarWidth` | VU `accentHi` → `warning` desde −6 dBFS → `danger` en clip |
 | `font` | `fontBody`, `fontDisplay`, `fontMono`, `fontWeight*` | Roboto, Bricolage Grotesque y JetBrains Mono, y sus pesos |
 | `fontSize` | `fontSizeCounter` … `fontSizeBody`, `fontSizeTitle`, `fontSizeDisplay`, `fontSizeLegend`, `fontSizeTable`, `fontSizeDeckNumber`, `fontSizeDeckNumberCompact` | Escala del admin (8 a 15 px), títulos de 30 y 40 px, leyendas de 9 px y las propuestas DJ |
@@ -55,13 +53,14 @@ Diseño: §14 del [documento de diseño](../../docs/plans/2026-11-02-crate-decks
 | `fader` | `faderRail`, `faderTickStep`, `faderHandleWidth`, `faderHandleHeight` | Fader con carril de 1 px, marcas cada 10 % y tirador de contorno |
 | `deckDisplay` | `deckNumberFont`, `deckNumberWeight` | Fuente de BPM y tiempo restante en el deck |
 
-## Pendiente de GU1
+## Decisiones de GU1
 
-Las maquetas de V1.3 (fuera del repositorio) muestran estas propuestas, con las alternativas lado a lado. Los valores de aquí son los de las maquetas. GU1 las cierra: entonces se quitan `pending` y `options` y se dejan los valores elegidos.
+Diego cerró GU1 el 2026-11-09: aprobó las maquetas de V1.3 tal cual, con todas las recomendaciones (§14.3 del diseño). Los valores de aquí son los de las maquetas y ya no llevan `pending` ni `options`. Las maquetas viven fuera del repositorio (`crate-agents/decks-mockups/`) y son la referencia de píxeles de V2 y V3.
 
-| Tokens | Propuesta | Alternativas |
+| Tokens | Valor aprobado | Alternativa descartada |
 | --- | --- | --- |
-| `waveform` | Cian del logo en A y C, grises en B y D | — |
+| `waveform` | Cian del logo en A y C, grises en B y D | Grises en todos y bandas en todos |
+| `wavePaletteDeckAC` | `Accent` | Reserva `Neutral`: grises fríos en todos los decks si en cabina las bandas resultan fuertes. Se cambia en este único token y se regenera |
 | `meter` | VU de 4 px; tramo de clip apagado en rojo al 18 % | 3 px |
 | `fontSizeTable` | 11 px | 10,5 px (la del admin) |
 | `fontSizeDeckNumber*`, `deckNumberFont`, `deckNumberWeight` | Bricolage 700, 34 px (26 con 4 decks), con cifras tabulares | JetBrains Mono 400 |
@@ -69,7 +68,7 @@ Las maquetas de V1.3 (fuera del repositorio) muestran estas propuestas, con las 
 | `levelRingRadius` | 7 px | 6 y 8 px |
 | `knob` | 36 px (30 con 4 decks o a 768 px de alto), 270°, 24 marcas de 4,5 y 2 px con una larga cada 30° | 48 marcas con una larga cada 4, como StackMap |
 | `fader` | Carril de 1 px, marcas cada 10 %, tirador de 18 × 10 px | — |
-| `iconOnAccent` | Icono en `onAccent` sobre el relleno `accentHi` de un botón activo | Contorno `accentHi` con tinte del 10 % |
+| `iconOnAccent` | Icono en `onAccent` sobre el relleno del color del deck de un botón activo | Contorno `accentHi` con tinte del 10 % |
 | `camelotRingA`, `camelotRingB` | Anillos de la rueda Camelot a r 196 y 292 en el lienzo de 760 px de GenreWheel (sus guías están a 132 y 212), para dejar libre la cifra del centro | Las radios de GenreWheel |
 | `tickPhrase`, `hotcueRadius` | Regla de frase del deck (beat 3, compás 7, frase 10 px) y hotcues como nodos de r 10 | — |
 

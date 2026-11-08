@@ -46,6 +46,14 @@
   <SetVariable name="CrateWaveDownbeat">{{waveDownbeat}}</SetVariable>
   <SetVariable name="CrateWaveOverviewBg">{{waveOverviewBg}}</SetVariable>
   <SetVariable name="CrateWaveOverviewPlayed">{{waveOverviewPlayed}}</SetVariable>
+  <!-- Bands per deck pair: wavePaletteDeckAC picks the logo bands
+       ({{wavePaletteDeckAC}}) or the reserve greys for decks A and C -->
+  <SetVariable name="CrateWaveLowAC">{{waveLowDeckAC}}</SetVariable>
+  <SetVariable name="CrateWaveMidAC">{{waveMidDeckAC}}</SetVariable>
+  <SetVariable name="CrateWaveHighAC">{{waveHighDeckAC}}</SetVariable>
+  <SetVariable name="CrateWaveLowBD">{{waveLowDeckBD}}</SetVariable>
+  <SetVariable name="CrateWaveMidBD">{{waveMidDeckBD}}</SetVariable>
+  <SetVariable name="CrateWaveHighBD">{{waveHighDeckBD}}</SetVariable>
 
   <!-- Level meters -->
   <SetVariable name="CrateVuLevel">{{vuLevel}}</SetVariable>

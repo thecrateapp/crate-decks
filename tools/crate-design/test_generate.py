@@ -267,11 +267,65 @@ def test_deck_colour_tokens():
     )
 
 
-def test_pending_tokens_are_gu1_only():
+def test_gu1_closed_nothing_pending():
+    # GU1 closed on 2026-11-09: every DJ adaptation of design 14.3 is final
     data = json.loads(generate.TOKENS.read_text(encoding="utf-8"))
     assert data["meta"]["source"]["commit"]
+    assert "pending" not in data["meta"]
     for entries in data["tokens"].values():
         for name, entry in entries.items():
-            assert entry.get("pending") in (None, "GU1"), name
-            if "options" in entry:
-                assert entry.get("pending") == "GU1", name
+            assert "pending" not in entry, name
+            assert "options" not in entry, name
+
+
+def write_palette_tokens(design, palette):
+    data = json.loads(design["tokens"].read_text(encoding="utf-8"))
+    data["tokens"]["waveform"] = {
+        "waveLowAccent": {"value": "#0e7490"},
+        "waveLowNeutral": {"value": "#4a4c52"},
+        "wavePaletteDeckAC": {"value": palette},
+        "waveLowDeckAC": {"ref": "waveLow{wavePaletteDeckAC}"},
+    }
+    design["tokens"].write_text(json.dumps(data), encoding="utf-8")
+    template = design["templates"] / "vars.xml.in"
+    template.write_text(
+        "<Template>{{waveLowDeckAC}}</Template>\n<!-- {{waveLowNeutral}} -->\n"
+    )
+
+
+def test_wave_palette_switch_picks_the_bands(design):
+    write_palette_tokens(design, "Accent")
+    tokens = generate.load_tokens(design["tokens"])
+    assert tokens["waveLowDeckAC"].value == "#0e7490"
+    # The switch and the palette it picks count as used through the ref
+    run(design)
+    vars_xml = (design["out"] / "vars.xml").read_text(encoding="utf-8")
+    assert "<Template>#0e7490</Template>" in vars_xml
+
+
+def test_wave_palette_reserve_is_greys(design):
+    write_palette_tokens(design, "Neutral")
+    tokens = generate.load_tokens(design["tokens"])
+    assert tokens["waveLowDeckAC"].value == "#4a4c52"
+
+
+def test_wave_palette_switch_must_be_text(design):
+    data = json.loads(design["tokens"].read_text(encoding="utf-8"))
+    data["tokens"]["waveform"] = {
+        "wavePaletteDeckAC": {"ref": "bgApp"},
+        "waveLowDeckAC": {"ref": "waveLow{wavePaletteDeckAC}"},
+    }
+    design["tokens"].write_text(json.dumps(data), encoding="utf-8")
+    with pytest.raises(generate.GeneratorError, match="text value"):
+        generate.load_tokens(design["tokens"])
+
+
+def test_wave_palette_of_the_decks():
+    tokens = generate.load_tokens(generate.TOKENS)
+    # Approved in GU1: logo bands on A and C, greys on B and D
+    assert tokens["wavePaletteDeckAC"].value == "Accent"
+    for band in ("Low", "Mid", "High"):
+        ac = tokens[f"wave{band}DeckAC"].value
+        bd = tokens[f"wave{band}DeckBD"].value
+        assert ac == tokens[f"wave{band}Accent"].value
+        assert bd == tokens[f"wave{band}Neutral"].value
