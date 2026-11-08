@@ -37,7 +37,7 @@ Both producers share the `stem-analysis/1` format.
 - **Fixed values:**
   - `hopMs` 250;
   - levels map −60 dBFS → 0 and 0 dBFS → 255;
-  - Smart Mix playlists: 300 tracks per playlist; no per-user limit unless the admin setting `stems.max_tracks_per_user` sets one (off by default);
+  - Smart Mix playlist limits are admin settings of each instance: `stems.max_tracks_per_playlist` (300 by default) and `stems.max_tracks_per_user` (off by default);
   - server stem quota 50 GiB by default, on the music volume only;
   - uploads ≤ 64 KiB;
   - new endpoints p95 ≤ 150 ms with ≤ 3 bounded queries;
@@ -159,7 +159,7 @@ flowchart TD
 - Migration and schema section: tables `smart_mix_playlists` and `track_stem_jobs` (§5 of the design), plus the per-user revision sequence.
 - `app/crate/db/orm/smart_mix.py`: ORM rows.
 - `app/crate/db/repositories/smart_mix_playlists.py`:
-  - `set_smart_mix_playlist(playlist_id: int, *, user_id: int, enabled: bool, session=None) -> SmartMixPlaylistState`, which enforces owner only, the 300-track cap and the optional admin per-user limit, bumps the revision and queues `track_stem_jobs` rows for tracks without a current server analysis;
+  - `set_smart_mix_playlist(playlist_id: int, *, user_id: int, enabled: bool, session=None) -> SmartMixPlaylistState`, which enforces owner only and the two admin limits, bumps the revision and queues `track_stem_jobs` rows for tracks without a current server analysis;
   - `list_smart_mix_playlists(user_id: int, *, since_revision: int | None, session=None) -> list[SmartMixPlaylistState]`;
   - `smart_mix_playlist_status(playlist_id: int, *, session=None) -> SmartMixPlaylistStatus` (counts per state, per-track states, estimate);
   - `smart_mix_summaries(playlist_ids: Sequence[int], *, session=None) -> dict[int, SmartMixSummary]` for playlist responses, in one query.
@@ -168,14 +168,15 @@ flowchart TD
   - `GET /api/smart-mix/playlists?sinceRevision=N`;
   - `GET /api/smart-mix/playlists/{playlistId}`.
 - Playlist list and detail schemas gain `smartMix: {enabled, ready, total}`.
-- `stems.max_tracks_per_user` (optional, off by default) in the existing Smart Mix settings (`/api/settings/smart-mix`), where ST2.PR3's stem quota also goes.
+- `stems.max_tracks_per_playlist` (300 by default) and `stems.max_tracks_per_user` (off by default) in the existing Smart Mix settings (`/api/settings/smart-mix`), where ST2.PR3's stem quota also goes.
 - Adding tracks to a Smart Mix playlist queues jobs for the new tracks. Removing them leaves analyses alone.
 - OpenAPI regenerated; docs in `docs/technical/`.
 
 **Tests:**
 - `test_smart_mix_playlists_repository.py`:
   - `only the owner turns a playlist on`;
-  - `caps at 300 tracks per playlist`;
+  - `caps at 300 tracks per playlist by default`;
+  - `the admin per-playlist limit replaces the default`;
   - `no per-user limit by default`;
   - `the admin per-user limit applies across the user's playlists when set`;
   - `turning on queues jobs only for tracks without a current analysis`;
@@ -236,7 +237,7 @@ flowchart TD
   - all playlists stay listed; Smart Mix playlists carry a chip or icon from the design tokens, with their analysis state (`ready` of `total`);
   - a "Smart Mix" toggle in the playlist menu.
   - Listen is a client change shipped with a tagged release.
-- **Admin:** a Smart Mix playlists panel (states per playlist), the stem quota and the optional per-user track limit.
+- **Admin:** a Smart Mix playlists panel (states per playlist), the stem quota and both track limits.
 - **Tests:** next to each component, following the existing patterns.
 
 ---

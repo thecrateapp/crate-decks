@@ -82,9 +82,9 @@ Use source separation (stems) where it pays for itself, without separating the w
 - **One concept for every client.** A Smart Mix playlist is a playlist its owner marks for Smart Mix. The same mark serves Listen, the web app and Crate Decks, and it replaces Decks' offline sets (D4 of the Crate Decks design).
 - **Every client lists all of the user's playlists.** Smart Mix playlists stand out with a chip or icon from the design tokens, plus their analysis state.
 - **Model:** its own table, `smart_mix_playlists`, one row per playlist (§5), rather than more columns on `playlists`. It carries the playlist's Smart Mix state: owner, on or off, when it was turned on, last use and a revision for client sync.
-- **Caps:**
-  - 300 tracks per Smart Mix playlist;
-  - no per-user limit by default. An admin setting (`stems.max_tracks_per_user`, off by default) can set one across a user's Smart Mix playlists (Diego, 2026-11-08).
+- **Caps: admin settings of each instance** (Diego, 2026-11-08), in the Smart Mix settings:
+  - `stems.max_tracks_per_playlist`: 300 by default;
+  - `stems.max_tracks_per_user`: across a user's Smart Mix playlists, off by default.
 - **Turning it on** queues `analyze_playlist_stems` for the tracks that lack a current server stem analysis.
   - The task runs on the `heavy` queue, ahead of the library backfill. Its priority is above `backfill_smart_mix_profiles` and below interactive work.
   - The resource governor applies. Night windows do not.
