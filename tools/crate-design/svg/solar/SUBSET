@@ -1,0 +1,82 @@
+# Solar icons used by Crate Decks: <style>/<name> from @solar-icons/react 2.3.3.
+# Outline by default; bold only for Play, Pause and Heart, as in the admin.
+# Regenerate with tools/crate-design/extract_solar.py (see its docstring).
+
+# Transport and deck
+bold/play
+bold/pause
+outline/play
+outline/pause
+outline/stop
+outline/skip-next
+outline/skip-previous
+outline/repeat
+outline/repeat-one
+outline/shuffle
+outline/headphones-round-sound
+outline/volume-loud
+outline/volume-cross
+outline/menu-dots
+outline/stars
+outline/magic-wand
+
+# Library and Crate
+outline/music-library
+outline/music-library-2
+outline/playlist-2
+outline/inbox-archive
+outline/vinyl-record
+outline/music-notes
+outline/soundwave
+outline/station
+outline/route
+outline/clock-circle
+bold/heart
+outline/heart
+outline/tag
+outline/pulse
+outline/magnifier
+outline/archive
+outline/archive-down
+outline/download
+outline/cloud-download
+outline/folder
+outline/add-circle
+outline/minus-square
+outline/trash-bin-trash
+
+# Chrome and navigation
+outline/round-alt-arrow-down
+outline/round-alt-arrow-up
+outline/round-alt-arrow-left
+outline/round-alt-arrow-right
+outline/alt-arrow-down
+outline/alt-arrow-right
+outline/close-square
+outline/close-circle
+outline/hamburger-menu
+outline/settings
+outline/tuning
+outline/widget
+outline/sidebar-minimalistic
+outline/maximize
+outline/refresh
+outline/undo-left
+outline/eye
+outline/link
+
+# Mixer extras
+outline/microphone
+outline/volume-knob
+outline/cassette-2
+outline/record-circle
+
+# Status and account
+outline/danger-triangle
+outline/info-circle
+outline/check-circle
+outline/server
+outline/user-rounded
+outline/logout
+outline/lock
+outline/global
