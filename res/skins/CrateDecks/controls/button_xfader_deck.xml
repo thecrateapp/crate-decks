@@ -87,18 +87,18 @@
             <NumberStates>3</NumberStates>
             <State>
               <Number>0</Number>
-              <Pressed scalemode="STRETCH_ASPECT">skins:LateNight/<Variable name="BtnScheme"/>/buttons/btn__xfader_deck_left_<Variable name="xfaderLeft"/>.svg</Pressed>
-              <Unpressed scalemode="STRETCH_ASPECT">skins:LateNight/<Variable name="BtnScheme"/>/buttons/btn__xfader_deck_left_<Variable name="xfaderLeft"/>.svg</Unpressed>
+              <Pressed scalemode="STRETCH_ASPECT">skins:CrateDecks/<Variable name="BtnScheme"/>/buttons/btn__xfader_deck_left_<Variable name="xfaderLeft"/>.svg</Pressed>
+              <Unpressed scalemode="STRETCH_ASPECT">skins:CrateDecks/<Variable name="BtnScheme"/>/buttons/btn__xfader_deck_left_<Variable name="xfaderLeft"/>.svg</Unpressed>
             </State>
             <State>
               <Number>1</Number>
-              <Pressed scalemode="STRETCH_ASPECT">skins:LateNight/<Variable name="BtnScheme"/>/buttons/btn__xfader_deck_mid_<Variable name="xfaderMid"/>.svg</Pressed>
-              <Unpressed scalemode="STRETCH_ASPECT">skins:LateNight/<Variable name="BtnScheme"/>/buttons/btn__xfader_deck_mid_<Variable name="xfaderMid"/>.svg</Unpressed>
+              <Pressed scalemode="STRETCH_ASPECT">skins:CrateDecks/<Variable name="BtnScheme"/>/buttons/btn__xfader_deck_mid_<Variable name="xfaderMid"/>.svg</Pressed>
+              <Unpressed scalemode="STRETCH_ASPECT">skins:CrateDecks/<Variable name="BtnScheme"/>/buttons/btn__xfader_deck_mid_<Variable name="xfaderMid"/>.svg</Unpressed>
             </State>
             <State>
               <Number>2</Number>
-              <Pressed scalemode="STRETCH_ASPECT">skins:LateNight/<Variable name="BtnScheme"/>/buttons/btn__xfader_deck_right_<Variable name="xfaderRight"/>.svg</Pressed>
-              <Unpressed scalemode="STRETCH_ASPECT">skins:LateNight/<Variable name="BtnScheme"/>/buttons/btn__xfader_deck_right_<Variable name="xfaderRight"/>.svg</Unpressed>
+              <Pressed scalemode="STRETCH_ASPECT">skins:CrateDecks/<Variable name="BtnScheme"/>/buttons/btn__xfader_deck_right_<Variable name="xfaderRight"/>.svg</Pressed>
+              <Unpressed scalemode="STRETCH_ASPECT">skins:CrateDecks/<Variable name="BtnScheme"/>/buttons/btn__xfader_deck_right_<Variable name="xfaderRight"/>.svg</Unpressed>
             </State>
             <Connection>
               <ConfigKey><Variable name="Group"/>,orientation</ConfigKey>
