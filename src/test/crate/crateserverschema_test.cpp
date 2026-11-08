@@ -70,6 +70,30 @@ TEST_F(CrateServerSchemaTest, CreatesTablesIdempotently) {
     EXPECT_EQ(1, count.value(0).toInt());
 }
 
+TEST_F(CrateServerSchemaTest, CreatesTheModelsTableIdempotently) {
+    ASSERT_TRUE(crate::db::createCrateServerSchema(dbConnection()));
+    QSqlQuery insert(dbConnection());
+    ASSERT_TRUE(insert.exec(QStringLiteral(
+            "INSERT INTO crateserver_models (name, version, file_name, sha256, bytes, "
+            "installed_at) VALUES ('htdemucs-onnx', '1', 'htdemucs-onnx-1.onnx', 'ab', 3, "
+            "'2026-11-08T10:00:00Z')")));
+
+    ASSERT_TRUE(crate::db::createCrateServerSchema(dbConnection()));
+
+    // The installed models of crate::ModelStore (Smart Mix Stems, ST4).
+    EXPECT_EQ(QStringList({QStringLiteral("name"),
+                      QStringLiteral("version"),
+                      QStringLiteral("file_name"),
+                      QStringLiteral("sha256"),
+                      QStringLiteral("bytes"),
+                      QStringLiteral("installed_at")}),
+            columns(QStringLiteral("crateserver_models")));
+    QSqlQuery count(dbConnection());
+    ASSERT_TRUE(count.exec(QStringLiteral("SELECT COUNT(*) FROM crateserver_models")));
+    ASSERT_TRUE(count.next());
+    EXPECT_EQ(1, count.value(0).toInt());
+}
+
 TEST_F(CrateServerSchemaTest, DoesNotTouchMixxxTables) {
     const QStringList before = mixxxObjects();
     ASSERT_FALSE(before.isEmpty());

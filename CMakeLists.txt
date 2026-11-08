@@ -5321,6 +5321,7 @@ if(CRATE)
       src/crate/client/cratejson.cpp
       src/crate/db/crateserverprofiles.cpp
       src/crate/db/crateserverschema.cpp
+      src/crate/inference/modelstore.cpp
       src/crate/session/crateloopbackserver.cpp
       src/crate/session/cratesecretstore.cpp
       src/crate/session/cratesession.cpp
@@ -5346,6 +5347,7 @@ if(CRATE)
         src/test/crate/crateservers_test.cpp
         src/test/crate/dlgprefcrate_test.cpp
         src/test/crate/cratesession_test.cpp
+        src/test/crate/modelstore_test.cpp
     )
   endif()
 
