@@ -83,8 +83,8 @@ Use source separation (stems) where it pays for itself, without separating the w
 - **Every client lists all of the user's playlists.** Smart Mix playlists stand out with a chip or icon from the design tokens, plus their analysis state.
 - **Model:** its own table, `smart_mix_playlists`, one row per playlist (§5), rather than more columns on `playlists`. It carries the playlist's Smart Mix state: owner, on or off, when it was turned on, last use and a revision for client sync.
 - **Caps: admin settings of each instance** (Diego, 2026-11-08), in the Smart Mix settings:
-  - `stems.max_tracks_per_playlist`: 300 by default;
-  - `stems.max_tracks_per_user`: across a user's Smart Mix playlists, off by default.
+  - `stem_max_tracks_per_playlist`: 300 by default;
+  - `stem_max_tracks_per_user`: across a user's Smart Mix playlists, off by default.
 - **Turning it on** queues `analyze_playlist_stems` for the tracks that lack a current server stem analysis.
   - The task runs on the `heavy` queue, ahead of the library backfill. Its priority is above `backfill_smart_mix_profiles` and below interactive work.
   - The resource governor applies. Night windows do not.

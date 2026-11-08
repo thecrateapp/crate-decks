@@ -37,7 +37,7 @@ Both producers share the `stem-analysis/1` format.
 - **Fixed values:**
   - `hopMs` 250;
   - levels map −60 dBFS → 0 and 0 dBFS → 255;
-  - Smart Mix playlist limits are admin settings of each instance: `stems.max_tracks_per_playlist` (300 by default) and `stems.max_tracks_per_user` (off by default);
+  - Smart Mix playlist limits are admin settings of each instance: `stem_max_tracks_per_playlist` (300 by default) and `stem_max_tracks_per_user` (off by default);
   - server stem quota 50 GiB by default, on the music volume only;
   - uploads ≤ 64 KiB;
   - new endpoints p95 ≤ 150 ms with ≤ 3 bounded queries;
@@ -168,7 +168,7 @@ flowchart TD
   - `GET /api/smart-mix/playlists?sinceRevision=N`;
   - `GET /api/smart-mix/playlists/{playlistId}`.
 - Playlist list and detail schemas gain `smartMix: {enabled, ready, total}`.
-- `stems.max_tracks_per_playlist` (300 by default) and `stems.max_tracks_per_user` (off by default) in the existing Smart Mix settings (`/api/settings/smart-mix`), where ST2.PR3's stem quota also goes.
+- `stem_max_tracks_per_playlist` (300 by default) and `stem_max_tracks_per_user` (off by default) in the existing Smart Mix settings (`/api/settings/smart-mix`), where ST2.PR3's stem quota also goes.
 - Adding tracks to a Smart Mix playlist queues jobs for the new tracks. Removing them leaves analyses alone.
 - OpenAPI regenerated; docs in `docs/technical/`.
 
