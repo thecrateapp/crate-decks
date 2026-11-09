@@ -13,6 +13,7 @@
 #include <QLabel>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QPainter>
 #include <QScrollBar>
 #include <QSqlDatabase>
 #include <QSqlError>
@@ -34,6 +35,7 @@
 #include "mixer/playermanager.h"
 #include "mixxxmainwindow.h"
 #include "preferences/configobject.h"
+#include "skin/legacy/launchimage.h"
 #include "skin/skinloader.h"
 #include "test/mixxxtest.h"
 #include "track/cue.h"
@@ -43,7 +45,12 @@
 #include "util/versionstore.h"
 #include "waveform/visualplayposition.h"
 #include "waveform/waveform.h"
+#include "widget/wglwidget.h"
 #include "widget/wtracktableview.h"
+
+#ifdef MIXXX_USE_QOPENGL
+#include <QOpenGLWindow>
+#endif
 
 namespace {
 
@@ -237,7 +244,21 @@ class OffscreenDecks {
         }
         QElapsedTimer timer;
         timer.start();
-        m_pMainWindow->initialize();
+#ifdef MIXXX_USE_QOPENGL
+        if (QGuiApplication::platformName() != QLatin1String("offscreen")) {
+            // As main.cpp does: the OpenGL probe initializes the window once
+            // its context is up
+            m_pMainWindow->initializeQOpenGL();
+            waitFor(
+                    [this] {
+                        return !qobject_cast<LaunchImage*>(m_pMainWindow->centralWidget());
+                    },
+                    30000);
+        } else
+#endif
+        {
+            m_pMainWindow->initialize();
+        }
         const qint64 elapsed = timer.elapsed();
         QCoreApplication::processEvents();
         return elapsed;
@@ -419,12 +440,52 @@ TEST_F(CrateSkinTest, PreparedSkinSetsTheLayoutClass) {
 // TEST_GAP: whether the skin looks like the approved GU1 mockups is checked
 // by eye. CrateSkinScreenshots renders it offscreen for that comparison.
 
-/// Dev-only harness: renders the real main window offscreen to PNG at
-/// 1920 x 1080 and 1366 x 768, with 2 and 4 decks, for the side-by-side
-/// comparison with the GU1 mockups. Runs only with
-/// CRATE_SKIN_SCREENSHOTS=<output dir>; CRATE_SKIN_TRACKS=<dir> loads the
-/// first audio files of that directory into decks A, B and C. Never point it
-/// at audio that belongs in the repository.
+/// main.cpp shares the OpenGL contexts of all windows, which the waveforms
+/// need, before it creates the application; mixxx-test does not. The
+/// screenshot harness sets it before main() creates the test application.
+[[maybe_unused]] const bool kShareOpenGlContexts = [] {
+    if (!qEnvironmentVariableIsEmpty("CRATE_SKIN_SCREENSHOTS")) {
+        QCoreApplication::setAttribute(Qt::AA_ShareOpenGLContexts);
+    }
+    return true;
+}();
+
+/// QWidget::grab() leaves out native child windows, and with OpenGL the
+/// waveforms are QOpenGLWindows in window containers: paints each one's
+/// framebuffer over its widget.
+void paintOpenGlWindows(QWidget* pRoot, QImage* pImage) {
+#ifdef MIXXX_USE_QOPENGL
+    QPainter painter(pImage);
+    // WGLWidget has no Q_OBJECT, so findChildren cannot look it up
+    const QList<QWidget*> widgets = pRoot->findChildren<QWidget*>();
+    for (QWidget* pChild : widgets) {
+        auto* pWidget = dynamic_cast<WGLWidget*>(pChild);
+        if (!pWidget) {
+            continue;
+        }
+        QOpenGLWindow* pWindow = pWidget->getOpenGLWindow();
+        if (!pWidget->isVisibleTo(pRoot) || !pWindow || !pWindow->isExposed()) {
+            continue;
+        }
+        const QImage frame = pWindow->grabFramebuffer();
+        if (!frame.isNull()) {
+            painter.drawImage(QRect(pWidget->mapTo(pRoot, QPoint(0, 0)), pWidget->size()), frame);
+        }
+    }
+#else
+    Q_UNUSED(pRoot);
+    Q_UNUSED(pImage);
+#endif
+}
+
+/// Dev-only harness: renders the real main window to PNG at 1920 x 1080 and
+/// 1366 x 768, with 2 and 4 decks, for the side-by-side comparison with the
+/// GU1 mockups. Runs only with CRATE_SKIN_SCREENSHOTS=<output dir>;
+/// CRATE_SKIN_TRACKS=<dir> loads the first audio files of that directory into
+/// decks A, B and C. Never point it at audio that belongs in the repository.
+/// Offscreen there is no OpenGL and the scrolling waveforms stay empty;
+/// tools/crate-design/skin-screenshots.sh runs it with OpenGL in a headless
+/// Wayland compositor.
 class CrateSkinScreenshots : public MixxxTest {};
 
 TEST_F(CrateSkinScreenshots, Capture) {
@@ -450,15 +511,17 @@ TEST_F(CrateSkinScreenshots, Capture) {
         }
     }
 
+    // The "filtered" waveform and overview of the mockups; with OpenGL, its
+    // all-shader version (WaveformWidgetBackend::AllShader)
+    const bool openGl = QGuiApplication::platformName() != QLatin1String("offscreen");
     QTemporaryDir profile;
     ASSERT_TRUE(profile.isValid());
     OffscreenDecks decks(profile.path() + QLatin1Char('/'));
     decks.writeProfile(skin,
             {
-                    // The software "filtered" waveform and overview: offscreen
-                    // there is no OpenGL
                     {ConfigKey("[Waveform]", "WaveformType"), QStringLiteral("7")},
-                    {ConfigKey("[Waveform]", "use_hardware_acceleration"), QStringLiteral("0")},
+                    {ConfigKey("[Waveform]", "use_hardware_acceleration"),
+                            openGl ? QStringLiteral("3") : QStringLiteral("0")},
                     {ConfigKey("[Waveform]", "WaveformOverviewType"), QStringLiteral("0")},
                     {ConfigKey("[Waveform]", "beatGridAlpha"), QStringLiteral("20")},
                     // Time remaining, as in the mockups
@@ -523,11 +586,10 @@ TEST_F(CrateSkinScreenshots, Capture) {
         ControlObject::set(ConfigKey(group, "playposition"), positions[i].second);
         // Without an audio device no engine callback tells the scrolling
         // waveforms where the deck is: give them the position, paused (no
-        // audio buffer, so no interpolation). TEST_GAP: offscreen there is no
-        // OpenGL, and without it this Mixxx offers no waveform type at all
+        // audio buffer, so no interpolation). Offscreen there is no OpenGL,
+        // and without it this Mixxx offers no waveform type at all
         // (WaveformWidgetFactory::addHandle in a build with QML): the
-        // scrolling waveforms stay empty and the overviews, which share their
-        // palette, show it.
+        // scrolling waveforms stay empty there.
         auto pVisual = VisualPlayPosition::getVisualPlayPosition(group);
         for (int buffer = 0; buffer < 3; ++buffer) {
             pVisual->set(positions[i].second,
@@ -555,7 +617,10 @@ TEST_F(CrateSkinScreenshots, Capture) {
     const auto capture = [&](const QString& name) {
         // Layouts, deferred restyles and the waveforms' timers
         waitFor([] { return false; }, 1500);
-        const QImage image = decks.skin()->grab().toImage();
+        QImage image = decks.skin()->grab().toImage();
+        if (openGl) {
+            paintOpenGlWindows(decks.skin(), &image);
+        }
         const QString file = QDir(outDir).filePath(name + QStringLiteral(".png"));
         EXPECT_TRUE(image.save(file)) << file.toStdString();
     };
