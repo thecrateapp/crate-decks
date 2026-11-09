@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <QAbstractButton>
 #include <QApplication>
 #include <QDialog>
 #include <QDir>
@@ -181,6 +182,46 @@ TEST_F(CrateDialogsTest, DefaultStyleReachesParentlessDialogs) {
     auto* pSkinButton = new QPushButton(QStringLiteral("Play"), &mainWindow);
     pSkinButton->ensurePolished();
     EXPECT_NE(QStringLiteral("Roboto"), pSkinButton->font().family());
+}
+
+// Plan "Own brand", BR.PR3: Mixxx's message boxes ("No Output Devices", the
+// quit confirmation...) show a Solar icon of their kind, not the platform's
+TEST_F(CrateDialogsTest, MessageBoxesUseSolarIcons) {
+    QWidget mainWindow;
+    ASSERT_TRUE(crate::applyApplicationStyle(&mainWindow, resourcePath()));
+    const struct {
+        QMessageBox::Icon icon;
+        const char* solar;
+    } kinds[] = {
+            {QMessageBox::Question, "question-circle_active"},
+            {QMessageBox::Information, "info-circle_active"},
+            {QMessageBox::Warning, "danger-triangle_warning"},
+            {QMessageBox::Critical, "close-circle_danger"},
+    };
+    for (const auto& kind : kinds) {
+        QMessageBox box(kind.icon, QStringLiteral("Title"), QStringLiteral("Text"));
+        box.ensurePolished();
+        EXPECT_QSTRING_EQ(QString::fromLatin1(kind.solar), box.property("crateIcon").toString());
+        EXPECT_FALSE(box.iconPixmap().isNull()) << kind.solar;
+        EXPECT_TRUE(QFile::exists(crate::designPath() + QStringLiteral("icons/") +
+                QLatin1String(kind.solar) + QStringLiteral(".svg")))
+                << kind.solar;
+    }
+    // Nor the platform's icons on the buttons
+    {
+        QMessageBox confirm(QMessageBox::Question,
+                QStringLiteral("Confirm Exit"),
+                QStringLiteral("Exit?"),
+                QMessageBox::Yes | QMessageBox::No);
+        confirm.ensurePolished();
+        for (QAbstractButton* pButton : confirm.buttons()) {
+            EXPECT_TRUE(pButton->icon().isNull()) << qPrintable(pButton->text());
+        }
+    }
+    // Without an icon it stays without one
+    QMessageBox plain(QMessageBox::NoIcon, QStringLiteral("Title"), QStringLiteral("Text"));
+    plain.ensurePolished();
+    EXPECT_FALSE(plain.property("crateIcon").isValid());
 }
 
 TEST_F(CrateDialogsTest, SplashShowsTheCrateBrand) {

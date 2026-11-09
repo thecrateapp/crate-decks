@@ -256,6 +256,8 @@
   <SetVariable name="CrateDlgFirstRunLogoHeight">{{firstRunLogoHeight}}</SetVariable>
   <SetVariable name="CrateDlgFontSizeFirstRunTitle">{{fontSizeFirstRunTitle}}</SetVariable>
   <SetVariable name="CrateDlgFirstRunActionsTop">{{firstRunActionsTop}}</SetVariable>
+  <!-- The Solar icon of message boxes (own brand: no platform or Mixxx icon) -->
+  <SetVariable name="CrateDlgMessageIconSize">{{messageIconSize}}</SetVariable>
   <SetVariable name="CrateDlgStepsGap">{{stepsGap}}</SetVariable>
   <SetVariable name="CrateDlgStepGap">{{stepGap}}</SetVariable>
   <SetVariable name="CrateDlgFieldGap">{{fieldGap}}</SetVariable>

@@ -74,6 +74,7 @@ outline/record-circle
 # Status and account
 outline/danger-triangle
 outline/info-circle
+outline/question-circle
 outline/check-circle
 outline/server
 outline/user-rounded

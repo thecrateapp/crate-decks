@@ -23,6 +23,7 @@ TOKENS = {
             "borderSubtle": {"value": "#f1f5f9", "alpha": 0.06},
             "textSubtle": {"value": "#7e8084"},
             "dangerText": {"value": "#ef6465"},
+            "warningText": {"value": "#f9c94a"},
         },
         "iconState": {
             "iconIdle": {"ref": "textMuted"},
@@ -33,6 +34,7 @@ TOKENS = {
             "iconPrimary": {"ref": "textPrimary"},
             "iconAccent": {"ref": "accentHi"},
             "iconDanger": {"ref": "dangerText"},
+            "iconWarning": {"ref": "warningText"},
         },
         "geometry": {
             "radiusMd": {"value": 4, "unit": "px"},
