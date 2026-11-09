@@ -746,11 +746,14 @@ TEST_F(CrateSkinTest, MonoLabelStyleHasCapitalsAndTracking) {
     pLabel->ensurePolished();
     const QFont font = pLabel->font();
     EXPECT_QSTRING_EQ(QStringLiteral("JetBrains Mono"), font.family());
-    EXPECT_EQ(11, font.pixelSize());
-    // MonoLabel.tsx: uppercase with 0.14 em of tracking, 1.54 px at 11 px
+    // The size the GU1 mockups paint: 0.6875rem on a 15 px root, given in
+    // points at QSS's 96 dpi because QFont rounds pixel sizes
+    constexpr double kMockupLabel = 0.6875 * 15;
+    EXPECT_NEAR(kMockupLabel, font.pointSizeF() * 96 / 72, 0.001);
+    // MonoLabel.tsx: uppercase with 0.14 em of tracking
     EXPECT_EQ(QFont::AllUppercase, font.capitalization());
     EXPECT_EQ(QFont::AbsoluteSpacing, font.letterSpacingType());
-    EXPECT_NEAR(0.14 * 11, font.letterSpacing(), 0.02);
+    EXPECT_NEAR(0.14 * kMockupLabel, font.letterSpacing(), 0.02);
 }
 
 TEST_F(CrateSkinTest, ToolbarButtonOpensPreferences) {

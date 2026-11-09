@@ -159,7 +159,7 @@
   <SetVariable name="CrateLibFontSizeMeta">{{fontSizeTable}}</SetVariable>
   <SetVariable name="CrateLibFontSizeHeader">{{fontSizeMeta}}</SetVariable>
   <SetVariable name="CrateLibFontSizeMark">{{fontSizeBadge}}</SetVariable>
-  <SetVariable name="CrateLibFontSizeNav">{{fontSizeNav}}</SetVariable>
+  <SetVariable name="CrateLibFontSizeNav">{{fontSizeMonoLabel}}</SetVariable>
   <SetVariable name="CrateLibStateGap">{{libraryStateGap}}</SetVariable>
   <SetVariable name="CrateLibChipHeight">{{badgeHeight}}</SetVariable>
   <SetVariable name="CrateLibChipPadding">{{badgePadding}}</SetVariable>

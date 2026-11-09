@@ -117,7 +117,7 @@ QtObject {
     readonly property real fontSizeDisplay: {{fontSizeDisplay}}
     readonly property real fontSizeLegend: {{fontSizeLegend}}
     readonly property real fontSizeTable: {{fontSizeTable}}
-    readonly property real fontSizeNav: {{fontSizeNav}}
+    readonly property real fontSizeMonoLabel: {{fontSizeMonoLabel}}
     readonly property real fontSizeDeckNumber: {{fontSizeDeckNumber}}
     readonly property real fontSizeDeckNumberCompact: {{fontSizeDeckNumberCompact}}
     readonly property real fontSizeBrand: {{fontSizeBrand}}

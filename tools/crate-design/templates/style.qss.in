@@ -50,14 +50,17 @@ QToolTip {
   padding: {{monoSeparatorPadding}};
 }
 
-/* ── MonoLabel (MonoLabel.tsx): mono 400, 11 px, textSubtle ──────────── */
+/* ── MonoLabel (MonoLabel.tsx): mono 400, textSubtle ─────────────────── */
 
+/* At the size the GU1 mockups paint it: --text-label is 0.6875rem and their
+   root is 15 px. The deck letters, the phrase and pitch readouts and the
+   toolbar buttons are 11 px mono in the mockups, not MonoLabels. */
 [objectName^="Mono"] {
   font-family: "{{fontMono}}";
   font-weight: {{fontWeightMono}};
-  font-size: {{fontSizeLabel}};
+  font-size: {{fontSizeMonoLabel.fontsize}};
   text-transform: uppercase;
-  letter-spacing: {{trackingCaps * fontSizeLabel}};
+  letter-spacing: {{trackingCaps * fontSizeMonoLabel}};
   color: {{textSubtle}};
 }
 
@@ -1262,11 +1265,6 @@ WBeatSpinBox[objectName^="CrateLoopSize"]::down-button {
 }
 #CrateSearchQuery {
   qproperty-layoutSpacing: {{searchIconGap.number}};
-}
-/* MonoLabel as the mockups render it here (fontSizeNav) */
-#MonoLibraryMeta {
-  font-size: {{fontSizeNav.fontsize}};
-  letter-spacing: {{trackingCaps * fontSizeNav}};
 }
 #CrateSearchRule {
   background-color: {{border}};

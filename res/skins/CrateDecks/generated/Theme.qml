@@ -117,7 +117,7 @@ QtObject {
     readonly property real fontSizeDisplay: 40
     readonly property real fontSizeLegend: 9
     readonly property real fontSizeTable: 11
-    readonly property real fontSizeNav: 10.3125
+    readonly property real fontSizeMonoLabel: 10.3125
     readonly property real fontSizeDeckNumber: 34
     readonly property real fontSizeDeckNumberCompact: 26
     readonly property real fontSizeBrand: 14
