@@ -4,7 +4,7 @@
 
 **Goal:** stop fast 4/4 tracks (d-beat, thrash, death, metalcore) from losing their bars and phrases because Beat This!'s DBN hears them in three, while tracks really in three keep `time_signature = 3`.
 
-**Status:** MG1 approved by Diego on 2026-11-09 (option D, madmom in production). Tasks 2-4 implemented on `feat/smart-mix-meter-arbiter` (worktree `~/Code/Ninja/crate-agents/smart-mix-meter-arbiter`, from `origin/main` `ca620f1c1`): `f36c5b94d` arbiter, signals and migration 156, `dd9537ca4` `smart-mix-audio-v10`, `c5aed3df3` worker binary. Local, not pushed: stopped at MG2. Task 1's labelled three-beat reference set (All-In-One) is not built; the measurement below is on the evaluation sets only.
+**Status:** MG1 approved by Diego on 2026-11-09 (option D, madmom in production). Tasks 2-4 implemented on `feat/smart-mix-meter-arbiter` (worktree `~/Code/Ninja/crate-agents/smart-mix-meter-arbiter`, from `origin/main` `ca620f1c1`): `f36c5b94d` arbiter, signals and migration 156 (159 after the stems rebase), `dd9537ca4` `smart-mix-audio-v10`, `c5aed3df3` worker binary. Local, not pushed: stopped at MG2. Task 1's labelled three-beat reference set (All-In-One) is not built; the measurement below is on the evaluation sets only.
 
 **Spec:** SM3-D14 (Beat This! with madmom's DBN) and SM3-D16 (a track the DBN hears in three gets that meter, no downbeat and no phrases) in `docs/plans/2026-11-02-smart-mix-3-design.md`. Analyzer v9 (`smart-mix-audio-v9`, PR #406, deployed 2026-11-09) is the baseline.
 
@@ -205,6 +205,10 @@ The new `beat_model` (Beat This!, both bar paths, madmom arbiter) in the product
   - Each day of v9 adds about 15 hours of CPU of v10 redo, a few hours of wall time with the night window.
 - **Ship v10 after v9 finishes** (about 2026-11-22 to 25): about 200 hours of CPU over the whole library, about two more days.
 
-### Gate MG2 (Diego)
+### Gate MG2 (Diego): approved 2026-11-09
 
-Release, deploy and the v10 backfill only on Diego's word, after the v9 backfill has finished or been paused.
+- **Decision:** Diego approved releasing v10 with the meter arbiter in the release after the stems one (#408), and starting a v10 campaign that supersedes the running v9 one ("sí, le doy el visto bueno").
+- **Migration:** the stems release takes 156-158, so the meter signals become migration 159 when the branch is rebased onto it.
+- **Before the release:**
+  - the release PR goes green that night;
+  - merge, deploy and the v10 campaign wait for the stems deploy to be live and healthy the next morning.
