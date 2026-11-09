@@ -354,6 +354,7 @@ de ficheros se quedan como están para no romper la sincronía con upstream ni l
 - **Qué cambia:** las cadenas fuente que nombran la aplicación pasan a "Crate Decks". Las que se refieren a Mixxx como proyecto (créditos, "based on Mixxx", enlaces a la documentación de Mixxx que siguen valiendo) se quedan.
 - **Traducciones:** cambiar una cadena fuente de `tr()` pierde su traducción. Se acepta para los demás idiomas; las traducciones al español se actualizan en el mismo PR y el build sigue compilando los `.qm`.
 - **Test:** que ninguna cadena `tr()` de esas superficies siga nombrando la aplicación como "Mixxx"; si no es práctico, `TEST_GAP:` con el `grep` usado.
+- **Ampliado el 2026-11-09:** la regla de Diego ("no puede aparecer nada de Mixxx en ningún sitio") cubre toda la interfaz, no solo estas superficies. El trabajo está en su propio plan, en inglés: [Own brand](2026-11-09-crate-decks-own-brand-plan.md) (capa de marca, parches mínimos, primer arranque que absorbe los diálogos de Mixxx y test de la interfaz).
 
 ### F1.PR3 · CI Linux y artefacto de desarrollo
 
