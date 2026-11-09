@@ -4,7 +4,7 @@
 
 **Gate STEM-G0 passed (2026-11-08)** with the [ST0 spike report](2026-11-08-smart-mix-stems-spike-report.md): `htdemucs` and its weights accepted; ONNX Runtime in Decks and on the server; server separation goes ahead; stems play from a lossless sidecar (STEM-D9). STEM-D3, D6, D7, D8 and D9 below carry those decisions.
 
-**Gate STEM-G1 passed (2026-11-09)** with the [ST3 evaluation report](2026-11-09-smart-mix-stems-evaluation.md): the planner keeps the stems layer on, but only for the beatmatch family and with voice from the vocal stem or YAMNet (rules revision 3). The same day Diego asked for machine-drum industrial to be in the family (rules revision 4). STEM-D5 below carries both.
+**Gate STEM-G1 passed (2026-11-09)** with the [ST3 evaluation report](2026-11-09-smart-mix-stems-evaluation.md): the planner keeps the stems layer on, but only for the beatmatch family and with voice from the vocal stem or YAMNet (rules revision 3). The same day Diego asked for machine-drum industrial to be in the family (rules revision 4) and then kept the layer to Crate Decks (rules revision 5). STEM-D5 below carries all three.
 
 **Repositories:**
 - Server work: the Crate monorepo (`thecrateapp/crate`).
@@ -134,6 +134,7 @@ Use source separation (stems) where it pays for itself, without separating the w
   - a phrase has voice for the planner when the vocal stem or YAMNet's stored byte says so. The profile's `vocalPresent` stays the stem's (STEM-D4);
   - the presence cuts stay as calibrated in ST3: vocals −45 dBFS and 17.9 dB, bass and drums as measured;
   - the two bonuses and the bass term stay as built.
+- **Crate Decks only (Diego, 2026-11-09; rules revision 5):** "los stems que vayan solo si el cliente es Decks". The layer applies only to requests with `context.source = "decks"`; Listen, Android, VirtualDJ and every other client get the v3 menu without stems, exactly as rules revision 1. The reason: on analyzer v8, the industrial set's `listen` context (Listen's 6 s blend without a bass handoff) measured worse with the layer, from deeper loudness dips, while `dj` did not ([evaluation report](2026-11-09-smart-mix-stems-evaluation.md) §12.5).
 - **Industrial (Diego, 2026-11-09, after STEM-G1; rules revision 4):** "Godflesh, Ministry, Fear Factory, Author and Punisher deberían poder mezclarse bien, tienen baterías/baterías electrónicas marcadas." A track is in the family when its top artist genre, or its top album genre, is of the machine-drum industrial family: industrial, industrial metal and rock, EBM, electro-industrial, aggrotech, dark electro, Neue Deutsche Härte. Other tracks keep the genre prior rule. The family is the gate's own list: the shared genre prior table, which compatible tracks and radio read, does not change. Live-drum extreme metal, punk and rock stay out.
 - **Open question:** drums plus bass as the energy proxy around the cue (fourth item above) is not in the ST3 plan nor in the code. Implement it in a later rules revision, or drop it.
 
@@ -331,7 +332,7 @@ flowchart LR
 | Gate | When | What Diego decides |
 |---|---|---|
 | STEM-G0 | After ST0 | Separator model and weights licence; Decks inference path (ONNX Runtime providers or alternative); server feasibility from the measured times. **Passed 2026-11-08** (see the header) |
-| STEM-G1 | After ST3 | Whether the planner uses the stems layer by default, from the automatic listening metrics. **Passed 2026-11-09:** on for the beatmatch family, with voice from either detector (STEM-D5) |
+| STEM-G1 | After ST3 | Whether the planner uses the stems layer by default, from the automatic listening metrics. **Passed 2026-11-09:** on for Crate Decks and the beatmatch family, with voice from either detector (STEM-D5) |
 | STEM-G2 | After ST7 | Stems playback and local refinement in Decks, tested with a real DJ setup (Crate Decks AGENTS.md: changes to audio, engine, AutoDJ or Smart Mix are tested by Diego before merge) |
 
 ## 10. Out of scope

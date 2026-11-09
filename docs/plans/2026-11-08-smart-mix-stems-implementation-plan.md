@@ -320,7 +320,17 @@ Diego asked for Godflesh, Ministry, Fear Factory and Author & Punisher to get th
 - `get_track_genres` reads album and artist genres in one bounded query (it replaces `get_track_album_genres`).
 - **Tests:** `test_candidates_stems.py` with the four artists and EBM as positives, and live-drum extreme metal, punk, hardcore and rock artists as negatives, all with their real genres; `test_smart_mix_api_stems.py` (`machine drum industrial artists get the stems layer`, `live drum extreme metal stays out`); `test_smart_mix_genres.py`.
 - **Done** in `feat/smart-mix-stems-st3`: `c9e86ff9`. Measured on analyzer v8 with a new industrial set and a metal and punk set (evaluation report §12).
-- **Open:** analyzer v8 finds no phrases on 45 of the 399 evaluation tracks, steady ones included, and the layer cannot act on their edges (evaluation report §12.5).
+- **Open:** analyzer v8 finds no phrases on 45 of the 399 evaluation tracks, steady ones included, and the layer cannot act on their edges (evaluation report §12.7).
+
+### ST3.PR6 · Rules revision 5: stems for Crate Decks only
+
+Diego: "los stems que vayan solo si el cliente es Decks" (STEM-D5). Listen's `listen` context measured worse with the layer on the industrial set (evaluation report §12.5).
+
+- `PlannerPolicy.stems_layer_sources = ("decks",)`; `stems_layer_applies` needs `context.source` in it, besides the mix family. Every other source plans as rules revision 1.
+- The plan batch reads genres only for Crate Decks edges with stems on both tracks. The cache key already carries the context's source; it carries the stem analyses only when the gate passes.
+- The harness's `dj` context asks as Decks does (`source: "decks"`).
+- **Tests:** `test_candidates_stems.py` (`the layer applies only to crate decks`, `other clients get revision 1's menu in the family`, the golden `candidates_v3_rules5.json`, which replaces revision 3's); `test_smart_mix_api_stems.py` (`only crate decks gets the stems layer`); `test_run_eval.py`.
+- **Done** in `feat/smart-mix-stems-st3` (evaluation report §13).
 
 ---
 

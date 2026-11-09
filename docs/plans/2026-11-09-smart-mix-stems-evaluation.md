@@ -6,7 +6,8 @@
 > **STEM-G1 decided (Diego, 2026-11-09): on by mix type, with the vocal fix.** §11 describes the
 > final rule (rules revision 3) and measures it; §1–§10 are the evidence it was decided on. §12
 > adds machine-drum industrial at Diego's request (rules revision 4) and measures it on analyzer
-> v8 with an industrial set and a metal and punk set.
+> v8 with an industrial set and a metal and punk set. §13 keeps the layer to Crate Decks (rules
+> revision 5).
 
 - **Date:** 2026-11-09
 - **Code:** monorepo branch `feat/smart-mix-stems-st3` on `feat/smart-mix-stems-st1` at
@@ -813,3 +814,34 @@ file bit for bit.
 - **Live drums inside the industrial family** (§12.3): the gate cannot tell them apart; a larger
   control set, or a per-track drum signal, would be needed.
 - The loudness dips (§7, §11.4, §12.5) and STEM-D5's energy proxy stay open.
+
+## 13. Stems for Crate Decks only (rules revision 5)
+
+**Decision (Diego, 2026-11-09):** "los stems que vayan solo si el cliente es Decks". The reason is
+§12.5: on the industrial set, Listen's context (6 s, no bass handoff) measured worse with the layer
+(4 better against 20 worse edges on SM5's four metrics, from loudness dips), while the `dj`
+context Crate Decks uses did not.
+
+- **The rule:** the stems layer scores an edge only when the request comes from Crate Decks
+  (`context.source = "decks"`, the source of PR2's menu contract; `stems_layer_sources`) **and**
+  revision 4's mix-family gate passes. Listen, Android playlist and radio, VirtualDJ and every
+  other source get the v3 menu without stems, byte for byte rules revision 1's (tests on the
+  revision 1 golden with stems on both tracks and in-family genres).
+- **The cache key** already carries the context's source (the whole context but a few ignored
+  fields), so it needs no new field; it carries the stem analyses only when the gate, client
+  included, passes. The batch reads genres only for Crate Decks edges with stems on both tracks,
+  so other requests make no extra query. v2, Android and VirtualDJ responses and keys do not
+  change.
+- **The harness** now asks as Decks does in its `dj` context (`source: "decks"`; it was
+  `playlist`), so `dj` measures what Decks gets. Spot check on the four v8 sets with revision 5:
+
+| Set                    | `dj` plans that differ from revision 4 | `listen` plans that differ from v3 | Edges planned with stems in `listen` |
+| ---------------------- | -------------------------------------: | ---------------------------------: | -----------------------------------: |
+| Electronic (112 edges) |                                      0 |                                  0 |                                    0 |
+| Phrase set (184)       |                                      0 |                                  0 |                                    0 |
+| Industrial (60)        |                                      0 |                                  0 |                                    0 |
+| Metal and punk (125)   |                                      0 |                                  0 |                                    0 |
+
+The `dj` re-measure on the four sets gives profile metrics identical to revision 4's, and the
+listening metrics depend only on the plans, so §12.4–§12.5 stand for revision 5 in `dj`. In
+`listen` every v3 plan is v3's own: the regression of §12.5 is gone by construction.
