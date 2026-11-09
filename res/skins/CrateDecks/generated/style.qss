@@ -1566,11 +1566,14 @@ WTrackPropertyEditor {
   width: 14px;
   height: 14px;
 }
+/* Without arrows: zero-sized buttons, or Qt leaves the text a pixel wide */
 #DlgAutoDJ #spinBoxTransition::up-button,
 #DlgAutoDJ #spinBoxTransition::down-button,
 #DlgAnalysis #spinBoxRecentDays::up-button,
 #DlgAnalysis #spinBoxRecentDays::down-button {
+  subcontrol-origin: margin;
   width: 0;
+  height: 0;
   border: 0;
   border-image: none;
   image: none;
