@@ -256,9 +256,9 @@ void ModelStore::download(const QString& name) {
     if (part.isSymLink() || (part.exists() && !part.isFile())) {
         QFile::remove(pDownload->partPath);
     }
-    pDownload->offset = QFileInfo(pDownload->partPath).exists()
-            ? QFileInfo(pDownload->partPath).size()
-            : 0;
+    // Stat the part file again: the check above may have removed it
+    const QFileInfo partLeft(pDownload->partPath);
+    pDownload->offset = partLeft.exists() ? partLeft.size() : 0;
     if (pDownload->offset > pEntry->size) {
         pDownload->offset = 0;
     }
