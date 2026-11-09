@@ -5,6 +5,8 @@
 #include <QSize>
 #include <QString>
 
+#include "preferences/usersettings.h"
+
 class QWidget;
 
 namespace crate {
@@ -47,6 +49,18 @@ SkinLayoutClass skinLayoutClassFor(QSize size, const SkinBreakpoints& breakpoint
 /// axis. QSS has no font-feature-settings nor font-variation-settings; it
 /// sets the family, size, weight and tracking.
 QFont deckNumberFont(const QFont& font);
+
+/// Gives the controls that exist before a skin loads the defaults of the
+/// skin's manifest, before SkinLoader loads it. LegacySkinParser writes a
+/// persistent attribute's value to an empty setting but leaves a control that
+/// already exists as it is, and SkinControls creates [Skin],show_effectrack,
+/// show_samplers and show_microphones at 1 before any skin: on a first start
+/// the racks were open whatever the skin said (plan V2.PR3). For every
+/// persist="true" attribute whose setting is empty and whose control exists,
+/// this sets both, so the skin's default applies once and the user's choice
+/// persists from then on. Does nothing for a skin without
+/// generated/vars.xml, that is, every skin but CrateDecks.
+void applySkinDefaults(const UserSettingsPointer& pConfig, const QString& skinPath);
 
 /// Finishes a skin that SkinLoader has just loaded, with what its QSS cannot
 /// do: the font features of the widgets whose object name starts with

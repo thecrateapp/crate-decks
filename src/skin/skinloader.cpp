@@ -193,6 +193,11 @@ QWidget* SkinLoader::loadConfiguredSkin(QWidget* pParent,
     // the skin was loaded.
     setupMicDuckingControls();
 
+#ifdef __CRATE__
+    // Crate Decks: the skin's defaults also reach the controls that exist
+    // before it loads (folded racks, plan V2.PR3)
+    crate::applySkinDefaults(m_pConfig, pSkin->path().absoluteFilePath());
+#endif
     QWidget* pLoadedSkin = pSkin->loadSkin(pParent, m_pConfig, pSkinCreatedControls, pCoreServices);
 
     // If the skin exists but failed to load, try to fall back to the default skin.
@@ -214,6 +219,9 @@ QWidget* SkinLoader::loadConfiguredSkin(QWidget* pParent,
             }
 
             // This might also fail, but
+#ifdef __CRATE__
+            crate::applySkinDefaults(m_pConfig, pSkin->path().absoluteFilePath());
+#endif
             pLoadedSkin = pSkin->loadSkin(pParent, m_pConfig, pSkinCreatedControls, pCoreServices);
         }
         DEBUG_ASSERT(pLoadedSkin);

@@ -20,6 +20,7 @@ namespace {
 const mixxx::Logger kLogger("crate::skin");
 
 const QString kVarsXml = QStringLiteral("generated/vars.xml");
+const QString kSkinXml = QStringLiteral("skin.xml");
 const QString kDeckNumberPrefix = QStringLiteral("DeckNumber");
 
 const ConfigKey kLayoutNarrowKey(QStringLiteral("[CrateDecks]"), QStringLiteral("layout_narrow"));
@@ -135,6 +136,39 @@ QFont deckNumberFont(const QFont& font) {
     result.setVariableAxis(QFont::Tag("wght"), static_cast<float>(result.weight()));
     result.setVariableAxis(QFont::Tag("opsz"), static_cast<float>(pixelSizeOf(result)));
     return result;
+}
+
+void applySkinDefaults(const UserSettingsPointer& pConfig, const QString& skinPath) {
+    const QDir skinDir(skinPath);
+    if (!pConfig || !QFile::exists(skinDir.filePath(kVarsXml))) {
+        return;
+    }
+    QFile file(skinDir.filePath(kSkinXml));
+    QDomDocument document;
+    if (!file.open(QIODevice::ReadOnly) || !document.setContent(&file)) {
+        kLogger.warning() << "Cannot read the manifest of" << file.fileName();
+        return;
+    }
+    const QDomElement attributes =
+            document.documentElement()
+                    .firstChildElement(QStringLiteral("manifest"))
+                    .firstChildElement(QStringLiteral("attributes"));
+    for (QDomElement attribute = attributes.firstChildElement(QStringLiteral("attribute"));
+            !attribute.isNull();
+            attribute = attribute.nextSiblingElement(QStringLiteral("attribute"))) {
+        if (attribute.attribute(QStringLiteral("persist")) != QLatin1String("true")) {
+            continue;
+        }
+        bool ok = false;
+        const double value = attribute.text().trimmed().toDouble(&ok);
+        const ConfigKey key = ConfigKey::parseCommaSeparated(
+                attribute.attribute(QStringLiteral("config_key")));
+        if (!ok || !pConfig->getValueString(key).isEmpty() || !ControlObject::exists(key)) {
+            continue;
+        }
+        pConfig->set(key, ConfigValue(QString::number(value)));
+        ControlObject::set(key, value);
+    }
 }
 
 void prepareLoadedSkin(QWidget* pSkinRoot, const QString& skinPath) {

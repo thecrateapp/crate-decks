@@ -330,6 +330,46 @@ TEST_F(CrateSkinLoadTest, LateNightStillLoads) {
     EXPECT_TRUE(warnings.isEmpty()) << warnings.join(QLatin1Char('\n')).toStdString();
 }
 
+/// The settings and controls of the racks that the skin folds (design 14.3)
+const QList<ConfigKey> kRackKeys = {
+        ConfigKey(QStringLiteral("[Skin]"), QStringLiteral("show_effectrack")),
+        ConfigKey(QStringLiteral("[Skin]"), QStringLiteral("show_samplers")),
+        ConfigKey(QStringLiteral("[Skin]"), QStringLiteral("show_microphones")),
+};
+
+TEST_F(CrateSkinLoadTest, RacksStartFolded) {
+    // A first start: SkinControls creates the rack controls at 1 before the
+    // skin loads, and the skin's defaults must still apply
+    QTemporaryDir profile;
+    ASSERT_TRUE(profile.isValid());
+    OffscreenDecks decks(profile.path() + QLatin1Char('/'));
+    decks.writeProfile(kCrateDecks);
+    decks.start(application());
+    ASSERT_NE(nullptr, decks.skin());
+    for (const ConfigKey& key : kRackKeys) {
+        EXPECT_EQ(0.0, ControlObject::get(key)) << key.item.toStdString();
+    }
+    auto* pMicAux = decks.skin()->findChild<QWidget*>(QStringLiteral("MicAuxRack"));
+    ASSERT_NE(nullptr, pMicAux);
+    EXPECT_FALSE(pMicAux->isVisible());
+}
+
+TEST_F(CrateSkinLoadTest, RacksKeepTheUsersChoice) {
+    QTemporaryDir profile;
+    ASSERT_TRUE(profile.isValid());
+    OffscreenDecks decks(profile.path() + QLatin1Char('/'));
+    OffscreenDecks::Settings settings;
+    for (const ConfigKey& key : kRackKeys) {
+        settings.append({key, QStringLiteral("1")});
+    }
+    decks.writeProfile(kCrateDecks, settings);
+    decks.start(application());
+    ASSERT_NE(nullptr, decks.skin());
+    for (const ConfigKey& key : kRackKeys) {
+        EXPECT_EQ(1.0, ControlObject::get(key)) << key.item.toStdString();
+    }
+}
+
 class CrateSkinTest : public MixxxTest {
   protected:
     static void SetUpTestSuite() {
@@ -352,6 +392,59 @@ TEST_F(CrateSkinTest, ReadsTheGeneratedVariables) {
     EXPECT_TRUE(crate::readSkinVariables(
             QDir(skinPath(kLateNight)).filePath(QStringLiteral("generated/vars.xml")))
                     .isEmpty());
+}
+
+TEST_F(CrateSkinTest, SkinDefaultsReachControlsThatExist) {
+    QTemporaryDir skin;
+    ASSERT_TRUE(skin.isValid());
+    const QDir skinDir(skin.path());
+    ASSERT_TRUE(skinDir.mkpath(QStringLiteral("generated")));
+    QFile vars(skinDir.filePath(QStringLiteral("generated/vars.xml")));
+    ASSERT_TRUE(vars.open(QIODevice::WriteOnly));
+    vars.write("<Template/>\n");
+    vars.close();
+    QFile manifest(skinDir.filePath(QStringLiteral("skin.xml")));
+    ASSERT_TRUE(manifest.open(QIODevice::WriteOnly));
+    manifest.write(
+            "<skin><manifest><attributes>\n"
+            "<attribute persist=\"true\" config_key=\"[Test],folded\">0</attribute>\n"
+            "<attribute persist=\"true\" config_key=\"[Test],chosen\">0</attribute>\n"
+            "<attribute config_key=\"[Test],session\">0</attribute>\n"
+            "<attribute persist=\"true\" config_key=\"[Test],absent\">0</attribute>\n"
+            "</attributes></manifest></skin>\n");
+    manifest.close();
+
+    const ConfigKey folded(QStringLiteral("[Test]"), QStringLiteral("folded"));
+    const ConfigKey chosen(QStringLiteral("[Test]"), QStringLiteral("chosen"));
+    const ConfigKey session(QStringLiteral("[Test]"), QStringLiteral("session"));
+    const ConfigKey absent(QStringLiteral("[Test]"), QStringLiteral("absent"));
+    // Controls created before the skin, as SkinControls does, at 1
+    ControlObject foldedControl(folded);
+    ControlObject chosenControl(chosen);
+    ControlObject sessionControl(session);
+    foldedControl.set(1);
+    chosenControl.set(1);
+    sessionControl.set(1);
+    // The user chose before: that setting stays
+    config()->set(chosen, ConfigValue(QStringLiteral("1")));
+
+    crate::applySkinDefaults(config(), skin.path());
+    EXPECT_EQ(0.0, foldedControl.get());
+    EXPECT_QSTRING_EQ(QStringLiteral("0"), config()->getValueString(folded));
+    EXPECT_EQ(1.0, chosenControl.get());
+    EXPECT_QSTRING_EQ(QStringLiteral("1"), config()->getValueString(chosen));
+    // Attributes that do not persist are the parser's, every load
+    EXPECT_EQ(1.0, sessionControl.get());
+    // A control that does not exist yet is the parser's too
+    EXPECT_TRUE(config()->getValueString(absent).isEmpty());
+
+    // Other skins (no generated variables) are left as they are
+    foldedControl.set(1);
+    config()->set(folded, ConfigValue(QString()));
+    crate::applySkinDefaults(config(), skinPath(kLateNight));
+    QFile::remove(skinDir.filePath(QStringLiteral("generated/vars.xml")));
+    crate::applySkinDefaults(config(), skin.path());
+    EXPECT_EQ(1.0, foldedControl.get());
 }
 
 TEST_F(CrateSkinTest, LayoutClassFollowsTheBreakpoints) {
@@ -527,10 +620,6 @@ TEST_F(CrateSkinScreenshots, Capture) {
                     // Time remaining, as in the mockups
                     {ConfigKey("[Controls]", "PositionDisplay"), QStringLiteral("1")},
                     {ConfigKey("[Config]", "hide_menubar"), QStringLiteral("1")},
-                    // Folded, as in the mockups (the default is V2.PR3's)
-                    {ConfigKey("[Skin]", "show_effectrack"), QStringLiteral("0")},
-                    {ConfigKey("[Skin]", "show_samplers"), QStringLiteral("0")},
-                    {ConfigKey("[Skin]", "show_microphones"), QStringLiteral("0")},
             });
     decks.start(application());
     ASSERT_NE(nullptr, decks.skin());
