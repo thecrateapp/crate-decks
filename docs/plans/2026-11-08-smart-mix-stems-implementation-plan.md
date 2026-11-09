@@ -312,6 +312,16 @@ flowchart TD
 - **Done** in the monorepo branch `feat/smart-mix-stems-st3`: `d0912cf1` (genre read) and `94190340` (rules revision 3).
 - **Open:** STEM-D5's energy proxy (drums plus bass around the cue) is not implemented.
 
+### ST3.PR5 · Rules revision 4: machine-drum industrial (after STEM-G1)
+
+Diego asked for Godflesh, Ministry, Fear Factory and Author & Punisher to get the stems layer (STEM-D5). Revision 3 kept them out: their genre priors read as metal, and Author & Punisher's albums have no genres.
+
+- `candidates.stems_gate_prior`: 1.0 when the track's top artist genre or top album genre is of `MACHINE_DRUM_GENRES`; the album genres' prior otherwise. The shared prior table does not change.
+- `get_track_genres` reads album and artist genres in one bounded query (it replaces `get_track_album_genres`).
+- **Tests:** `test_candidates_stems.py` with the four artists and EBM as positives, and live-drum extreme metal, punk, hardcore and rock artists as negatives, all with their real genres; `test_smart_mix_api_stems.py` (`machine drum industrial artists get the stems layer`, `live drum extreme metal stays out`); `test_smart_mix_genres.py`.
+- **Done** in `feat/smart-mix-stems-st3`: `c9e86ff9`. Measured on analyzer v8 with a new industrial set and a metal and punk set (evaluation report §12).
+- **Open:** analyzer v8 finds no phrases on 45 of the 399 evaluation tracks, steady ones included, and the layer cannot act on their edges (evaluation report §12.5).
+
 ---
 
 ## ST4 · Crate Decks: inference runtime and models

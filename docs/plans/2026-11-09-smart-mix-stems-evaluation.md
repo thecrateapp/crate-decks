@@ -4,7 +4,9 @@
 > default.** This report does not decide the gate.
 >
 > **STEM-G1 decided (Diego, 2026-11-09): on by mix type, with the vocal fix.** §11 describes the
-> final rule (rules revision 3) and measures it; §1–§10 are the evidence it was decided on.
+> final rule (rules revision 3) and measures it; §1–§10 are the evidence it was decided on. §12
+> adds machine-drum industrial at Diego's request (rules revision 4) and measures it on analyzer
+> v8 with an industrial set and a metal and punk set.
 
 - **Date:** 2026-11-09
 - **Code:** monorepo branch `feat/smart-mix-stems-st3` on `feat/smart-mix-stems-st1` at
@@ -588,3 +590,226 @@ Paired, changed edges only (better / worse beyond the noise floor):
   Diego's listening of the prepared edges can tell.
 - The gate's genre source is the album taxonomy. Per-artist genres, which radio uses, could not
   be measured on the phrase set; tracks without album genres stay off.
+
+## 12. Analyzer v8 and machine-drum industrial (rules revision 4)
+
+**Request (Diego, 2026-11-09, after STEM-G1):** "Godflesh, Ministry, Fear Factory, Author and
+Punisher deberían poder mezclarse bien, tienen baterías/baterías electrónicas marcadas." Rules
+revision 3 kept them out. Their genre priors read as metal (0.1), "industrial" has no prior,
+Fear Factory's albums split industrial metal with death or groove metal, and Author & Punisher's
+albums have no genres. Rules revision 4 (`c9e86ff9`) adds a family of the gate's own, and this
+section measures it on the analyzer production runs (v8).
+
+### 12.1 The rule
+
+- A track's gate prior is 1.0 when its **top artist genre or top album genre** is of the
+  machine-drum industrial family: industrial, industrial metal and rock, EBM, electro-industrial,
+  aggrotech, dark electro, Neue Deutsche Härte. Otherwise it is its album genres' beatmatch
+  prior, as in revision 3. Both tracks still need 0.5.
+- The plan batch reads album and artist genres in one bounded query. The **shared prior table
+  does not change**: compatible tracks and radio keep their priors.
+- **Why genres and not a steadiness signal.** On the development library (136,512 tracks, v5
+  profiles, read-only), the share of tracks with tempo stability ≥ 0.9 ranks the families as
+  expected, but it does not separate tracks. Per artist, Godflesh (0.87) and Ministry (0.88)
+  are as steady as EBM, while Fear Factory (0.64) and Author & Punisher (0.47) would stay out
+  and The Clash (0.70) or pop-punk (0.76) would come in. Per artist the genres are clean: the
+  four artists' top artist genre is industrial metal or industrial.
+
+| Artist's top genre (development library) | Tracks | Revision 3 | Revision 4 | Tempo stability ≥ 0.9 |
+| ---------------------------------------- | -----: | ---------: | ---------: | --------------------: |
+| Industrial family                        |  5,967 |     34.4 % |      100 % |                  75 % |
+| Electronic dance                         | 14,366 |     76.8 % |     76.8 % |                  80 % |
+| Extreme metal                            | 13,658 |      0.0 % |      0.5 % |                  32 % |
+| Other metal                              |  9,411 |      0.0 % |      0.0 % |                  52 % |
+| Punk and hardcore                        | 33,298 |      0.3 % |      1.0 % |                  56 % |
+| Rock                                     | 32,088 |      0.6 % |      1.1 % |                  57 % |
+
+What gets in from extreme metal, punk and rock are albums tagged industrial: Killing Joke, Code
+Orange, Voivod, Blut Aus Nord (drum-machine black metal), Morbid Angel's industrial album, Gary
+Numan, Bowie's _Outside_, HEALTH.
+
+### 12.2 Data: four sets on analyzer v8
+
+Prepared by a separate agent (`handoffs/2026-11-09/eval-v8-data.md`): v8 profiles from
+production's own analysis worker image (`3965fa86`) in a copy of the evaluation database
+(`crate_eval_v8`; v7 untouched), stems for every track, artist genres copied for the real
+artists of the phrase set.
+
+| Set                                | Tracks | Edges | Edges with phrases on both | Stems on both | In the family | Plans changed (`dj` / `listen`) |
+| ---------------------------------- | -----: | ----: | -------------------------: | ------------: | ------------: | ------------------------------: |
+| Electronic                         |    120 |   112 |                        112 |           111 |           111 |                         36 / 34 |
+| Phrase set                         |     64 |   184 |          **150** (v7: 184) |           150 |             3 |                           3 / 3 |
+| Industrial                         |     71 |    60 |                         60 |            60 |            60 |                         31 / 32 |
+| Metal and punk (12 subgenres × 12) |    144 |   125 |                        124 |           122 |         **0** |                       **0 / 0** |
+
+- **Industrial set:** Godflesh 8, Ministry 8, Fear Factory 8, Author & Punisher 8 (machine-drum
+  eras), the family (3TEETH, Black Magnet, Static-X, Nine Inch Nails, Skinny Puppy, Front Line
+  Assembly, Front 242, Nitzer Ebb, Youth Code, Combichrist, Revolting Cocks) and six live-drum
+  controls (Swans, Einstürzende Neubauten, Strapping Young Lad).
+- **Metal and punk:** hardcore, crust/d-beat, thrash, death, black, doom/sludge, grind,
+  metalcore, pop-punk, ska-punk, punk rock/Oi! and post-hardcore, 12 tracks each.
+- On the phrase set the family is now NIN ↔ Fear Factory (two edges, through the copied artist
+  genres) and GosT → 3TEETH; the Godflesh edges of §11 lost their phrases on v8.
+
+### 12.3 The gate on v8
+
+- **The four artists are in:** every track of theirs in an edge passes (Godflesh 7, Author &
+  Punisher 6, Fear Factory 5, Ministry 3), and so does the rest of the family.
+- **Metal and punk are out:** 0 of 125 tracks, so all 125 edges plan byte for byte as v3 in
+  both contexts (three control pairs rendered for §12.6 are bit-identical).
+- **The live-drum controls are in, and too few to say more.** Only two of the six reach edges
+  (four edges): Einstürzende Neubauten «Feurio! (Turen offen)» and Strapping Young Lad
+  «Monument». Their top artist genres are industrial and industrial metal, so the gate lets
+  them in, and three of the four edges change. A steadiness signal would not have kept them
+  out either: on v8 their tempo stability is 1.0 and 0.999 (the machine and marked tracks have a
+  median of 0.998 and 1.0). Telling a live drummer from a machine needs more than six controls
+  and a signal this data does not have.
+
+### 12.4 Profile metrics, v3 against revision 4 (v8)
+
+**Electronic**
+
+| Metric (mean)                      | dj: v3 | dj: final | listen: v3 | listen: final |
+| ---------------------------------- | -----: | --------: | ---------: | ------------: |
+| Policy violations                  |    0 % |       0 % |        0 % |           0 % |
+| Start and end on a phrase boundary | 30.4 % |    30.4 % |      0.0 % |         0.0 % |
+| Boundaries aligned (of 4)          | 65.0 % |    63.2 % |     45.5 % |        43.8 % |
+| Stem bass clash, ms                |    685 |       408 |        577 |           396 |
+| Bass overlap by gain (SM5), ms     |  2,107 |     2,107 |      2,000 |         2,000 |
+| Stem vocal clash, ms               |    569 |        48 |        167 |             5 |
+| YAMNet vocal clash (SM5), ms       |     71 |        71 |          5 |             5 |
+| Harmonic clash, ms                 |  3,463 |     3,245 |      1,000 |         1,000 |
+| Energy step (0–1)                  | 0.0354 |    0.0427 |     0.0407 |        0.0458 |
+
+**Phrase set**
+
+| Metric (mean)                      | dj: v3 | dj: final | listen: v3 | listen: final |
+| ---------------------------------- | -----: | --------: | ---------: | ------------: |
+| Policy violations                  |    0 % |       0 % |        0 % |           0 % |
+| Start and end on a phrase boundary | 15.8 % |    15.8 % |      0.0 % |         0.0 % |
+| Boundaries aligned (of 4)          | 48.8 % |    48.5 % |     35.9 % |        35.7 % |
+| Stem bass clash, ms                |  1,820 |     1,793 |      1,147 |         1,120 |
+| Bass overlap by gain (SM5), ms     |  2,625 |     2,625 |      2,000 |         2,000 |
+| Stem vocal clash, ms               |  2,221 |     2,178 |        507 |           493 |
+| YAMNet vocal clash (SM5), ms       |    104 |       104 |          0 |             0 |
+| Harmonic clash, ms                 |  4,622 |     4,622 |      1,424 |         1,424 |
+| Energy step (0–1)                  | 0.0495 |    0.0498 |     0.0508 |        0.0522 |
+
+**Industrial**
+
+| Metric (mean)                      | dj: v3 | dj: final | listen: v3 | listen: final |
+| ---------------------------------- | -----: | --------: | ---------: | ------------: |
+| Policy violations                  |    0 % |       0 % |        0 % |           0 % |
+| Start and end on a phrase boundary | 51.7 % |    43.3 % |      0.0 % |         0.0 % |
+| Boundaries aligned (of 4)          | 75.0 % |    68.3 % |     45.8 % |        39.6 % |
+| Stem bass clash, ms                |    667 |       119 |      1,133 |           367 |
+| Bass overlap by gain (SM5), ms     |  1,400 |     1,400 |      2,000 |         2,000 |
+| Stem vocal clash, ms               |  1,678 |       252 |        367 |             0 |
+| YAMNet vocal clash (SM5), ms       |      0 |         0 |          0 |             1 |
+| Harmonic clash, ms                 |  5,974 |     5,246 |      1,333 |         1,333 |
+| Energy step (0–1)                  | 0.0451 |    0.0629 |     0.0424 |        0.0679 |
+
+**Metal/punk**
+
+| Metric (mean)                      | dj: v3 | dj: final | listen: v3 | listen: final |
+| ---------------------------------- | -----: | --------: | ---------: | ------------: |
+| Policy violations                  |    0 % |       0 % |        0 % |           0 % |
+| Start and end on a phrase boundary |  1.6 % |     1.6 % |      0.0 % |         0.0 % |
+| Boundaries aligned (of 4)          | 44.8 % |    44.8 % |     40.0 % |        40.0 % |
+| Stem bass clash, ms                |  1,916 |     1,916 |      1,120 |         1,120 |
+| Bass overlap by gain (SM5), ms     |  3,028 |     3,028 |      2,000 |         2,000 |
+| Stem vocal clash, ms               |    345 |       345 |        135 |           135 |
+| YAMNet vocal clash (SM5), ms       |    258 |       258 |         37 |            37 |
+| Harmonic clash, ms                 |  2,635 |     2,635 |      1,328 |         1,328 |
+| Energy step (0–1)                  | 0.0462 |    0.0462 |     0.0489 |        0.0489 |
+
+- **Industrial:** stem bass clash falls by 82 % in `dj` (667 → 119 ms) and stem vocal clash by
+  85 %, harmonic clash by 0.7 s; energy continuity is worse (0.045 → 0.063) and phrase
+  alignment loses 8 points, more than on electronic music.
+- **Electronic** on v8 behaves as on v7 (§11.3). **Metal and punk** are identical to v3.
+
+### 12.5 Listening metrics, v3 against revision 4 (v8, changed edges)
+
+Measured only on the edges whose plan changes (the rest are identical to v3 by construction).
+
+**Industrial:**
+
+| Metric (mean over changed edges) | dj: v3 | dj: rev. 4 | listen: v3 | listen: rev. 4 |
+| -------------------------------- | -----: | ---------: | ---------: | -------------: |
+| Beat clash at full level, ms     |  2,771 |      2,276 |        792 |            963 |
+| Voice on voice (YAMNet), ms      |    948 |        272 |        271 |            131 |
+| Bass on bass, ms                 |  1,000 |        602 |      1,341 |            837 |
+| Loudness step, \|LU\|            |   2.37 |       2.95 |       3.31 |           4.18 |
+| Loudness dip, LU                 |   6.08 |       7.30 |       4.53 |           5.47 |
+| Beats within 25 ms (beatmatch)   |   0.82 |       0.82 |       0.83 |           0.71 |
+
+**Electronic:**
+
+| Metric (mean over changed edges) | dj: v3 | dj: rev. 4 | listen: v3 | listen: rev. 4 |
+| -------------------------------- | -----: | ---------: | ---------: | -------------: |
+| Beat clash at full level, ms     |  3,142 |      2,975 |      1,355 |          1,307 |
+| Voice on voice (YAMNet), ms      |    716 |        522 |        177 |            255 |
+| Bass on bass, ms                 |  1,218 |        916 |        774 |            697 |
+| Loudness step, \|LU\|            |   3.13 |       4.18 |       2.80 |           3.68 |
+| Loudness dip, LU                 |   7.91 |       7.50 |       6.28 |           6.21 |
+| Beats within 25 ms (beatmatch)   |   0.67 |       0.74 |       0.60 |           0.69 |
+
+**Phrase set:**
+
+| Metric (mean over changed edges) | dj: v3 | dj: rev. 4 | listen: v3 | listen: rev. 4 |
+| -------------------------------- | -----: | ---------: | ---------: | -------------: |
+| Beat clash at full level, ms     |  4,973 |      2,500 |      1,447 |            667 |
+| Voice on voice (YAMNet), ms      |    640 |        480 |        377 |            320 |
+| Bass on bass, ms                 |  1,090 |        560 |      1,870 |            963 |
+| Loudness step, \|LU\|            |   4.90 |       3.48 |       4.77 |           3.67 |
+| Loudness dip, LU                 |   4.43 |       5.63 |       2.23 |          10.30 |
+| Beats within 25 ms (beatmatch)   |   0.49 |       0.49 |       0.29 |           0.96 |
+
+Paired, changed edges (better / worse beyond the noise floor; sign test where p < 0.1):
+
+| Set, context         | Changed | Beat clash |  Voice on voice |      Bass on bass |   Loudness step |    Loudness dip |   Net, SM5's four | Net, with bass | Clearly worse / better |
+| -------------------- | ------: | ---------: | --------------: | ----------------: | --------------: | --------------: | ----------------: | -------------: | ---------------------: |
+| Industrial, `dj`     |      31 |      7 / 5 | 10 / 1 (p 0.01) |    6 / 0 (p 0.03) |          7 / 13 |          9 / 18 |           12 / 12 |        15 / 12 |                11 / 11 |
+| Industrial, `listen` |      32 |      4 / 9 |           4 / 0 | 14 / 1 (p < 0.01) |          9 / 17 | 6 / 21 (p 0.01) | 4 / 20 (p < 0.01) |         7 / 15 |                 12 / 7 |
+| Electronic, `dj`     |      36 |     13 / 9 |          10 / 5 |    9 / 2 (p 0.07) | 7 / 16 (p 0.09) |         16 / 14 |           15 / 11 |        16 / 10 |                17 / 15 |
+| Electronic, `listen` |      34 |      6 / 5 |           2 / 4 |            10 / 6 |         11 / 17 |         10 / 13 |           10 / 13 |        11 / 12 |                 10 / 5 |
+| Phrase set, `dj`     |       3 |      3 / 0 |           1 / 0 |             1 / 0 |           1 / 1 |           1 / 1 |             3 / 0 |          3 / 0 |                  1 / 2 |
+| Phrase set, `listen` |       3 |      2 / 0 |           0 / 0 |             2 / 0 |           1 / 2 |           1 / 2 |             1 / 1 |          2 / 0 |                  2 / 1 |
+
+- **Industrial, `dj` (the Crate Decks context):** the layer does what Diego asked for, without
+  measuring worse: voice on voice falls on 10 edges and rises on 1 (p 0.01), bass on bass falls on
+  6 and rises on none (p 0.03), net 12 / 12 on SM5's four metrics and 15 / 12 with bass. The cost
+  is loudness: steps worse on 13 edges against 7, dips on 18 against 9, and in the profile metrics
+  energy continuity and phrase alignment.
+- **Industrial, `listen`** (6 s, no bass handoff) **measures worse:** 4 better against 20 worse on
+  SM5's four (p < 0.01), from loudness dips (6 / 21, p 0.01) and steps (9 / 17); bass on bass
+  still improves (14 / 1). The cause is not measured; Listen's 6 s blend without a bass handoff
+  is where the dips concentrate on the earlier sets too (§7).
+- **Electronic** on v8 matches v7 (§11.4): within noise on net (15 / 11 in `dj`, 10 / 13 in
+  `listen`), bass on bass lower (9 / 2 in `dj`), loudness steps leaning worse (7 / 16, p 0.09).
+- **Phrase set:** three edges; better on net in `dj` (3 / 0). GosT → 3TEETH still dips deeply in
+  `listen` (+17.7 LU).
+- **Metal and punk:** no plan changes, so nothing to measure.
+
+### 12.6 Listening playlist
+
+`~/Code/Ninja/crate-agents/listening/stem-g1-v8/` (`dj` context, A v3, B revision 4, same render
+chain and gain, `playlist.m3u8`, README in Spanish): 47 pairs, only edges whose plan changes
+except the controls. The 31 industrial edges come first, those with Godflesh, Ministry, Fear
+Factory or Author & Punisher at the head, the three live-drum control edges marked; then 10
+electronic edges (the five that improve most and the five that worsen most), the three phrase-set
+edges, and three metal and punk controls (black, hardcore, ska-punk) where A and B are the same
+file bit for bit.
+
+### 12.7 Open
+
+- **Analyzer v8 leaves 45 of the 399 tracks without phrases** (no downbeat anchor, structure
+  confidence 0), steady ones included (Ministry «Just One Fix», stability 0.999): 11
+  electronic, 5 of the phrase set that had phrases on v7, 17 industrial (Ministry 5, Fear
+  Factory 3), 12 metal and punk. On the phrase set **34 of the 184 edges lose their phrases**,
+  so the menu falls back to v2's bar heuristic and the stems layer cannot act. This is the
+  analyzer production runs and deserves its own look outside ST3. `analyze_pool.py` also counts
+  a profile with an empty phrase list as ready.
+- **Live drums inside the industrial family** (§12.3): the gate cannot tell them apart; a larger
+  control set, or a per-track drum signal, would be needed.
+- The loudness dips (§7, §11.4, §12.5) and STEM-D5's energy proxy stay open.
