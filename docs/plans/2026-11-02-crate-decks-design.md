@@ -308,6 +308,8 @@ flowchart LR
 
 ### 5.2. Parches en ficheros de Mixxx (lista cerrada; cualquier otro necesita justificación)
 
+Los parches de V2 (skin por defecto ampliado, `coreservices.cpp`, `mixxxmainwindow.cpp`, `dlgabout.cpp` y `dlgpreferences.cpp` ampliado) los aprobó Diego el 2026-11-09.
+
 | Fichero | Cambio | ¿Hook genérico? |
 |---|---|---|
 | ~~`src/library/trackcollectionmanager.cpp`~~ | **Descartado tras F0 (Q9):** no hay forma de registrar colecciones externas (la línea 59 es un `TODO`), y la colección recibiría `saveTrack`, purgas y reubicaciones desde cualquier hilo. Se reconsidera en F7/F8 | — |
@@ -322,13 +324,16 @@ flowchart LR
 | `src/widget/wtracktableview.cpp`, `src/widget/wtrackmenu.cpp`, `src/library/trackmodel.h` | **Aprobado en G0.** Hook de carga asíncrona: `TrackModel::requestTrackLoad(index, group, play)`, virtual y con `false` por defecto, al que llaman el doble clic, Enter, `LoadSelectedTrack` y "Cargar en Deck N" antes de `getTrack`. Hace falta porque `getTrack` es síncrono, también se llama al seleccionar y no recibe el deck (F0 Q9) | Sí (genérico) |
 | `src/sources/soundsourceffmpeg.{h,cpp}` | Hook virtual `openInputContext()` (+9 / −2; el valor por defecto mantiene el comportamiento) para la fuente progresiva (F0 Q17) | Posible |
 | `src/engine/cachingreader/cachingreaderworker.cpp`, `src/analyzer/analyzerthread.cpp`, `src/coreservices.cpp` | Banderas de aborto para que una lectura progresiva que espera bytes se despierte al expulsar, cargar otra pista o cerrar; si no, `quitWait()` espera para siempre (F0 Q17) | Posible |
-| `src/preferences/dialog/dlgpreferences.cpp` | Registrar `DlgPrefCrate` | No |
+| `src/preferences/dialog/dlgpreferences.cpp` | Registrar `DlgPrefCrate` y dar a Preferencias el aspecto de las maquetas de GU1 (V2.PR5) | No |
 | `src/sources/soundsourceproxy.cpp` (`registerProviders`) | Registrar `SoundSourceCrateProgressive` con prioridad `Highest`; solo en F4b (D14) | Quizá: un hook genérico de fuentes progresivas |
 | Importación de metadatos al añadir la pista (localizar en F4b: `TrackCollectionManager` / `SoundSourceProxy::updateTrackFromSource`) | Saltar la lectura de tags de pistas Crate en descarga; solo en F4b | No |
 | `res/skins/CrateDecks/` (nuevo, derivado de LateNight) | Skin propia; no se modifica LateNight | No |
-| `res/skins/default.qss` | Estilo de diálogos y preferencias con los tokens de Crate | No |
+| `res/skins/default.qss` | **No se toca** (V2.PR5): con `CRATE`, la ventana principal y cada diálogo cargan `generated/default.qss` y `generated/dialogs.qss`, generados desde los tokens. Un test avisa si una sincronía con upstream añade a `default.qss` una regla que el de Crate no tenga | No |
 | `res/fonts/` | Roboto, Bricolage Grotesque y JetBrains Mono (OFL 1.1), copiadas de `app/shared/fonts/` con sus licencias | No |
-| Skin por defecto (`src/skin/skinloader.cpp` o la constante que la define) | `CrateDecks` en lugar de `LateNight` | No |
+| Skin por defecto (`src/skin/skinloader.cpp` o la constante que la define) | `CrateDecks` en lugar de `LateNight`; al cargar la skin, sus valores por defecto (racks plegados) y el estilo de la biblioteca (V2.PR3 y V2.PR4) | No |
+| `src/coreservices.cpp` (además de las banderas de aborto) | Valores por defecto de la biblioteca de Crate Decks, como el BPM con dos decimales, escritos antes de que Preferencias guarde los de Mixxx (V2.PR4). Afecta a cualquier skin | No |
+| `src/mixxxmainwindow.cpp` | Aplicar los estilos generados desde los tokens a la ventana principal y a cada diálogo, que son ventanas propias (V2.PR5) | No |
+| `src/dialog/dlgabout.cpp` | Atribución de los iconos Solar (CC BY 4.0) y de las fuentes, y el aspecto de About (V2.PR5) | No |
 
 ## 6. Datos locales
 
@@ -737,6 +742,10 @@ píxeles de V2 y V3: cada PR visual se compara con ellas lado a lado. Viven fuer
 - **Estado de Crate en la barra superior:** servidor y conexión.
 - **Deck vacío** con zona para arrastrar una pista.
 - **Distribución a 1366 × 768:** barra con iconos, hotcues en su propia fila, stems en 2 × 2, y sin regla de frase ni línea de Smart Mix. Con 4 decks la biblioteca queda en 3 filas, así que se puede maximizar.
+
+**Velo detrás de los diálogos (Diego, 2026-11-09):** Preferencias no oscurece la ventana. No es modal, para
+poder ajustar algo en pleno set sin perder de vista los decks. Los diálogos que bloquean (primer arranque y
+confirmaciones) sí llevan el velo de la maqueta.
 
 ### 14.4. Criterios para la etapa 2 (QML, GU2)
 
