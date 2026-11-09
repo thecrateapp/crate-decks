@@ -129,6 +129,7 @@ Si el LLM no mejora el resultado (SG3), no se activa, y el trabajo de estructura
 **SM3-D3. Planner `smart-mix-v3` con menú de candidatos.**
 - **Qué hace:** `plan_transition_candidates` genera de 4 a 8 candidatos válidos por arista, combinando frase de salida, frase de entrada, longitud (8, 16 o 32 compases, dentro de la política), intercambio de bajos sí o no y curva. Ordena con una puntuación determinista que tiene en cuenta la estructura.
 - **El plan v3** es el primer candidato. `smart-mix-v2` se mantiene sin cambios y es el valor por defecto de la API hasta que los clientes migren.
+- **Listen** migra a v3 con su propio plan, detrás de un interruptor del servidor y sin mover ese valor por defecto, que siguen leyendo VirtualDJ y las versiones antiguas de la app: [plan de Listen en Smart Mix v3](2026-11-09-listen-smart-mix-v3-plan.md).
 - **Contrato:**
   - La API acepta `plannerVersion: "smart-mix-v2" | "smart-mix-v3"`.
   - `API_CONTRACT_VERSION` pasa a `"2026-11"`.

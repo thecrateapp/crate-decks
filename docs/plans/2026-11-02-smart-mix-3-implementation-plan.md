@@ -6,7 +6,8 @@
 >
 > Diseño: [2026-11-02-smart-mix-3-design.md](2026-11-02-smart-mix-3-design.md). Las decisiones se citan como
 > SM3-D1…D15. Cliente que lo consume primero: Crate Decks F6b
-> ([plan](2026-11-02-crate-decks-implementation-plan.md)).
+> ([plan](2026-11-02-crate-decks-implementation-plan.md)). Listen pasa a v3 con su propio plan:
+> [plan de Listen en Smart Mix v3](2026-11-09-listen-smart-mix-v3-plan.md).
 
 **Fecha:** 2026-11-02. **Base:** `origin/main` en `a0fa13aaa` (3.1.2). La última migración es la 142: revalida
 el *head* antes de numerar cada migración nueva.
