@@ -41,6 +41,12 @@ QtObject {
     readonly property color logoStart: "#67e8f9"
     readonly property color logoEnd: "#0e7490"
     readonly property color logoShade: "#0e4f5c"
+    readonly property color dangerBg: "#1aef4444"
+    readonly property color dangerBorder: "#40ef4444"
+    readonly property color warningBg: "#1afbbf24"
+    readonly property color warningBorder: "#40fbbf24"
+    readonly property color badgeOffText: "#4ff1f5f9"
+    readonly property color badgeOffBorder: "#0af1f5f9"
     readonly property color accentHiBorder: "#6667e8f9"
     readonly property color textPrimaryBorder: "#66f1f5f9"
 
@@ -51,6 +57,8 @@ QtObject {
     readonly property color iconDisabled: "#4a4c52"
     readonly property color iconOnAccent: "#0a0a0f"
     readonly property color iconPrimary: "#f1f5f9"
+    readonly property color iconAccent: "#06b6d4"
+    readonly property color iconDanger: "#ef6465"
 
     // deck
     readonly property color deckA: "#67e8f9"
@@ -139,6 +147,7 @@ QtObject {
     readonly property real trackingNumeral: -0.05
     readonly property real trackingDeckTitle: -0.01
     readonly property real lineHeightDisplay: 0.95
+    readonly property real lineHeightBody: 1.5
     readonly property real lineHeightLabel: 1.4
 
     // height
@@ -395,4 +404,109 @@ QtObject {
     // deckDisplay
     readonly property string deckNumberFont: "Bricolage Grotesque"
     readonly property real deckNumberWeight: 700
+
+    // colorPicker
+    readonly property color pickerRed: "#ff0000"
+    readonly property color pickerYellow: "#ffff00"
+    readonly property color pickerGreen: "#00ff00"
+    readonly property color pickerCyan: "#00ffff"
+    readonly property color pickerBlue: "#0000ff"
+    readonly property color pickerMagenta: "#ff00ff"
+
+    // dialog
+    readonly property real dialogTitleHeight: 44
+    readonly property real dialogPaddingX: 16
+    readonly property real dialogFootPaddingY: 12
+    readonly property real dialogTitleGap: 12
+    readonly property real dialogButtonGap: 8
+    readonly property real dialogLogoWidth: 16
+    readonly property real dialogLogoHeight: 17
+    readonly property real iconButtonSize: 32
+    readonly property real prefsWidth: 1180
+    readonly property real prefsHeight: 940
+    readonly property real prefsNavWidth: 232
+    readonly property real prefsNavPaddingY: 10
+    readonly property real prefsNavRowHeight: 32
+    readonly property real prefsNavLogoWidth: 15
+    readonly property real prefsNavLogoHeight: 16
+    readonly property real prefsPagePaddingY: 22
+    readonly property real prefsPagePaddingX: 36
+    readonly property real fontWeightPrefsTitle: 600
+    readonly property real trackingPrefsTitle: -0.04
+    readonly property real prefsTitleGap: 6
+    readonly property real prefsIntroGap: 22
+    readonly property real prefsIntroMaxWidth: 680
+    readonly property real prefsSectionPaddingTop: 18
+    readonly property real prefsSectionPaddingBottom: 20
+    readonly property real prefsSectionLabelGap: 12
+    readonly property real prefsRowLabelWidth: 220
+    readonly property real prefsRowLabelWidthColumn: 96
+    readonly property real prefsRowGap: 18
+    readonly property real prefsColumnGap: 40
+    readonly property real prefsHintGap: 2
+    readonly property real serverGap: 14
+    readonly property real serverPaddingY: 12
+    readonly property real serverNameGap: 3
+    readonly property real serverMetaGap: 10
+    readonly property real featureBadgeHeight: 22
+    readonly property real featureBadgePaddingX: 8
+    readonly property real featureGap: 6
+    readonly property real featuresTop: 8
+    readonly property real statusBadgePaddingX: 9
+    readonly property real helperGap: 10
+    readonly property real addServerTop: 14
+    readonly property real switchWidth: 32
+    readonly property real switchHeight: 18
+    readonly property real switchKnob: 14
+    readonly property real cacheGaugeSize: 64
+    readonly property real cacheGaugeRadius: 24
+    readonly property real cacheGaugeTickGap: 3
+    readonly property real cacheGaugeTickLong: 5
+    readonly property real cacheGaugeTickShort: 2
+    readonly property real cacheLimitWidth: 52
+    readonly property real cacheLimitMaximum: 100
+    readonly property real fontSizeUsage: 26
+    readonly property real usageGap: 16
+    readonly property real usageBottom: 12
+    readonly property real usageNumberTop: 4
+    readonly property real chipPaddingX: 12
+    readonly property real chipPaddingY: 4
+    readonly property real chipGap: 8
+    readonly property real chipHeight: 32
+    readonly property real trackingChip: 0.04
+    readonly property real segmentLabelTop: 4
+    readonly property real segmentLabelBottom: 10
+    readonly property real segmentBottom: 12
+    readonly property real firstRunWidth: 560
+    readonly property real firstRunPaddingTop: 32
+    readonly property real firstRunPaddingX: 36
+    readonly property real firstRunPaddingBottom: 28
+    readonly property real firstRunGap: 18
+    readonly property real firstRunHeadGap: 14
+    readonly property real firstRunLogoWidth: 40
+    readonly property real firstRunLogoHeight: 43
+    readonly property real lineHeightFirstRunTitle: 1.05
+    readonly property real lineHeightPrefsTitle: 1.1
+    readonly property real fontSizeFirstRunTitle: 34
+    readonly property real firstRunActionsTop: 4
+    readonly property real stepsGap: 10
+    readonly property real stepGap: 8
+    readonly property real fieldGap: 8
+    readonly property real fieldPaddingX: 12
+    readonly property real fieldIconGap: 8
+    readonly property real buttonPaddingX: 16
+    readonly property real buttonPaddingXSm: 12
+    readonly property real buttonGapSm: 6
+    readonly property real fontSizeButton: 14
+    readonly property real fontWeightButton: 500
+    readonly property real fontSizeHelper: 11.5
+    readonly property real menuPadding: 4
+    readonly property real menuItemPaddingX: 8
+    readonly property real menuSeparatorMargin: 4
+    readonly property real tabPaddingX: 14
+    readonly property real splashLaneWidth: 160
+    readonly property real splashGap: 18
+    readonly property real aboutWidth: 560
+    readonly property real aboutMetaGap: 6
+    readonly property real aboutTextHeight: 160
 }

@@ -5348,6 +5348,7 @@ if(CRATE)
       src/crate/ui/delegates/delegatestyle.cpp
       src/crate/ui/delegates/sidebardelegate.cpp
       src/crate/ui/delegates/statedelegates.cpp
+      src/crate/ui/dialogs/dialogstyle.cpp
       src/crate/ui/skin/crateserverstatus.cpp
       src/crate/ui/skin/crateskin.cpp
       src/crate/ui/skin/librarystyle.cpp
@@ -5373,6 +5374,7 @@ if(CRATE)
         src/test/crate/skinloadtest.cpp
         src/test/crate/mixerstyletest.cpp
         src/test/crate/delegatestest.cpp
+        src/test/crate/dialogstest.cpp
     )
   endif()
 endif()

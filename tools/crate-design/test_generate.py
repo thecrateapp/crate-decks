@@ -20,6 +20,9 @@ TOKENS = {
             "textMuted": {"value": "#999ca0"},
             "textFaint": {"value": "#4a4c52"},
             "onAccent": {"value": "#0a0a0f"},
+            "borderSubtle": {"value": "#f1f5f9", "alpha": 0.06},
+            "textSubtle": {"value": "#7e8084"},
+            "dangerText": {"value": "#ef6465"},
         },
         "iconState": {
             "iconIdle": {"ref": "textMuted"},
@@ -28,6 +31,8 @@ TOKENS = {
             "iconDisabled": {"ref": "textFaint"},
             "iconOnAccent": {"ref": "onAccent"},
             "iconPrimary": {"ref": "textPrimary"},
+            "iconAccent": {"ref": "accentHi"},
+            "iconDanger": {"ref": "dangerText"},
         },
         "geometry": {
             "radiusMd": {"value": 4, "unit": "px"},
@@ -66,6 +71,9 @@ TOKENS = {
             "stemTickLong": {"value": 3, "unit": "px"},
             "stemHandleWidth": {"value": 5, "unit": "px"},
             "stemHandleHeight": {"value": 9, "unit": "px"},
+            "switchWidth": {"value": 32, "unit": "px"},
+            "switchHeight": {"value": 18, "unit": "px"},
+            "switchKnob": {"value": 14, "unit": "px"},
         },
     },
 }
@@ -99,6 +107,10 @@ def design(tmp_path):
     (svg / "solar").mkdir(parents=True)
     (svg / "controls").mkdir()
     (svg / "solar" / "play.svg").write_text(ICON, encoding="utf-8")
+    # The icons that also get a button's colour (ICON_STATES_FOR)
+    for _, icons in generate.ICON_STATES_FOR.values():
+        for icon in icons:
+            (svg / "solar" / f"{icon}.svg").write_text(ICON, encoding="utf-8")
     return {
         "tokens": tokens,
         "templates": templates,
@@ -498,3 +510,44 @@ def test_fader_handles_sit_on_the_rail(design):
     h30 = (controls / "fader-handle-h30.svg").read_text(encoding="utf-8")
     assert 'width="11" height="30"' in h30
     assert '<rect x="0.5" y="6.5" width="10" height="18"' in h30
+
+
+def test_switch_is_the_admin_switch(design):
+    run(design)
+    controls = design["out"] / "controls"
+    off = (controls / "switch-off.svg").read_text(encoding="utf-8")
+    on = (controls / "switch-on.svg").read_text(encoding="utf-8")
+    # decks.css .switch: a 32 x 18 pill, the 14 px knob 1 px inside the
+    # border, on the left in textSubtle and on the right over accentHi
+    assert 'width="32" height="18"' in off
+    assert 'rx="8.5" fill="none" stroke="#f1f5f9" stroke-opacity="0.1"' in off
+    assert '<circle cx="9" cy="9" r="7" fill="#7e8084"/>' in off
+    assert 'fill="#67e8f9" stroke="#67e8f9"' in on
+    assert '<circle cx="23" cy="9" r="7" fill="#0a0a0f"/>' in on
+    for name in ("switch-off-disabled.svg", "switch-on-disabled.svg"):
+        assert (controls / name).exists()
+
+
+def test_some_icons_get_a_button_colour(design):
+    run(design)
+    icons = design["out"] / "icons"
+    danger = (icons / "logout_danger.svg").read_text(encoding="utf-8")
+    assert 'fill="#ef6465"' in danger
+    assert (icons / "add-circle_accent.svg").exists()
+    # Only the icons that need the state get it
+    assert not (icons / "play_danger.svg").exists()
+
+
+def test_missing_icon_for_a_button_colour_fails(design):
+    (design["svg"] / "solar" / "logout.svg").unlink()
+    with pytest.raises(generate.GeneratorError, match="logout"):
+        run(design)
+
+
+def test_application_style_is_generated():
+    # The application's default style and the splash screen: generated, and
+    # with every placeholder resolved
+    for name in ("default.qss", "launch.qss"):
+        text = (generate.OUT / name).read_text(encoding="utf-8")
+        assert "{{" not in text and "}}" not in text, name
+        assert "#" in text and ":/images/" not in text, name

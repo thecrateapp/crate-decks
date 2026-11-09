@@ -6,6 +6,7 @@
 #include <QEvent>
 #include <QHeaderView>
 #include <QItemSelectionModel>
+#include <QLayout>
 #include <QMouseEvent>
 #include <QPaintEvent>
 #include <QPainter>
@@ -810,6 +811,23 @@ void styleLibrary(QWidget* pSkinRoot,
         pSidebar->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
         pSidebar->setMouseTracking(true);
         pSidebar->viewport()->setAttribute(Qt::WA_Hover);
+    }
+
+    // The button bars of Auto DJ and Analyze: the library's gutter, their
+    // buttons centred in the row, as the search row above them
+    const auto barNumber = [&variables](const char* name) {
+        return static_cast<int>(
+                std::lround(variables.value(QLatin1String(name)).toDouble()));
+    };
+    const QList<QWidget*> bars =
+            pSkinRoot->findChildren<QWidget*>(QStringLiteral("LibraryFeatureControls"));
+    for (QWidget* pBar : bars) {
+        if (auto* pLayout = pBar->layout()) {
+            const int gutter = barNumber("CrateLibBarGutter");
+            const int padding = barNumber("CrateLibBarPadding");
+            pLayout->setContentsMargins(gutter, padding, gutter, padding);
+            pLayout->setSpacing(barNumber("CrateLibBarGap"));
+        }
     }
 
     const QList<WTrackTableView*> tables = pSkinRoot->findChildren<WTrackTableView*>();

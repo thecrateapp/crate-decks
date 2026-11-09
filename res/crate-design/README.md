@@ -55,6 +55,10 @@ Diseño: §14 del [documento de diseño](../../docs/plans/2026-11-02-crate-decks
 | `fader` | `faderRail`, `faderTickStep`, `faderTickGap`, `faderHandleWidth`, `faderHandleHeight`, `faderHandleLine`, `faderWidth` | Fader con carril de 1 px, marcas cada 10 % y tirador de contorno |
 | `mixerLayout` | `mixerPadding*`, `mixerRowGap`, `strip*`, `fontSizeStripLetter`, `master*`, `xfaderGap` | Geometría del mezclador de las maquetas (`.mixer`, `.strip`, `.master`, `.xfader`) |
 | `deckDisplay` | `deckNumberFont`, `deckNumberWeight` | Fuente de BPM y tiempo restante en el deck |
+| `color` | `dangerBg`, `dangerBorder`, `warningBg`, `warningBorder`, `badgeOffText`, `badgeOffBorder` | Mezclas de los diálogos (V2.PR5): botón destructivo suave e insignias de estado del admin, y la insignia de una función que el servidor no tiene (opacidad 0,4 en las maquetas) |
+| `iconState` | `iconAccent`, `iconDanger` | El icono de un botón de acción y de uno destructivo, en el color de su texto; solo para los iconos que lo necesitan (`ICON_STATES_FOR` en el generador) |
+| `colorPicker` | `pickerRed` … `pickerMagenta` | El arcoíris del color "a medida" del selector de color de Mixxx, que `default.qss` conserva |
+| `dialog` | `dialog*`, `iconButtonSize`, `prefs*`, `fontWeightPrefsTitle`, `trackingPrefsTitle`, `lineHeight*Title`, `server*`, `feature*`, `statusBadgePaddingX`, `helperGap`, `addServerTop`, `switch*`, `cacheGauge*`, `cacheLimit*`, `fontSizeUsage`, `usage*`, `chip*`, `trackingChip`, `segment*`, `firstRun*`, `fontSizeFirstRunTitle`, `steps*`, `stepGap`, `field*`, `button*`, `fontSizeButton`, `fontWeightButton`, `fontSizeHelper`, `menu*`, `tabPaddingX`, `splash*`, `about*` | Geometría de los diálogos de las maquetas `preferences-crate` y `first-run` (`.dialog`, `.prefs*`, `.psec`, `.server`, `.prow`, `.trow`, `.switch`, `.seg`, `.firstrun`, `.steps`, `.field`) y de los botones del admin; los menús, las pestañas, el splash y About siguen el mismo lenguaje. Las que el C++ necesita llegan por `vars.xml` como `CrateDlg<Token>` |
 
 ## Decisiones de GU1
 
@@ -99,6 +103,10 @@ Python 3 estándar, sin dependencias. Las salidas se commitean, y el job `design
 | `controls/fader-handle-v30.svg`, `controls/fader-handle-v34.svg`, `controls/fader-handle-h30.svg` | Tokens de `fader` | Tirador de contorno en reposo de los faders de canal, de pitch y del crossfader, del ancho del fader y con el carril en el medio píxel de las maquetas. El carril, las marcas y el tirador relleno (al moverse o con sync) los pinta `src/crate/ui/skin/mixerstyle.cpp` a la longitud real del fader, como los medidores |
 | `controls/phrase-ruler.svg`, `controls/stem-rail.svg`, `controls/stem-handle.svg` | Tokens de `geometry` y `deckLayout` | Regla de frase del deck (64 beats con marcas de beat, compás y frase), carril de volumen de un stem y su tirador |
 | `cover-default.svg` | `tools/crate-design/templates/cover-default.svg.in` | Carátula de una pista sin carátula |
+| `default.qss` | `tools/crate-design/templates/default.qss.in` | El estilo de la aplicación (V2.PR5): diálogos, Preferencias, About, primer arranque, menús, tooltips y editores, y las reglas de `res/skins/default.qss` de Mixxx con iconos Solar. Con `CRATE`, Mixxx lo carga para toda la aplicación en vez de `res/skins/default.qss` (`src/crate/ui/dialogs/dialogstyle.h`) |
+| `launch.qss` | `tools/crate-design/templates/launch.qss.in` | La pantalla de arranque con la marca de Crate Decks, para cualquier skin |
+| `controls/switch-{off,on}[-disabled].svg` | Tokens de `dialog` | El interruptor del admin (`.switch` de las maquetas): las casillas de los diálogos |
+| `icons/<icono>_{accent,danger}.svg` | `tools/crate-design/svg/solar/` | El icono de un botón de acción o destructivo, solo para los iconos de `ICON_STATES_FOR` |
 
 **Plantillas:** cualquier `<nombre>.<qss|xml|qml|svg>.in` en `tools/crate-design/templates/` produce `generated/<nombre>.<ext>`, también en subcarpetas. Las plantillas SVG dibujan el logo y formas simples desde los tokens; no son iconos (los iconos son solo Solar). Los marcadores son `{{token}}`, `{{token.filtro}}` o una expresión.
 
@@ -125,6 +133,7 @@ Filtros: `.hex`, `.alpha` (0–1), `.argb`, `.rgba`, `.number`, `.unit`, `.list`
 - `WWidgetGroup` aplica `qproperty-layoutContentsMargins` dos veces (al widget y a su layout): la plantilla pone la mitad del margen.
 - Los tamaños de QSS (`min-height`, `min-width`) son del contenido: Qt les suma el padding y el borde.
 - `QFont` toma tamaños de píxel enteros: 10,5 y 11,5 px necesitan tamaño en puntos o `setPixelSize` redondeado.
+- En los diálogos (V2.PR5), QSS tampoco da la altura de línea de un párrafo (`setParagraph()`), los ejes `opsz` y `wght` de los títulos en display (`setDisplayAxes()`), las esquinas redondeadas de los menús (ventana translúcida) ni el relleno del texto de un `QSpinBox`, que Qt coloca sobre su borde: lo hace `src/crate/ui/dialogs/dialogstyle.cpp`.
 
 ## Iconos Solar
 

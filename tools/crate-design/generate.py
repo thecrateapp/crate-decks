@@ -71,6 +71,14 @@ STATES = {
     "primary": "iconPrimary",
 }
 
+# States that only a few icons need: the icon of a button in its text
+# colour (the dialogs' action and destructive buttons). Each state's token
+# and the Solar icons it colours.
+ICON_STATES_FOR = {
+    "accent": ("iconAccent", ("add-circle",)),
+    "danger": ("iconDanger", ("logout", "trash-bin-trash")),
+}
+
 
 class GeneratorError(Exception):
     """One or more problems with the tokens or the templates."""
@@ -565,6 +573,55 @@ def fader_handle(t, used, vertical, cross):
     return svg_document(width, height, body)
 
 
+def switch_control(t, used, on, disabled=False):
+    """The admin's switch (GU1 mockups decks.css .switch): a pill with a
+    hairline border and a round knob, off on the left in textSubtle, on on
+    the right in bgApp over accentHi. Disabled, the faint colours. The
+    dialogs' checkboxes use it as their indicator."""
+    names = (
+        "switchWidth",
+        "switchHeight",
+        "switchKnob",
+        "strokeHairline",
+        "border",
+        "borderSubtle",
+        "textSubtle",
+        "textFaint",
+        "accentHi",
+        "bgApp",
+    )
+    used.update(names)
+    width = t["switchWidth"].value
+    height = t["switchHeight"].value
+    hairline = t["strokeHairline"].value
+    knob = t["switchKnob"].value / 2
+    # As the mockups' flex box: the knob 1 px inside the border, centred
+    inset = hairline + (height - 2 * hairline - 2 * knob) / 2
+    centre_y = height / 2
+    centre_x = inset + knob if not on else width - inset - knob
+    if on:
+        track = t["textFaint" if disabled else "accentHi"]
+        fill = f'fill="{track.value}" stroke="{track.value}"'
+        knob_colour = t["bgApp"].value
+    else:
+        rim = t["borderSubtle" if disabled else "border"]
+        fill = (
+            f'fill="none" stroke="{rim.value}"'
+            f' stroke-opacity="{number(rim.alpha)}"'
+        )
+        knob_colour = t["textFaint" if disabled else "textSubtle"].value
+    body = [
+        f'<rect x="{number(hairline / 2)}" y="{number(hairline / 2)}" '
+        f'width="{number(width - hairline)}" '
+        f'height="{number(height - hairline)}" '
+        f'rx="{number((height - hairline) / 2)}" {fill} '
+        f'stroke-width="{number(hairline)}"/>',
+        f'<circle cx="{number(centre_x)}" cy="{number(centre_y)}" '
+        f'r="{number(knob)}" fill="{knob_colour}"/>',
+    ]
+    return svg_document(width, height, body)
+
+
 def opacity(token):
     return (
         ""
@@ -728,6 +785,17 @@ def build(tokens_path, templates_dir, svg_dir, out_dir):
         outputs[relative.with_name(relative.name[: -len(".in")])] = text
 
     used.update(STATES.values())
+    used.update(token for token, _ in ICON_STATES_FOR.values())
+    for state, (token_name, icons) in ICON_STATES_FOR.items():
+        for icon in icons:
+            source = svg_dir / "solar" / f"{icon}.svg"
+            if not source.exists():
+                problems.append(f"{source}: no such icon for state {state}")
+                continue
+            text = source.read_text(encoding="utf-8")
+            outputs[Path("icons") / f"{icon}_{state}.svg"] = recolour(
+                text, tokens[token_name].value
+            )
     for kind, target in (("solar", "icons"), ("controls", "controls")):
         source_dir = svg_dir / kind
         sources = sorted(source_dir.glob("*.svg")) + sorted(
@@ -755,6 +823,13 @@ def build(tokens_path, templates_dir, svg_dir, out_dir):
     outputs[controls / "phrase-ruler.svg"] = phrase_ruler(tokens, used)
     outputs[controls / "stem-rail.svg"] = stem_rail(tokens, used)
     outputs[controls / "stem-handle.svg"] = stem_handle(tokens, used)
+    for on in (False, True):
+        for disabled in (False, True):
+            name = "switch-" + ("on" if on else "off")
+            name += "-disabled" if disabled else ""
+            outputs[controls / f"{name}.svg"] = switch_control(
+                tokens, used, on, disabled
+            )
     # Channel faders and the crossfader are faderWidth across, the pitch
     # faders pitchFaderWidth
     used.update(("faderWidth", "pitchFaderWidth"))

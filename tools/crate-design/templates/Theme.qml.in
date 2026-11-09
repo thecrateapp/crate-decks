@@ -41,6 +41,12 @@ QtObject {
     readonly property color logoStart: "{{logoStart}}"
     readonly property color logoEnd: "{{logoEnd}}"
     readonly property color logoShade: "{{logoShade}}"
+    readonly property color dangerBg: "{{dangerBg}}"
+    readonly property color dangerBorder: "{{dangerBorder}}"
+    readonly property color warningBg: "{{warningBg}}"
+    readonly property color warningBorder: "{{warningBorder}}"
+    readonly property color badgeOffText: "{{badgeOffText}}"
+    readonly property color badgeOffBorder: "{{badgeOffBorder}}"
     readonly property color accentHiBorder: "{{accentHiBorder}}"
     readonly property color textPrimaryBorder: "{{textPrimaryBorder}}"
 
@@ -51,6 +57,8 @@ QtObject {
     readonly property color iconDisabled: "{{iconDisabled}}"
     readonly property color iconOnAccent: "{{iconOnAccent}}"
     readonly property color iconPrimary: "{{iconPrimary}}"
+    readonly property color iconAccent: "{{iconAccent}}"
+    readonly property color iconDanger: "{{iconDanger}}"
 
     // deck
     readonly property color deckA: "{{deckA}}"
@@ -139,6 +147,7 @@ QtObject {
     readonly property real trackingNumeral: {{trackingNumeral}}
     readonly property real trackingDeckTitle: {{trackingDeckTitle}}
     readonly property real lineHeightDisplay: {{lineHeightDisplay}}
+    readonly property real lineHeightBody: {{lineHeightBody}}
     readonly property real lineHeightLabel: {{lineHeightLabel}}
 
     // height
@@ -395,4 +404,109 @@ QtObject {
     // deckDisplay
     readonly property string deckNumberFont: "{{deckNumberFont}}"
     readonly property real deckNumberWeight: {{deckNumberWeight}}
+
+    // colorPicker
+    readonly property color pickerRed: "{{pickerRed}}"
+    readonly property color pickerYellow: "{{pickerYellow}}"
+    readonly property color pickerGreen: "{{pickerGreen}}"
+    readonly property color pickerCyan: "{{pickerCyan}}"
+    readonly property color pickerBlue: "{{pickerBlue}}"
+    readonly property color pickerMagenta: "{{pickerMagenta}}"
+
+    // dialog
+    readonly property real dialogTitleHeight: {{dialogTitleHeight}}
+    readonly property real dialogPaddingX: {{dialogPaddingX}}
+    readonly property real dialogFootPaddingY: {{dialogFootPaddingY}}
+    readonly property real dialogTitleGap: {{dialogTitleGap}}
+    readonly property real dialogButtonGap: {{dialogButtonGap}}
+    readonly property real dialogLogoWidth: {{dialogLogoWidth}}
+    readonly property real dialogLogoHeight: {{dialogLogoHeight}}
+    readonly property real iconButtonSize: {{iconButtonSize}}
+    readonly property real prefsWidth: {{prefsWidth}}
+    readonly property real prefsHeight: {{prefsHeight}}
+    readonly property real prefsNavWidth: {{prefsNavWidth}}
+    readonly property real prefsNavPaddingY: {{prefsNavPaddingY}}
+    readonly property real prefsNavRowHeight: {{prefsNavRowHeight}}
+    readonly property real prefsNavLogoWidth: {{prefsNavLogoWidth}}
+    readonly property real prefsNavLogoHeight: {{prefsNavLogoHeight}}
+    readonly property real prefsPagePaddingY: {{prefsPagePaddingY}}
+    readonly property real prefsPagePaddingX: {{prefsPagePaddingX}}
+    readonly property real fontWeightPrefsTitle: {{fontWeightPrefsTitle}}
+    readonly property real trackingPrefsTitle: {{trackingPrefsTitle}}
+    readonly property real prefsTitleGap: {{prefsTitleGap}}
+    readonly property real prefsIntroGap: {{prefsIntroGap}}
+    readonly property real prefsIntroMaxWidth: {{prefsIntroMaxWidth}}
+    readonly property real prefsSectionPaddingTop: {{prefsSectionPaddingTop}}
+    readonly property real prefsSectionPaddingBottom: {{prefsSectionPaddingBottom}}
+    readonly property real prefsSectionLabelGap: {{prefsSectionLabelGap}}
+    readonly property real prefsRowLabelWidth: {{prefsRowLabelWidth}}
+    readonly property real prefsRowLabelWidthColumn: {{prefsRowLabelWidthColumn}}
+    readonly property real prefsRowGap: {{prefsRowGap}}
+    readonly property real prefsColumnGap: {{prefsColumnGap}}
+    readonly property real prefsHintGap: {{prefsHintGap}}
+    readonly property real serverGap: {{serverGap}}
+    readonly property real serverPaddingY: {{serverPaddingY}}
+    readonly property real serverNameGap: {{serverNameGap}}
+    readonly property real serverMetaGap: {{serverMetaGap}}
+    readonly property real featureBadgeHeight: {{featureBadgeHeight}}
+    readonly property real featureBadgePaddingX: {{featureBadgePaddingX}}
+    readonly property real featureGap: {{featureGap}}
+    readonly property real featuresTop: {{featuresTop}}
+    readonly property real statusBadgePaddingX: {{statusBadgePaddingX}}
+    readonly property real helperGap: {{helperGap}}
+    readonly property real addServerTop: {{addServerTop}}
+    readonly property real switchWidth: {{switchWidth}}
+    readonly property real switchHeight: {{switchHeight}}
+    readonly property real switchKnob: {{switchKnob}}
+    readonly property real cacheGaugeSize: {{cacheGaugeSize}}
+    readonly property real cacheGaugeRadius: {{cacheGaugeRadius}}
+    readonly property real cacheGaugeTickGap: {{cacheGaugeTickGap}}
+    readonly property real cacheGaugeTickLong: {{cacheGaugeTickLong}}
+    readonly property real cacheGaugeTickShort: {{cacheGaugeTickShort}}
+    readonly property real cacheLimitWidth: {{cacheLimitWidth}}
+    readonly property real cacheLimitMaximum: {{cacheLimitMaximum}}
+    readonly property real fontSizeUsage: {{fontSizeUsage}}
+    readonly property real usageGap: {{usageGap}}
+    readonly property real usageBottom: {{usageBottom}}
+    readonly property real usageNumberTop: {{usageNumberTop}}
+    readonly property real chipPaddingX: {{chipPaddingX}}
+    readonly property real chipPaddingY: {{chipPaddingY}}
+    readonly property real chipGap: {{chipGap}}
+    readonly property real chipHeight: {{chipHeight}}
+    readonly property real trackingChip: {{trackingChip}}
+    readonly property real segmentLabelTop: {{segmentLabelTop}}
+    readonly property real segmentLabelBottom: {{segmentLabelBottom}}
+    readonly property real segmentBottom: {{segmentBottom}}
+    readonly property real firstRunWidth: {{firstRunWidth}}
+    readonly property real firstRunPaddingTop: {{firstRunPaddingTop}}
+    readonly property real firstRunPaddingX: {{firstRunPaddingX}}
+    readonly property real firstRunPaddingBottom: {{firstRunPaddingBottom}}
+    readonly property real firstRunGap: {{firstRunGap}}
+    readonly property real firstRunHeadGap: {{firstRunHeadGap}}
+    readonly property real firstRunLogoWidth: {{firstRunLogoWidth}}
+    readonly property real firstRunLogoHeight: {{firstRunLogoHeight}}
+    readonly property real lineHeightFirstRunTitle: {{lineHeightFirstRunTitle}}
+    readonly property real lineHeightPrefsTitle: {{lineHeightPrefsTitle}}
+    readonly property real fontSizeFirstRunTitle: {{fontSizeFirstRunTitle}}
+    readonly property real firstRunActionsTop: {{firstRunActionsTop}}
+    readonly property real stepsGap: {{stepsGap}}
+    readonly property real stepGap: {{stepGap}}
+    readonly property real fieldGap: {{fieldGap}}
+    readonly property real fieldPaddingX: {{fieldPaddingX}}
+    readonly property real fieldIconGap: {{fieldIconGap}}
+    readonly property real buttonPaddingX: {{buttonPaddingX}}
+    readonly property real buttonPaddingXSm: {{buttonPaddingXSm}}
+    readonly property real buttonGapSm: {{buttonGapSm}}
+    readonly property real fontSizeButton: {{fontSizeButton}}
+    readonly property real fontWeightButton: {{fontWeightButton}}
+    readonly property real fontSizeHelper: {{fontSizeHelper}}
+    readonly property real menuPadding: {{menuPadding}}
+    readonly property real menuItemPaddingX: {{menuItemPaddingX}}
+    readonly property real menuSeparatorMargin: {{menuSeparatorMargin}}
+    readonly property real tabPaddingX: {{tabPaddingX}}
+    readonly property real splashLaneWidth: {{splashLaneWidth}}
+    readonly property real splashGap: {{splashGap}}
+    readonly property real aboutWidth: {{aboutWidth}}
+    readonly property real aboutMetaGap: {{aboutMetaGap}}
+    readonly property real aboutTextHeight: {{aboutTextHeight}}
 }

@@ -1,0 +1,1041 @@
+/*
+  Crate Decks: the default style of the application (plan V2.PR5), with the
+  language of the Crate admin (design 14.1) and the values of the approved
+  GU1 mockups (crate-agents/decks-mockups: preferences-crate and first-run).
+
+  Template for tools/crate-design/generate.py: the placeholders in double
+  braces come from res/crate-design/tokens.json. Do not write colours,
+  sizes, radii or fonts by hand here (AGENTS.md 5.2).
+
+  With CRATE, Mixxx loads this file instead of res/skins/default.qss, for
+  the whole application and not only the main window
+  (crate/ui/dialogs/applicationstyle.h): Preferences and About are windows
+  of their own, which a style on the main window does not reach. A skin's
+  own style still wins inside the skin. So that LateNight and the other
+  skins keep their look:
+  - the rules for buttons, fields, lists and the like are for dialogs only
+    (QDialog ...): no skin widget is inside a dialog;
+  - menus and tooltips are the application's, here, for every skin;
+  - the rules of Mixxx's default.qss that every skin relies on (library
+    preview button, BPM lock, cue menu, colour picker, search clear button)
+    are here, with Solar icons.
+
+  Every widget whose object name starts with "Mono" is a MonoLabel: QSS
+  takes text-transform and letter-spacing, with the tracking in px.
+*/
+
+/* ── Mixxx's default rules, with Solar icons ─────────────────────────── */
+
+#LibraryPreviewButton {
+  background: transparent;
+  border: 0;
+}
+#LibraryPreviewButton:checked {
+  image: url(skins:CrateDecks/generated/icons/pause_active.svg);
+}
+#LibraryPreviewButton:!checked {
+  image: url(skins:CrateDecks/generated/icons/play_idle.svg);
+}
+
+/* 'Played' checkbox and BPM lock: C++ sizes their indicator to the
+   library font */
+WTrackTableView::indicator,
+#LibraryBPMButton::indicator {
+}
+QPushButton#LibraryBPMButton {
+  background: transparent;
+  border: 0;
+}
+QPushButton#LibraryBPMButton:checked {
+  image: url(skins:CrateDecks/generated/icons/lock_idle.svg);
+}
+QPushButton#LibraryBPMButton:!checked {
+  image: url(skins:CrateDecks/generated/icons/lock_disabled.svg);
+}
+
+WCueMenuPopup #CueDeleteButton {
+  image: url(skins:CrateDecks/generated/icons/trash-bin-trash_idle.svg);
+}
+
+WColorPicker QPushButton[noColor="true"] {
+  background-color: {{bgApp}};
+}
+/* "Any colour": the rainbow of Mixxx's colour picker */
+WColorPicker QPushButton[customColor="true"] {
+  background-color: qlineargradient(x1: 0, y1: 0, x2: 1, y2: 1,
+                                    stop: 0 {{pickerRed}},
+                                    stop: 0.2 {{pickerYellow}},
+                                    stop: 0.4 {{pickerGreen}},
+                                    stop: 0.6 {{pickerCyan}},
+                                    stop: 0.8 {{pickerBlue}},
+                                    stop: 1 {{pickerMagenta}});
+}
+WColorPicker QPushButton[checked="false"] {
+  qproperty-icon: none;
+}
+WColorPicker QPushButton[checked="true"] {
+  qproperty-icon: url(skins:CrateDecks/generated/icons/check-circle_primary.svg);
+}
+
+#SearchClearButton {
+  background: none;
+  border: 0;
+}
+#SearchClearButton:!focus {
+  image: url(skins:CrateDecks/generated/icons/close-circle_idle.svg);
+}
+#SearchClearButton:focus {
+  image: url(skins:CrateDecks/generated/icons/close-circle_hover.svg);
+}
+
+WSearchRelatedTracksMenu #SearchSelectedAction::indicator {
+  image: url(skins:CrateDecks/generated/icons/magnifier_idle.svg);
+  width: {{iconSm}};
+  height: {{iconSm}};
+}
+
+/* ── Menus: the admin's dropdown menu ─────────────────────────────────── */
+
+/* Every context menu (track, column chooser, sidebar, cue, cover art,
+   fields), the menu bar's menus and the effect selectors */
+QMenu,
+WEffectSelector QAbstractScrollArea,
+WEffectChainPresetSelector QAbstractScrollArea,
+WSearchLineEdit QAbstractScrollArea,
+#fadeModeCombobox QAbstractScrollArea {
+  background-color: {{bgPopover}};
+  border: {{strokeHairline}} solid {{border}};
+  border-radius: {{radiusLg}};
+  padding: {{menuPadding}};
+  color: {{textSecondary}};
+  font-family: "{{fontBody}}";
+  font-size: {{fontSizeCaption}};
+  font-weight: {{fontWeightBody}};
+  text-transform: none;
+  letter-spacing: 0;
+}
+QMenu::item {
+  min-height: {{heightControlSm}};
+  padding: 0 {{menuItemPaddingX + menuItemPaddingX}} 0 {{menuItemPaddingX}};
+  border-radius: {{radiusMd}};
+  background-color: transparent;
+  color: {{textSecondary}};
+}
+QMenu::item:selected {
+  background-color: {{hoverBg}};
+  color: {{textPrimary}};
+}
+QMenu::item:disabled {
+  color: {{textFaint}};
+}
+QMenu::separator {
+  height: {{strokeHairline}};
+  background-color: {{borderSubtle}};
+  margin: {{menuSeparatorMargin}} {{menuItemPaddingX}};
+}
+QMenu::icon {
+  padding-left: {{menuItemPaddingX}};
+}
+QMenu::indicator {
+  width: {{iconSm}};
+  height: {{iconSm}};
+  padding-left: {{menuItemPaddingX}};
+}
+QMenu::indicator:non-exclusive:unchecked {
+  image: url(skins:CrateDecks/generated/controls/checkbox_idle.svg);
+}
+QMenu::indicator:non-exclusive:checked {
+  image: url(skins:CrateDecks/generated/controls/checkbox-checked_active.svg);
+}
+QMenu::indicator:exclusive:unchecked {
+  image: url(skins:CrateDecks/generated/controls/radio_idle.svg);
+}
+QMenu::indicator:exclusive:checked {
+  image: url(skins:CrateDecks/generated/controls/radio-checked_active.svg);
+}
+QMenu::right-arrow {
+  image: url(skins:CrateDecks/generated/icons/alt-arrow-right_idle.svg);
+  width: {{iconXs}};
+  height: {{iconXs}};
+  padding-right: {{menuItemPaddingX}};
+}
+QMenu::right-arrow:selected {
+  image: url(skins:CrateDecks/generated/icons/alt-arrow-right_hover.svg);
+}
+
+/* The column chooser and the crates and playlists of the track menu are
+   checkboxes inside the menu */
+QMenu QCheckBox {
+  min-height: {{heightControlSm}};
+  padding: 0 {{menuItemPaddingX}};
+  spacing: {{iconTextGap}};
+  border-radius: {{radiusMd}};
+  background-color: transparent;
+  color: {{textSecondary}};
+  font-family: "{{fontBody}}";
+  font-size: {{fontSizeCaption}};
+}
+QMenu QCheckBox:hover {
+  background-color: {{hoverBg}};
+  color: {{textPrimary}};
+}
+QMenu QCheckBox::indicator {
+  width: {{iconSm}};
+  height: {{iconSm}};
+}
+QMenu QCheckBox::indicator:unchecked {
+  image: url(skins:CrateDecks/generated/controls/checkbox_idle.svg);
+}
+QMenu QCheckBox::indicator:checked {
+  image: url(skins:CrateDecks/generated/controls/checkbox-checked_active.svg);
+}
+QMenu QCheckBox::indicator:indeterminate {
+  image: url(skins:CrateDecks/generated/controls/checkbox-checked_disabled.svg);
+}
+QMenu QLabel {
+  color: {{textSubtle}};
+  background-color: transparent;
+}
+QMenu QLineEdit {
+  min-height: {{heightControlSm - strokeHairline - strokeHairline}};
+  padding: 0 {{menuItemPaddingX}};
+  border: {{strokeHairline}} solid {{border}};
+  border-radius: {{radiusMd}};
+  background-color: {{bgPopover}};
+  color: {{textPrimary}};
+}
+
+QMenuBar {
+  background-color: {{bgApp}};
+  color: {{textSecondary}};
+  font-family: "{{fontBody}}";
+  font-size: {{fontSizeCaption}};
+  border-bottom: {{strokeHairline}} solid {{border}};
+}
+QMenuBar::item {
+  padding: 0 {{menuItemPaddingX}};
+  min-height: {{heightControlXs}};
+  background-color: transparent;
+}
+QMenuBar::item:selected,
+QMenuBar::item:pressed {
+  background-color: {{hoverBg}};
+  color: {{textPrimary}};
+}
+
+QToolTip {
+  background-color: {{bgPopover}};
+  border: {{strokeHairline}} solid {{border}};
+  border-radius: {{radiusMd}};
+  color: {{textPrimary}};
+  font-family: "{{fontBody}}";
+  font-size: {{fontSizeCaption}};
+  padding: {{monoSeparatorPadding}};
+}
+
+/* ── Dialogs: surface, text and MonoLabels ───────────────────────────── */
+
+QDialog {
+  background-color: {{bgPopover}};
+  color: {{textSecondary}};
+  font-family: "{{fontBody}}";
+  font-size: {{fontSizeCaption}};
+}
+QDialog QWidget {
+  font-family: "{{fontBody}}";
+}
+QDialog QLabel {
+  background-color: transparent;
+  color: {{textSecondary}};
+  font-size: {{fontSizeCaption}};
+  selection-background-color: {{accentBg}};
+}
+QDialog QLabel:disabled {
+  color: {{textFaint}};
+}
+QDialog [objectName^="Mono"] {
+  font-family: "{{fontMono}}";
+  font-weight: {{fontWeightMono}};
+  font-size: {{fontSizeMonoLabel.fontsize}};
+  text-transform: uppercase;
+  letter-spacing: {{trackingCaps * fontSizeMonoLabel}};
+  color: {{textSubtle}};
+}
+QDialog [objectName^="Mono"][crateTone="accent"] {
+  color: {{accentHi}};
+}
+QDialog QFrame[frameShape="4"],
+QDialog QFrame[frameShape="5"] {
+  /* QFrame::HLine and VLine */
+  color: {{border}};
+  background-color: {{border}};
+  border: 0;
+  max-height: {{strokeHairline}};
+}
+
+/* ── Dialogs: buttons (shadcn button.tsx) ────────────────────────────── */
+
+/* No icons from the platform on OK, Cancel and the like */
+QDialog QDialogButtonBox {
+  dialogbuttonbox-buttons-have-icons: 0;
+}
+
+/* Neutral by default: the dialogs of Mixxx have many buttons, and the
+   admin keeps the cyan outline for the action of a view */
+QDialog QPushButton,
+QDialog QToolButton {
+  min-height: {{heightControlSm - strokeHairline - strokeHairline}};
+  padding: 0 {{buttonPaddingXSm}};
+  border: {{strokeHairline}} solid {{border}};
+  border-radius: {{radiusMd}};
+  background-color: transparent;
+  color: {{textSecondary}};
+  font-family: "{{fontBody}}";
+  font-size: {{fontSizeButton}};
+  font-weight: {{fontWeightButton}};
+  qproperty-iconSize: {{iconMd}} {{iconMd}};
+}
+QDialog QPushButton:hover,
+QDialog QToolButton:hover {
+  border-color: {{borderHover}};
+  color: {{textPrimary}};
+}
+QDialog QPushButton:pressed,
+QDialog QPushButton:checked,
+QDialog QToolButton:pressed,
+QDialog QToolButton:checked {
+  background-color: {{hoverBg}};
+}
+QDialog QPushButton:focus {
+  border-color: {{accentBorderFocus}};
+}
+QDialog QPushButton:disabled,
+QDialog QToolButton:disabled {
+  border-color: {{borderSubtle}};
+  color: {{textFaint}};
+}
+/* The action of a dialog or a section: cyan outline and text */
+QDialog QPushButton[crateButton="primary"],
+QDialog QPushButton:default {
+  border-color: {{accent}};
+  color: {{accent}};
+}
+QDialog QPushButton[crateButton="primary"]:hover,
+QDialog QPushButton:default:hover {
+  border-color: {{accentHi}};
+  color: {{accentHi}};
+}
+QDialog QPushButton[crateButton="primary"]:disabled {
+  border-color: {{accentBorder}};
+  color: {{textFaint}};
+}
+QDialog QPushButton[crateButton="ghost"] {
+  border-color: transparent;
+  color: {{textSecondary}};
+}
+QDialog QPushButton[crateButton="ghost"]:hover {
+  border-color: transparent;
+  background-color: {{hoverBg}};
+  color: {{textPrimary}};
+}
+QDialog QPushButton[crateButton="danger"] {
+  border-color: {{dangerBorder}};
+  background-color: {{dangerBg}};
+  color: {{dangerText}};
+}
+QDialog QPushButton[crateButton="danger"]:hover {
+  border-color: {{danger}};
+}
+/* Full height (40 px) for the actions at the foot of a dialog */
+QDialog QPushButton[crateSize="md"] {
+  min-height: {{heightControl - strokeHairline - strokeHairline}};
+  padding: 0 {{buttonPaddingX}};
+}
+
+/* ── Dialogs: fields ─────────────────────────────────────────────────── */
+
+QDialog QLineEdit,
+QDialog QAbstractSpinBox,
+QDialog QComboBox {
+  min-height: {{heightControl - strokeHairline - strokeHairline}};
+  padding: 0 {{fieldPaddingX}};
+  border: {{strokeHairline}} solid {{border}};
+  border-radius: {{radiusLg}};
+  background-color: {{bgPopover}};
+  color: {{textPrimary}};
+  font-size: {{fontSizeBody}};
+  selection-background-color: {{accentBorder}};
+  selection-color: {{textPrimary}};
+}
+QDialog QLineEdit:hover,
+QDialog QAbstractSpinBox:hover,
+QDialog QComboBox:hover {
+  border-color: {{borderHover}};
+}
+QDialog QLineEdit:focus,
+QDialog QAbstractSpinBox:focus,
+QDialog QComboBox:focus,
+QDialog QComboBox:on {
+  border-color: {{accentHiBorder}};
+}
+QDialog QLineEdit:disabled,
+QDialog QAbstractSpinBox:disabled,
+QDialog QComboBox:disabled {
+  border-color: {{borderSubtle}};
+  color: {{textFaint}};
+}
+QDialog QLineEdit:read-only {
+  color: {{textSecondary}};
+}
+/* No spinner arrows, as the admin's number fields: wheel and keys step.
+   Qt lays a spin box's text out on its border, not after its padding:
+   crate/ui/dialogs/dialogstyle.cpp gives the text the field's padding */
+QDialog QAbstractSpinBox {
+  qproperty-buttonSymbols: NoButtons;
+  padding: 0;
+}
+QDialog QAbstractSpinBox::up-button,
+QDialog QAbstractSpinBox::down-button {
+  subcontrol-origin: margin;
+  width: 0;
+  height: 0;
+  border: 0;
+  image: none;
+}
+/* The text inside an editable combo box is the field's */
+QDialog QComboBox QLineEdit {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background-color: transparent;
+}
+QDialog QComboBox::drop-down {
+  subcontrol-origin: padding;
+  subcontrol-position: center right;
+  width: {{iconSm}};
+  border: 0;
+}
+QDialog QComboBox::down-arrow {
+  image: url(skins:CrateDecks/generated/icons/alt-arrow-down_idle.svg);
+  width: {{iconXs}};
+  height: {{iconXs}};
+}
+QDialog QComboBox::down-arrow:on,
+QDialog QComboBox::down-arrow:hover {
+  image: url(skins:CrateDecks/generated/icons/alt-arrow-down_hover.svg);
+}
+QDialog QComboBox QAbstractItemView {
+  background-color: {{bgPopover}};
+  border: {{strokeHairline}} solid {{border}};
+  padding: {{menuPadding}};
+  outline: 0;
+  color: {{textSecondary}};
+  selection-background-color: {{hoverBg}};
+  selection-color: {{textPrimary}};
+}
+QDialog QComboBox QAbstractItemView::item {
+  min-height: {{heightControlSm}};
+}
+QDialog QTextEdit,
+QDialog QPlainTextEdit,
+QDialog QTextBrowser {
+  border: {{strokeHairline}} solid {{border}};
+  border-radius: {{radiusLg}};
+  background-color: transparent;
+  color: {{textSecondary}};
+  font-size: {{fontSizeCaption}};
+  selection-background-color: {{accentBorder}};
+}
+
+/* ── Dialogs: switches, radios, sliders ──────────────────────────────── */
+
+/* Checkboxes are the admin's switches (decks.css .switch) */
+QDialog QCheckBox,
+QDialog QRadioButton {
+  spacing: {{prefsRowGap.half}};
+  background-color: transparent;
+  color: {{textSecondary}};
+  font-size: {{fontSizeCaption}};
+}
+QDialog QCheckBox:disabled,
+QDialog QRadioButton:disabled {
+  color: {{textFaint}};
+}
+QDialog QCheckBox::indicator {
+  width: {{switchWidth}};
+  height: {{switchHeight}};
+}
+QDialog QCheckBox::indicator:unchecked {
+  image: url(skins:CrateDecks/generated/controls/switch-off.svg);
+}
+QDialog QCheckBox::indicator:checked {
+  image: url(skins:CrateDecks/generated/controls/switch-on.svg);
+}
+QDialog QCheckBox::indicator:indeterminate {
+  image: url(skins:CrateDecks/generated/controls/switch-on-disabled.svg);
+}
+QDialog QCheckBox::indicator:unchecked:disabled {
+  image: url(skins:CrateDecks/generated/controls/switch-off-disabled.svg);
+}
+QDialog QCheckBox::indicator:checked:disabled {
+  image: url(skins:CrateDecks/generated/controls/switch-on-disabled.svg);
+}
+QDialog QRadioButton::indicator,
+QDialog QGroupBox::indicator {
+  width: {{iconSm}};
+  height: {{iconSm}};
+}
+QDialog QRadioButton::indicator:unchecked {
+  image: url(skins:CrateDecks/generated/controls/radio_idle.svg);
+}
+QDialog QRadioButton::indicator:unchecked:hover {
+  image: url(skins:CrateDecks/generated/controls/radio_hover.svg);
+}
+QDialog QRadioButton::indicator:checked {
+  image: url(skins:CrateDecks/generated/controls/radio-checked_active.svg);
+}
+QDialog QRadioButton::indicator:disabled {
+  image: url(skins:CrateDecks/generated/controls/radio_disabled.svg);
+}
+QDialog QGroupBox::indicator:unchecked {
+  image: url(skins:CrateDecks/generated/controls/checkbox_idle.svg);
+}
+QDialog QGroupBox::indicator:checked {
+  image: url(skins:CrateDecks/generated/controls/checkbox-checked_active.svg);
+}
+
+/* The admin's slider: a 2 px lane and an 8 px dot */
+QDialog QSlider {
+  background-color: transparent;
+  min-height: {{iconMd}};
+}
+QDialog QSlider::groove:horizontal {
+  height: {{laneSlider}};
+  background-color: {{border}};
+  border: 0;
+}
+QDialog QSlider::sub-page:horizontal {
+  background-color: {{accentHi}};
+}
+QDialog QSlider::add-page:horizontal {
+  background-color: {{border}};
+}
+QDialog QSlider::handle:horizontal {
+  width: {{sliderDot}};
+  height: {{sliderDot}};
+  margin: {{laneSlider - sliderDot.half}} 0;
+  border-radius: {{sliderDot.half}};
+  background-color: {{accentHi}};
+}
+QDialog QSlider::groove:vertical {
+  width: {{laneSlider}};
+  background-color: {{border}};
+  border: 0;
+}
+QDialog QSlider::add-page:vertical {
+  background-color: {{accentHi}};
+}
+QDialog QSlider::sub-page:vertical {
+  background-color: {{border}};
+}
+QDialog QSlider::handle:vertical {
+  width: {{sliderDot}};
+  height: {{sliderDot}};
+  margin: 0 {{laneSlider - sliderDot.half}};
+  border-radius: {{sliderDot.half}};
+  background-color: {{accentHi}};
+}
+QDialog QSlider::handle:disabled,
+QDialog QSlider::sub-page:disabled,
+QDialog QSlider::add-page:vertical:disabled {
+  background-color: {{textFaint}};
+}
+
+QDialog QProgressBar {
+  min-height: {{laneSlider}};
+  max-height: {{laneSlider}};
+  border: 0;
+  background-color: {{border}};
+  color: transparent;
+}
+QDialog QProgressBar::chunk {
+  background-color: {{accentHi}};
+}
+
+/* ── Dialogs: sections, tabs, lists ──────────────────────────────────── */
+
+/* A section is a 1 px rule and a MonoLabel in the accent tone, without a
+   box (decks.css .psec) */
+QDialog QGroupBox {
+  border: 0;
+  border-top: {{strokeHairline}} solid {{border}};
+  margin: 0;
+  padding: {{prefsSectionPaddingTop + fontSizeMonoLabel + prefsSectionLabelGap}} 0 {{prefsSectionPaddingBottom.half}} 0;
+  background-color: transparent;
+  font-family: "{{fontMono}}";
+  font-size: {{fontSizeMonoLabel.fontsize}};
+  text-transform: uppercase;
+  letter-spacing: {{trackingCaps * fontSizeMonoLabel}};
+}
+QDialog QGroupBox::title {
+  subcontrol-origin: border;
+  subcontrol-position: top left;
+  top: {{prefsSectionPaddingTop}};
+  padding: 0;
+  color: {{accentHi}};
+}
+QDialog QGroupBox::title:disabled {
+  color: {{textFaint}};
+}
+
+/* MonoLabel tabs with the active one underlined in accentHi */
+QDialog QTabWidget::pane {
+  border: 0;
+  border-top: {{strokeHairline}} solid {{border}};
+  top: -{{strokeHairline}};
+  background-color: transparent;
+}
+QDialog QTabWidget::tab-bar {
+  left: 0;
+}
+QDialog QTabBar {
+  background-color: transparent;
+  qproperty-drawBase: 0;
+}
+QDialog QTabBar::tab {
+  min-height: {{heightControlSm - activeBarWidth}};
+  padding: 0 {{tabPaddingX}};
+  margin: 0;
+  border: 0;
+  border-bottom: {{activeBarWidth}} solid transparent;
+  background-color: transparent;
+  color: {{textSubtle}};
+  font-family: "{{fontMono}}";
+  font-size: {{fontSizeMonoLabel.fontsize}};
+  text-transform: uppercase;
+  letter-spacing: {{trackingCaps * fontSizeMonoLabel}};
+}
+QDialog QTabBar::tab:first {
+  padding-left: 0;
+}
+QDialog QTabBar::tab:hover {
+  color: {{accentHi}};
+}
+QDialog QTabBar::tab:selected {
+  border-bottom-color: {{accentHi}};
+  color: {{textPrimary}};
+}
+QDialog QTabBar::tab:disabled {
+  color: {{textFaint}};
+}
+
+/* Lists with rules, without zebra or boxes (design 14.1) */
+QDialog QAbstractItemView {
+  border: {{strokeHairline}} solid {{border}};
+  border-radius: {{radiusLg}};
+  background-color: transparent;
+  alternate-background-color: transparent;
+  color: {{textSecondary}};
+  font-size: {{fontSizeCaption}};
+  gridline-color: {{borderSubtle}};
+  selection-background-color: {{rowSelected}};
+  selection-color: {{textPrimary}};
+  outline: 0;
+}
+QDialog QAbstractItemView::item {
+  min-height: {{heightControlSm}};
+}
+QDialog QAbstractItemView::item:hover {
+  background-color: {{rowHover}};
+}
+QDialog QAbstractItemView::item:selected {
+  background-color: {{rowSelected}};
+  color: {{textPrimary}};
+}
+QDialog QHeaderView {
+  background-color: transparent;
+  border: 0;
+}
+QDialog QHeaderView::section {
+  min-height: {{heightTableHeader}};
+  padding: 0 {{libraryCellPadding}};
+  border: 0;
+  border-bottom: {{strokeHairline}} solid {{border}};
+  background-color: transparent;
+  color: {{textSubtle}};
+  font-family: "{{fontMono}}";
+  font-size: {{fontSizeMonoLabel.fontsize}};
+  text-transform: uppercase;
+  letter-spacing: {{trackingCaps * fontSizeMonoLabel}};
+}
+QDialog QTableCornerButton::section {
+  background-color: transparent;
+  border: 0;
+}
+QDialog QScrollArea,
+QDialog QStackedWidget,
+QDialog QSplitter,
+QDialog QAbstractScrollArea > #qt_scrollarea_viewport,
+QDialog QScrollArea > #qt_scrollarea_viewport > QWidget {
+  background-color: transparent;
+  border: 0;
+}
+QDialog QSplitter::handle {
+  background-color: transparent;
+  width: 0;
+}
+
+/* The admin's 8 px scroll bars, without arrows */
+QDialog QScrollBar:vertical {
+  width: {{scrollbarWidth}};
+  margin: 0;
+  border: 0;
+  background-color: transparent;
+}
+QDialog QScrollBar:horizontal {
+  height: {{scrollbarWidth}};
+  margin: 0;
+  border: 0;
+  background-color: transparent;
+}
+QDialog QScrollBar::handle {
+  background-color: {{scrollbarThumb}};
+  border-radius: {{scrollbarWidth.half}};
+  min-height: {{heightControlXs}};
+  min-width: {{heightControlXs}};
+}
+QDialog QScrollBar::handle:hover {
+  background-color: {{scrollbarHover}};
+}
+QDialog QScrollBar::add-line,
+QDialog QScrollBar::sub-line {
+  width: 0;
+  height: 0;
+  border: 0;
+}
+QDialog QScrollBar::add-page,
+QDialog QScrollBar::sub-page {
+  background-color: transparent;
+}
+
+/* ── Crate dialogs: frame, title row and foot (crate/ui/dialogs/) ────── */
+
+/* The dialog of the mockups (decks.css .dialog): no window frame, a 1 px
+   border and the panel radius around bgPopover */
+QDialog[crateChrome="true"] {
+  background-color: transparent;
+}
+#CrateDialogFrame {
+  background-color: {{bgPopover}};
+  border: {{strokeHairline}} solid {{border}};
+  border-radius: {{radiusPanel}};
+}
+#CrateDialogTitle {
+  min-height: {{dialogTitleHeight - strokeHairline}};
+  max-height: {{dialogTitleHeight - strokeHairline}};
+  border: 0;
+  border-bottom: {{strokeHairline}} solid {{border}};
+  background-color: transparent;
+}
+#CrateDialogClose {
+  min-width: {{iconMd}};
+  max-width: {{iconMd}};
+  min-height: {{iconMd}};
+  max-height: {{iconMd}};
+  padding: {{iconButtonSize - iconMd.half}};
+  border: 0;
+  border-radius: {{radiusMd}};
+  background-color: transparent;
+  image: url(skins:CrateDecks/generated/icons/close-square_idle.svg);
+}
+#CrateDialogClose:hover {
+  image: url(skins:CrateDecks/generated/icons/close-square_hover.svg);
+}
+#CrateDialogFoot {
+  border: 0;
+  border-top: {{strokeHairline}} solid {{border}};
+  background-color: transparent;
+}
+#CrateDialogGrip {
+  background-color: transparent;
+  width: {{iconSm}};
+  height: {{iconSm}};
+}
+
+/* ── Preferences (GU1 mockups preferences-crate) ─────────────────────── */
+
+#contentsTreeWidget {
+  min-width: {{prefsNavWidth - strokeHairline}};
+  max-width: {{prefsNavWidth - strokeHairline}};
+  padding: {{prefsNavPaddingY}} 0;
+  border: 0;
+  border-right: {{strokeHairline}} solid {{borderSubtle}};
+  border-radius: 0;
+  background-color: transparent;
+  qproperty-indentation: 0;
+}
+#contentsTreeWidget::item,
+#contentsTreeWidget::item:hover,
+#contentsTreeWidget::item:selected {
+  background-color: transparent;
+}
+/* Line boxes as the mockups' line-height: Qt's label is as tall as the
+   font's line spacing */
+#CratePrefsTitle {
+  color: {{textPrimary}};
+  font-family: "{{fontDisplay}}";
+  font-size: {{fontSizeTitle}};
+  font-weight: {{fontWeightPrefsTitle}};
+  letter-spacing: {{trackingPrefsTitle * fontSizeTitle}};
+  min-height: {{lineHeightPrefsTitle * fontSizeTitle}};
+  max-height: {{lineHeightPrefsTitle * fontSizeTitle}};
+}
+#labelWarning {
+  color: {{warningText}};
+}
+
+/* The Crate page */
+#CratePrefsIntro {
+  color: {{textMuted}};
+  font-size: {{fontSizeCaption}};
+  max-width: {{prefsIntroMaxWidth}};
+}
+#CratePrefsSection {
+  border: 0;
+  border-top: {{strokeHairline}} solid {{border}};
+  background-color: transparent;
+}
+#crateServers {
+  border: 0;
+  border-radius: 0;
+  background-color: transparent;
+}
+/* Each server is a row widget over its item; the item's own text, which
+   names the server for accessibility, is not painted */
+#crateServers::item,
+#crateServers::item:hover,
+#crateServers::item:selected {
+  background-color: transparent;
+  border: 0;
+  color: transparent;
+}
+#CrateServerRow {
+  border: 0;
+  border-bottom: {{strokeHairline}} solid {{borderSubtle}};
+  background-color: transparent;
+}
+#CrateServerDot {
+  min-width: {{statusDot}};
+  max-width: {{statusDot}};
+  min-height: {{statusDot}};
+  max-height: {{statusDot}};
+  border-radius: {{statusDot.half}};
+  background-color: {{textSubtle}};
+}
+#CrateServerDot[crateState="signedIn"] {
+  background-color: {{accentHi}};
+}
+#CrateServerDot[crateState="signedOut"] {
+  background-color: {{warningText}};
+}
+#CrateServerName {
+  color: {{textPrimary}};
+  font-size: {{fontSizeBody}};
+  font-weight: {{fontWeightButton}};
+}
+#CrateServerMeta {
+  color: {{textMuted}};
+  font-family: "{{fontMono}}";
+  font-size: {{fontSizeLabel}};
+}
+#CrateFeatureBadge,
+#CrateStateBadge {
+  padding: 0 {{featureBadgePaddingX}};
+  border: {{strokeHairline}} solid {{border}};
+  border-radius: {{featureBadgeHeight.half}};
+  background-color: transparent;
+  color: {{textSecondary}};
+  font-family: "{{fontMono}}";
+}
+#CrateFeatureBadge {
+  min-height: {{featureBadgeHeight - strokeHairline - strokeHairline}};
+  max-height: {{featureBadgeHeight - strokeHairline - strokeHairline}};
+  font-size: {{fontSizeLabel}};
+}
+#CrateFeatureBadge[available="false"] {
+  border-color: {{badgeOffBorder}};
+  color: {{badgeOffText}};
+  text-decoration: line-through;
+}
+#CrateStateBadge {
+  min-height: {{heightControlXs - strokeHairline - strokeHairline}};
+  max-height: {{heightControlXs - strokeHairline - strokeHairline}};
+  padding: 0 {{statusBadgePaddingX}};
+  border-radius: {{heightControlXs.half}};
+  font-size: {{fontSizeInfoBadge}};
+}
+#CrateStateBadge[crateState="signedIn"] {
+  border-color: {{accentHiBorder}};
+  background-color: {{accentBg}};
+  color: {{accentHi}};
+}
+#CrateStateBadge[crateState="signedOut"] {
+  border-color: {{warningBorder}};
+  background-color: {{warningBg}};
+  color: {{warningText}};
+}
+#crateAddServer {
+  qproperty-icon: url(skins:CrateDecks/generated/icons/add-circle_accent.svg);
+}
+#crateRemoveServer {
+  qproperty-icon: url(skins:CrateDecks/generated/icons/logout_danger.svg);
+}
+#crateClearCache {
+  qproperty-icon: url(skins:CrateDecks/generated/icons/trash-bin-trash_danger.svg);
+}
+#crateChooseCache {
+  qproperty-icon: url(skins:CrateDecks/generated/icons/folder_primary.svg);
+}
+#CrateFormHelper {
+  color: {{textSubtle}};
+  font-family: "{{fontMono}}";
+  font-size: {{fontSizeHelper.fontsize}};
+}
+#crateKeychainWarning,
+#crateError {
+  color: {{warningText}};
+}
+#crateServerStatus,
+#crateBusy,
+#crateLocalNetworkWarning {
+  color: {{textMuted}};
+}
+
+/* Cache: level ring, use and rows */
+#CrateCacheUsage {
+  color: {{textPrimary}};
+  font-family: "{{fontMono}}";
+  font-size: {{fontSizeUsage}};
+  letter-spacing: {{trackingNumeral * fontSizeUsage}};
+}
+#CrateCacheOf {
+  color: {{textSubtle}};
+  font-size: {{fontSizeCaption}};
+}
+#CrateCacheCaption,
+#CratePrefsHint {
+  color: {{textSubtle}};
+  font-family: "{{fontMono}}";
+  font-size: {{fontSizeMeta.fontsize}};
+}
+#CratePrefsRowLabel {
+  color: {{textSecondary}};
+  font-size: {{fontSizeCaption}};
+}
+#CrateCacheLimitValue {
+  color: {{textPrimary}};
+  font-family: "{{fontMono}}";
+  font-size: {{fontSizeBody}};
+}
+#crateCacheLocation {
+  font-family: "{{fontMono}}";
+  font-size: {{fontSizeCaption}};
+}
+#CratePrefsToggle {
+  min-height: {{heightControlLg - strokeHairline}};
+  border: 0;
+  border-top: {{strokeHairline}} solid {{borderSubtle}};
+  background-color: transparent;
+}
+
+/* Auto DJ and Smart Mix: the admin's SegmentedControl */
+/* The admin's --border-subtle is the 10 % border, not borderSubtle */
+#CrateChip {
+  min-height: {{chipHeight - strokeHairline - strokeHairline}};
+  padding: 0 {{chipPaddingX}};
+  border: {{strokeHairline}} solid {{border}};
+  border-radius: {{chipHeight.half}};
+  background-color: transparent;
+  color: {{textSecondary}};
+  font-family: "{{fontMono}}";
+  font-size: {{fontSizeInfoBadge}};
+  font-weight: {{fontWeightMono}};
+  letter-spacing: {{trackingChip * fontSizeInfoBadge}};
+  qproperty-iconSize: {{iconSm}} {{iconSm}};
+}
+#CrateChip:hover {
+  border-color: {{accentHiBorder}};
+  color: {{textPrimary}};
+}
+#CrateChip:checked {
+  border-color: {{accentHi}};
+  background-color: {{accentHi}};
+  color: {{onAccent}};
+}
+
+/* ── First start (GU1 mockups first-run) and About ───────────────────── */
+
+#CrateFirstRunTitle,
+#CrateAboutTitle {
+  color: {{textPrimary}};
+  font-family: "{{fontDisplay}}";
+  font-size: {{fontSizeFirstRunTitle}};
+  font-weight: {{fontWeightTitle}};
+  letter-spacing: {{trackingTitle * fontSizeFirstRunTitle}};
+  min-height: {{lineHeightFirstRunTitle * fontSizeFirstRunTitle}};
+  max-height: {{lineHeightFirstRunTitle * fontSizeFirstRunTitle}};
+}
+#CrateFirstRunIntro,
+#crate_based_on {
+  color: {{textMuted}};
+  font-size: {{fontSizeBody}};
+}
+#crate_attribution {
+  color: {{textSubtle}};
+  font-size: {{fontSizeCaption}};
+}
+#CrateStepLane {
+  min-height: {{strokeHairline}};
+  max-height: {{strokeHairline}};
+  border: 0;
+  background-color: {{border}};
+}
+#CrateStepLane[current="true"] {
+  background-color: {{accentHi}};
+}
+#CrateFieldIcon {
+  min-width: {{iconMd}};
+  max-width: {{iconMd}};
+  min-height: {{iconMd}};
+  max-height: {{iconMd}};
+  image: url(skins:CrateDecks/generated/icons/server_idle.svg);
+}
+
+/* About: the version rows as MonoLabels and readings */
+#DlgAboutDlg #label,
+#DlgAboutDlg #label_2,
+#DlgAboutDlg #label_3,
+#DlgAboutDlg #label_4,
+#DlgAboutDlg #version_label {
+  color: {{textSubtle}};
+  font-family: "{{fontMono}}";
+  font-size: {{fontSizeMonoLabel.fontsize}};
+  text-transform: uppercase;
+  letter-spacing: {{trackingCaps * fontSizeMonoLabel}};
+}
+#DlgAboutDlg #git_version_label,
+#DlgAboutDlg #qt_version_label,
+#DlgAboutDlg #date_label,
+#DlgAboutDlg #platform_label {
+  color: {{textSecondary}};
+  font-family: "{{fontMono}}";
+  font-size: {{fontSizeLabel}};
+}
+#DlgAboutDlg QTextBrowser {
+  border: 0;
+  border-radius: 0;
+}
+#textWebsiteLink {
+  font-family: "{{fontMono}}";
+  font-size: {{fontSizeLabel}};
+}

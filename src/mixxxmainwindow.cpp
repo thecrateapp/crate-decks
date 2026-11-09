@@ -65,6 +65,11 @@
 #include "vinylcontrol/vinylcontrolmanager.h"
 #endif
 
+#ifdef __CRATE__
+// Crate Decks: the application's default style (V2.PR5)
+#include "crate/ui/dialogs/dialogstyle.h"
+#endif // __CRATE__
+
 namespace {
 const ConfigKey kHideMenuBarConfigKey = ConfigKey("[Config]", "hide_menubar");
 const ConfigKey kMenuBarHintConfigKey = ConfigKey("[Config]", "show_menubar_hint");
@@ -1407,6 +1412,16 @@ bool MixxxMainWindow::loadConfiguredSkin() {
 /// Try to load default styles that can be overridden by skins
 void MixxxMainWindow::tryParseAndSetDefaultStyleSheet() {
     const QString resPath = m_pCoreServices->getSettings()->getResourcePath();
+#ifdef __CRATE__
+    // Crate Decks: the default style generated from the design tokens, for
+    // the whole application, so that it also reaches Preferences, About and
+    // the other dialogs, which are windows of their own (design 5.2, V2.PR5)
+    const QString crateStyle = crate::defaultStyleSheet(resPath);
+    if (!crateStyle.isEmpty()) {
+        crate::applyApplicationStyle(crateStyle);
+        return;
+    }
+#endif // __CRATE__
     QFile file(resPath + "/skins/default.qss");
     if (file.open(QIODevice::ReadOnly)) {
         QByteArray fileBytes = file.readAll();

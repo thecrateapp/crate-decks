@@ -1359,10 +1359,11 @@ WBeatSpinBox[objectName^="CrateLoopSize"]::down-button {
   border-bottom: {{strokeHairline}} solid {{border}};
 }
 
-/* Cell editors */
+/* Cell editors, and the decks' inline title editor */
 #CrateLibrary WTrackTableView QLineEdit,
 #CrateLibrary WTrackTableView QPlainTextEdit,
-#CrateLibrary WTrackTableView QDoubleSpinBox {
+#CrateLibrary WTrackTableView QDoubleSpinBox,
+WTrackPropertyEditor {
   font-family: "{{fontBody}}";
   font-size: {{fontSizeCaption}};
   color: {{textPrimary}};
@@ -1410,4 +1411,196 @@ WBeatSpinBox[objectName^="CrateLoopSize"]::down-button {
 #CrateLibrary QScrollBar::add-page,
 #CrateLibrary QScrollBar::sub-page {
   background: none;
+}
+
+/* ── Auto DJ and Analyze: the button bars of the library (plan V2.PR5) ─ */
+
+/* The admin's small buttons, outlined and neutral, with Solar icons; the
+   active state (Auto DJ on, repeat) as the admin's selected chip. LateNight's
+   rules above draw these bars with images: these win, one by one. C++ gives
+   the bars the library's gutter (crate/ui/skin/librarystyle.cpp). */
+#LibraryFeatureControls {
+  background-color: transparent;
+}
+#LibraryFeatureControls QPushButton {
+  min-height: {{heightControlSm - strokeHairline - strokeHairline}};
+  max-height: {{heightControlSm - strokeHairline - strokeHairline}};
+  min-width: 0;
+  margin: 0;
+  padding: 0 {{buttonPaddingXSm}};
+  border: {{strokeHairline}} solid {{border}};
+  border-image: none;
+  border-radius: {{radiusMd}};
+  background-color: transparent;
+  color: {{textSecondary}};
+  font-family: "{{fontBody}}";
+  font-size: {{fontSizeCaption}};
+  font-weight: {{fontWeightButton}};
+  text-transform: none;
+  letter-spacing: 0;
+}
+#LibraryFeatureControls QPushButton:hover {
+  border-color: {{borderHover}};
+  color: {{textPrimary}};
+}
+#LibraryFeatureControls QPushButton:pressed {
+  background-color: {{hoverBg}};
+}
+#LibraryFeatureControls QPushButton:checked {
+  border-color: {{accentHiBorder}};
+  background-color: {{accentBg}};
+  color: {{accentHi}};
+}
+#LibraryFeatureControls QPushButton:disabled {
+  border-color: {{borderSubtle}};
+  background-color: transparent;
+  color: {{textFaint}};
+}
+/* The action of the view: Analyze */
+#DlgAnalysis QPushButton#pushButtonAnalyze {
+  border-color: {{accent}};
+  color: {{accent}};
+}
+#DlgAnalysis QPushButton#pushButtonAnalyze:hover {
+  border-color: {{accentHi}};
+  color: {{accentHi}};
+}
+
+/* Auto DJ's icon buttons: Solar's play and pause for on and off, fade,
+   skip, shuffle, add a random track and repeat */
+#DlgAutoDJ QPushButton#pushButtonAutoDJ,
+#DlgAutoDJ QPushButton#pushButtonFadeNow,
+#DlgAutoDJ QPushButton#pushButtonSkipNext,
+#DlgAutoDJ QPushButton#pushButtonShuffle,
+#DlgAutoDJ QPushButton#pushButtonAddRandomTrack,
+#DlgAutoDJ QPushButton#pushButtonRepeatPlaylist {
+  min-width: {{iconMd}};
+  max-width: {{iconMd}};
+  padding: 0 {{heightControlSm - iconMd - strokeHairline - strokeHairline.half}};
+}
+#DlgAutoDJ QPushButton#pushButtonAutoDJ:!checked {
+  image: url(skins:CrateDecks/generated/icons/play-bold_idle.svg);
+}
+#DlgAutoDJ QPushButton#pushButtonAutoDJ:checked {
+  image: url(skins:CrateDecks/generated/icons/pause-bold_active.svg);
+}
+#DlgAutoDJ QPushButton#pushButtonFadeNow:enabled {
+  image: url(skins:CrateDecks/generated/icons/soundwave_idle.svg);
+}
+#DlgAutoDJ QPushButton#pushButtonFadeNow:!enabled {
+  image: url(skins:CrateDecks/generated/icons/soundwave_disabled.svg);
+}
+#DlgAutoDJ QPushButton#pushButtonSkipNext:enabled {
+  image: url(skins:CrateDecks/generated/icons/skip-next_idle.svg);
+}
+#DlgAutoDJ QPushButton#pushButtonSkipNext:!enabled {
+  image: url(skins:CrateDecks/generated/icons/skip-next_disabled.svg);
+}
+#DlgAutoDJ QPushButton#pushButtonShuffle:enabled {
+  image: url(skins:CrateDecks/generated/icons/shuffle_idle.svg);
+}
+#DlgAutoDJ QPushButton#pushButtonShuffle:!enabled {
+  image: url(skins:CrateDecks/generated/icons/shuffle_disabled.svg);
+}
+#DlgAutoDJ QPushButton#pushButtonAddRandomTrack:enabled {
+  image: url(skins:CrateDecks/generated/icons/add-circle_idle.svg);
+}
+#DlgAutoDJ QPushButton#pushButtonAddRandomTrack:!enabled {
+  image: url(skins:CrateDecks/generated/icons/add-circle_disabled.svg);
+}
+#DlgAutoDJ QPushButton#pushButtonRepeatPlaylist:!checked {
+  image: url(skins:CrateDecks/generated/icons/repeat_idle.svg);
+}
+#DlgAutoDJ QPushButton#pushButtonRepeatPlaylist:checked {
+  image: url(skins:CrateDecks/generated/icons/repeat_active.svg);
+}
+
+/* Transition mode and time: the admin's fields at the buttons' height */
+#DlgAutoDJ #fadeModeCombobox,
+#DlgAutoDJ #spinBoxTransition,
+#DlgAnalysis #spinBoxRecentDays {
+  min-height: {{heightControlSm - strokeHairline - strokeHairline}};
+  max-height: {{heightControlSm - strokeHairline - strokeHairline}};
+  margin: 0;
+  padding: 0 {{fieldPaddingX}};
+  border: {{strokeHairline}} solid {{border}};
+  border-image: none;
+  border-radius: {{radiusMd}};
+  background-color: transparent;
+  color: {{textPrimary}};
+  selection-background-color: {{accentBorder}};
+  selection-color: {{textPrimary}};
+}
+#DlgAutoDJ #fadeModeCombobox {
+  font-family: "{{fontBody}}";
+  font-size: {{fontSizeCaption}};
+}
+#DlgAutoDJ #spinBoxTransition,
+#DlgAnalysis #spinBoxRecentDays {
+  font-family: "{{fontMono}}";
+  font-size: {{fontSizeTable}};
+  qproperty-buttonSymbols: NoButtons;
+  /* Qt lays a spin box's text out on its border: centred, it clears it */
+  qproperty-alignment: AlignCenter;
+}
+#DlgAutoDJ #fadeModeCombobox:hover,
+#DlgAutoDJ #spinBoxTransition:hover,
+#DlgAnalysis #spinBoxRecentDays:hover {
+  border-color: {{borderHover}};
+}
+#DlgAutoDJ #fadeModeCombobox:on,
+#DlgAutoDJ #spinBoxTransition:focus,
+#DlgAnalysis #spinBoxRecentDays:focus {
+  border-color: {{accentHiBorder}};
+  border-image: none;
+}
+#DlgAutoDJ #fadeModeCombobox::drop-down {
+  subcontrol-origin: padding;
+  subcontrol-position: center right;
+  width: {{iconSm}};
+  border: 0;
+  image: none;
+}
+#DlgAutoDJ #fadeModeCombobox::down-arrow {
+  image: url(skins:CrateDecks/generated/icons/alt-arrow-down_idle.svg);
+  width: {{iconXs}};
+  height: {{iconXs}};
+}
+#DlgAutoDJ #spinBoxTransition::up-button,
+#DlgAutoDJ #spinBoxTransition::down-button,
+#DlgAnalysis #spinBoxRecentDays::up-button,
+#DlgAnalysis #spinBoxRecentDays::down-button {
+  width: 0;
+  border: 0;
+  border-image: none;
+  image: none;
+}
+
+/* Their labels: what "sec." and the selection say, in mono */
+#LibraryFeatureControls QLabel {
+  background-color: transparent;
+  color: {{textMuted}};
+  font-family: "{{fontMono}}";
+  font-size: {{fontSizeTable}};
+  margin: 0;
+}
+
+/* Analyze's All and New */
+#LibraryFeatureControls QRadioButton {
+  background-color: transparent;
+  color: {{textSecondary}};
+  font-family: "{{fontBody}}";
+  font-size: {{fontSizeCaption}};
+  spacing: {{iconTextGap}};
+  margin: 0;
+}
+#LibraryFeatureControls QRadioButton::indicator {
+  width: {{iconSm}};
+  height: {{iconSm}};
+}
+#LibraryFeatureControls QRadioButton::indicator:unchecked {
+  image: url(skins:CrateDecks/generated/controls/radio_idle.svg);
+}
+#LibraryFeatureControls QRadioButton::indicator:checked {
+  image: url(skins:CrateDecks/generated/controls/radio-checked_active.svg);
 }
