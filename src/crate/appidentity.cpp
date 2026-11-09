@@ -74,4 +74,18 @@ QString buildVersion(const QString& gitDescribe) {
     return productVersion + QStringLiteral("-unknown");
 }
 
+QString attributionText(const QString& linkStyle) {
+    const auto link = [&linkStyle](const char* url, const char* text) {
+        return QStringLiteral("<a style=\"%1\" href=\"%2\">%3</a>")
+                .arg(linkStyle, QLatin1String(url), QLatin1String(text));
+    };
+    return QCoreApplication::translate("crate::About",
+            "Icons: %1 by 480 Design, under %2, recoloured for Crate Decks. "
+            "Fonts: Roboto, Bricolage Grotesque and JetBrains Mono, under the "
+            "SIL Open Font License 1.1.")
+            .arg(link("https://www.figma.com/community/file/1166831539721848736",
+                         "Solar Icons Set"),
+                    link("https://creativecommons.org/licenses/by/4.0/", "CC BY 4.0"));
+}
+
 } // namespace crate

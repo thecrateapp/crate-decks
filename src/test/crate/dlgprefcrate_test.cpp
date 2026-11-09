@@ -2,6 +2,8 @@
 
 #include <gtest/gtest.h>
 
+#include <QDialog>
+#include <QFrame>
 #include <QJsonDocument>
 #include <QLabel>
 #include <QLineEdit>
@@ -287,6 +289,33 @@ TEST_F(CrateAddServerFlowTest, ServerRowsShowFeaturesAndState) {
 TEST(CrateServerRowsTest, FeaturesNeedAValidAnswer) {
     EXPECT_TRUE(crate::serverFeatures(QByteArray()).isEmpty());
     EXPECT_EQ(6, crate::serverFeatures(kDecksCapabilities).size());
+}
+
+TEST_F(CrateAddServerFlowTest, FirstRunDialogFollowsTheSteps) {
+    std::unique_ptr<QDialog> pDialog(crate::createFirstRunDialog(m_pServers.get(), nullptr));
+    auto* pStep = pDialog->findChild<QLabel*>(QStringLiteral("MonoFirstRunStep"));
+    ASSERT_NE(nullptr, pStep);
+    EXPECT_QSTRING_EQ(QStringLiteral("Step 1 of 3"), pStep->text());
+    const QList<QFrame*> lanes = pDialog->findChildren<QFrame*>(QStringLiteral("CrateStepLane"));
+    ASSERT_EQ(3, lanes.size());
+    EXPECT_TRUE(lanes[0]->property("current").toBool());
+    EXPECT_FALSE(lanes[1]->property("current").toBool());
+    // "Not now" is the first start's cancel
+    auto* pCancel = pDialog->findChild<QPushButton*>(QStringLiteral("crateCancel"));
+    ASSERT_NE(nullptr, pCancel);
+    EXPECT_QSTRING_EQ(QStringLiteral("Not now"), pCancel->text());
+
+    pDialog->findChild<QLineEdit*>(QStringLiteral("crateServerAddress"))
+            ->setText(QStringLiteral("crate.test"));
+    pDialog->findChild<QPushButton*>(QStringLiteral("crateConnect"))->click();
+    EXPECT_QSTRING_EQ(QStringLiteral("Step 2 of 3"), pStep->text());
+    lastSent().pReply->respond(200, kDecksCapabilities);
+    EXPECT_QSTRING_EQ(QStringLiteral("Step 3 of 3"), pStep->text());
+    EXPECT_TRUE(lanes[2]->property("current").toBool());
+
+    QSignalSpy rejected(pDialog.get(), &QDialog::rejected);
+    pCancel->click();
+    EXPECT_EQ(1, rejected.count());
 }
 
 // TEST_GAP: offerFirstRun() shows a modal dialog, so it is checked by hand;
