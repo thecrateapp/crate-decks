@@ -1,14 +1,18 @@
 #include <gtest/gtest.h>
 
+#include <QElapsedTimer>
 #include <QSemaphore>
 #include <QSqlDatabase>
 #include <QSqlError>
 #include <QSqlQuery>
 #include <QTemporaryDir>
 #include <QThread>
+#include <algorithm>
 #include <atomic>
 #include <memory>
+#include <thread>
 
+#include "library/dao/settingsdao.h"
 #include "library/queryutil.h"
 #include "test/mixxxtest.h"
 #include "util/db/dbconnection.h"
@@ -16,7 +20,8 @@
 
 // Writes of the GUI thread while another connection writes, as the library
 // scanner does during a scan (upstream issue 6631): they wait for SQLite's
-// write lock instead of failing with "database is locked".
+// write lock instead of failing with "database is locked", and get it soon
+// after the other connection frees it.
 
 namespace {
 
@@ -93,6 +98,9 @@ class CrateDbWriteLockTest : public MixxxTest {
         QSqlQuery query(database());
         ASSERT_TRUE(query.exec(QStringLiteral(
                 "CREATE TABLE t (id INTEGER PRIMARY KEY, v INTEGER)")));
+        // As in Mixxx's schema
+        ASSERT_TRUE(query.exec(QStringLiteral(
+                "CREATE TABLE settings (name TEXT UNIQUE NOT NULL, value TEXT)")));
     }
 
     void TearDown() override {
@@ -142,6 +150,106 @@ TEST_F(CrateDbWriteLockTest, SqlTransactionWaitsForTheWriteLock) {
     writer.waitForLock();
     EXPECT_QSTRING_EQ(QString(), readThenWrite<SqlTransaction>());
     writer.stop();
+}
+
+// A table's column order, saved by its header (SettingsDAO) in a statement
+// of its own
+TEST_F(CrateDbWriteLockTest, SettingsWaitForTheWriteLock) {
+    LockingWriter writer(m_filePath, 150, 1000);
+    writer.start();
+    writer.waitForLock();
+    SettingsDAO settings(database());
+    EXPECT_TRUE(settings.setValue(QStringLiteral("test.header"), QStringLiteral("1")));
+    writer.stop();
+    EXPECT_QSTRING_EQ(QStringLiteral("1"), settings.getValue(QStringLiteral("test.header")));
+}
+
+// The library scanner lets a waiting connection through: it has to see
+// that one waits, in another thread
+TEST_F(CrateDbWriteLockTest, OtherThreadsSeeAConnectionWaitForTheLock) {
+    EXPECT_FALSE(mixxx::DbConnection::otherThreadWaitsForLock(10));
+    LockingWriter writer(m_filePath, 300, 1000);
+    writer.start();
+    writer.waitForLock();
+    std::atomic<bool> written{false};
+    std::thread waiter([this, &written] {
+        {
+            mixxx::DbConnection connection(
+                    paramsFor(m_filePath), QStringLiteral("CrateDbWriteLockTest-waiter"));
+            ASSERT_TRUE(connection.open());
+            QSqlQuery query(connection);
+            EXPECT_TRUE(query.exec(QStringLiteral("INSERT INTO t (v) VALUES (4)")));
+            query.finish();
+            connection.close();
+        }
+        written = true;
+    });
+    bool seen = false;
+    QElapsedTimer timer;
+    timer.start();
+    while (!written && timer.elapsed() < 3000) {
+        seen = seen || mixxx::DbConnection::otherThreadWaitsForLock(10);
+        QThread::msleep(1);
+    }
+    waiter.join();
+    writer.stop();
+    EXPECT_TRUE(seen);
+    // Nobody waits any longer
+    QThread::msleep(30);
+    EXPECT_FALSE(mixxx::DbConnection::otherThreadWaitsForLock(10));
+}
+
+// A connection that Qt clones, as the track tables' (BaseTrackTableModel),
+// waits as Mixxx's own and tells others that it waits
+TEST_F(CrateDbWriteLockTest, ClonedConnectionsWaitAsMixxxConnections) {
+    LockingWriter writer(m_filePath, 300, 1000);
+    writer.start();
+    writer.waitForLock();
+    std::atomic<bool> written{false};
+    std::thread waiter([this, &written] {
+        {
+            QSqlDatabase clone = QSqlDatabase::cloneDatabase(
+                    database(), QStringLiteral("CrateDbWriteLockTest-clone"));
+            ASSERT_TRUE(clone.open());
+            mixxx::DbConnection::installBusyHandler(clone);
+            QSqlQuery query(clone);
+            EXPECT_TRUE(query.exec(QStringLiteral("INSERT INTO t (v) VALUES (5)")));
+            query.finish();
+            clone.close();
+        }
+        QSqlDatabase::removeDatabase(QStringLiteral("CrateDbWriteLockTest-clone"));
+        written = true;
+    });
+    bool seen = false;
+    QElapsedTimer timer;
+    timer.start();
+    while (!written && timer.elapsed() < 3000) {
+        seen = seen || mixxx::DbConnection::otherThreadWaitsForLock(10);
+        QThread::msleep(1);
+    }
+    waiter.join();
+    writer.stop();
+    EXPECT_TRUE(seen);
+}
+
+TEST_F(CrateDbWriteLockTest, WritesGetTheLockSoonAfterItIsFree) {
+    // Short transactions with short gaps, as the scanner's batches
+    LockingWriter writer(m_filePath, 30, 2);
+    writer.start();
+    writer.waitForLock();
+    qint64 longestMs = 0;
+    for (int i = 0; i < 10; ++i) {
+        QElapsedTimer timer;
+        timer.start();
+        QSqlQuery query(database());
+        EXPECT_TRUE(query.exec(QStringLiteral("INSERT INTO t (v) VALUES (3)")))
+                << query.lastError().text().toStdString();
+        longestMs = std::max(longestMs, timer.elapsed());
+        QThread::msleep(7);
+    }
+    writer.stop();
+    // One transaction of the other connection, and some slack
+    EXPECT_LT(longestMs, 100);
 }
 
 } // namespace

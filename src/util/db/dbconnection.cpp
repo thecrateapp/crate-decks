@@ -1,5 +1,8 @@
 #include <QSqlDriver>
 #include <QSqlError>
+#include <QThread>
+#include <atomic>
+#include <chrono>
 
 #ifdef __SQLITE3__
 #include <sqlite3.h>
@@ -20,6 +23,38 @@ namespace mixxx {
 namespace {
 
 const mixxx::Logger kLogger("DbConnection");
+
+/// When a connection last waited for SQLite's lock, and in which thread
+/// (DbConnection::otherThreadWaitsForLock())
+std::atomic<qint64> s_lastWaitNs{0};
+std::atomic<Qt::HANDLE> s_lastWaitThread{nullptr};
+
+qint64 steadyNs() {
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(
+            std::chrono::steady_clock::now().time_since_epoch())
+            .count();
+}
+
+#ifdef __SQLITE3__
+/// As long as Qt's default busy timeout
+constexpr int kBusyTimeoutMs = 5000;
+
+/// SQLite's busy handler for Qt's busy timeout sleeps longer and longer
+/// between its attempts, up to 100 ms: a connection that waits while
+/// another one writes in short transactions, as the library scanner's
+/// batches, misses the gaps between them and waits for seconds (upstream
+/// issue 6631). This one tries again every millisecond, for as long.
+int tryEveryMillisecond(void* /*pContext*/, int attempts) {
+    // Tells a writer that holds the lock often that this one waits
+    s_lastWaitThread.store(QThread::currentThreadId(), std::memory_order_relaxed);
+    s_lastWaitNs.store(steadyNs(), std::memory_order_release);
+    if (attempts >= kBusyTimeoutMs) {
+        return 0; // SQLITE_BUSY: "database is locked"
+    }
+    sqlite3_sleep(1);
+    return 1;
+}
+#endif // __SQLITE3__
 
 QSqlDatabase createDatabase(
         const DbConnection::Params& params,
@@ -263,6 +298,8 @@ bool initDatabase(const QSqlDatabase& database, mixxx::StringCollator* pCollator
         return false; // abort
     }
 
+    DbConnection::installBusyHandler(database);
+
     int result = sqlite3_create_collation(
                     handle,
                     kLexicographicalCollationFunc,
@@ -312,6 +349,32 @@ bool initDatabase(const QSqlDatabase& database, mixxx::StringCollator* pCollator
 }
 
 } // anonymous namespace
+
+// static
+bool DbConnection::otherThreadWaitsForLock(int withinMs) {
+    const qint64 lastWaitNs = s_lastWaitNs.load(std::memory_order_acquire);
+    if (lastWaitNs == 0 ||
+            steadyNs() - lastWaitNs > static_cast<qint64>(withinMs) * 1000 * 1000) {
+        return false;
+    }
+    return s_lastWaitThread.load(std::memory_order_relaxed) != QThread::currentThreadId();
+}
+
+// static
+void DbConnection::installBusyHandler(const QSqlDatabase& database) {
+#ifdef __SQLITE3__
+    const QVariant handle = database.driver()->handle();
+    if (handle.isValid() && qstrcmp(handle.typeName(), "sqlite3*") == 0) {
+        sqlite3* pHandle = *static_cast<sqlite3* const*>(handle.constData());
+        if (pHandle) {
+            // Replaces the busy handler of Qt's busy timeout
+            sqlite3_busy_handler(pHandle, tryEveryMillisecond, nullptr);
+        }
+    }
+#else
+    Q_UNUSED(database);
+#endif // __SQLITE3__
+}
 
 DbConnection::DbConnection(
         const Params& params,
