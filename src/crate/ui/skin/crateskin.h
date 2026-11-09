@@ -70,8 +70,9 @@ void applySkinDefaults(const UserSettingsPointer& pConfig, const QString& skinPa
 /// (mixerstyle.h), the library's sidebar, rows, headers and cells
 /// (librarystyle.h; `pLibrary` and `pConfig` give it the row height), the
 /// layout classes from the size of the skin, the Crate server status of the
-/// toolbar and its Preferences button (preferencescontrol.h). Does nothing for
-/// a skin without generated/vars.xml, that is, every skin but CrateDecks.
+/// toolbar and its Preferences button (preferencescontrol.h), and whether each
+/// deck's track has an artist and a genre (decktrackfields.h). Does nothing
+/// for a skin without generated/vars.xml, that is, every skin but CrateDecks.
 void prepareLoadedSkin(QWidget* pSkinRoot,
         const QString& skinPath,
         Library* pLibrary = nullptr,

@@ -47,6 +47,17 @@
       <attribute persist="false" config_key="[CrateDecks],deck2_menu">0</attribute>
       <attribute persist="false" config_key="[CrateDecks],deck3_menu">0</attribute>
       <attribute persist="false" config_key="[CrateDecks],deck4_menu">0</attribute>
+    <!-- Whether each deck's track has an artist and a genre, for the
+         "Artist · Genre" row: C++ sets them from the tracks
+         (crate/ui/skin/decktrackfields.h) -->
+      <attribute persist="false" config_key="[CrateDecks],deck1_has_artist">0</attribute>
+      <attribute persist="false" config_key="[CrateDecks],deck1_has_genre">0</attribute>
+      <attribute persist="false" config_key="[CrateDecks],deck2_has_artist">0</attribute>
+      <attribute persist="false" config_key="[CrateDecks],deck2_has_genre">0</attribute>
+      <attribute persist="false" config_key="[CrateDecks],deck3_has_artist">0</attribute>
+      <attribute persist="false" config_key="[CrateDecks],deck3_has_genre">0</attribute>
+      <attribute persist="false" config_key="[CrateDecks],deck4_has_artist">0</attribute>
+      <attribute persist="false" config_key="[CrateDecks],deck4_has_genre">0</attribute>
     <!-- Rows that the GU1 mockups lay out and that wait for their data: the
          phrase rule (plans F5 and F6), the Smart Mix line (F6) and Crate's
          track state, profile and cache (F4). They are skin switches, not

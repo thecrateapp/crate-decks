@@ -15,6 +15,7 @@
 #include "control/controlobject.h"
 #include "crate/crateservers.h"
 #include "crate/ui/skin/crateserverstatus.h"
+#include "crate/ui/skin/decktrackfields.h"
 #include "crate/ui/skin/librarystyle.h"
 #include "crate/ui/skin/mixerstyle.h"
 #include "crate/ui/skin/preferencescontrol.h"
@@ -252,6 +253,10 @@ void prepareLoadedSkin(QWidget* pSkinRoot,
 
     auto* pStatus = new ServerStatus(CrateServers::instance(), pSkinRoot);
     bindServerStatus(pStatus, pSkinRoot);
+
+    if (ControlObject::exists(DeckTrackFields::hasArtistKey(1))) {
+        new DeckTrackFields(pSkinRoot);
+    }
 
     if (ControlObject::exists(showPreferencesKey())) {
         new PreferencesControl(pSkinRoot);

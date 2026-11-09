@@ -59,6 +59,12 @@ Variables: ChanNum, Size ("" for two decks, "Four" for the compact decks),
             <Layout>horizontal</Layout>
             <SizePolicy>e,min</SizePolicy>
             <Children>
+              <!-- Each field hides while it is empty, and the separator shows
+                   only between two: "SNAYX", never "SNAYX ·". A field that
+                   shows again measures its new text, which an empty WLabel
+                   would not do. The empty strut at the end keeps the row's
+                   line with both fields hidden, so that the title does not
+                   move -->
               <TrackProperty>
                 <ObjectName>CrateDeckArtist<Variable name="Size"/></ObjectName>
                 <TooltipId>track_artist</TooltipId>
@@ -71,28 +77,60 @@ Variables: ChanNum, Size ("" for two decks, "Four" for the compact decks),
                   <ConfigKey>[CrateDecks],layout_short</ConfigKey>
                   <BindProperty>highlight</BindProperty>
                 </Connection>
-              </TrackProperty>
-              <Label>
-                <ObjectName>CrateDeckArtist<Variable name="Size"/></ObjectName>
-                <Text> · </Text>
-                <SizePolicy>max,min</SizePolicy>
                 <Connection>
-                  <ConfigKey>[CrateDecks],layout_short</ConfigKey>
-                  <BindProperty>highlight</BindProperty>
+                  <ConfigKey>[CrateDecks],deck<Variable name="ChanNum"/>_has_artist</ConfigKey>
+                  <BindProperty>visible</BindProperty>
                 </Connection>
-              </Label>
+              </TrackProperty>
+              <WidgetGroup>
+                <Layout>horizontal</Layout>
+                <SizePolicy>max,min</SizePolicy>
+                <Children>
+                  <Label>
+                    <ObjectName>CrateDeckArtist<Variable name="Size"/></ObjectName>
+                    <Text> · </Text>
+                    <SizePolicy>max,min</SizePolicy>
+                    <Connection>
+                      <ConfigKey>[CrateDecks],layout_short</ConfigKey>
+                      <BindProperty>highlight</BindProperty>
+                    </Connection>
+                    <Connection>
+                      <ConfigKey>[CrateDecks],deck<Variable name="ChanNum"/>_has_artist</ConfigKey>
+                      <BindProperty>visible</BindProperty>
+                    </Connection>
+                  </Label>
+                </Children>
+                <Connection>
+                  <ConfigKey>[CrateDecks],deck<Variable name="ChanNum"/>_has_genre</ConfigKey>
+                  <BindProperty>visible</BindProperty>
+                </Connection>
+              </WidgetGroup>
+              <!-- Not "i": the row aligns left, so an ignored width is 0 and
+                   the genre never showed -->
               <TrackProperty>
                 <ObjectName>CrateDeckArtist<Variable name="Size"/></ObjectName>
                 <Property>genre</Property>
                 <Alignment>left</Alignment>
                 <Elide>right</Elide>
-                <SizePolicy>i,min</SizePolicy>
+                <SizePolicy>max,min</SizePolicy>
                 <Channel><Variable name="ChanNum"/></Channel>
                 <Connection>
                   <ConfigKey>[CrateDecks],layout_short</ConfigKey>
                   <BindProperty>highlight</BindProperty>
                 </Connection>
+                <Connection>
+                  <ConfigKey>[CrateDecks],deck<Variable name="ChanNum"/>_has_genre</ConfigKey>
+                  <BindProperty>visible</BindProperty>
+                </Connection>
               </TrackProperty>
+              <Label>
+                <ObjectName>CrateDeckArtist<Variable name="Size"/></ObjectName>
+                <SizePolicy>min,min</SizePolicy>
+                <Connection>
+                  <ConfigKey>[CrateDecks],layout_short</ConfigKey>
+                  <BindProperty>highlight</BindProperty>
+                </Connection>
+              </Label>
             </Children>
           </WidgetGroup>
         </Children>

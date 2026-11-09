@@ -57,8 +57,10 @@
 #include "database/mixxxdb.h"
 #include "dialog/dlgabout.h"
 #include "library/library.h"
+#include "library/trackcollectionmanager.h"
 #include "library/trackmodel.h"
 #include "mixer/basetrackplayer.h"
+#include "mixer/playerinfo.h"
 #include "mixer/playermanager.h"
 #include "mixxxmainwindow.h"
 #include "preferences/colorpalettesettings.h"
@@ -70,6 +72,7 @@
 #include "track/cue.h"
 #include "track/keyutils.h"
 #include "track/track.h"
+#include "track/trackref.h"
 #include "util/cmdlineargs.h"
 #include "util/font.h"
 #include "util/versionstore.h"
@@ -905,6 +908,110 @@ TEST_F(CrateSkinLoadTest, DeckHeadHidesEmptyFields) {
     // An empty deck
     set("track_loaded", 0);
     EXPECT_QSTRING_EQ(QStringLiteral("Deck A|·|No track"), head());
+}
+
+/// The "Artist · Genre" row under the title of deck `letter`, while it shows.
+QWidget* deckArtistRow(QWidget* pSkin, const QString& letter) {
+    const QList<QWidget*> rows =
+            pSkin->findChildren<QWidget*>(QStringLiteral("CrateDeckArtistRow"));
+    for (QWidget* pRow : rows) {
+        if (!pRow->isVisible() || !pRow->layout()) {
+            continue;
+        }
+        // The first parent with a deck letter is the row's deck
+        for (QWidget* pParent = pRow->parentWidget(); pParent; pParent = pParent->parentWidget()) {
+            const QList<QLabel*> labels = pParent->findChildren<QLabel*>();
+            const auto letterLabel = std::find_if(labels.begin(), labels.end(), [](QLabel* pLabel) {
+                return pLabel->objectName().startsWith(QLatin1String("CrateDeckLetter"));
+            });
+            if (letterLabel != labels.end()) {
+                if ((*letterLabel)->text() == letter) {
+                    return pRow;
+                }
+                break;
+            }
+        }
+    }
+    return nullptr;
+}
+
+TEST_F(CrateSkinLoadTest, DeckArtistRowHidesEmptyFields) {
+    QTemporaryDir profile;
+    ASSERT_TRUE(profile.isValid());
+    OffscreenDecks decks(profile.path() + QLatin1Char('/'));
+    decks.writeProfile(kCrateDecks);
+    decks.start(application());
+    ASSERT_NE(nullptr, decks.skin());
+    // As the mockups: a narrow window squeezes the title column instead
+    decks.mainWindow()->resize(1920, 1080);
+    const QString group = QStringLiteral("[Channel1]");
+    BaseTrackPlayer* pPlayer = decks.coreServices()->getPlayerManager()->getPlayer(group);
+    ASSERT_NE(nullptr, pPlayer);
+    ControlObject* pTrackLoaded = ControlObject::getControl(group, QStringLiteral("track_loaded"));
+    ASSERT_NE(nullptr, pTrackLoaded);
+    // Loads `pTrack` as the end of a load does, without its audio: the
+    // labels follow the player, Crate follows PlayerInfo
+    const auto load = [&](const TrackPointer& pTrack) {
+        pTrackLoaded->forceSet(1);
+        emit pPlayer->newTrackLoaded(pTrack);
+        PlayerInfo::instance().setTrackInfo(group, pTrack);
+    };
+    // The texts of the row joined by "|", which reads well in a failure
+    const auto row = [&decks] {
+        waitFor([] { return false; }, 100);
+        QStringList texts;
+        if (QWidget* pRow = deckArtistRow(decks.skin(), QStringLiteral("A"))) {
+            appendShownTexts(pRow->layout(), pRow, &texts);
+        }
+        return texts.join(u'|');
+    };
+    const auto rowHeight = [&decks] {
+        QWidget* pRow = deckArtistRow(decks.skin(), QStringLiteral("A"));
+        return pRow ? pRow->height() : -1;
+    };
+    const auto trackWith = [](const QString& artist, const QString& genre) {
+        TrackPointer pTrack = Track::newTemporary();
+        pTrack->setTitle(QStringLiteral("Strut"));
+        pTrack->setArtist(artist);
+        pTrack->updateGenre(genre);
+        return pTrack;
+    };
+
+    load(trackWith(QStringLiteral("SNAYX"), QStringLiteral("Alternative")));
+    EXPECT_QSTRING_EQ(QStringLiteral("SNAYX|·|Alternative"), row());
+    const int height = rowHeight();
+    EXPECT_GT(height, 0);
+
+    // A missing field hides with the separator: never "SNAYX ·"
+    load(trackWith(QStringLiteral("SNAYX"), QString()));
+    EXPECT_QSTRING_EQ(QStringLiteral("SNAYX"), row());
+    load(trackWith(QString(), QStringLiteral("Alternative")));
+    EXPECT_QSTRING_EQ(QStringLiteral("Alternative"), row());
+    load(trackWith(QStringLiteral(" "), QStringLiteral(" ")));
+    EXPECT_QSTRING_EQ(QString(), row());
+    // The row keeps its line, so that the title above does not move: Qt
+    // measures an empty line 1 px shorter than one with glyphs
+    EXPECT_NEAR(height, rowHeight(), 1);
+
+    // An edit of the loaded track shows at once. A track of the library:
+    // only a track with an id tells the labels that it changed
+    const QString file = profile.filePath(QStringLiteral("edited.flac"));
+    ASSERT_TRUE(QFile::copy(getTestFile(u".flac"), file));
+    const TrackPointer pTrack =
+            decks.coreServices()->getTrackCollectionManager()->getOrAddTrack(
+                    TrackRef::fromFilePath(file));
+    ASSERT_NE(nullptr, pTrack);
+    ASSERT_TRUE(pTrack->getId().isValid());
+    pTrack->setArtist(QStringLiteral("SNAYX"));
+    pTrack->updateGenre(QString());
+    load(pTrack);
+    EXPECT_QSTRING_EQ(QStringLiteral("SNAYX"), row());
+    pTrack->updateGenre(QStringLiteral("Alternative"));
+    EXPECT_QSTRING_EQ(QStringLiteral("SNAYX|·|Alternative"), row());
+    pTrack->setArtist(QString());
+    EXPECT_QSTRING_EQ(QStringLiteral("Alternative"), row());
+
+    PlayerInfo::instance().setTrackInfo(group, TrackPointer());
 }
 
 class CrateSkinTest : public MixxxTest {
