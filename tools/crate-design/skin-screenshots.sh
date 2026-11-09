@@ -15,13 +15,17 @@
 #
 #   CRATE_SKIN_SCREENSHOTS=<dir> build/mixxx-test --gtest_filter='CrateSkinScreenshots.*'
 #
+# CRATE_SKIN_FILTER picks the captures: CrateSkinScreenshots.Capture for
+# the main window, CrateSkinScreenshots.Dialogs for Preferences, About, the
+# first start, the splash and the menus; both by default.
+#
 # The tracks directory is only read: never commit audio, screenshots or
 # mockups. CRATE_SKIN_RUNTIME_DIR picks the runtime directory (its path must
 # leave room for a Unix socket name, about 100 characters).
 set -euo pipefail
 
 if [[ $# -lt 1 ]]; then
-    sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,24p' "$0" | sed 's/^# \{0,1\}//'
     exit 2
 fi
 
@@ -82,7 +86,7 @@ if [[ ! -S "$XDG_RUNTIME_DIR/wl" ]]; then
     exit 1
 fi
 WAYLAND_DISPLAY=wl QT_QPA_PLATFORM=wayland \
-    "$CRATE_SKIN_TEST" --gtest_filter='CrateSkinScreenshots.*'
+    "$CRATE_SKIN_TEST" --gtest_filter="${CRATE_SKIN_FILTER:-CrateSkinScreenshots.*}"
 status=$?
 kill "$compositor" 2>/dev/null
 wait "$compositor" 2>/dev/null

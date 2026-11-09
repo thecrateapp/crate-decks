@@ -4,6 +4,8 @@
 #include <QAbstractItemView>
 #include <QAction>
 #include <QApplication>
+#include <QCheckBox>
+#include <QContextMenuEvent>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QDir>
@@ -12,12 +14,16 @@
 #include <QFileInfo>
 #include <QFont>
 #include <QFontMetricsF>
+#include <QHeaderView>
 #include <QImage>
 #include <QLabel>
+#include <QLineEdit>
+#include <QMenu>
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QPointer>
 #include <QPushButton>
 #include <QScrollBar>
 #include <QSqlDatabase>
@@ -36,12 +42,20 @@
 #include "control/controlobject.h"
 #include "control/controlpushbutton.h"
 #include "coreservices.h"
+#include "crate/crateserverrows.h"
+#include "crate/crateservers.h"
+#include "crate/ui/crateaddserverwidget.h"
+#include "crate/ui/cratefirstrun.h"
+#include "crate/ui/crateprefsections.h"
 #include "crate/ui/dialogs/preferenceschrome.h"
+#include "crate/ui/dlgprefcrate.h"
 #include "crate/ui/skin/crateserverstatus.h"
 #include "crate/ui/skin/crateskin.h"
 #include "crate/ui/skin/mixerstyle.h"
 #include "crate/ui/skin/preferencescontrol.h"
 #include "database/mixxxdb.h"
+#include "dialog/dlgabout.h"
+#include "library/library.h"
 #include "library/trackmodel.h"
 #include "mixer/basetrackplayer.h"
 #include "mixer/playermanager.h"
@@ -60,6 +74,7 @@
 #include "waveform/visualplayposition.h"
 #include "waveform/waveform.h"
 #include "widget/wglwidget.h"
+#include "widget/wlibrary.h"
 #include "widget/wtracktableview.h"
 
 #ifdef MIXXX_USE_QOPENGL
@@ -1211,6 +1226,252 @@ TEST_F(CrateSkinScreenshots, Capture) {
     ControlObject::set(ConfigKey("[CrateDecks]", "deck1_menu"), 1);
     decks.mainWindow()->resize(QSize(1920, 1080));
     capture(skin.toLower() + QStringLiteral("-2deck-1920-menu"));
+}
+
+/// The last menu that showed. In a Wayland compositor a popup opened
+/// without a real click may close at once or not show; the harness renders
+/// the menu all the same.
+class LastMenu : public QObject {
+  public:
+    QPointer<QMenu> menu;
+
+  protected:
+    bool eventFilter(QObject* pWatched, QEvent* pEvent) override {
+        if (pEvent->type() == QEvent::Show) {
+            if (auto* pMenu = qobject_cast<QMenu*>(pWatched)) {
+                menu = pMenu;
+            }
+        }
+        return QObject::eventFilter(pWatched, pEvent);
+    }
+};
+
+/// The top-level widget that inherits `className`, or nullptr.
+QWidget* topLevelOf(const char* className) {
+    const QList<QWidget*> windows = QApplication::topLevelWidgets();
+    for (QWidget* pWindow : windows) {
+        if (pWindow->inherits(className)) {
+            return pWindow;
+        }
+    }
+    return nullptr;
+}
+
+/// Dev-only harness: renders the dialogs of plan V2.PR5 to PNG for the side
+/// by side with the GU1 mockups (preferences-crate, first-run): Preferences
+/// on the Crate page and two of Mixxx's pages, About, the first-start
+/// dialog, the splash screen and the track and column menus. Each one is
+/// saved alone and over the main window, where it opens. Runs only with
+/// CRATE_SKIN_SCREENSHOTS=<output dir>, like Capture; the Crate page shows
+/// the mockup's two servers and its cache and Smart Mix sections, which wait
+/// for plans F4 and F6, laid out.
+TEST_F(CrateSkinScreenshots, Dialogs) {
+    const QString outDir = qEnvironmentVariable("CRATE_SKIN_SCREENSHOTS");
+    if (outDir.isEmpty()) {
+        GTEST_SKIP() << "Set CRATE_SKIN_SCREENSHOTS=<dir> to render the dialogs";
+    }
+    QDir().mkpath(outDir);
+    const bool openGl = QGuiApplication::platformName() != QLatin1String("offscreen");
+    QTemporaryDir profile;
+    ASSERT_TRUE(profile.isValid());
+    OffscreenDecks decks(profile.path() + QLatin1Char('/'));
+    SoundSourceProxy::registerProviders();
+    decks.writeProfile(kCrateDecks,
+            {
+                    {ConfigKey("[Library]", "SupportedFileExtensions"),
+                            SoundSourceProxy::getSupportedFileSuffixes().join(u',')},
+                    {ConfigKey("[Waveform]", "WaveformType"), QStringLiteral("7")},
+                    {ConfigKey("[Waveform]", "use_hardware_acceleration"),
+                            openGl ? QStringLiteral("3") : QStringLiteral("0")},
+                    {ConfigKey("[Config]", "hide_menubar"), QStringLiteral("1")},
+            });
+    const QString libraryRows = qEnvironmentVariable("CRATE_SKIN_LIBRARY_ROWS");
+    if (!libraryRows.isEmpty()) {
+        EXPECT_TRUE(insertLibraryRows(
+                profile.path() + QLatin1Char('/'), readLibraryRows(libraryRows)));
+    }
+    decks.start(application());
+    ASSERT_NE(nullptr, decks.skin());
+    decks.mainWindow()->menuBar()->hide();
+    decks.mainWindow()->resize(QSize(1920, 1080));
+    auto* pStatus = decks.skin()->findChild<crate::ServerStatus*>();
+
+    const auto settle = [] {
+        waitFor([] { return false; }, 1200);
+    };
+    const auto mainWindow = [&] {
+        settle();
+        QImage image = decks.skin()->grab().toImage();
+        if (openGl) {
+            paintOpenGlWindows(decks.skin(), &image);
+        }
+        return image;
+    };
+    const auto save = [&](const QImage& image, const QString& name) {
+        const QString file = QDir(outDir).filePath(name + QStringLiteral(".png"));
+        EXPECT_TRUE(image.save(file)) << file.toStdString();
+    };
+    // The dialog alone and over the main window, centred, as it opens
+    const auto saveOver = [&](QWidget* pWidget,
+                                  const QImage& background,
+                                  const QString& name,
+                                  QPoint at = QPoint(-1, -1)) {
+        settle();
+        const QImage dialog = pWidget->grab().toImage();
+        save(dialog, name);
+        QImage over = background.convertToFormat(QImage::Format_ARGB32_Premultiplied);
+        QPainter painter(&over);
+        if (at.x() < 0) {
+            at = QPoint((over.width() - dialog.width()) / 2, (over.height() - dialog.height()) / 2);
+        }
+        painter.drawImage(at, dialog);
+        painter.end();
+        save(over, name + QStringLiteral("-over"));
+    };
+
+    // Preferences, from the toolbar's button, at the mockup's size
+    if (pStatus) {
+        pStatus->showStatus(QStringLiteral("dev.crate.local"),
+                crate::ServerStatus::State::Connected);
+    }
+    const QImage withServer = mainWindow();
+    ControlObject::set(crate::showPreferencesKey(), 1);
+    QWidget* pPreferences = topLevelOf("DlgPreferences");
+    ASSERT_NE(nullptr, pPreferences);
+    ASSERT_TRUE(pPreferences->isVisible());
+    pPreferences->resize(QSize(1180, 940));
+    auto* pTree = pPreferences->findChild<QTreeWidget*>(QStringLiteral("contentsTreeWidget"));
+    ASSERT_NE(nullptr, pTree);
+    QTreeWidgetItem* pCrateItem = pTree->topLevelItem(pTree->topLevelItemCount() - 1);
+    pTree->setCurrentItem(pCrateItem);
+    auto* pCratePage = pPreferences->findChild<crate::DlgPrefCrate*>();
+    ASSERT_NE(nullptr, pCratePage);
+    const QStringList features = {QStringLiteral("library"),
+            QStringLiteral("analysis"),
+            QStringLiteral("beatmatch"),
+            QStringLiteral("bass handoff"),
+            QStringLiteral("long beatmatch"),
+            QStringLiteral("cues")};
+    crate::ServerRow dev;
+    dev.name = QStringLiteral("dev.crate.local");
+    dev.meta = {QStringLiteral("https://dev.crate.local"),
+            QStringLiteral("signed in as diego@crate.local"),
+            QStringLiteral("136 512 tracks")};
+    dev.state = crate::ServerRow::State::SignedIn;
+    crate::ServerRow home;
+    home.name = QStringLiteral("home.crate.lan");
+    home.meta = {QStringLiteral("http://192.168.1.20:8585"),
+            QStringLiteral("local network, no HTTPS"),
+            QStringLiteral("last seen 2 h ago")};
+    home.state = crate::ServerRow::State::SignedOut;
+    for (const QString& feature : features) {
+        dev.features.append({feature, true});
+        home.features.append({feature,
+                !feature.contains(QLatin1String("long")) &&
+                        feature != QLatin1String("cues")});
+    }
+    pCratePage->showServerRows({dev, home});
+    pCratePage->cacheSection()->setUsage(18'400'000'000, 40'000'000'000, 1204, 31);
+    pCratePage->cacheSection()->setLocation(QStringLiteral("~/.cratedecks/cache"));
+    pCratePage->cacheSection()->prewarm()->setChecked(true);
+    pCratePage->cacheSection()->show();
+    pCratePage->smartMixSection()->show();
+    saveOver(pPreferences, withServer, QStringLiteral("crate-prefs-crate"));
+    for (int i = 0; i < pTree->topLevelItemCount(); ++i) {
+        const QString page = pTree->topLevelItem(i)->text(0);
+        if (page == QLatin1String("Library") || page == QLatin1String("Decks") ||
+                page == QLatin1String("Sound Hardware")) {
+            pTree->setCurrentItem(pTree->topLevelItem(i));
+            saveOver(pPreferences,
+                    withServer,
+                    QStringLiteral("crate-prefs-") + page.toLower().replace(u' ', u'-'));
+        }
+    }
+    pPreferences->hide();
+
+    // About
+    DlgAbout about;
+    about.show();
+    saveOver(&about, withServer, QStringLiteral("crate-about"));
+    about.hide();
+
+    // The first start: no server, the address typed in the focused field
+    if (pStatus) {
+        pStatus->showStatus(QString(), crate::ServerStatus::State::None);
+    }
+    const QImage withoutServer = mainWindow();
+    std::unique_ptr<QDialog> pFirstRun(
+            crate::createFirstRunDialog(crate::CrateServers::instance(), decks.mainWindow()));
+    pFirstRun->show();
+    if (auto* pAddress = pFirstRun->findChild<QLineEdit*>(QStringLiteral("crateServerAddress"))) {
+        pAddress->setText(QStringLiteral("dev.crate.local"));
+        pAddress->setFocus();
+    }
+    saveOver(pFirstRun.get(), withoutServer, QStringLiteral("crate-firstrun"));
+    pFirstRun->hide();
+
+    // The splash screen, as the main window shows it while it starts
+    {
+        mixxx::skin::SkinLoader loader(decks.coreServices()->getSettings());
+        std::unique_ptr<LaunchImage> pSplash(loader.loadLaunchImage(nullptr));
+        ASSERT_TRUE(pSplash);
+        pSplash->resize(QSize(1920, 1080));
+        pSplash->progress(42, QString());
+        pSplash->show();
+        settle();
+        save(pSplash->grab().toImage(), QStringLiteral("crate-splash"));
+    }
+
+    // The track menu and the column chooser of the library
+    if (pStatus) {
+        pStatus->showStatus(QStringLiteral("dev.crate.local"),
+                crate::ServerStatus::State::Connected);
+    }
+    const QImage library = mainWindow();
+    LastMenu lastMenu;
+    application()->installEventFilter(&lastMenu);
+    for (WTrackTableView* pView : decks.skin()->findChildren<WTrackTableView*>()) {
+        if (!pView->isVisible() || !pView->model() || pView->model()->rowCount() == 0) {
+            continue;
+        }
+        const QList<std::pair<QWidget*, QString>> targets = {
+                {pView->viewport(), QStringLiteral("crate-menu-track")},
+                {pView->horizontalHeader()->viewport(), QStringLiteral("crate-menu-columns")},
+        };
+        for (const auto& [pTarget, name] : targets) {
+            const QPoint at(pTarget->width() / 3, std::min(pTarget->height() / 2, 40));
+            if (pTarget == pView->viewport()) {
+                pView->selectRow(2);
+            }
+            lastMenu.menu = nullptr;
+            QContextMenuEvent event(QContextMenuEvent::Mouse, at, pTarget->mapToGlobal(at));
+            QCoreApplication::sendEvent(pTarget, &event);
+            settle();
+            // The track menu belongs to the table, the column chooser to its
+            // header
+            QMenu* pMenu = lastMenu.menu ? lastMenu.menu.data()
+                                         : pTarget->parentWidget()->findChild<QMenu*>();
+            EXPECT_NE(nullptr, pMenu) << name.toStdString();
+            if (pMenu) {
+                pMenu->adjustSize();
+                saveOver(pMenu, library, name, pTarget->mapTo(decks.skin(), at));
+                pMenu->hide();
+            }
+        }
+        break;
+    }
+    application()->removeEventFilter(&lastMenu);
+
+    // The Auto DJ and Analyze views of the library, with their button bars
+    if (auto* pLibraryWidget = decks.skin()->findChild<WLibrary*>()) {
+        for (const auto& [view, name] :
+                {std::pair{Library::kAutoDJViewName, QStringLiteral("crate-library-autodj")},
+                        std::pair{QStringLiteral("Analysis"),
+                                QStringLiteral("crate-library-analyze")}}) {
+            pLibraryWidget->switchToView(view);
+            save(mainWindow(), name);
+        }
+    }
 }
 
 /// Dev-only harness for Q14 (plan V2, performance): skin load time and
