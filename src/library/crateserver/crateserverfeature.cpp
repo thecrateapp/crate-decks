@@ -6,6 +6,7 @@
 #include <QMenu>
 #include <QPainter>
 #include <QScopeGuard>
+#include <QSet>
 #include <QtConcurrent>
 
 #include "crate/client/cratecapabilities.h"
@@ -182,6 +183,9 @@ struct CrateServerFeature::Server {
     };
     Readiness readiness = Readiness::Unknown;
     QList<std::function<void()>> waiting;
+    /// The containers asked for in this run, so a clean one is revalidated
+    /// once (syncIfNeeded()).
+    QSet<qint64> revalidated;
 };
 
 CrateServerFeature::CrateServerFeature(Library* pLibrary, UserSettingsPointer pConfig)
@@ -291,6 +295,12 @@ void CrateServerFeature::updateServers() {
                         syncIfNeeded(id, m_pContainerModel->containerId());
                     }
                 });
+        connect(pSync, &LibrarySync::syncFailed, this, [this, id](qint64 containerId) {
+            // Tried again the next time it is shown
+            if (Server* pFailed = server(id)) {
+                pFailed->revalidated.remove(containerId);
+            }
+        });
         m_servers.emplace(id, std::move(pServer));
     }
 
@@ -698,9 +708,16 @@ void CrateServerFeature::syncIfNeeded(const QString& serverId, qint64 containerI
     if (!pServer || pServer->readiness != Server::Readiness::Ready) {
         return;
     }
-    // The tree read last; a container the tree has not shown yet is synced
+    // The tree read last; a container the tree has not shown yet is synced.
+    // A clean one is still asked once per run: its tree ETag only follows
+    // membership and order, and a mood's never changes, while its tracks'
+    // metadata, profiles and availability change only its pages' ETags (S3
+    // contract). Each page goes with If-None-Match, so an unchanged
+    // container costs a 304 per page and no parsing.
     const auto it = m_containers.constFind(containerId);
-    if (it == m_containers.constEnd() || it->needsSync()) {
+    const bool firstThisRun = !pServer->revalidated.contains(containerId);
+    if (it == m_containers.constEnd() || it->needsSync() || firstThisRun) {
+        pServer->revalidated.insert(containerId);
         pServer->pSync->syncContainerTracks(containerId);
     }
 }

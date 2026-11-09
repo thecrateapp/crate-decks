@@ -47,8 +47,8 @@ const QByteArray kTree = QByteArrayLiteral(R"({"containers": [
      "track_count": 52, "etag": "p7"},
     {"id": "4b1e7c2a-0000-4000-8000-000000000001", "kind": "crate",
      "name": "Disco edits", "parent_id": null, "etag": "c1"},
-    {"id": "melodic-techno", "kind": "genre", "name": "Melodic Techno",
-     "parent_id": null, "etag": "g1"},
+    {"id": "17", "kind": "genre", "name": "Melodic Techno", "parent_id": null,
+     "track_count": 4312, "etag": "g1"},
     {"id": "me", "kind": "likes", "name": "Likes", "parent_id": null, "etag": "l1"}
 ]})");
 
@@ -313,7 +313,8 @@ TEST_F(CrateServerFeatureTest, ActivatingPlaylistShowsTracksInOrder) {
     EXPECT_FALSE(pModel->getTrackId(pModel->index(0, 0)).isValid());
     EXPECT_FALSE(pModel->hasCapabilities(TrackModel::Capability::LoadToDeck));
 
-    // Synced and clean: nothing asked
+    // From the local tables: the server is not asked before its capabilities
+    // are known
     EXPECT_EQ(0, sentTo(QStringLiteral("/api/decks/containers/playlist/7/tracks")));
 }
 
@@ -392,6 +393,55 @@ TEST_F(CrateServerFeatureTest, ActivatingAnUnsyncedContainerFetchesIt) {
             5000));
     // And the server's invalidations are listened to
     EXPECT_EQ(1, sentTo(QStringLiteral("/api/cache/events")));
+}
+
+TEST_F(CrateServerFeatureTest, ActivatingASyncedContainerRevalidatesItOncePerRun) {
+    storeTree();
+    const qint64 warmUp = containerId(QStringLiteral("playlist"), QStringLiteral("7"));
+    storeContainerTracks(warmUp,
+            {remoteTrack(QStringLiteral("e3"),
+                     QStringLiteral("Glass Orchard"),
+                     0.6,
+                     QStringLiteral("partial")),
+                    remoteTrack(QStringLiteral("e1"),
+                            QStringLiteral("Lattice"),
+                            0.7,
+                            QStringLiteral("full"))});
+    const auto fetchedAt = [this, warmUp] {
+        const auto stored = crate::library::loadContainer(dbConnection(), warmUp);
+        return stored ? stored->fetchedAt : QString();
+    };
+    const QString syncedAt = fetchedAt();
+    CrateServerFeature* pFeature = makeFeature();
+    TreeItem* pWarmUp = childLabelled(childLabelled(root(), QStringLiteral("Playlists")),
+            QStringLiteral("Warm-up"));
+    ASSERT_NE(nullptr, pWarmUp);
+
+    // Synced in an earlier run, with the same tree ETag. That ETag only
+    // follows membership and order, and a mood's never changes, so the
+    // pages are asked once anyway, each with the ETag it had (S3 contract)
+    pFeature->activateChild(indexOf(pWarmUp));
+    ASSERT_TRUE(QTest::qWaitFor([&] { return sentTo(QStringLiteral("/api/capabilities")) == 1; },
+            5000));
+    lastTo(QStringLiteral("/api/capabilities"))->pReply->respond(200, kCapabilities);
+    const QString path = QStringLiteral("/api/decks/containers/playlist/7/tracks");
+    ASSERT_TRUE(QTest::qWaitFor([&] { return sentTo(path) == 1; }, 5000));
+    EXPECT_EQ(QByteArrayLiteral("\"t\""), lastTo(path)->request.rawHeader("If-None-Match"));
+
+    // A revalidation that failed is tried again when the container is shown
+    lastTo(path)->pReply->respond(404);
+    QTest::qWait(50);
+    pFeature->activateChild(indexOf(pWarmUp));
+    ASSERT_TRUE(QTest::qWaitFor([&] { return sentTo(path) == 2; }, 5000));
+    lastTo(path)->pReply->respond(304,
+            QByteArray(),
+            {{QByteArrayLiteral("ETag"), QByteArrayLiteral("\"t\"")}});
+    ASSERT_TRUE(QTest::qWaitFor([&] { return fetchedAt() != syncedAt; }, 5000));
+
+    // Revalidated: not asked again in this run
+    pFeature->activateChild(indexOf(pWarmUp));
+    QTest::qWait(50);
+    EXPECT_EQ(2, sentTo(path));
 }
 
 TEST_F(CrateServerFeatureTest, LazyExpansionFetchesOnce) {
