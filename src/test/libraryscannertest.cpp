@@ -178,3 +178,81 @@ TEST_F(LibraryScannerTest, OtherConnectionsCanWriteDuringScan) {
     EXPECT_EQ(suffixes.size(),
             internalCollection()->getTrackDAO().getAllTrackLocations().size());
 }
+
+// The scanner commits its new tracks in short batches instead of one by one,
+// which costs a commit each, or all at once, which keeps the database locked
+TEST_F(LibraryScannerTest, ScanCommitsInShortBatches) {
+    const QTemporaryDir libraryDir;
+    ASSERT_TRUE(libraryDir.isValid());
+    const QStringList suffixes{
+            QStringLiteral("-jpg.mp3"),
+            QStringLiteral("-png.mp3"),
+            QStringLiteral("-vbr.mp3"),
+            QStringLiteral(".flac")};
+    int numFiles = 0;
+    for (int copy = 0; copy < 10; ++copy) {
+        for (const auto& suffix : suffixes) {
+            ASSERT_TRUE(QFile::copy(getTestFile(suffix),
+                    libraryDir.filePath(QStringLiteral("track%1").arg(copy) + suffix)));
+            ++numFiles;
+        }
+    }
+    ASSERT_EQ(DirectoryDAO::AddResult::Ok,
+            internalCollection()->getDirectoryDAO().addDirectory(
+                    mixxx::FileInfo(libraryDir.path())));
+
+    // Only modified in the scanner thread and read after the scan
+    QList<int> batches;
+    QObject::connect(
+            &m_libraryScanner.m_trackDao,
+            &TrackDAO::tracksAdded,
+            &m_libraryScanner,
+            [&batches](const QSet<TrackId>& trackIds) {
+                if (!trackIds.isEmpty()) {
+                    batches.append(static_cast<int>(trackIds.size()));
+                }
+            },
+            Qt::DirectConnection);
+    // Keep the tracks until the scan has finished, so that they are evicted
+    // in this thread
+    QList<TrackPointer> addedTracks;
+    QObject::connect(
+            &m_libraryScanner,
+            &LibraryScanner::trackAdded,
+            &m_libraryScanner,
+            [&addedTracks](TrackPointer pTrack) {
+                addedTracks.append(pTrack);
+            },
+            Qt::DirectConnection);
+    const auto stopScanner = qScopeGuard([this]() {
+        m_libraryScanner.slotCancel();
+        m_libraryScanner.quit();
+        m_libraryScanner.wait();
+    });
+
+    QEventLoop loop;
+    bool scanFinished = false;
+    QObject::connect(
+            &m_libraryScanner,
+            &LibraryScanner::scanFinished,
+            &loop,
+            [&]() {
+                scanFinished = true;
+                loop.quit();
+            },
+            Qt::QueuedConnection);
+    QTimer::singleShot(30000, &loop, &QEventLoop::quit);
+    m_libraryScanner.start();
+    m_libraryScanner.scan();
+    loop.exec();
+    ASSERT_TRUE(scanFinished);
+
+    EXPECT_EQ(numFiles, addedTracks.size());
+    int committed = 0;
+    for (const int batch : std::as_const(batches)) {
+        committed += batch;
+        EXPECT_LE(batch, LibraryScanner::kScanBatchMaxTracks);
+    }
+    EXPECT_EQ(numFiles, committed);
+    EXPECT_LT(batches.size(), numFiles);
+}

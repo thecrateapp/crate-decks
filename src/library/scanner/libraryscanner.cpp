@@ -1,5 +1,8 @@
 #include "library/scanner/libraryscanner.h"
 
+#include <QSqlQuery>
+#include <QTimer>
+
 #include "library/coverartutils.h"
 #include "library/library_decl.h"
 #include "library/queryutil.h"
@@ -11,6 +14,7 @@
 #include "moc_libraryscanner.cpp"
 #include "sources/soundsourceproxy.h"
 #include "track/track.h"
+#include "util/db/dbconnection.h"
 #include "util/db/dbconnectionpooled.h"
 #include "util/db/dbconnectionpooler.h"
 #include "util/db/fwdsqlquery.h"
@@ -25,6 +29,12 @@ namespace {
 constexpr int kScannerThreadPoolSize = 1;
 
 mixxx::Logger kLogger("LibraryScanner");
+
+// A connection that waited for the lock within this long still waits: its
+// busy handler tries every millisecond, a few more under load
+constexpr int kLockWaitWindowMs = 10;
+// At most this long a new batch lets waiting connections go first
+constexpr qint64 kMaxYieldMs = 250;
 
 QAtomicInt s_instanceCounter(0);
 
@@ -191,6 +201,7 @@ void LibraryScanner::run() {
         kLogger.debug() << "Event loop starting";
         exec();
         kLogger.debug() << "Event loop stopped";
+        commitScanBatch();
     }
     kLogger.debug() << "Exiting thread";
 }
@@ -291,6 +302,7 @@ void LibraryScanner::slotStartScan() {
 // is called when all tasks of the first stage are done (threads are finished)
 void LibraryScanner::slotFinishHashedScan() {
     kLogger.debug() << "slotFinishHashedScan";
+    commitScanBatch();
     VERIFY_OR_DEBUG_ASSERT(!m_scannerGlobal.isNull()) {
         kLogger.critical() << "No scanner global state exists in slotFinishHashedScan";
         return;
@@ -421,6 +433,7 @@ void LibraryScanner::cleanUpScan() {
 // is called when all tasks of the second stage are done (threads are finished)
 void LibraryScanner::slotFinishUnhashedScan() {
     kLogger.debug() << "slotFinishUnhashedScan";
+    commitScanBatch();
     VERIFY_OR_DEBUG_ASSERT(!m_scannerGlobal.isNull()) {
         kLogger.critical() << "No scanner global state exists in slotFinishUnhashedScan";
         return;
@@ -434,8 +447,8 @@ void LibraryScanner::slotFinishUnhashedScan() {
         kLogger.debug() << "Recursive scanning interrupted by the user";
     }
 
-    // The new tracks and directory hashes have already been committed one
-    // by one, also if the scan has been canceled (see slotAddNewTrack()).
+    // The new tracks and directory hashes have already been committed in
+    // batches, also if the scan has been canceled (see slotAddNewTrack()).
 
     if (!m_scannerGlobal->shouldCancel() && bScanFinishedCleanly) {
         cleanUpScan();
@@ -614,6 +627,8 @@ void LibraryScanner::queueTask(ScannerTask* pTask) {
 void LibraryScanner::slotDirectoryHashedAndScanned(const QString& directoryPath,
                                                bool newDirectory, mixxx::cache_key_t hash) {
     ScopedTimer timer(QStringLiteral("LibraryScanner::slotDirectoryHashedAndScanned"));
+    // The directory's tracks are committed before its hash
+    commitScanBatch();
     // kLogger.debug() << "sloDirectoryHashedAndScanned" << directoryPath
     //           << newDirectory << hash;
     // Don't write dir hashes after the scan has been canceled!
@@ -649,6 +664,7 @@ void LibraryScanner::slotDirectoryHashedAndScanned(const QString& directoryPath,
 void LibraryScanner::slotDirectoryUnchanged(const QString& directoryPath,
         const QStringList& presentTrackLocations) {
     ScopedTimer timer(QStringLiteral("LibraryScanner::slotDirectoryUnchanged"));
+    commitScanBatch();
     //kLogger.debug() << "slotDirectoryUnchanged" << directoryPath;
     if (m_scannerGlobal) {
         m_scannerGlobal->addVerifiedDirectory(directoryPath);
@@ -688,36 +704,85 @@ void LibraryScanner::slotAddNewTrack(const QString& trackPath) {
         return;
     }
     ScopedTimer timer(QStringLiteral("LibraryScanner::addNewTrack"));
-    // Add and commit each track in a transaction of its own. A transaction
-    // for the whole scan would keep the database locked until the scan has
-    // finished: writes from other connections, e.g. from the GUI thread,
-    // would wait for the busy timeout and then fail.
+    // Add the new tracks in short batches. A transaction for the whole scan
+    // would keep the database locked until the scan has finished: writes
+    // from other connections, e.g. from the GUI thread, would wait for the
+    // busy timeout and then fail. One transaction per track costs a commit
+    // per track, which makes the scan several times slower.
     // https://github.com/mixxxdj/mixxx/issues/6631
-    m_trackDao.addTracksPrepare();
+    if (!m_scanBatchOpen) {
+        beginScanBatch();
+    }
+    // A track that cannot be added leaves nothing behind
+    QSqlQuery savepoint(m_libraryHashDao.database());
+    savepoint.exec(QStringLiteral("SAVEPOINT scanner_track"));
     // For statistics tracking and to detect moved tracks
     TrackPointer pTrack = m_trackDao.addTracksAddFile(
             trackPath,
             false);
-    // Roll back what has been written of a track that could not be added
-    m_trackDao.addTracksFinish(!pTrack);
     if (!pTrack) {
-        // This happens only when there is an issue with the database which
-        // has been logged already. No need for yet another warning here.
+        savepoint.exec(QStringLiteral("ROLLBACK TO scanner_track"));
+    }
+    savepoint.exec(QStringLiteral("RELEASE scanner_track"));
+    if (pTrack) {
+        DEBUG_ASSERT(!pTrack->isDirty());
+        // The track's actual location might differ from the
+        // given trackPath
+        const QString trackLocation = pTrack->getLocation();
+        // Acknowledge successful track addition
+        if (m_scannerGlobal) {
+            m_scannerGlobal->trackAdded(trackLocation);
+        }
+        m_scanBatchTracks.append(pTrack);
+        emit progressLoading(trackLocation);
+    }
+    // Otherwise there was an issue with the database, which has been logged
+    // already. No need for yet another warning here.
+    // Commits early while another connection waits for the write lock,
+    // e.g. the GUI thread's
+    if (m_scanBatchTracks.size() >= kScanBatchMaxTracks ||
+            m_scanBatchTimer.elapsed() >= kScanBatchMaxMs ||
+            mixxx::DbConnection::otherThreadWaitsForLock(kLockWaitWindowMs)) {
+        commitScanBatch();
+    }
+}
+
+void LibraryScanner::beginScanBatch() {
+    // Leave the write lock that the last batch has freed to whoever waits
+    // for it, e.g. the GUI thread, until they have it: they no longer wait
+    QElapsedTimer yielding;
+    yielding.start();
+    while (mixxx::DbConnection::otherThreadWaitsForLock(kLockWaitWindowMs) &&
+            yielding.elapsed() < kMaxYieldMs) {
+        QThread::msleep(1);
+    }
+    // Begins the transaction, with the write lock
+    m_trackDao.addTracksPrepare();
+    m_scanBatchOpen = true;
+    m_scanBatchTimer.start();
+    // Commits a batch that waits for more tracks, e.g. while the workers
+    // read the next files
+    const quint64 batchId = ++m_scanBatchId;
+    QTimer::singleShot(kScanBatchMaxMs, this, [this, batchId]() {
+        if (m_scanBatchOpen && m_scanBatchId == batchId) {
+            commitScanBatch();
+        }
+    });
+}
+
+void LibraryScanner::commitScanBatch() {
+    if (!m_scanBatchOpen) {
         return;
     }
-
-    DEBUG_ASSERT(!pTrack->isDirty());
-    // The track's actual location might differ from the
-    // given trackPath
-    const QString trackLocation = pTrack->getLocation();
-    // Acknowledge successful track addition
-    if (m_scannerGlobal) {
-        m_scannerGlobal->trackAdded(trackLocation);
+    m_scanBatchOpen = false;
+    m_trackDao.addTracksFinish(false);
+    // Signal the main instance of TrackDAO that there are new tracks in the
+    // database, now that its connection can read them
+    const QList<TrackPointer> tracks = std::move(m_scanBatchTracks);
+    m_scanBatchTracks.clear();
+    for (const TrackPointer& pTrack : tracks) {
+        emit trackAdded(pTrack);
     }
-    // Signal the main instance of TrackDAO, that there is
-    // a new track in the database.
-    emit trackAdded(pTrack);
-    emit progressLoading(trackLocation);
 }
 
 bool LibraryScanner::changeScannerState(ScannerState newState) {

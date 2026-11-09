@@ -2,6 +2,7 @@
 
 #include <gtest/gtest_prod.h>
 
+#include <QElapsedTimer>
 #include <QList>
 #include <QScopedPointer>
 #include <QSemaphore>
@@ -25,8 +26,15 @@ struct LibraryScanResultSummary;
 
 class LibraryScanner : public QThread {
     FRIEND_TEST(LibraryScannerTest, ScannerRoundtrip);
+    FRIEND_TEST(LibraryScannerTest, ScanCommitsInShortBatches);
     Q_OBJECT
   public:
+    // A scan commits its new tracks in batches of at most this many tracks
+    // and this long, so that other connections, e.g. the GUI thread's, get
+    // SQLite's write lock between them (upstream issue 6631)
+    static constexpr int kScanBatchMaxTracks = 64;
+    static constexpr int kScanBatchMaxMs = 40;
+
     LibraryScanner(
             mixxx::DbConnectionPoolPtr pDbConnectionPool,
             const UserSettingsPointer& pConfig);
@@ -101,6 +109,14 @@ class LibraryScanner : public QThread {
 
     void cleanUpScan();
 
+    /// Begins a batch of new tracks: a transaction that the scan commits
+    /// after kScanBatchMaxTracks tracks or kScanBatchMaxMs, whichever comes
+    /// first, as soon as another connection waits for the write lock, or
+    /// when it stops adding tracks. Lets a waiting connection go first.
+    void beginScanBatch();
+    /// Commits the open batch, if any, and announces its tracks
+    void commitScanBatch();
+
     mixxx::DbConnectionPoolPtr m_pDbConnectionPool;
 
     // The pool of threads used for worker tasks.
@@ -113,6 +129,13 @@ class LibraryScanner : public QThread {
     DirectoryDAO m_directoryDao;
     AnalysisDao m_analysisDao;
     TrackDAO m_trackDao;
+
+    // The open batch of new tracks (beginScanBatch()), announced once
+    // committed, when other connections can read them
+    bool m_scanBatchOpen = false;
+    quint64 m_scanBatchId = 0;
+    QElapsedTimer m_scanBatchTimer;
+    QList<TrackPointer> m_scanBatchTracks;
 
     // Global scanner state for scan currently in progress.
     ScannerGlobalPointer m_scannerGlobal;
