@@ -3,5 +3,7 @@
     <qresource prefix="/">
       <!-- Crate Decks application icon for windows and dialogs (MIXXX_ICON_PATH) -->
         <file>images/icons/256x256/apps/app.cratemusic.decks.png</file>
+      <!-- What names Mixxx in the sources and how it is branded (src/crate/brand/) -->
+        <file>crate-brand/mixxx-strings.json</file>
     </qresource>
 </RCC>

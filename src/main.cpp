@@ -16,6 +16,7 @@
 #include "controllers/controllermanager.h"
 #include "coreservices.h"
 #include "crate/appidentity.h"
+#include "crate/brand/brandtranslator.h"
 #ifdef __CRATE__
 #include <QTimer>
 
@@ -269,6 +270,11 @@ int main(int argc, char * argv[]) {
 
 #if defined(Q_OS_WIN)
     // The Mixxx style is based on Qt's WindowsVista style
+    // Crate Decks: brand every translated text that names Mixxx, from the
+    // first tr() lookup (--help) on and over the translations that
+    // CoreServices installs later.
+    crate::installBrandTranslator(&app);
+
     QApplication::setStyle("windowsvista");
 #endif
 

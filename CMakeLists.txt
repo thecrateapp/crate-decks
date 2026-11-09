@@ -2055,8 +2055,15 @@ target_include_directories(
   mixxx-lib
   PUBLIC src "${CMAKE_CURRENT_BINARY_DIR}/src"
 )
-# Crate Decks: application identity (src/crate/appidentity.cpp)
-target_sources(mixxx-lib PRIVATE src/crate/appidentity.cpp)
+# Crate Decks: application identity (src/crate/appidentity.cpp) and the brand
+# layer that keeps Mixxx's name out of the interface (src/crate/brand/)
+target_sources(
+  mixxx-lib
+  PRIVATE
+    src/crate/appidentity.cpp
+    src/crate/brand/brandtext.cpp
+    src/crate/brand/brandtranslator.cpp
+)
 
 if(UNIX AND NOT APPLE)
   target_sources(mixxx-lib PRIVATE src/util/rlimit.cpp)
@@ -3039,6 +3046,7 @@ if(BUILD_TESTING)
     src-mixxx-test
     ${src-mixxx-test}
     src/test/crate/brandingtest.cpp
+    src/test/crate/brandtest.cpp
     src/test/crate/fontstest.cpp
     src/test/crate/visiblestringstest.cpp
   )

@@ -66,7 +66,7 @@ repos:
           ]
         # Crate Decks: the Crate docs are in Spanish, which codespell "fixes"
         # into English ("hace" -> "have")
-        exclude: ^(packaging/wix/LICENSE.rtf.in|src/dialog/dlgabout\.cpp|res/linux/org\.mixxx\.Mixxx\.desktop|.*\.(?:pot?|(?<!\.d\.)ts|wxl|svg)|AGENTS\.md|CRATE(_PATCHES)?\.md|docs/mixxx-merges\.md|docs/plans/.*|res/crate-design/README\.md)$
+        exclude: ^(packaging/wix/LICENSE.rtf.in|src/dialog/dlgabout\.cpp|res/linux/org\.mixxx\.Mixxx\.desktop|.*\.(?:pot?|(?<!\.d\.)ts|wxl|svg)|AGENTS\.md|CRATE(_PATCHES)?\.md|docs/mixxx-merges\.md|docs/plans/.*|res/crate-design/README\.md|res/crate-brand/.*)$
   - repo: https://github.com/pre-commit/mirrors-eslint
     rev: v10.11.0
     hooks:

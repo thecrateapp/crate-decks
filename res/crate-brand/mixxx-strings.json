@@ -1,0 +1,1163 @@
+{
+  "about": "Strings of the sources that name Mixxx and how Crate Decks brands them; see tools/crate-brand/inventory.py.",
+  "strings": [
+    {
+      "source": "Click anywhere in Mixxx or choose a control to learn",
+      "files": [
+        "src/controllers/dlgcontrollerlearning.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "If you manipulate the control, you should see the Mixxx user interface respond the way you expect.",
+      "files": [
+        "src/controllers/dlgcontrollerlearning.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "The control you clicked in Mixxx is not learnable.\nThis could be because you are either using an old skin and this control is no longer supported, or you clicked a control that provides visual feedback and can only be mapped to outputs like LEDs via scripts.\n\nYou tried to learn: %1,%2",
+      "files": [
+        "src/controllers/dlgcontrollerlearning.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "The selected control does not exist.<br>This likely a bug. Please report it on the Mixxx bug tracker.<br><a href='https://github.com/mixxxdj/mixxx/issues'>https://github.com/mixxxdj/mixxx/issues</a><br><br>You tried to learn: %1,%2",
+      "files": [
+        "src/controllers/dlgcontrollerlearning.cpp"
+      ],
+      "treatment": "text",
+      "text": "The selected control does not exist.<br>This likely a bug. Please report it on the Crate Decks bug tracker.<br><a href='https://github.com/thecrateapp/crate-decks/issues'>https://github.com/thecrateapp/crate-decks/issues</a><br><br>You tried to learn: %1,%2",
+      "es": "El control seleccionado no existe.<br>Probablemente sea un error. Por favor, infórmalo en el gestor de incidencias de Crate Decks.<br><a href='https://github.com/thecrateapp/crate-decks/issues'>https://github.com/thecrateapp/crate-decks/issues</a><br><br>Intentaste asignar: %1,%2"
+    },
+    {
+      "source": "You can click on any button, slider, or knob in Mixxx to teach it that control.  You can also type in the box to search for a control by name, or click the Choose Control button to select from a list.",
+      "files": [
+        "src/controllers/dlgcontrollerlearning.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "<font color='#BB0000'><b>If you use this mapping your controller may not work correctly. Please select another mapping or disable the controller.</b></font><br><br>This mapping was designed for a newer Mixxx Controller Engine and cannot be used on your current Crate Decks installation.<br>Your Crate Decks installation has Controller Engine version %1. This mapping requires a Controller Engine version >= %2.<br><br>For more information visit the wiki page on <a href='https://mixxx.org/wiki/doku.php/controller_engine_versions'>Controller Engine Versions</a>.",
+      "files": [
+        "src/controllers/dlgprefcontroller.cpp"
+      ],
+      "treatment": "text",
+      "text": "<font color='#BB0000'><b>If you use this mapping your controller may not work correctly. Please select another mapping or disable the controller.</b></font><br><br>This mapping was designed for a newer Controller Engine and cannot be used on your current Crate Decks installation.<br>Your Crate Decks installation has Controller Engine version %1. This mapping requires a Controller Engine version >= %2.<br><br>For more information visit the wiki page on <a href='https://mixxx.org/wiki/doku.php/controller_engine_versions'>Controller Engine Versions</a>.",
+      "es": "<font color='#BB0000'><b>Si usas este mapeo, puede que tu controladora no funcione bien. Elige otro mapeo o desactiva la controladora.</b></font><br><br>Este mapeo se diseñó para un Controller Engine más nuevo y no se puede usar en tu instalación de Crate Decks.<br>Tu instalación de Crate Decks tiene la versión %1 del Controller Engine. Este mapeo necesita la versión %2 o posterior.<br><br>Más información en la página del wiki sobre <a href='https://mixxx.org/wiki/doku.php/controller_engine_versions'>versiones del Controller Engine</a>."
+    },
+    {
+      "source": "Mixxx DJ Hardware Guide",
+      "files": [
+        "src/controllers/dlgprefcontrollers.cpp",
+        "src/preferences/dialog/dlgprefsound.cpp"
+      ],
+      "treatment": "text",
+      "text": "DJ Hardware Guide",
+      "es": "Guía de hardware para DJ"
+    },
+    {
+      "source": "* Check to see that the MixxxControl names are spelled correctly in the mapping file (.xml)\n",
+      "files": [
+        "src/controllers/midi/midicontroller.cpp"
+      ],
+      "treatment": "text",
+      "text": "* Check to see that the control names are spelled correctly in the mapping file (.xml)\n",
+      "es": "* Comprueba que los nombres de los controles están bien escritos en el fichero del mapeo (.xml)\n"
+    },
+    {
+      "source": "* Make sure the MixxxControls in question actually exist. Visit the manual for a complete list: ",
+      "files": [
+        "src/controllers/midi/midicontroller.cpp"
+      ],
+      "treatment": "text",
+      "text": "* Make sure the controls in question actually exist. Visit the manual for a complete list: ",
+      "es": "* Asegúrate de que esos controles existen. La lista completa está en el manual: "
+    },
+    {
+      "source": "MixxxControl(s) not found",
+      "files": [
+        "src/controllers/midi/midicontroller.cpp"
+      ],
+      "treatment": "text",
+      "text": "Control(s) not found",
+      "es": "Controles no encontrados"
+    },
+    {
+      "source": "One or more MixxxControls specified in the outputs section of the loaded mapping were invalid.",
+      "files": [
+        "src/controllers/midi/midicontroller.cpp"
+      ],
+      "treatment": "text",
+      "text": "One or more controls specified in the outputs section of the loaded mapping were invalid.",
+      "es": "Uno o más controles de la sección de salidas del mapeo cargado no son válidos."
+    },
+    {
+      "source": "Mixxx cannot access the settings folder:\n\n%1\n\nYou can either:\n\n• Remove the --settings-path argument to use the default location\n• Re-run Mixxx and select a valid folder when prompted\n\nClick OK to exit.",
+      "files": [
+        "src/coreservices.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "The settings directory is not writable:\n%1\n\nThis may be caused by macOS sandbox restrictions if you are using a custom --settings-path outside the app container.\n\nTry running Mixxx without --settings-path, or grant Mixxx access to the folder when prompted.",
+      "files": [
+        "src/coreservices.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Unable to establish a database connection.\nMixxx requires Qt with SQLite support. Please read the Qt SQL driver documentation for information on how to build it.",
+      "files": [
+        "src/coreservices.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Crate servers are the library and the brain of Crate Decks: your tracks, Crate's analysis, recommendations and Smart Mix. Sessions are kept in the system keychain; nothing is stored in mixxx.cfg.",
+      "files": [
+        "src/crate/ui/dlgprefcrate.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Try renaming it and restarting Mixxx.",
+      "files": [
+        "src/database/mixxxdb.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Your mixxxdb.sqlite file may be corrupt.",
+      "files": [
+        "src/database/mixxxdb.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Your mixxxdb.sqlite file was created by a newer version of Mixxx and is incompatible.",
+      "files": [
+        "src/database/mixxxdb.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "%1 is based on <a style=\"%2\" href=\"%3\">Mixxx</a> %4, made by the Mixxx Development Team. It is free software under the GNU General Public License, version 2 or later (see the License tab).",
+      "files": [
+        "src/dialog/dlgabout.cpp"
+      ],
+      "treatment": "keep",
+      "why": "Credits in About: design D2 and the GPL's notices"
+    },
+    {
+      "source": "Donate to Mixxx",
+      "files": [
+        "src/dialog/dlgabout.cpp"
+      ],
+      "treatment": "keep",
+      "why": "Credits in About: design D2 and the GPL's notices"
+    },
+    {
+      "source": "Mixxx %1.%2 Development Team",
+      "files": [
+        "src/dialog/dlgabout.cpp"
+      ],
+      "treatment": "keep",
+      "why": "Credits in About: design D2 and the GPL's notices"
+    },
+    {
+      "source": "Dumps all ControlObject values to a csv-file saved in the settings path (e.g. ~/.mixxx)",
+      "files": [
+        "src/dialog/dlgdevelopertoolsdlg.ui"
+      ],
+      "treatment": "text",
+      "text": "Dumps all ControlObject values to a csv-file saved in the settings path (e.g. ~/.cratedecks)"
+    },
+    {
+      "source": "The Mixxx Team",
+      "files": [
+        "src/effects/backends/builtin/autogaincontroleffect.cpp",
+        "src/effects/backends/builtin/keycomparisoneffect.cpp",
+        "src/effects/backends/builtin/metronomeeffect.cpp"
+      ],
+      "treatment": "text",
+      "text": "Built-in",
+      "es": "Incluido"
+    },
+    {
+      "source": "Mixxx Effect Chain Presets",
+      "files": [
+        "src/effects/presets/effectchainpresetmanager.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "<html>Mixxx cannot record or stream in AAC or HE-AAC without the FDK-AAC encoder. In order to record or stream in AAC or AAC+, you need to download <b>libfdk-aac</b> and install it on your system.",
+      "files": [
+        "src/encoder/encoderfdkaac.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Mixxx encountered a problem",
+      "files": [
+        "src/engine/sidechain/shoutconnection.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "See https://github.com/mixxxdj/mixxx/issues/5701 for more information.",
+      "files": [
+        "src/engine/sidechain/shoutconnection.cpp"
+      ],
+      "treatment": "text",
+      "text": ""
+    },
+    {
+      "source": "It shows the data from the file tags, not track data from your Mixxx library like other track views.",
+      "files": [
+        "src/library/browse/browsefeature.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Could not load the following file because it is in use by Mixxx or another application.",
+      "files": [
+        "src/library/browse/browsetablemodel.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Mixxx Library",
+      "files": [
+        "src/library/browse/browsetablemodel.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Mixxx may wait to modify files until they are not loaded to any decks or samplers. If you do not see changed metadata in other programs immediately, eject the track from all decks and samplers or shutdown Mixxx.",
+      "files": [
+        "src/library/dlgtrackmetadataexport.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Loops (only the first loop is currently usable in Mixxx)",
+      "files": [
+        "src/library/rekordbox/rekordboxfeature.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Reads databases exported for Pioneer CDJ / XDJ players using the Rekordbox Export mode.<br/>Rekordbox can only export to USB or SD devices with a FAT or HFS file system.<br/>Mixxx can read a database from any device that contains the database folders (<tt>PIONEER</tt> and <tt>Contents</tt>).<br/>Not supported are Rekordbox databases that have been moved to an external device via<br/><i>Preferences > Advanced > Database management</i>.<br/><br/>The following data is read:",
+      "files": [
+        "src/library/rekordbox/rekordboxfeature.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "It's taking Mixxx a minute to scan your music library, please wait...",
+      "files": [
+        "src/library/scanner/libraryscannerdlg.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Mixxx Sampler Banks (*.xml)",
+      "files": [
+        "src/mixer/samplerbank.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "<b>Exit</b> Mixxx.",
+      "files": [
+        "src/mixxxmainwindow.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "<b>Reconfigure</b> Mixxx's sound device settings.",
+      "files": [
+        "src/mixxxmainwindow.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "A deck is currently playing. Exit Mixxx?",
+      "files": [
+        "src/mixxxmainwindow.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "A sampler is currently playing. Exit Mixxx?",
+      "files": [
+        "src/mixxxmainwindow.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Direct rendering is not enabled on your machine.<br><br>This means that the waveform displays will be very<br><b>slow and may tax your CPU heavily</b>. Either update your<br>configuration to enable direct rendering, or disable<br>the waveform displays in the Mixxx preferences by selecting<br>\"Empty\" as the waveform display in the 'Interface' section.",
+      "files": [
+        "src/mixxxmainwindow.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Discard any changes and exit Mixxx?",
+      "files": [
+        "src/mixxxmainwindow.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Get <b>Help</b> from the Mixxx Wiki.",
+      "files": [
+        "src/mixxxmainwindow.cpp"
+      ],
+      "treatment": "text",
+      "text": "Get <b>Help</b> online.",
+      "es": "Busca <b>ayuda</b> en línea."
+    },
+    {
+      "source": "Mixxx was configured without any output sound devices. Audio processing will be disabled without a configured output device.",
+      "files": [
+        "src/mixxxmainwindow.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Mixxx was unable to open all the configured sound devices.",
+      "files": [
+        "src/mixxxmainwindow.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "e.g. from 3rd-party programs or Mixxx versions before 1.11.\n(Not checked: Analyze only, if no beats exist.)",
+      "files": [
+        "src/preferences/dialog/dlgprefbeatsdlg.ui"
+      ],
+      "treatment": "text",
+      "text": "e.g. from 3rd-party programs or older analyzer versions.\n(Not checked: Analyze only, if no beats exist.)",
+      "es": "p. ej. de programas de terceros o de versiones antiguas del analizador.\n(Sin marcar: analizar solo si no hay beats.)"
+    },
+    {
+      "source": "http://www.mixxx.org",
+      "files": [
+        "src/preferences/dialog/dlgprefbroadcastdlg.ui"
+      ],
+      "treatment": "text",
+      "text": "https://cratemusic.app"
+    },
+    {
+      "source": "Mixxx mode",
+      "files": [
+        "src/preferences/dialog/dlgprefdeck.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Mixxx mode (no blinking)",
+      "files": [
+        "src/preferences/dialog/dlgprefdeck.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Mixxx mode:\n- Cue button while pause at cue point = preview\n- Cue button while pause not at cue point = set cue point\n- Cue button while playing = pause at cue point\nMixxx mode (no blinking):\n- Same as Mixxx mode but with no blinking indicators\nPioneer mode:\n- Same as Mixxx mode with a flashing play button\nDenon mode:\n- Cue button at cue point = preview\n- Cue button not at cue point = pause at cue point\n- Play = set cue point\nNumark mode:\n- Same as Denon mode, but without a flashing play button\nCUP mode:\n- Cue button while pause at cue point = play after release\n- Cue button while pause not at cue point = set cue point and play after release\n- Cue button while playing = go to cue point and play after release\n",
+      "files": [
+        "src/preferences/dialog/dlgprefdeckdlg.ui"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "The tempo of a previous soft leader track at the beginning of the transition is kept steady. After the transition, the follower track will maintain this original tempo. This technique serves as a workaround to avoid dynamic tempo changes, as seen during the outro of rubato-style tracks. For instance, it prevents the follower track from continuing with a slowed-down tempo of the soft leader. This corresponds to the behavior before Mixxx 2.4. Changes from explicit selected leaders are always applied.",
+      "files": [
+        "src/preferences/dialog/dlgprefdeckdlg.ui"
+      ],
+      "treatment": "text",
+      "text": "The tempo of a previous soft leader track at the beginning of the transition is kept steady. After the transition, the follower track will maintain this original tempo. This technique serves as a workaround to avoid dynamic tempo changes, as seen during the outro of rubato-style tracks. For instance, it prevents the follower track from continuing with a slowed-down tempo of the soft leader. Changes from explicit selected leaders are always applied."
+    },
+    {
+      "source": "When the analyzer places the intro start point automatically,\nit will place it at the main cue point if the main cue point has been set previously.\nThis may be helpful for upgrading to Mixxx 2.3 from earlier versions.\n\nIf this option is disabled, the intro start point is automatically placed at the first sound.",
+      "files": [
+        "src/preferences/dialog/dlgprefdeckdlg.ui"
+      ],
+      "treatment": "text",
+      "text": "When the analyzer places the intro start point automatically,\nit will place it at the main cue point if the main cue point has been set previously.\nThis may be helpful for tracks analyzed by older versions.\n\nIf this option is disabled, the intro start point is automatically placed at the first sound."
+    },
+    {
+      "source": "Find details in the Mixxx user manual",
+      "files": [
+        "src/preferences/dialog/dlgprefsound.cpp"
+      ],
+      "treatment": "text",
+      "text": "Find details in the user manual",
+      "es": "Más detalles en el manual de usuario"
+    },
+    {
+      "source": "Refer to the Mixxx User Manual for details.",
+      "files": [
+        "src/preferences/dialog/dlgprefsound.cpp"
+      ],
+      "treatment": "text",
+      "text": "Refer to the user manual for details.",
+      "es": "Consulta el manual de usuario para más detalles."
+    },
+    {
+      "source": "If you do not want Mixxx to re-analyze your tracks, choose \"Keep Current Beatgrids\". You can change this setting at any time from the \"Beat Detection\" section of the Preferences.",
+      "files": [
+        "src/preferences/upgrade.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Mixxx has a new and improved beat detector.",
+      "files": [
+        "src/preferences/upgrade.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Mixxx now supports displaying cover art.\nDo you want to scan your library for cover files now?",
+      "files": [
+        "src/preferences/upgrade.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Upgrading Mixxx",
+      "files": [
+        "src/preferences/upgrade.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Upgrading Mixxx from v1.9.x/1.10.x.",
+      "files": [
+        "src/preferences/upgrade.cpp"
+      ],
+      "treatment": "text",
+      "text": "Upgrading settings from v1.9.x/1.10.x.",
+      "es": "Actualizando los ajustes de la v1.9.x/1.10.x."
+    },
+    {
+      "source": "When you load tracks, Mixxx can re-analyze them and generate new, more accurate beatgrids. This will make automatic beatsync and looping more reliable.",
+      "files": [
+        "src/preferences/upgrade.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Trying to run Mixxx 3.0 with an existing %0 user profile! <br><br>There is <b>serious risks</b> of data loss and corruption.<br>We recommend using a test profile folder with the '--settings-path' argument. <br><br>If you want to continue at your own risk, run Mixxx with the argument '--allow-dangerous-data-corruption-risk'.",
+      "files": [
+        "src/qml/qmlapplication.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Refer to the web page on the Mixxx wiki for your controller for more information.",
+      "files": [
+        "src/skin/legacy/tooltips.cpp"
+      ],
+      "treatment": "text",
+      "text": "Refer to the documentation of your controller for more information.",
+      "es": "Consulta la documentación de tu controladora para más información."
+    },
+    {
+      "source": "Set cue point (Pioneer/Mixxx/Numark mode), set cue point and play after release (CUP mode) OR preview from it (Denon mode).",
+      "files": [
+        "src/skin/legacy/tooltips.cpp"
+      ],
+      "treatment": "text",
+      "text": "Set cue point (Pioneer/Crate Decks/Numark mode), set cue point and play after release (CUP mode) OR preview from it (Denon mode)."
+    },
+    {
+      "source": "When disabled, the track is controlled by Mixxx playback controls.",
+      "files": [
+        "src/skin/legacy/tooltips.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Breaks (SIGINT) Mixxx, if a DEBUG_ASSERT evaluates to false. Under a debugger you can continue afterwards.",
+      "files": [
+        "src/util/cmdlineargs.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Causes Mixxx to display/log all of the controller data it receives and script functions it loads",
+      "files": [
+        "src/util/cmdlineargs.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Enables safe-mode. Disables OpenGL waveforms, and spinning vinyl widgets. Try this option if Mixxx is crashing on startup.",
+      "files": [
+        "src/util/cmdlineargs.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Force Mixxx to load an unstable version with an existing user profile from a stable version",
+      "files": [
+        "src/util/cmdlineargs.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Loads the highly unstable 3.0 Mixxx interface, based on QML. You need to use a new setting profile, or run with 'allow-dangerous-data-corruption-risk' to use with the current one. We highly recommend backing up your data if you do so.",
+      "files": [
+        "src/util/cmdlineargs.cpp"
+      ],
+      "treatment": "text",
+      "text": "Loads the highly unstable interface based on QML. You need to use a new setting profile, or run with 'allow-dangerous-data-corruption-risk' to use with the current one. We highly recommend backing up your data if you do so."
+    },
+    {
+      "source": "Mixxx is an open source DJ software. For more information, see: ",
+      "files": [
+        "src/util/cmdlineargs.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Rescans the library when Mixxx is launched.",
+      "files": [
+        "src/util/cmdlineargs.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Sets the maximum file size of the mixxx.log file in bytes. Use -1 for unlimited. The default is 100 MB as 1e5 or 100000000.",
+      "files": [
+        "src/util/cmdlineargs.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Sets the the logging level at which the log buffer is flushed to mixxx.log. <level> is one of the values defined at --log-level above.",
+      "files": [
+        "src/util/cmdlineargs.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Starts Auto DJ when Mixxx is launched.",
+      "files": [
+        "src/util/cmdlineargs.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Starts Mixxx in full-screen mode",
+      "files": [
+        "src/util/cmdlineargs.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Top-level directory where Mixxx should look for its resource files such as MIDI mappings, overriding the default installation location.",
+      "files": [
+        "src/util/cmdlineargs.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Top-level directory where Mixxx should look for settings. Default is: ",
+      "files": [
+        "src/util/cmdlineargs.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Mixxx Hotcue Colors",
+      "files": [
+        "src/util/color/predefinedcolorpalettes.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Mixxx Key Colors",
+      "files": [
+        "src/util/color/predefinedcolorpalettes.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Mixxx Track Colors",
+      "files": [
+        "src/util/color/predefinedcolorpalettes.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Due to macOS sandboxing, Mixxx needs your permission to access your music library and settings from Mixxx versions before 2.3.0. After clicking OK, you will see a file selection dialog. \n\nTo allow Mixxx to use your old library and settings, click the Open button in the file selection dialog. Mixxx will then move your old settings into the sandbox. This only needs to be done once.\n\nIf you do not want to grant Mixxx access, click Cancel on the file picker. Mixxx will create a new music library and use default settings.",
+      "files": [
+        "src/util/sandbox.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Mixxx Needs Access to: %1",
+      "files": [
+        "src/util/sandbox.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Mixxx needs access to the settings folder",
+      "files": [
+        "src/util/sandbox.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Upgrading old Mixxx settings",
+      "files": [
+        "src/util/sandbox.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "You selected the wrong file. To grant Mixxx access, please select the file '%1'. If you do not want to continue, press Cancel.",
+      "files": [
+        "src/util/sandbox.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Your permission is required to access the following location:\n\n%1\n\nAfter clicking OK, you will see a file picker. Please select '%2' to proceed or click Cancel if you don't want to grant Mixxx access and abort this action.",
+      "files": [
+        "src/util/sandbox.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Change Mixxx settings (e.g. playback, MIDI, controls)",
+      "files": [
+        "src/widget/wmainmenubar.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Display Mixxx using the full screen",
+      "files": [
+        "src/widget/wmainmenubar.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Get help with Mixxx",
+      "files": [
+        "src/widget/wmainmenubar.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Open the Mixxx user settings directory.",
+      "files": [
+        "src/widget/wmainmenubar.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Quits Mixxx",
+      "files": [
+        "src/widget/wmainmenubar.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Read the Mixxx user manual.",
+      "files": [
+        "src/widget/wmainmenubar.cpp"
+      ],
+      "treatment": "text",
+      "text": "Read the user manual.",
+      "es": "Lee el manual de usuario."
+    },
+    {
+      "source": "Show cover art in the Mixxx interface.",
+      "files": [
+        "src/widget/wmainmenubar.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Show the microphone section of the Mixxx interface.",
+      "files": [
+        "src/widget/wmainmenubar.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Show the preview deck in the Mixxx interface.",
+      "files": [
+        "src/widget/wmainmenubar.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Show the vinyl control section of the Mixxx interface.",
+      "files": [
+        "src/widget/wmainmenubar.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Use timecoded vinyls on external turntables to control Mixxx",
+      "files": [
+        "src/widget/wmainmenubar.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "See User Manual > Mixxx Library for more information.",
+      "files": [
+        "src/widget/wsearchlineedit.cpp"
+      ],
+      "treatment": "text",
+      "text": "See the user manual for more information.",
+      "es": "Consulta el manual de usuario para más información."
+    },
+    {
+      "source": "%1 track files were moved to trash and purged from the Mixxx database.",
+      "files": [
+        "src/widget/wtrackmenu.cpp"
+      ],
+      "treatment": "rule"
+    },
+    {
+      "source": "Track file was moved to trash and purged from the Mixxx database.",
+      "files": [
+        "src/widget/wtrackmenu.cpp"
+      ],
+      "treatment": "rule"
+    }
+  ],
+  "literals": [
+    {
+      "file": "src/analyzer/analyzerbeats.cpp",
+      "text": "a BPM computed by a previous Mixxx version and user",
+      "why": "log"
+    },
+    {
+      "file": "src/controllers/android.cpp",
+      "text": "mixxx",
+      "why": "Android log tag"
+    },
+    {
+      "file": "src/controllers/bulk/bulkenumerator.cpp",
+      "text": "mixxx",
+      "why": "logger name"
+    },
+    {
+      "file": "src/controllers/dlgcontrollerlearning.cpp",
+      "text": "Mixxx UI element clicked for which there is no learnable control ",
+      "why": "log"
+    },
+    {
+      "file": "src/controllers/dlgprefcontroller.cpp",
+      "text": "Mixxx&nbsp;Forums",
+      "why": "visible: BR.PR2 patches it"
+    },
+    {
+      "file": "src/controllers/dlgprefcontroller.cpp",
+      "text": "Mixxx&nbsp;Manual",
+      "why": "visible: BR.PR2 patches it"
+    },
+    {
+      "file": "src/controllers/dlgprefcontroller.cpp",
+      "text": "Mixxx&nbsp;Wiki",
+      "why": "visible: BR.PR2 patches it"
+    },
+    {
+      "file": "src/controllers/dlgprefcontrollers.cpp",
+      "text": "Mixxx Controller Forums",
+      "why": "visible: BR.PR2 patches it"
+    },
+    {
+      "file": "src/controllers/hid/hidenumerator.cpp",
+      "text": "mixxx",
+      "why": "logger name"
+    },
+    {
+      "file": "src/controllers/legacycontrollermappingfilehandler.cpp",
+      "text": ". Mixxx isn't built with QML support",
+      "why": "log"
+    },
+    {
+      "file": "src/crate/ui/skin/librarystyle.cpp",
+      "text": "Mixxx",
+      "why": "visible: BR.PR6 renames it"
+    },
+    {
+      "file": "src/database/mixxxdb.cpp",
+      "text": "MIXXX",
+      "why": "database connection name and credentials (identifiers)"
+    },
+    {
+      "file": "src/database/mixxxdb.cpp",
+      "text": "mixxx",
+      "why": "database connection name and credentials (identifiers)"
+    },
+    {
+      "file": "src/defs_urls.h",
+      "text": "/chapters/livebroadcasting.html#configuring-mixxx",
+      "why": "documentation file name or URL anchor (BR.PR7 decides the links)"
+    },
+    {
+      "file": "src/defs_urls.h",
+      "text": "Mixxx-Keyboard-Shortcuts.pdf",
+      "why": "documentation file name or URL anchor (BR.PR7 decides the links)"
+    },
+    {
+      "file": "src/defs_urls.h",
+      "text": "Mixxx-Manual.pdf",
+      "why": "documentation file name or URL anchor (BR.PR7 decides the links)"
+    },
+    {
+      "file": "src/effects/backends/builtin/autopaneffect.cpp",
+      "text": "The Mixxx Team",
+      "why": "effect author, shown in Preferences › Effects through crate::brandText()",
+      "shown": "Built-in",
+      "es": "Incluido"
+    },
+    {
+      "file": "src/effects/backends/builtin/balanceeffect.cpp",
+      "text": "The Mixxx Team",
+      "why": "effect author, shown in Preferences › Effects through crate::brandText()",
+      "shown": "Built-in",
+      "es": "Incluido"
+    },
+    {
+      "file": "src/effects/backends/builtin/bessel4lvmixeqeffect.cpp",
+      "text": "The Mixxx Team",
+      "why": "effect author, shown in Preferences › Effects through crate::brandText()",
+      "shown": "Built-in",
+      "es": "Incluido"
+    },
+    {
+      "file": "src/effects/backends/builtin/bessel8lvmixeqeffect.cpp",
+      "text": "The Mixxx Team",
+      "why": "effect author, shown in Preferences › Effects through crate::brandText()",
+      "shown": "Built-in",
+      "es": "Incluido"
+    },
+    {
+      "file": "src/effects/backends/builtin/biquadfullkilleqeffect.cpp",
+      "text": "The Mixxx Team",
+      "why": "effect author, shown in Preferences › Effects through crate::brandText()",
+      "shown": "Built-in",
+      "es": "Incluido"
+    },
+    {
+      "file": "src/effects/backends/builtin/bitcrushereffect.cpp",
+      "text": "The Mixxx Team",
+      "why": "effect author, shown in Preferences › Effects through crate::brandText()",
+      "shown": "Built-in",
+      "es": "Incluido"
+    },
+    {
+      "file": "src/effects/backends/builtin/compressoreffect.cpp",
+      "text": "The Mixxx Team",
+      "why": "effect author, shown in Preferences › Effects through crate::brandText()",
+      "shown": "Built-in",
+      "es": "Incluido"
+    },
+    {
+      "file": "src/effects/backends/builtin/distortioneffect.cpp",
+      "text": "The Mixxx Team",
+      "why": "effect author, shown in Preferences › Effects through crate::brandText()",
+      "shown": "Built-in",
+      "es": "Incluido"
+    },
+    {
+      "file": "src/effects/backends/builtin/echoeffect.cpp",
+      "text": "The Mixxx Team",
+      "why": "effect author, shown in Preferences › Effects through crate::brandText()",
+      "shown": "Built-in",
+      "es": "Incluido"
+    },
+    {
+      "file": "src/effects/backends/builtin/filtereffect.cpp",
+      "text": "The Mixxx Team",
+      "why": "effect author, shown in Preferences › Effects through crate::brandText()",
+      "shown": "Built-in",
+      "es": "Incluido"
+    },
+    {
+      "file": "src/effects/backends/builtin/flangereffect.cpp",
+      "text": "The Mixxx Team",
+      "why": "effect author, shown in Preferences › Effects through crate::brandText()",
+      "shown": "Built-in",
+      "es": "Incluido"
+    },
+    {
+      "file": "src/effects/backends/builtin/gaineffect.cpp",
+      "text": "The Mixxx Team",
+      "why": "effect author, shown in Preferences › Effects through crate::brandText()",
+      "shown": "Built-in",
+      "es": "Incluido"
+    },
+    {
+      "file": "src/effects/backends/builtin/glitcheffect.cpp",
+      "text": "The Mixxx Team",
+      "why": "effect author, shown in Preferences › Effects through crate::brandText()",
+      "shown": "Built-in",
+      "es": "Incluido"
+    },
+    {
+      "file": "src/effects/backends/builtin/graphiceqeffect.cpp",
+      "text": "The Mixxx Team",
+      "why": "effect author, shown in Preferences › Effects through crate::brandText()",
+      "shown": "Built-in",
+      "es": "Incluido"
+    },
+    {
+      "file": "src/effects/backends/builtin/linkwitzriley8eqeffect.cpp",
+      "text": "The Mixxx Team",
+      "why": "effect author, shown in Preferences › Effects through crate::brandText()",
+      "shown": "Built-in",
+      "es": "Incluido"
+    },
+    {
+      "file": "src/effects/backends/builtin/loudnesscontoureffect.cpp",
+      "text": "The Mixxx Team",
+      "why": "effect author, shown in Preferences › Effects through crate::brandText()",
+      "shown": "Built-in",
+      "es": "Incluido"
+    },
+    {
+      "file": "src/effects/backends/builtin/moogladder4filtereffect.cpp",
+      "text": "The Mixxx Team",
+      "why": "effect author, shown in Preferences › Effects through crate::brandText()",
+      "shown": "Built-in",
+      "es": "Incluido"
+    },
+    {
+      "file": "src/effects/backends/builtin/parametriceqeffect.cpp",
+      "text": "The Mixxx Team",
+      "why": "effect author, shown in Preferences › Effects through crate::brandText()",
+      "shown": "Built-in",
+      "es": "Incluido"
+    },
+    {
+      "file": "src/effects/backends/builtin/phasereffect.cpp",
+      "text": "The Mixxx Team",
+      "why": "effect author, shown in Preferences › Effects through crate::brandText()",
+      "shown": "Built-in",
+      "es": "Incluido"
+    },
+    {
+      "file": "src/effects/backends/builtin/pitchshifteffect.cpp",
+      "text": "The Mixxx Team",
+      "why": "effect author, shown in Preferences › Effects through crate::brandText()",
+      "shown": "Built-in",
+      "es": "Incluido"
+    },
+    {
+      "file": "src/effects/backends/builtin/reverbeffect.cpp",
+      "text": "The Mixxx Team, CAPS Plugins",
+      "why": "effect author, shown in Preferences › Effects through crate::brandText()",
+      "shown": "Built-in, CAPS Plugins",
+      "es": "Incluido, CAPS Plugins"
+    },
+    {
+      "file": "src/effects/backends/builtin/threebandbiquadeqeffect.cpp",
+      "text": "The Mixxx Team",
+      "why": "effect author, shown in Preferences › Effects through crate::brandText()",
+      "shown": "Built-in",
+      "es": "Incluido"
+    },
+    {
+      "file": "src/effects/backends/builtin/tremoloeffect.cpp",
+      "text": "The Mixxx Team",
+      "why": "effect author, shown in Preferences › Effects through crate::brandText()",
+      "shown": "Built-in",
+      "es": "Incluido"
+    },
+    {
+      "file": "src/effects/backends/builtin/whitenoiseeffect.cpp",
+      "text": "The Mixxx Team",
+      "why": "effect author, shown in Preferences › Effects through crate::brandText()",
+      "shown": "Built-in",
+      "es": "Incluido"
+    },
+    {
+      "file": "src/encoder/encoderffmpegresample.cpp",
+      "text": "EncoderFfmpegResample::openMixxx: open MIXXX FFmpeg Resampler version",
+      "why": "log"
+    },
+    {
+      "file": "src/library/dao/analysisdao.cpp",
+      "text": "WARNING: Could not create analysis storage path. Mixxx will be unable to store analyses.",
+      "why": "log"
+    },
+    {
+      "file": "src/library/export/engineprimeexportjob.cpp",
+      "text": "Mixxx Crates",
+      "why": "visible: BR.PR2 patches it"
+    },
+    {
+      "file": "src/library/export/engineprimeexportjob.cpp",
+      "text": "Mixxx Playlists",
+      "why": "visible: BR.PR2 patches it"
+    },
+    {
+      "file": "src/library/itunes/itunesiosimporter.mm",
+      "text": "iOS media library access is denied, Mixxx will not be able to access any tracks",
+      "why": "log (iOS)"
+    },
+    {
+      "file": "src/library/itunes/itunesiosimporter.mm",
+      "text": "iOS media library access is not determined, Mixxx may not be able to access any tracks",
+      "why": "log (iOS)"
+    },
+    {
+      "file": "src/library/itunes/itunesiosimporter.mm",
+      "text": "iOS media library access is restricted, Mixxx may not be able to access all tracks",
+      "why": "log (iOS)"
+    },
+    {
+      "file": "src/library/librarycontrol.cpp",
+      "text": "No Mixxx window, popup or menu has focus.",
+      "why": "log"
+    },
+    {
+      "file": "src/main.cpp",
+      "text": "Mixxx shutdown complete with code",
+      "why": "log"
+    },
+    {
+      "file": "src/main.cpp",
+      "text": "Running Mixxx",
+      "why": "log"
+    },
+    {
+      "file": "src/mixxxmainwindow.cpp",
+      "text": "default skin cannot be loaded - see <b>mixxx</b> trace for more information",
+      "why": "visible: BR.PR2 patches it"
+    },
+    {
+      "file": "src/preferences/broadcastprofile.cpp",
+      "text": "Mixxx",
+      "why": "visible: BR.PR2 patches it"
+    },
+    {
+      "file": "src/preferences/dialog/dlgprefsound.cpp",
+      "text": "Mixxx Wiki",
+      "why": "visible: BR.PR2 patches it"
+    },
+    {
+      "file": "src/preferences/upgrade.cpp",
+      "text": "The MIDI mapping file format has changed in this version of Mixxx. You will need to reconfigure your MIDI controller. See the Wiki for full details on the new format.",
+      "why": "log"
+    },
+    {
+      "file": "src/qml/asyncimageprovider.cpp",
+      "text": "mixxx",
+      "why": "QML image provider ID"
+    },
+    {
+      "file": "src/qml/qmlapplication.cpp",
+      "text": "Mixxx",
+      "why": "QML module URI or Android log tag (QML interface, developer only)"
+    },
+    {
+      "file": "src/qml/qmlapplication.cpp",
+      "text": "mixxx",
+      "why": "QML module URI or Android log tag (QML interface, developer only)"
+    },
+    {
+      "file": "src/soundio/pipewireenumerator.cpp",
+      "text": "Mixxx",
+      "why": "visible: BR.PR2 patches it"
+    },
+    {
+      "file": "src/soundio/pipewireenumerator.cpp",
+      "text": "mixxx",
+      "why": "PipeWire filter name (identifier)"
+    },
+    {
+      "file": "src/soundio/portaudioenumerator.cpp",
+      "text": "mixxx",
+      "why": "Android log tag"
+    },
+    {
+      "file": "src/sources/soundsourcemp3.cpp",
+      "text": "Mixxx tries to plays it with the most common sample rate for this file",
+      "why": "log"
+    },
+    {
+      "file": "src/track/steminfoimporter.cpp",
+      "text": "The STEM manifest is requesting DSP effects but this isn't supported by Mixxx yet.",
+      "why": "log"
+    },
+    {
+      "file": "src/track/track.cpp",
+      "text": "Skipping import of Serato cues because Mixxx Hotcues are already set. Reset them first via the track context menu.",
+      "why": "log"
+    },
+    {
+      "file": "src/util/cmdlineargs.cpp",
+      "text": "\nlog-flush-level wasn't 'trace', 'debug', 'info', 'warning', or 'critical'!\nMixxx will only flush output after a critical message.\n",
+      "why": "visible: BR.PR2 patches it"
+    },
+    {
+      "file": "src/util/cmdlineargs.cpp",
+      "text": "\nlog-level wasn't 'trace', 'debug', 'info', 'warning', or 'critical'!\nMixxx will only print warnings and critical messages to the console.\n",
+      "why": "visible: BR.PR2 patches it"
+    },
+    {
+      "file": "src/util/cmdlineargs.cpp",
+      "text": "\nlogFlushLevel wasn't 'trace', 'debug', 'info', 'warning', or 'critical'!\nMixxx will only flush output after a critical message.\n",
+      "why": "visible: BR.PR2 patches it"
+    },
+    {
+      "file": "src/util/cmdlineargs.cpp",
+      "text": "\nlogLevel wasn't 'trace', 'debug', 'info', 'warning', or 'critical'!\nMixxx will only print warnings and critical messages to the console.\n",
+      "why": "visible: BR.PR2 patches it"
+    },
+    {
+      "file": "src/util/screensaver.cpp",
+      "text": "Mixxx",
+      "why": "visible: patched in BR.PR2"
+    },
+    {
+      "file": "src/util/screensaver.cpp",
+      "text": "Mixxx active",
+      "why": "visible: BR.PR2 patches it"
+    },
+    {
+      "file": "src/util/screensaver.cpp",
+      "text": "Mixxx digital DJ software",
+      "why": "visible: BR.PR2 patches it"
+    },
+    {
+      "file": "src/util/screensaver.cpp",
+      "text": "mixxx",
+      "why": "Android log tag"
+    },
+    {
+      "file": "src/util/translations.h",
+      "text": "mixxx",
+      "why": "base name of Mixxx's .qm files"
+    },
+    {
+      "file": "src/vinylcontrol/vinylcontrolmanager.cpp",
+      "text": ", but Mixxx only supports ",
+      "why": "log"
+    },
+    {
+      "file": "src/widget/weffectparameternamebase.cpp",
+      "text": "Mixxx effect parameter ",
+      "why": "drag and drop MIME text, never shown"
+    }
+  ]
+}
