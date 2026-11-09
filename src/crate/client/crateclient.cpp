@@ -81,6 +81,8 @@ struct Client::Call {
     bool authenticated = true;
     /// RequestOptions::bearerToken.
     std::optional<QString> bearerToken;
+    QList<std::pair<QByteArray, QByteArray>> headers;
+    bool rawBody = false;
     /// Set for GETs, which share one call while it is active.
     QString sharedKey;
     int attemptsMade = 0;
@@ -129,11 +131,25 @@ void Reply::cancel() {
     finish(Error::cancelled());
 }
 
+QByteArray Reply::rawHeader(const QByteArray& name) const {
+    for (const auto& [headerName, value] : m_response.headers) {
+        if (headerName.compare(name, Qt::CaseInsensitive) == 0) {
+            return value;
+        }
+    }
+    return QByteArray();
+}
+
 void Reply::finish(const JsonResult& result) {
+    finish(result, Response());
+}
+
+void Reply::finish(const JsonResult& result, const Response& response) {
     if (m_finished) {
         return;
     }
     m_finished = true;
+    m_response = response;
     // Posted before the signal and nothing after it: a slot may delete this
     // Reply or the Client that owns it.
     deleteLater();
@@ -225,22 +241,17 @@ Reply* Client::request(Method method,
         return pReply;
     }
 
-    QUrl url = m_baseUrl;
-    QString basePath = m_baseUrl.path();
-    while (basePath.endsWith(QLatin1Char('/'))) {
-        basePath.chop(1);
-    }
-    url.setPath(basePath + path);
-    url.setQuery(QString());
-    url.setFragment(QString());
-    if (!options.query.isEmpty()) {
-        url.setQuery(options.query);
-    }
+    const QUrl url = urlOf(path, options.query);
 
     QString sharedKey;
     if (method == Method::Get && !options.bearerToken) {
         sharedKey = (options.authenticated ? QStringLiteral("auth ") : QStringLiteral("anon ")) +
+                (options.rawBody ? QStringLiteral("raw ") : QString()) +
                 url.toString(QUrl::FullyEncoded);
+        for (const auto& [name, value] : options.headers) {
+            sharedKey += QLatin1Char('\n') + QString::fromLatin1(name) + QStringLiteral(": ") +
+                    QString::fromLatin1(value);
+        }
         for (const CallPtr& pActive : m_calls) {
             if (pActive->sharedKey == sharedKey) {
                 pActive->subscribers.append(pReply);
@@ -255,6 +266,8 @@ Reply* Client::request(Method method,
     pCall->body = body;
     pCall->authenticated = options.authenticated;
     pCall->bearerToken = options.bearerToken;
+    pCall->headers = options.headers;
+    pCall->rawBody = options.rawBody;
     pCall->sharedKey = sharedKey;
     pCall->subscribers.append(pReply);
     m_calls.push_back(pCall);
@@ -274,29 +287,75 @@ void Client::pump() {
     }
 }
 
+QUrl Client::urlOf(const QString& path, const QUrlQuery& query) const {
+    QUrl url = m_baseUrl;
+    QString basePath = m_baseUrl.path();
+    while (basePath.endsWith(QLatin1Char('/'))) {
+        basePath.chop(1);
+    }
+    url.setPath(basePath + path);
+    url.setQuery(QString());
+    url.setFragment(QString());
+    if (!query.isEmpty()) {
+        url.setQuery(query);
+    }
+    return url;
+}
+
+void Client::setHeaders(QNetworkRequest* pRequest,
+        const QList<std::pair<QByteArray, QByteArray>>& extraHeaders,
+        const QString& token) const {
+    for (const auto& [name, value] : extraHeaders) {
+        // Only the session's token goes out
+        if (name.compare(QByteArrayLiteral("Authorization"), Qt::CaseInsensitive) != 0) {
+            pRequest->setRawHeader(name, value);
+        }
+    }
+    pRequest->setRawHeader("Accept", "application/json");
+    pRequest->setRawHeader("X-Crate-App", QByteArray("decks/") + kApplicationVersion);
+    if (!m_options.deviceFingerprint.isEmpty()) {
+        pRequest->setRawHeader("X-Device-Fingerprint", m_options.deviceFingerprint.toUtf8());
+    }
+    if (!token.isEmpty()) {
+        pRequest->setRawHeader("Authorization", "Bearer " + token.toUtf8());
+    }
+    // The bearer token must never follow a redirect to another host.
+    pRequest->setAttribute(QNetworkRequest::RedirectPolicyAttribute,
+            QNetworkRequest::SameOriginRedirectPolicy);
+}
+
+QNetworkReply* Client::openStream(const QString& path, const RequestOptions& options) {
+    VERIFY_OR_DEBUG_ASSERT(path.startsWith(QLatin1Char('/')) &&
+            !path.contains(QStringLiteral("://"))) {
+        return nullptr;
+    }
+    QNetworkRequest request(urlOf(path, options.query));
+    QString token;
+    if (options.bearerToken) {
+        token = *options.bearerToken;
+    } else if (options.authenticated && m_pTokenSource) {
+        token = m_pTokenSource->accessToken();
+    }
+    setHeaders(&request, options.headers, token);
+    request.setRawHeader("Accept", "text/event-stream");
+    request.setRawHeader("Cache-Control", "no-cache");
+    request.setTransferTimeout(0);
+    return m_pNetworkAccessManager->get(request);
+}
+
 void Client::send(const CallPtr& pCall) {
     QNetworkRequest request(pCall->url);
-    request.setRawHeader("Accept", "application/json");
-    request.setRawHeader("X-Crate-App", QByteArray("decks/") + kApplicationVersion);
-    if (!m_options.deviceFingerprint.isEmpty()) {
-        request.setRawHeader("X-Device-Fingerprint", m_options.deviceFingerprint.toUtf8());
-    }
     pCall->sentToken.clear();
     if (pCall->bearerToken) {
         pCall->sentToken = *pCall->bearerToken;
     } else if (pCall->authenticated && m_pTokenSource) {
         pCall->sentToken = m_pTokenSource->accessToken();
     }
-    if (!pCall->sentToken.isEmpty()) {
-        request.setRawHeader("Authorization", "Bearer " + pCall->sentToken.toUtf8());
-    }
+    setHeaders(&request, pCall->headers, pCall->sentToken);
     if (pCall->method == Method::Post || pCall->method == Method::Put) {
         request.setHeader(QNetworkRequest::ContentTypeHeader,
                 QByteArrayLiteral("application/json"));
     }
-    // The bearer token must never follow a redirect to another host.
-    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
-            QNetworkRequest::SameOriginRedirectPolicy);
     request.setTransferTimeout(static_cast<int>(m_options.transferTimeout.count()));
 
     QNetworkReply* pNetworkReply = nullptr;
@@ -393,13 +452,26 @@ void Client::onNetworkReplyFinished(const CallPtr& pCall) {
             return;
         }
     }
+    Reply::Response response;
+    response.status = status;
+    response.headers = pNetworkReply->rawHeaderPairs();
+    if (status == 304) {
+        // Not Modified: the caller keeps what it has
+        complete({pCall}, QJsonDocument(), response);
+        return;
+    }
     if (status < 200 || status >= 300) {
         kLogger.warning() << "Request to" << pCall->url.path() << "failed with HTTP" << status;
-        complete({pCall}, httpError(status, body));
+        complete({pCall}, httpError(status, body), response);
+        return;
+    }
+    if (pCall->rawBody) {
+        response.body = body;
+        complete({pCall}, QJsonDocument(), response);
         return;
     }
     if (body.trimmed().isEmpty()) {
-        complete({pCall}, QJsonDocument());
+        complete({pCall}, QJsonDocument(), response);
         return;
     }
     QJsonParseError parseError;
@@ -407,10 +479,11 @@ void Client::onNetworkReplyFinished(const CallPtr& pCall) {
     if (parseError.error != QJsonParseError::NoError) {
         complete({pCall},
                 Error::decode(QStringLiteral("The answer is not JSON: %1")
-                                .arg(parseError.errorString())));
+                                .arg(parseError.errorString())),
+                response);
         return;
     }
-    complete({pCall}, document);
+    complete({pCall}, document, response);
 }
 
 void Client::onUnauthorized(const CallPtr& pCall) {
@@ -504,7 +577,9 @@ void Client::scheduleRetry(const CallPtr& pCall, std::chrono::milliseconds delay
     }
 }
 
-void Client::complete(const QList<CallPtr>& calls, const JsonResult& result) {
+void Client::complete(const QList<CallPtr>& calls,
+        const JsonResult& result,
+        const Reply::Response& response) {
     QList<QPointer<Reply>> subscribers;
     for (const CallPtr& pCall : calls) {
         subscribers += pCall->subscribers;
@@ -514,7 +589,7 @@ void Client::complete(const QList<CallPtr>& calls, const JsonResult& result) {
     // Nothing of this Client is used from here on.
     for (const QPointer<Reply>& pReply : std::as_const(subscribers)) {
         if (pReply) {
-            pReply->finish(result);
+            pReply->finish(result, response);
         }
     }
 }

@@ -544,4 +544,86 @@ TEST_F(CrateClientTest, ForwardsDownloadProgress) {
     EXPECT_EQ(kOkBody.size(), progress.first().at(1).toLongLong());
 }
 
+TEST_F(CrateClientTest, SendsExtraHeadersButNeverAnotherAuthorization) {
+    const auto pClient = makeClient();
+    RequestOptions conditional;
+    conditional.headers = {{QByteArrayLiteral("If-None-Match"), QByteArrayLiteral("\"v7\"")},
+            {QByteArrayLiteral("authorization"), QByteArrayLiteral("Bearer stolen")}};
+
+    pClient->get(QStringLiteral("/api/decks/containers"), conditional);
+
+    const QNetworkRequest& request = m_network.last().request;
+    EXPECT_EQ(QByteArrayLiteral("\"v7\""), request.rawHeader("If-None-Match"));
+    EXPECT_EQ(QByteArrayLiteral("Bearer access-1"), request.rawHeader("Authorization"));
+}
+
+TEST_F(CrateClientTest, NotModifiedFinishesWithStatusAndHeaders) {
+    const auto pClient = makeClient();
+    Reply* pReply = pClient->get(QStringLiteral("/api/decks/containers"));
+    std::optional<int> status;
+    QByteArray etag;
+    QObject::connect(pReply, &Reply::finished, pReply, [&](const JsonResult& result) {
+        EXPECT_TRUE(result.ok());
+        status = pReply->httpStatus();
+        etag = pReply->rawHeader(QByteArrayLiteral("ETag"));
+    });
+
+    lastReply()->respond(304,
+            QByteArray(),
+            {{QByteArrayLiteral("ETag"), QByteArrayLiteral("\"v7\"")}});
+
+    ASSERT_TRUE(status.has_value());
+    EXPECT_EQ(304, *status);
+    EXPECT_EQ(QByteArrayLiteral("\"v7\""), etag);
+}
+
+TEST_F(CrateClientTest, RawBodyIsLeftUnparsed) {
+    const auto pClient = makeClient();
+    RequestOptions raw;
+    raw.rawBody = true;
+    Reply* pReply = pClient->get(QStringLiteral("/api/decks/containers"), raw);
+    // An identical GET that wants JSON is a different request
+    Reply* pParsed = pClient->get(QStringLiteral("/api/decks/containers"));
+    Outcome parsed(pParsed);
+    QByteArray body;
+    bool documentIsNull = false;
+    QObject::connect(pReply, &Reply::finished, pReply, [&](const JsonResult& result) {
+        ASSERT_TRUE(result.ok());
+        documentIsNull = result.value().isNull();
+        body = pReply->body();
+    });
+
+    ASSERT_EQ(2, m_network.sent.size());
+    m_network.sent[0].pReply->respond(200, kOkBody);
+    m_network.sent[1].pReply->respond(200, kOkBody);
+
+    EXPECT_TRUE(documentIsNull);
+    EXPECT_EQ(kOkBody, body);
+    ASSERT_TRUE(parsed.finished());
+    EXPECT_TRUE(parsed.result->value().object().value(QStringLiteral("ok")).toBool());
+}
+
+TEST_F(CrateClientTest, OpensAnEventStreamWithTheSessionHeaders) {
+    const auto pClient = makeClient();
+    RequestOptions resume;
+    resume.headers = {{QByteArrayLiteral("Last-Event-ID"), QByteArrayLiteral("42")}};
+
+    std::unique_ptr<QNetworkReply> pStream(
+            pClient->openStream(QStringLiteral("/api/cache/events"), resume));
+
+    ASSERT_NE(nullptr, pStream);
+    const QNetworkRequest& request = m_network.last().request;
+    EXPECT_EQ(QUrl(QStringLiteral("https://crate.test/base/api/cache/events")), request.url());
+    EXPECT_EQ(QByteArrayLiteral("Bearer access-1"), request.rawHeader("Authorization"));
+    EXPECT_EQ(QByteArrayLiteral("text/event-stream"), request.rawHeader("Accept"));
+    EXPECT_EQ(QByteArrayLiteral("42"), request.rawHeader("Last-Event-ID"));
+    // A stream stays open: no transfer timeout, and it takes no request slot
+    EXPECT_EQ(0, request.transferTimeout());
+    RequestOptions plain;
+    for (int i = 0; i < 4; ++i) {
+        pClient->get(QStringLiteral("/api/item/%1").arg(i), plain);
+    }
+    EXPECT_EQ(5, m_network.sent.size());
+}
+
 } // namespace
