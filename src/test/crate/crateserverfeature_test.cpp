@@ -40,7 +40,8 @@ const QByteArray kCapabilities = QByteArrayLiteral(
         R"({"decks": {"available": true, "min_client_version": "0.1.0",
             "contract_version": 1, "features": ["library_cursor"]}})");
 
-const QByteArray kTree = QByteArrayLiteral(R"({"containers": [
+const QByteArray kTree = QByteArrayLiteral(R"({"library": {"track_count": 136512},
+    "containers": [
     {"id": "28", "kind": "playlist", "name": "Peak hour", "parent_id": null,
      "track_count": 0, "etag": "p28"},
     {"id": "7", "kind": "playlist", "name": "Warm-up", "parent_id": null,
@@ -232,8 +233,9 @@ TEST_F(CrateServerFeatureTest, SidebarShowsServerAndSections) {
     EXPECT_EQ(QStringLiteral("Crate · dev.crate.local"), pFeature->title().toString());
     EXPECT_EQ(QStringLiteral("crateserver"), pFeature->iconName());
     // The sections Crate serves, with their counts; no moods or recent from
-    // this server, and nothing of later phases
-    EXPECT_EQ(QStringList({QStringLiteral("Library (2)"),
+    // this server, and nothing of later phases. Library counts the whole
+    // library, as the server's tree gives it, not the tracks synced so far
+    EXPECT_EQ(QStringList({QStringLiteral("Library (136512)"),
                       QStringLiteral("Playlists (2)"),
                       QStringLiteral("Crates (1)"),
                       QStringLiteral("Genres"),
@@ -251,6 +253,24 @@ TEST_F(CrateServerFeatureTest, SidebarShowsServerAndSections) {
 
     // Painted from the local tables: nothing asked yet
     EXPECT_EQ(m_sentAtStart, m_network.sent.size());
+}
+
+TEST_F(CrateServerFeatureTest, LibraryCountsTheSyncedTracksWithoutTheServersCount) {
+    // A tree from a server older than the library count
+    const auto tree = crate::library::parseContainerTree(kTree);
+    ASSERT_TRUE(tree.ok());
+    ASSERT_EQ(crate::library::WriteStatus::Ok,
+            crate::library::storeContainerTree(
+                    dbConnection(), kServer, tree.value().containers));
+    storeContainerTracks(containerId(QStringLiteral("likes"), QStringLiteral("me")),
+            {remoteTrack(QStringLiteral("e1"), QStringLiteral("Lattice"), 0.7, QString()),
+                    remoteTrack(QStringLiteral("e2"),
+                            QStringLiteral("Cassiopeia"),
+                            0.8,
+                            QString())});
+    makeFeature();
+
+    EXPECT_EQ(QStringLiteral("Library (2)"), root()->child(0)->getLabel());
 }
 
 TEST_F(CrateServerFeatureTest, ActivatingPlaylistShowsTracksInOrder) {
@@ -461,6 +481,7 @@ TEST_F(CrateServerFeatureTest, LazyExpansionFetchesOnce) {
     ASSERT_TRUE(QTest::qWaitFor([&] { return sentTo(tree) == 1; }, 5000));
     lastTo(tree)->pReply->respond(200, kTree);
     ASSERT_TRUE(QTest::qWaitFor([&] { return labels(root()).size() == 5; }, 5000));
+    EXPECT_EQ(QStringLiteral("Library (136512)"), root()->child(0)->getLabel());
     pPlaylists = childLabelled(root(), QStringLiteral("Playlists"));
     EXPECT_EQ(QStringLiteral("Playlists (2)"), pPlaylists->getLabel());
     EXPECT_EQ(2, pPlaylists->childRows());

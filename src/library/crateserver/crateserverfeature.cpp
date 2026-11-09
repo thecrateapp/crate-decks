@@ -398,8 +398,9 @@ void CrateServerFeature::loadSidebar(const QString& serverId) {
                     if (!count.exec() || !count.next()) {
                         continue;
                     }
-                    data.libraryTracks = count.value(0).toLongLong();
+                    data.syncedTracks = count.value(0).toLongLong();
                     count.finish();
+                    data.libraryTrackCount = loadLibraryTrackCount(database, serverId);
                     data.containers = loadContainers(database, serverId);
                     data.ok = true;
                 }
@@ -437,7 +438,9 @@ void CrateServerFeature::applySidebar(const QString& serverId, const SidebarData
         QList<std::pair<QString, QString>> children; // label, data
     };
     QList<Item> items;
-    items.append({withCount(tr("Library"), data.libraryTracks),
+    // The whole library as the server counts it (GU1 mockups); from a server
+    // that does not, the tracks synced so far
+    items.append({withCount(tr("Library"), data.libraryTrackCount.value_or(data.syncedTracks)),
             libraryData(serverId),
             namedIcon(QStringLiteral("crate-library"), QStringLiteral("tracks")),
             {}});

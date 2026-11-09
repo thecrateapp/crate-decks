@@ -8,6 +8,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <optional>
 
 #include "crate/library/cratelibrarystore.h"
 #include "library/libraryfeature.h"
@@ -95,7 +96,10 @@ class CrateServerFeature : public LibraryFeature {
     struct SidebarData {
         bool ok = false;
         QList<StoredContainer> containers;
-        qint64 libraryTracks = 0;
+        /// The whole library's count, as the server's tree gave it last.
+        std::optional<qint64> libraryTrackCount;
+        /// The tracks synced from the server so far.
+        qint64 syncedTracks = 0;
     };
 
     CrateServers* servers();

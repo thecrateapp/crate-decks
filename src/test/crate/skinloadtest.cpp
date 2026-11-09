@@ -321,8 +321,9 @@ QList<LibraryRow> readLibraryRows(const QString& path) {
 /// Decks had synced its library (plan F3.C-PR2): the tracks of a
 /// tab-separated file (readLibraryRows()'s columns, then energy from 1 to 10
 /// and profile quality), the mockups' 48 playlists and 12 crates, a few
-/// genres and moods, recent and likes with every track. Nothing reaches a
-/// server: the sidebar and the tables are painted from the profile.
+/// genres and moods, recent and likes with every track, and the mockups'
+/// library count. Nothing reaches a server: the sidebar and the tables are
+/// painted from the profile.
 bool insertCrateLibrary(const QString& settingsPath, const QString& rowsPath) {
     const QString name = QStringLiteral("crate-library-crate");
     const QString server = QStringLiteral("harness-server");
@@ -341,14 +342,16 @@ bool insertCrateLibrary(const QString& settingsPath, const QString& rowsPath) {
                         R"({"decks": {"available": true, "min_client_version": "0.1.0",
                             "contract_version": 1, "features": ["library_cursor"]}})");
 
-        QList<crate::library::RemoteContainer> tree;
+        crate::library::ContainerTree tree;
+        // The whole library, as the server's tree counts it
+        tree.libraryTrackCount = 136512;
         const auto add = [&tree](const QString& kind, const QString& id, const QString& name) {
             crate::library::RemoteContainer container;
             container.kind = kind;
             container.remoteId = id;
             container.name = name;
             container.etag = kind + id;
-            tree.append(container);
+            tree.containers.append(container);
         };
         const QStringList playlists = {QStringLiteral("Warm-up · Nov"),
                 QStringLiteral("Peak hour"),
