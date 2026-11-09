@@ -124,8 +124,7 @@ Use source separation (stems) where it pays for itself, without separating the w
 - When both tracks of an edge have a stems layer, `smart-mix-v3` scores candidates with:
   - vocal overlap from the vocal stems;
   - bass overlap, avoiding two basslines at once;
-  - drums-only or vocal-free intros and outros as preferred mix points;
-  - drums plus bass as the energy proxy around the cue.
+  - drums-only or vocal-free intros and outros as preferred mix points.
 - The safety limits (tempo, gain, true peak, durations) do not change.
 - Plans say `stemsUsed: true`.
 - **Evaluation:** with the SM5 harness and automatic listening metrics. Gate STEM-G1 decides whether the layer is on by default. Diego's position is to keep it unless it measures worse.
@@ -136,7 +135,7 @@ Use source separation (stems) where it pays for itself, without separating the w
   - the two bonuses and the bass term stay as built.
 - **Crate Decks only (Diego, 2026-11-09; rules revision 5):** "los stems que vayan solo si el cliente es Decks". The layer applies only to requests with `context.source = "decks"`; Listen, Android, VirtualDJ and every other client get the v3 menu without stems, exactly as rules revision 1. The reason: on analyzer v8, the industrial set's `listen` context (Listen's 6 s blend without a bass handoff) measured worse with the layer, from deeper loudness dips, while `dj` did not ([evaluation report](2026-11-09-smart-mix-stems-evaluation.md) §12.5).
 - **Industrial (Diego, 2026-11-09, after STEM-G1; rules revision 4):** "Godflesh, Ministry, Fear Factory, Author and Punisher deberían poder mezclarse bien, tienen baterías/baterías electrónicas marcadas." A track is in the family when its top artist genre, or its top album genre, is of the machine-drum industrial family: industrial, industrial metal and rock, EBM, electro-industrial, aggrotech, dark electro, Neue Deutsche Härte. Other tracks keep the genre prior rule. The family is the gate's own list: the shared genre prior table, which compatible tracks and radio read, does not change. Live-drum extreme metal, punk and rock stay out.
-- **Open question:** drums plus bass as the energy proxy around the cue (fourth item above) is not in the ST3 plan nor in the code. Implement it in a later rules revision, or drop it.
+- **Dropped (Diego, 2026-11-09):** drums plus bass as the energy proxy around the cue, a fourth signal this decision used to list. It was never in the ST3 plan nor in the code, and it can return in a later rules revision.
 
 **STEM-D6. Stem audio on the server, for Smart Mix playlists only.**
 - The server may keep separated audio for the tracks of Smart Mix playlists:

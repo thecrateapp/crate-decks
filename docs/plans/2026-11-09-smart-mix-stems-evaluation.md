@@ -396,7 +396,8 @@ Other points for the gate:
 - **Bass and drums cuts** have no ground truth (§5.2). The plans barely depend on them (§5.3);
   hand labels on a few dozen tracks would settle them if they ever matter.
 - **STEM-D5's energy proxy** (drums plus bass around the cue) is not in the plan nor the code:
-  implement it later or drop it from the design.
+  implement it later or drop it from the design. **Closed 2026-11-09:** Diego dropped it from the
+  design; it can return in a later rules revision.
 
 ## 9. Deviations, mismatches and open questions
 
@@ -405,8 +406,8 @@ Other points for the gate:
   (coordinator's decision). Until S5, `decks` plans like `playlist` and its bass handoff follows
   the Android flag. Android and VirtualDJ responses and cache keys are unchanged.
 - **STEM-D5 lists a fourth signal the plan does not:** "drums plus bass as the energy proxy around
-  the cue". ST3.PR1 names four terms and none of them is that, so it is not implemented. Open:
-  add it in a later rules revision, or drop it from the design.
+  the cue". ST3.PR1 names four terms and none of them is that, so it is not implemented.
+  **Closed 2026-11-09:** dropped from the design (Diego); it can return in a later rules revision.
 - **The calibrated cuts are a commit of their own** (`89db3f44`) after the harness, though they
   belong to PR1: calibrating them needs PR3's tools.
 - **The calibration tool grew beyond the plan** (`9835f77b`: bootstrap, mixture cut, the YAMNet
@@ -586,7 +587,8 @@ Paired, changed edges only (better / worse beyond the noise floor):
 
 ### 11.5 Open
 
-- STEM-D5's energy proxy (drums plus bass around the cue) stays an open question.
+- STEM-D5's energy proxy (drums plus bass around the cue): **closed 2026-11-09**, dropped from the
+  design; it can return in a later rules revision.
 - The loudness dips (§7, §11.4): whether a deeper dip is an intro over an outro or a hole, which
   Diego's listening of the prepared edges can tell.
 - The gate's genre source is the album taxonomy. Per-artist genres, which radio uses, could not
@@ -813,7 +815,8 @@ file bit for bit.
   a profile with an empty phrase list as ready.
 - **Live drums inside the industrial family** (§12.3): the gate cannot tell them apart; a larger
   control set, or a per-track drum signal, would be needed.
-- The loudness dips (§7, §11.4, §12.5) and STEM-D5's energy proxy stay open.
+- The loudness dips (§7, §11.4, §12.5) stay open. STEM-D5's energy proxy was dropped from the
+  design on 2026-11-09.
 
 ## 13. Stems for Crate Decks only (rules revision 5)
 

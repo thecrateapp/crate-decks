@@ -310,7 +310,7 @@ flowchart TD
   - `test_smart_mix_api_stems.py`: `outside the beatmatch family the plan ignores stems`; `genres are read only for edges with stems on both tracks`; `the cache key follows the gate`;
   - `test_smart_mix_genres.py`.
 - **Done** in the monorepo branch `feat/smart-mix-stems-st3`: `d0912cf1` (genre read) and `94190340` (rules revision 3).
-- **Open:** STEM-D5's energy proxy (drums plus bass around the cue) is not implemented.
+- **Closed:** STEM-D5's energy proxy (drums plus bass around the cue) was dropped from the design on 2026-11-09 (Diego); it can return in a later rules revision.
 
 ### ST3.PR5 · Rules revision 4: machine-drum industrial (after STEM-G1)
 
