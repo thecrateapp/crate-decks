@@ -103,7 +103,8 @@ bool createCrateServerSchema(const QSqlDatabase& database) {
         kLogger.warning() << "Cannot start a transaction for the Crate tables";
         return false;
     }
-    for (const QString& statement : kStatements + kLibraryStatements) {
+    const QStringList statements = kStatements + kLibraryStatements;
+    for (const QString& statement : statements) {
         QSqlQuery query(database);
         if (!query.exec(statement)) {
             kLogger.warning() << "Cannot create the Crate tables:" << query.lastError().text();
