@@ -386,7 +386,8 @@ flowchart TD
   - `src/track/track.{h,cpp}`: a public `StemInfo` setter;
   - the analyser hook (`analyzerthread.cpp` or `analyzerwaveform.cpp`) so the waveform is not redone on every load.
 - `src/crate/stems/stemreload.{h,cpp}`: stems that finish while the track is in a deck apply on the next load; a stopped deck reloads by itself and keeps its position.
-- Stem controls on the CrateDecks skin, from tokens.
+- Stem controls on the CrateDecks skin, from tokens. The skin already lays out the rails (2 decks) and chips (4 decks) since V2.PR2.
+- A level control per stem (`[ChannelN_StemM],vu_meter` or the name Mixxx's stem groups suggest), computed in the engine like the channel VU: no allocation or locks on the engine thread. Mixxx has no per-stem level, and the rails and chips need one.
 
 **Tests:**
 - `sidecarplayback_test.cpp`:
@@ -395,6 +396,7 @@ flowchart TD
   - `samplers and the preview deck play the original`;
   - `the waveform is not reanalysed on every load`;
   - `a click lands on the same frame ±1 in the original and the sidecar`.
+  - `each stem reports its own level`.
 - `stemreload_test.cpp`:
   - `stems apply on the next load`;
   - `a stopped deck reloads keeping its position`;
