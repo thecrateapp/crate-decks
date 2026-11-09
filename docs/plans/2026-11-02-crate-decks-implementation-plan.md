@@ -1205,6 +1205,28 @@ PR indicado.
 - **Pantalla de arranque** con la marca de Crate Decks en lugar del logo de Mixxx: V2.PR5.
 - **Ondas en las capturas sin pantalla:** sin OpenGL no hay ningún tipo de onda. El arnés de capturas tiene que
   renderizar con GL sin pantalla (EGL de Mesa) para comparar las ondas con la maqueta: V2.PR3.
+- **Fila `Artista · Género` con un campo vacío** (Diego, 2026-11-09). Sin género se lee `SNAYX ·`, y sin ninguno
+  de los dos queda un `·` suelto: `<TrackProperty>` no dice si su campo está vacío y ningún control lo hace.
+  Componer la fila en una sola etiqueta perdería lo que da `WTrackProperty` (editar el artista con doble clic,
+  el menú de pista y el arrastre), y una propiedad nueva en `Track` o una opción en `WTrackProperty` tocaría
+  ficheros fuera de §5.2 del diseño. Se usa un control por campo, como en la cabecera del deck: seguimiento de
+  V2.PR2 en `feat/decks-skin`, antes del merge de V2.
+  - `crate::DeckTrackFields` (`src/crate/ui/skin/decktrackfields.{h,cpp}`, sin widgets) sigue la pista de cada
+    deck con `PlayerInfo::trackChanged` y las señales `artistChanged` y `genreChanged` de `Track`. Pone
+    `[CrateDecks],deckN_has_artist` y `deckN_has_genre` a 1 si el campo tiene texto, sin contar espacios. Los
+    controles los crea el manifiesto de `skin.xml`, como `deckN_menu`, y el objeto arranca en `prepareLoadedSkin`.
+  - `deck_track.xml`: el artista y el género se ven con su control, y el separador, dentro del grupo del género,
+    solo si también hay artista. La fila conserva su alto con los dos vacíos, para que el título no salte. Los
+    decks normales y compactos usan la misma plantilla.
+  - **Tests primero:** `CrateDeckTrackFieldsTest` (cargar una pista temporal, cambiarle artista y género, vaciar
+    el deck) y `CrateSkinLoadTest.DeckArtistRowHidesEmptyFields`, que pone los controles como
+    `DeckHeadHidesEmptyFields` y comprueba los textos visibles y el alto de la fila.
+  - **Tamaño:** unas 300 líneas con los tests. De Mixxx solo cambia `CMakeLists.txt` (fuentes de `src/crate`),
+    que ya está en la lista cerrada.
+  - **Otras filas revisadas:** ninguna más une campos opcionales. La cabecera ya oculta la clave y el BPM vacíos;
+    CPU, latencia, BPM y tiempo unen un rótulo fijo con un valor que siempre existe; y las uniones del C++ de
+    Crate (biblioteca, barra lateral y servidores en Preferencias) ya saltan los vacíos. La línea de Smart Mix
+    (F6) y la regla de frase (F5 y F6) seguirán la misma regla cuando se conecten.
 
 **Tests:**
 - `src/test/crate/skinloadtest.cpp`:
