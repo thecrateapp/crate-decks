@@ -97,7 +97,7 @@ Variables: ChanNum, Pair, Size, InlineHotcues ("1" shows the hotcues in
           </PushButton>
           <BeatSpinBox>
             <TooltipId>beatloop_size</TooltipId>
-            <ObjectName>CrateLoopSize</ObjectName>
+            <ObjectName>CrateLoopSize<Variable name="Size"/></ObjectName>
             <Value><Variable name="Group"/>,beatloop_size</Value>
           </BeatSpinBox>
           <PushButton>

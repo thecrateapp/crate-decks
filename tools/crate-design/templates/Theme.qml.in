@@ -202,7 +202,6 @@ QtObject {
     readonly property real overviewMinHeight: {{overviewMinHeight}}
     readonly property real overviewMaxHeight: {{overviewMaxHeight}}
     readonly property real overviewMaxHeightShort: {{overviewMaxHeightShort}}
-    readonly property real overviewMaxHeightFourShort: {{overviewMaxHeightFourShort}}
     readonly property real phraseHeight: {{phraseHeight}}
     readonly property real phraseGap: {{phraseGap}}
     readonly property real nextHeight: {{nextHeight}}
@@ -315,6 +314,7 @@ QtObject {
     readonly property real camelotRingB: {{camelotRingB}}
     readonly property real tickPhrase: {{tickPhrase}}
     readonly property real hotcueRadius: {{hotcueRadius}}
+    readonly property real hotcueRadiusFourShort: {{hotcueRadiusFourShort}}
     readonly property real levelRingRadius: {{levelRingRadius}}
 
     // knob

@@ -202,7 +202,6 @@ QtObject {
     readonly property real overviewMinHeight: 40
     readonly property real overviewMaxHeight: 88
     readonly property real overviewMaxHeightShort: 44
-    readonly property real overviewMaxHeightFourShort: 28
     readonly property real phraseHeight: 18
     readonly property real phraseGap: 12
     readonly property real nextHeight: 22
@@ -315,6 +314,7 @@ QtObject {
     readonly property real camelotRingB: 292
     readonly property real tickPhrase: 10
     readonly property real hotcueRadius: 10
+    readonly property real hotcueRadiusFourShort: 9
     readonly property real levelRingRadius: 7
 
     // knob

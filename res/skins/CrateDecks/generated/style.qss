@@ -233,8 +233,12 @@ QToolTip {
 #CrateMain {
   background-color: #0a0a0f;
 }
-#CrateWaveformBand {
-  border-bottom: 1px solid rgba(241, 245, 249, 26);
+/* The band's bottom rule is a group of its own: a border on the band would
+   be drawn over its last row, which fills it */
+#CrateWaveformBandRule {
+  background-color: rgba(241, 245, 249, 26);
+  min-height: 1px;
+  max-height: 1px;
 }
 #CrateWaveformRowTwo {
   min-height: 92px;
@@ -251,6 +255,24 @@ QToolTip {
 #CrateWaveformRowFour[highlight="1"] {
   min-height: 36px;
   max-height: 36px;
+}
+/* The rows after the first: their rule is part of their height, as the
+   mockups' .wf-row + .wf-row border */
+#CrateWaveformRowTwoNext {
+  min-height: 91px;
+  max-height: 91px;
+}
+#CrateWaveformRowTwoNext[highlight="1"] {
+  min-height: 63px;
+  max-height: 63px;
+}
+#CrateWaveformRowFourNext {
+  min-height: 51px;
+  max-height: 51px;
+}
+#CrateWaveformRowFourNext[highlight="1"] {
+  min-height: 35px;
+  max-height: 35px;
 }
 #CrateWaveformRule,
 #CrateDeckRule {
@@ -508,15 +530,13 @@ QToolTip {
 #CrateOverviewBox[highlight="1"] {
   max-height: 44px;
 }
-/* Four decks: 40 px, as the mockups render it (.overview's min-height of
-   40 wins over the grid row's 32) */
-#CrateOverviewBoxFour {
+/* Four decks: 40 px at any height, as the mockups render it (.overview's
+   min-height of 40 wins over the grid row's 32, and below the 768
+   breakpoint over its max-height of 28) */
+#CrateOverviewBoxFour,
+#CrateOverviewBoxFour[highlight="1"] {
   min-height: 40px;
   max-height: 40px;
-}
-#CrateOverviewBoxFour[highlight="1"] {
-  min-height: 28px;
-  max-height: 28px;
 }
 
 /* Deck menu over the overview */
@@ -531,8 +551,17 @@ QToolTip {
 /* Transport (decks.css .tbtn): outlined; CUE in accent; play and sync
    filled in the deck colour when on */
 #CrateTransport,
-#CrateTransportFour {
+#CrateTransportFour,
+#CrateTransportFourShort {
   qproperty-layoutSpacing: 8;
+}
+/* The transport and the hotcues of the compact decks, apart for each size
+   (deck_main_compact.xml): as tall as the deck's row gap */
+#CrateDeckLowerFour {
+  qproperty-layoutSpacing: 8;
+}
+#CrateDeckLowerFourShort {
+  qproperty-layoutSpacing: 6;
 }
 [objectName^="MonoCue"] {
   background-color: transparent;
@@ -553,6 +582,10 @@ QToolTip {
   min-height: 28px;
   max-height: 28px;
 }
+#MonoCueFourShort {
+  min-height: 24px;
+  max-height: 24px;
+}
 [objectName^="CratePlay"] {
   background-color: transparent;
   border: 1px solid rgba(241, 245, 249, 15);
@@ -570,6 +603,10 @@ QToolTip {
 #CratePlayFourAC,
 #CratePlayFourBD {
   padding: 6px 0;
+}
+#CratePlayFourShortAC,
+#CratePlayFourShortBD {
+  padding: 4px 0;
 }
 [objectName^="CratePlay"][displayValue="1"] {
   image: url(skins:CrateDecks/generated/icons/pause-bold_onaccent.svg);
@@ -606,10 +643,21 @@ QToolTip {
   min-height: 28px;
   max-height: 28px;
 }
+#MonoDeckButtonTextSyncFourShortAC,
+#MonoDeckButtonTextSyncFourShortBD {
+  min-height: 24px;
+  max-height: 24px;
+}
 [objectName^="MonoDeckButtonTextSmall"],
 [objectName^="MonoDeckButtonTextMenu"] {
   min-height: 26px;
   max-height: 26px;
+}
+/* Below the 768 breakpoint the four decks' small buttons are as tall as
+   their transport */
+[objectName^="MonoDeckButtonTextSmallFourShort"] {
+  min-height: 24px;
+  max-height: 24px;
 }
 [objectName^="CrateDeckButtonFrame"] {
   background-color: transparent;
@@ -651,7 +699,8 @@ QToolTip {
    its colour; the padding leaves no content for that fill
    (background-clip), and the number is drawn over the whole button. */
 #CrateHotcues,
-#CrateHotcuesFour {
+#CrateHotcuesFour,
+#CrateHotcuesFourShort {
   qproperty-layoutSpacing: 2;
 }
 #CrateHotcuesInline {
@@ -684,8 +733,12 @@ QToolTip {
 [objectName^="CrateCueNode"][objectName$="BD"][displayValue="2"] {
   border-color: #f1f5f9;
 }
-#CrateCueRowFour[highlight="1"] [objectName^="CrateCueNode"] {
-  margin: 2px;
+/* Below the 768 breakpoint the four decks' nodes are 24 px boxes: the
+   mockups scale the 28 px node, circle included */
+[objectName^="CrateCueNodeFourShort"] {
+  border-radius: 9px;
+  margin: 3px;
+  padding: 8px;
 }
 
 /* Loop group: loop size, the size, the loop, key lock and quantize */
@@ -702,6 +755,10 @@ QToolTip {
   max-width: 16px;
   min-height: 16px;
   max-height: 16px;
+}
+[objectName^="CrateLoopDoubleFourShort"],
+[objectName^="CrateLoopToggleFourShort"] {
+  padding: 4px 8px;
 }
 [objectName^="CrateLoopDouble"] {
   image: url(skins:CrateDecks/generated/icons/alt-arrow-right_idle.svg);
@@ -720,7 +777,7 @@ QToolTip {
 /* The loop size keeps LateNight's spin box geometry, whose arrows still
    change the size, but shows only its number: without the arrows' room
    Qt leaves the edit field 1 px wide */
-WBeatSpinBox#CrateLoopSize {
+WBeatSpinBox[objectName^="CrateLoopSize"] {
   font-family: "JetBrains Mono";
   font-size: 13px;
   color: #f1f5f9;
@@ -733,18 +790,34 @@ WBeatSpinBox#CrateLoopSize {
   max-width: 42px;
   qproperty-alignment: AlignCenter;
 }
-WBeatSpinBox#CrateLoopSize QLineEdit {
+/* As tall as the transport buttons of its size; Qt adds a 1 px frame to
+   the spin box's content height */
+WBeatSpinBox#CrateLoopSizeFour,
+WBeatSpinBox#CrateLoopSizeFourShort {
+  border-width: 0;
+  padding: 0;
+}
+WBeatSpinBox#CrateLoopSizeFour {
+  min-height: 28px;
+  max-height: 28px;
+}
+WBeatSpinBox#CrateLoopSizeFourShort {
+  min-height: 24px;
+  max-height: 24px;
+}
+WBeatSpinBox[objectName^="CrateLoopSize"] QLineEdit {
   background-color: transparent;
 }
-WBeatSpinBox#CrateLoopSize::up-button,
-WBeatSpinBox#CrateLoopSize::down-button {
+WBeatSpinBox[objectName^="CrateLoopSize"]::up-button,
+WBeatSpinBox[objectName^="CrateLoopSize"]::down-button {
   background-color: transparent;
   image: none;
 }
 
 /* Cue row and stems */
 #CrateCueRow,
-#CrateCueRowFour {
+#CrateCueRowFour,
+#CrateCueRowFourShort {
   qproperty-layoutSpacing: 12;
 }
 #CrateStems {
@@ -1111,3 +1184,4 @@ WBeatSpinBox#CrateLoopSize::down-button {
   font-size: 14px;
   color: #999ca0;
 }
+

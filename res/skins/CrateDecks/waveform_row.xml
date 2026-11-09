@@ -5,7 +5,8 @@ Variables:
   ChanNum : deck number, 1 to 4
   Letter  : deck letter, A to D
   Pair    : AC or BD, the colour of the deck (design 14.3)
-  Rows    : Two or Four, the row height of the two- and four-deck bands
+  Rows    : the row height: Two or Four for the two- and four-deck bands,
+            with a Next suffix after the first row (waveform_band.xml)
 -->
 <Template>
   <WidgetGroup>
