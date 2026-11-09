@@ -8,8 +8,11 @@ res/skins/CrateDecks/generated/ (the skin's generated files):
   with ``{{token}}`` and ``{{token.filter}}`` placeholders replaced;
 * each Solar icon (svg/solar/) and base control (svg/controls/) once per
   icon state, with ``currentColor`` replaced by the state colour;
-* the knob and fader scales and the fader handles, drawn from the geometry
-  tokens.
+* the knob scale and dot, and the fader handles, drawn from the geometry
+  tokens (Crate's C++ paints the fader scales and the meters, which the
+  skin stretches, at their real size: crate/ui/skin/mixerstyle.cpp);
+* a few values derived from the tokens, such as the knob arc radius at each
+  knob size, which templates use like tokens.
 
 It fails if a template uses a token that does not exist, or if a token is
 used by nobody. With --check it writes to a temporary directory and fails
@@ -398,41 +401,50 @@ def svg_document(width, height, body):
     return "\n".join([head, *("  " + line for line in body), "</svg>", ""])
 
 
+def knob_ring(t, used):
+    """Radius of the knob ring on the knob canvas: the GU1 mockups draw the
+    knob on a 40 x 40 viewBox and scale it to the knob size."""
+    names = ("knobCanvas", "knobTickLong", "knobTickGap", "strokeHairline")
+    used.update(names)
+    return (
+        t["knobCanvas"].value / 2
+        - t["strokeHairline"].value / 2
+        - t["knobTickLong"].value
+        - t["knobTickGap"].value
+    )
+
+
 def knob_scale(t, used):
-    """Knob background: hairline ring and ticks over the knob's sweep."""
+    """Knob background: hairline ring and ticks over the knob's sweep, on
+    the knob canvas; the knob stretches it, the hairlines stay 1 px."""
     names = (
-        "knobSize",
+        "knobCanvas",
         "knobSweep",
         "knobTickCount",
         "knobTickEvery",
         "knobTickLong",
         "knobTickShort",
+        "knobTickGap",
         "strokeHairline",
         "border",
         "borderHover",
         "textFaint",
     )
     used.update(names)
-    size = t["knobSize"].value
+    size = t["knobCanvas"].value
     centre = size / 2
-    ring = centre - 0.5 - t["knobTickLong"].value - 1.5
+    ring = knob_ring(t, used)
     width = number(t["strokeHairline"].value)
     half_sweep = t["knobSweep"].value / 2
     step = 360 / t["knobTickCount"].value
-    body = [
-        f'<circle cx="{number(centre)}" cy="{number(centre)}" '
-        f'r="{ring:.2f}" fill="none" stroke="{t["border"].value}" '
-        f'stroke-opacity="{number(t["border"].alpha)}" '
-        f'stroke-width="{width}"/>'
-    ]
+    body = []
     count = int(half_sweep // step)
     for k in range(-count, count + 1):
         angle = math.radians(k * step - 90)
         is_long = k % t["knobTickEvery"].value == 0
         length = t["knobTickLong" if is_long else "knobTickShort"].value
         colour = t["textFaint" if is_long else "borderHover"]
-        opacity = "" if colour.alpha is None else number(colour.alpha)
-        start = ring + 1.5
+        start = ring + t["knobTickGap"].value
         body.append(
             stroke_line(
                 centre + math.cos(angle) * start,
@@ -441,134 +453,114 @@ def knob_scale(t, used):
                 centre + math.sin(angle) * (start + length),
                 colour.value,
                 width,
-                f' stroke-opacity="{opacity}"' if opacity else "",
+                opacity(colour) + NON_SCALING,
             )
         )
+    body.append(
+        f'<circle cx="{number(centre)}" cy="{number(centre)}" '
+        f'r="{number(round(ring, 4))}" fill="none" '
+        f'stroke="{t["border"].value}"{opacity(t["border"])} '
+        f'stroke-width="{width}"{NON_SCALING}/>'
+    )
     return svg_document(size, size, body)
 
 
-def fader_scale(t, used, vertical, length=120):
-    """Fader background: 1 px rail with ticks every faderTickStep percent."""
-    names = (
-        "faderRail",
-        "faderTickStep",
-        "faderHandleWidth",
-        "tickLong",
-        "tickShort",
-        "strokeHairline",
-        "borderHover",
-        "textFaint",
-        "textMuted",
-    )
+def knob_dot(t, used):
+    """The knob's indicator dot at 12 o'clock, on the knob canvas: the knob
+    turns it with its value."""
+    names = ("knobCanvas", "knobDot", "knobDotInset", "textPrimary")
     used.update(names)
-    across = t["faderHandleWidth"].value + 2 * t["tickLong"].value
-    middle = across / 2
-    rail = number(t["faderRail"].value)
-    width = number(t["strokeHairline"].value)
-    rail_colour = t["borderHover"]
-    rail_opacity = (
-        f' stroke-opacity="{number(rail_colour.alpha)}"' + NON_SCALING
+    size = t["knobCanvas"].value
+    centre = size / 2
+    distance = knob_ring(t, used) - t["knobDotInset"].value
+    body = [
+        f'<circle cx="{number(centre)}" cy="{number(centre - distance)}" '
+        f'r="{number(t["knobDot"].value / 2)}" '
+        f'fill="{t["textPrimary"].value}"/>'
+    ]
+    return svg_document(size, size, body)
+
+
+def vu_level(db):
+    """Position of a level in dB on Mixxx's meter scale, from 0 to 1.
+    EngineVuMeter shows log10(32.767 a + 1) of the mean absolute level a,
+    clamped at 1: full scale is a = 9 / 32.767, and a level of db below it
+    reads log10(9 * 10^(db / 20) + 1)."""
+    return math.log10(9 * 10 ** (db / 20) + 1)
+
+
+def derived_tokens(t, used):
+    """Values computed from the tokens that templates use like tokens."""
+    ring = knob_ring(t, used)
+    used.update(
+        (
+            "knobSize",
+            "knobSizeCompact",
+            "knobSizeFourShort",
+            "faderHandleHeight",
+            "strokeHairline",
+            "vuWarningDb",
+        )
     )
-    steps = int(100 // t["faderTickStep"].value)
-    handle_half = t["faderHandleWidth"].value / 2
-    body = []
-    if vertical:
-        body.append(
-            stroke_line(
-                middle,
-                0,
-                middle,
-                length,
-                rail_colour.value,
-                rail,
-                rail_opacity,
-            )
-        )
-    else:
-        body.append(
-            stroke_line(
-                0,
-                middle,
-                length,
-                middle,
-                rail_colour.value,
-                rail,
-                rail_opacity,
-            )
-        )
-    for i in range(steps + 1):
-        position = 0.5 + (length - 1) * i / steps
-        centre_tick = 2 * i == steps
-        size = t["tickLong"].value if centre_tick else t["tickShort"].value
-        tick_colour = t["textMuted" if centre_tick else "textFaint"].value
-        for side in (-1, 1):
-            a = middle + side * handle_half
-            b = a + side * size
-            if vertical:
-                body.append(
-                    stroke_line(
-                        a,
-                        position,
-                        b,
-                        position,
-                        tick_colour,
-                        width,
-                        NON_SCALING,
-                    )
-                )
-            else:
-                body.append(
-                    stroke_line(
-                        position,
-                        a,
-                        position,
-                        b,
-                        tick_colour,
-                        width,
-                        NON_SCALING,
-                    )
-                )
-    if vertical:
-        return svg_document(across, length, body)
-    return svg_document(length, across, body)
+    values = {
+        # The arc of WKnobComposed runs on the ring, at each knob size
+        "knobArcRadius": t["knobSize"].value * ring / t["knobCanvas"].value,
+        "knobArcRadiusCompact": t["knobSizeCompact"].value
+        * ring
+        / t["knobCanvas"].value,
+        "knobArcRadiusFourShort": t["knobSizeFourShort"].value
+        * ring
+        / t["knobCanvas"].value,
+        # The fader handle with its hairline outline
+        "faderHandleLength": t["faderHandleHeight"].value
+        + t["strokeHairline"].value,
+        # The warning zone of the level meters, on Mixxx's scale
+        "vuWarningLevel": vu_level(t["vuWarningDb"].value),
+    }
+    return {
+        name: Token(name, "derived", round(value, 4), "")
+        for name, value in values.items()
+    }
 
 
-def fader_handle(t, used, vertical, state):
-    """Outline handle; filled with the active colour when active."""
+def fader_handle(t, used, vertical, cross):
+    """Outline handle for a fader `cross` px across (GU1 mockups faderSvg):
+    18 x 10 with a hairline outline and an 8 px centre line, centred where
+    the mockups put the rail. WSliderComposed draws it at its own size, so
+    the outline sits on half pixels and stays crisp. The C++ of the skin
+    fills it while the fader moves or syncs."""
     names = (
         "faderHandleWidth",
         "faderHandleHeight",
+        "faderHandleLine",
         "strokeHairline",
         "radiusSm",
         "bgApp",
+        "textMuted",
         "textPrimary",
-        STATES[state],
     )
     used.update(names)
+    hairline = t["strokeHairline"].value
     long_side = t["faderHandleWidth"].value
     short_side = t["faderHandleHeight"].value
-    width, height = (
-        (long_side, short_side) if vertical else (short_side, long_side)
-    )
-    colour = t[STATES[state]].value
-    fill = colour if state == "active" else t["bgApp"].value
-    stroke = number(t["strokeHairline"].value)
-    inset = t["strokeHairline"].value / 2
+    length = short_side + hairline
+    rail = round(cross / 2) + hairline / 2
+    line = t["faderHandleLine"].value / 2
+    middle = length / 2
+    if vertical:
+        width, height = cross, length
+        rect = (rail - long_side / 2, hairline / 2, long_side, short_side)
+        centre = (rail - line, middle, rail + line, middle)
+    else:
+        width, height = length, cross
+        rect = (hairline / 2, rail - long_side / 2, short_side, long_side)
+        centre = (middle, rail - line, middle, rail + line)
     body = [
-        f'<rect x="{number(inset)}" y="{number(inset)}" '
-        f'width="{number(width - 2 * inset)}" '
-        f'height="{number(height - 2 * inset)}" '
-        f'rx="{number(t["radiusSm"].value)}" fill="{fill}" '
-        f'stroke="{colour}" stroke-width="{stroke}"/>',
-        stroke_line(
-            *(
-                (width * 0.25, height / 2, width * 0.75, height / 2)
-                if vertical
-                else (width / 2, height * 0.25, width / 2, height * 0.75)
-            ),
-            t["bgApp"].value if state == "active" else t["textPrimary"].value,
-            stroke,
-        ),
+        f'<rect x="{number(rect[0])}" y="{number(rect[1])}" '
+        f'width="{number(rect[2])}" height="{number(rect[3])}" '
+        f'rx="{number(t["radiusSm"].value)}" fill="{t["bgApp"].value}" '
+        f'stroke="{t["textMuted"].value}" stroke-width="{number(hairline)}"/>',
+        stroke_line(*centre, t["textPrimary"].value, number(hairline)),
     ]
     return svg_document(width, height, body)
 
@@ -709,6 +701,16 @@ def build(tokens_path, templates_dir, svg_dir, out_dir):
     used = set()
     outputs = {}
     problems = []
+    try:
+        derived = derived_tokens(tokens, used)
+    except KeyError as error:
+        raise GeneratorError([f"derived values need token {error}"]) from None
+    clashes = sorted(set(derived) & set(tokens))
+    if clashes:
+        raise GeneratorError(
+            [f"{n}: derived value name taken" for n in clashes]
+        )
+    values = {**tokens, **derived}
 
     for template in sorted(templates_dir.rglob("*.in")):
         relative = template.relative_to(templates_dir)
@@ -716,7 +718,7 @@ def build(tokens_path, templates_dir, svg_dir, out_dir):
             text = render(
                 template.read_text(encoding="utf-8"),
                 template_format(template),
-                tokens,
+                values,
                 used,
                 relative,
             )
@@ -749,16 +751,21 @@ def build(tokens_path, templates_dir, svg_dir, out_dir):
 
     controls = Path("controls")
     outputs[controls / "knob-scale.svg"] = knob_scale(tokens, used)
-    outputs[controls / "fader-scale-v.svg"] = fader_scale(tokens, used, True)
-    outputs[controls / "fader-scale-h.svg"] = fader_scale(tokens, used, False)
+    outputs[controls / "knob-dot.svg"] = knob_dot(tokens, used)
     outputs[controls / "phrase-ruler.svg"] = phrase_ruler(tokens, used)
     outputs[controls / "stem-rail.svg"] = stem_rail(tokens, used)
     outputs[controls / "stem-handle.svg"] = stem_handle(tokens, used)
-    for state in STATES:
-        for vertical, suffix in ((True, "v"), (False, "h")):
-            outputs[controls / f"fader-handle-{suffix}_{state}.svg"] = (
-                fader_handle(tokens, used, vertical, state)
-            )
+    # Channel faders and the crossfader are faderWidth across, the pitch
+    # faders pitchFaderWidth
+    used.update(("faderWidth", "pitchFaderWidth"))
+    for vertical, width_token in (
+        (True, "faderWidth"),
+        (True, "pitchFaderWidth"),
+        (False, "faderWidth"),
+    ):
+        cross = tokens[width_token].value
+        name = f"fader-handle-{'v' if vertical else 'h'}{number(cross)}.svg"
+        outputs[controls / name] = fader_handle(tokens, used, vertical, cross)
 
     # A ref uses the token it points to and the palette switch it names
     graph = ref_graph(tokens_path)

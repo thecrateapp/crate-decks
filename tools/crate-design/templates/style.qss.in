@@ -293,9 +293,10 @@ QToolTip {
 #CrateDecksRow {
   border-bottom: {{strokeHairline}} solid {{border}};
 }
-#CrateMixerBox {
-  border-left: {{strokeHairline}} solid {{border}};
-  border-right: {{strokeHairline}} solid {{border}};
+#CrateMixerRule {
+  background-color: {{border}};
+  min-width: {{strokeHairline}};
+  max-width: {{strokeHairline}};
 }
 
 /* A deck: padding of .deck, the gutter narrower below the 1366
@@ -873,23 +874,216 @@ WBeatSpinBox#CrateLoopSize::down-button {
   min-width: {{pitchColumnWidth}};
   max-width: {{pitchColumnWidth}};
 }
-[objectName^="CratePitchFader"] {
+[objectName^="CrateFaderPitch"] {
   min-width: {{pitchFaderWidth}};
   max-width: {{pitchFaderWidth}};
 }
-#CratePitchFader {
+#CratePitchFaderBox {
   min-height: {{pitchFaderMinHeight}};
 }
-#CratePitchFaderFour {
+#CratePitchFaderBoxFour {
   min-height: {{pitchFaderMinHeightFour}};
 }
-#CratePitchFaderFour[highlight="1"] {
+#CratePitchFaderBoxFour[highlight="1"] {
   min-height: {{pitchFaderMinHeightFourShort}};
 }
 #CratePitchValue {
   font-family: "{{fontMono}}";
   font-size: {{fontSizeLabel}};
   color: {{textSecondary}};
+}
+
+/* ── Mixer (decks.css .mixer, design 14.3) ─────────────────────────── */
+
+/* Padding and gaps are layout margins and spacing, which WWidgetGroup
+   applies twice (half the value each time) and which follow a restyle */
+#CrateMixer {
+  qproperty-layoutContentsMargins: rect({{mixerPaddingX.half.number}} {{mixerPaddingTop.half.number}} {{mixerPaddingX.half.number}} {{mixerPaddingBottom.half.number}});
+  qproperty-layoutSpacing: {{mixerRowGap.number}};
+}
+#CrateMixer[highlight="1"] {
+  qproperty-layoutContentsMargins: rect({{mixerPaddingX.half.number}} {{mixerPaddingTopShort.half.number}} {{mixerPaddingX.half.number}} {{mixerPaddingBottomShort.half.number}});
+}
+#CrateMixerStrips {
+  qproperty-layoutSpacing: {{stripGap.number}};
+}
+#CrateStrip,
+#CrateStripFour {
+  qproperty-layoutSpacing: {{stripHeadGap.number}};
+}
+#CrateStripBody {
+  qproperty-layoutSpacing: {{stripColumnGap.number}};
+}
+/* Four decks: the fader 10 px under the knobs */
+#CrateStripFaderRowFour {
+  qproperty-layoutContentsMargins: rect(0 {{stripFaderMarginFour - stripHeadGap.half.number}} 0 0);
+}
+
+/* The deck letter of a strip */
+#CrateStripLetterAC,
+#CrateStripLetterBD {
+  font-family: "{{fontMono}}";
+  font-size: {{fontSizeStripLetter}};
+  border-radius: {{radiusSm}};
+  min-width: {{stripLetterSize - strokeHairline - strokeHairline}};
+  max-width: {{stripLetterSize - strokeHairline - strokeHairline}};
+  min-height: {{stripLetterSize - strokeHairline - strokeHairline}};
+  max-height: {{stripLetterSize - strokeHairline - strokeHairline}};
+}
+#CrateStripLetterAC { border: {{strokeHairline}} solid {{deckA}}; color: {{deckA}}; }
+#CrateStripLetterBD { border: {{strokeHairline}} solid {{deckB}}; color: {{deckB}}; }
+
+/* Knobs (decks.css .knob): 36 px, 30 below the 768 breakpoint; 30 and 26
+   with four decks. The arc radius of each size is in generated/vars.xml */
+#CrateStripKnobs {
+  qproperty-layoutSpacing: {{knobGap.number}};
+}
+#CrateStripKnobs[highlight="1"] {
+  qproperty-layoutSpacing: {{knobGapShort.number}};
+}
+#CrateStripKnobsFour {
+  qproperty-layoutSpacing: {{knobGapFour.number}};
+}
+#CrateKnobBox {
+  qproperty-layoutSpacing: {{knobLabelGap.number}};
+}
+#CrateKnob {
+  min-width: {{knobSize}};
+  max-width: {{knobSize}};
+  min-height: {{knobSize}};
+  max-height: {{knobSize}};
+}
+#CrateKnobShort,
+#CrateKnobFour {
+  min-width: {{knobSizeCompact}};
+  max-width: {{knobSizeCompact}};
+  min-height: {{knobSizeCompact}};
+  max-height: {{knobSizeCompact}};
+}
+#CrateKnobFourShort {
+  min-width: {{knobSizeFourShort}};
+  max-width: {{knobSizeFourShort}};
+  min-height: {{knobSizeFourShort}};
+  max-height: {{knobSizeFourShort}};
+}
+/* MonoLabel of 9.5 px (9 below the 768 breakpoint), one line high */
+#MonoKnobLabel {
+  font-size: {{fontSizeLabelSmall.fontsize}};
+  letter-spacing: {{trackingCaps * fontSizeLabelSmall}};
+  min-height: {{fontSizeLabelSmall}};
+  max-height: {{fontSizeLabelSmall}};
+}
+#MonoKnobLabel[highlight="1"] {
+  font-size: {{fontSizeLegend.fontsize}};
+  letter-spacing: {{trackingCaps * fontSizeLegend}};
+  min-height: {{fontSizeLegend}};
+  max-height: {{fontSizeLegend}};
+}
+
+/* Meter and fader of a strip, and the headphone button under them */
+#CrateStripFader,
+#CrateStripFaderFour {
+  qproperty-layoutSpacing: {{stripFaderGap.number}};
+}
+#CrateStripMeterFader {
+  qproperty-layoutSpacing: {{vuGap.number}};
+}
+[objectName^="CrateFaderChannel"] {
+  min-width: {{faderWidth}};
+  max-width: {{faderWidth}};
+}
+#CrateFaderCross {
+  min-height: {{faderWidth}};
+  max-height: {{faderWidth}};
+}
+/* The colour that fills a fader's handle while it moves or syncs, and
+   lights a meter (crate/ui/skin/mixerstyle.cpp) */
+[objectName^="CrateFader"][objectName$="AC"],
+#CrateMeterVuAC {
+  color: {{deckA}};
+}
+[objectName^="CrateFader"][objectName$="BD"],
+#CrateMeterVuBD {
+  color: {{deckB}};
+}
+#CrateFaderCross,
+#CrateMeterVuMain {
+  color: {{vuLevel}};
+}
+#CrateMeterLane {
+  color: {{accentHi}};
+}
+
+/* Level meters (decks.css .vu): the clip segment over a 4 px bar */
+#CrateVu,
+#CrateVuClip,
+[objectName^="CrateMeterVu"] {
+  min-width: {{vuBarWidth}};
+  max-width: {{vuBarWidth}};
+}
+#CrateVuClip {
+  background-color: {{vuClipTrack}};
+  min-height: {{vuClipHeight}};
+  max-height: {{vuClipHeight}};
+}
+#CrateVuClip[highlight="1"] {
+  background-color: {{vuClip}};
+}
+
+/* Headphones (decks.css .tbtn[data-small]): outlined, filled in the deck
+   colour when on */
+[objectName^="CratePfl"] {
+  background-color: transparent;
+  border: {{strokeHairline}} solid {{border}};
+  border-radius: {{radiusMd}};
+  image: url(skins:CrateDecks/generated/icons/headphones-round-sound_idle.svg);
+  min-width: {{iconSm + smallButtonPadding + smallButtonPadding}};
+  max-width: {{iconSm + smallButtonPadding + smallButtonPadding}};
+  min-height: {{iconSm}};
+  max-height: {{iconSm}};
+}
+#CratePflAC, #CratePflBD,
+#CratePflShortAC, #CratePflShortBD {
+  padding: {{smallButtonHeight - iconSm - strokeHairline - strokeHairline.half}} 0;
+}
+#CratePflFourAC, #CratePflFourBD {
+  padding: {{transportButtonHeightFour - iconSm - strokeHairline - strokeHairline.half}} 0;
+}
+#CratePflFourShortAC, #CratePflFourShortBD {
+  padding: {{transportButtonHeightFourShort - iconSm - strokeHairline - strokeHairline.half}} 0;
+}
+[objectName^="CratePfl"][displayValue="1"] {
+  image: url(skins:CrateDecks/generated/icons/headphones-round-sound_onaccent.svg);
+}
+[objectName^="CratePfl"][objectName$="AC"][displayValue="1"] {
+  background-color: {{deckA}};
+  border-color: {{deckA}};
+}
+[objectName^="CratePfl"][objectName$="BD"][displayValue="1"] {
+  background-color: {{deckB}};
+  border-color: {{deckB}};
+}
+
+/* Main and headphones (decks.css .master) */
+/* Packed at the top, as the grid of .master: a spacer would add a gap */
+#CrateMaster {
+  qproperty-layoutContentsMargins: rect({{masterPaddingX.half.number}} 0 {{masterPaddingX.half.number}} 0);
+  qproperty-layoutSpacing: {{masterGap.number}};
+  qproperty-layoutAlignment: 'AlignTop';
+}
+#CrateMasterVus {
+  qproperty-layoutSpacing: {{masterVuGap.number}};
+  min-height: {{masterVuHeight}};
+  max-height: {{masterVuHeight}};
+}
+#CrateMasterVus[highlight="1"] {
+  min-height: {{masterVuHeightShort}};
+  max-height: {{masterVuHeightShort}};
+}
+
+/* Crossfader (decks.css .xfader) */
+#CrateCrossfader {
+  qproperty-layoutSpacing: {{xfaderGap.number}};
 }
 
 /* Empty deck: drop zone */

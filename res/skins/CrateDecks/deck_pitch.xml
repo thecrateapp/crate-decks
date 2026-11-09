@@ -1,7 +1,8 @@
 <!--
   Pitch column of a deck (GU1 mockups .pitch): MonoLabel, the rate fader
-  with the instrument scale of design 14.3 and its value.
-Variables: ChanNum, Size
+  with the instrument scale of design 14.3 and its value. The handle fills
+  in the deck colour while the fader moves or the deck syncs.
+Variables: ChanNum, Pair, Size
 -->
 <Template>
   <WidgetGroup>
@@ -14,28 +15,42 @@ Variables: ChanNum, Size
         <Text>Pitch</Text>
         <Alignment>center</Alignment>
       </Label>
+      <!-- The box holds the fader's minimum height, which follows the
+           768 px layout class; the sync group fills the handle while the
+           deck syncs (crate/ui/skin/mixerstyle.cpp) -->
       <WidgetGroup>
+        <ObjectName>CratePitchFaderBox<Variable name="Size"/></ObjectName>
         <Layout>horizontal</Layout>
         <SizePolicy>me,me</SizePolicy>
         <Children>
-          <WidgetGroup><SizePolicy>me,min</SizePolicy></WidgetGroup>
-          <SliderComposed>
-            <ObjectName>CratePitchFader<Variable name="Size"/></ObjectName>
-            <TooltipId>rate</TooltipId>
-            <SizePolicy>f,me</SizePolicy>
-            <Slider scalemode="STRETCH">skins:CrateDecks/generated/controls/fader-scale-v.svg</Slider>
-            <Handle scalemode="STRETCH_ASPECT">skins:CrateDecks/generated/controls/fader-handle-v_idle.svg</Handle>
-            <Horizontal>false</Horizontal>
+          <WidgetGroup>
+            <ObjectName>CrateFaderSync</ObjectName>
+            <Layout>horizontal</Layout>
+            <SizePolicy>me,me</SizePolicy>
+            <Children>
+              <WidgetGroup><SizePolicy>me,min</SizePolicy></WidgetGroup>
+              <SliderComposed>
+                <ObjectName>CrateFaderPitch<Variable name="Pair"/></ObjectName>
+                <TooltipId>rate</TooltipId>
+                <SizePolicy>f,me</SizePolicy>
+                <Handle scalemode="STRETCH">skins:CrateDecks/generated/controls/fader-handle-v<Variable name="CratePitchFaderWidth"/>.svg</Handle>
+                <Horizontal>false</Horizontal>
+                <Connection>
+                  <ConfigKey>[Channel<Variable name="ChanNum"/>],rate</ConfigKey>
+                </Connection>
+              </SliderComposed>
+              <WidgetGroup><SizePolicy>me,min</SizePolicy></WidgetGroup>
+            </Children>
             <Connection>
-              <ConfigKey>[Channel<Variable name="ChanNum"/>],rate</ConfigKey>
-            </Connection>
-            <Connection>
-              <ConfigKey>[CrateDecks],layout_short</ConfigKey>
+              <ConfigKey>[Channel<Variable name="ChanNum"/>],sync_enabled</ConfigKey>
               <BindProperty>highlight</BindProperty>
             </Connection>
-          </SliderComposed>
-          <WidgetGroup><SizePolicy>me,min</SizePolicy></WidgetGroup>
+          </WidgetGroup>
         </Children>
+        <Connection>
+          <ConfigKey>[CrateDecks],layout_short</ConfigKey>
+          <BindProperty>highlight</BindProperty>
+        </Connection>
       </WidgetGroup>
       <NumberRate>
         <ObjectName>CratePitchValue</ObjectName>

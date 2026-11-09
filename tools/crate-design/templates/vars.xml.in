@@ -62,28 +62,59 @@
   <SetVariable name="CrateWaveMidBD">{{waveMidDeckBD}}</SetVariable>
   <SetVariable name="CrateWaveHighBD">{{waveHighDeckBD}}</SetVariable>
 
-  <!-- Level meters -->
+  <!-- Level meters (crate/ui/skin/mixerstyle.cpp paints them): the deck
+       colour, warning from vuWarningDb on Mixxx's meter scale
+       (CrateVuWarningLevel), a 1 px peak hold -->
   <SetVariable name="CrateVuLevel">{{vuLevel}}</SetVariable>
   <SetVariable name="CrateVuWarning">{{vuWarning}}</SetVariable>
   <SetVariable name="CrateVuClip">{{vuClip}}</SetVariable>
   <SetVariable name="CrateVuTrack">{{vuTrack}}</SetVariable>
   <SetVariable name="CrateVuClipTrack">{{vuClipTrack}}</SetVariable>
   <SetVariable name="CrateVuWarningDb">{{vuWarningDb}}</SetVariable>
+  <SetVariable name="CrateVuWarningLevel">{{vuWarningLevel}}</SetVariable>
+  <SetVariable name="CrateVuWarningRule">{{bgApp}}</SetVariable>
   <SetVariable name="CrateVuBarWidth">{{vuBarWidth}}</SetVariable>
+  <SetVariable name="CrateVuClipGap">{{vuClipGap}}</SetVariable>
+  <SetVariable name="CrateVuPeakHold">{{vuPeakHold}}</SetVariable>
+  <SetVariable name="CrateVuPeakHoldTime">{{vuPeakHoldTime}}</SetVariable>
+  <SetVariable name="CrateVuPeakFallTime">{{vuPeakFallTime}}</SetVariable>
+  <SetVariable name="CrateLaneTrack">{{border}}</SetVariable>
 
-  <!-- Knobs: the arc is painted by WKnobComposed over knob-scale.svg, in
-       the colour of the deck (CrateDeckA to CrateDeckD) -->
+  <!-- Knobs: knob-scale.svg and knob-dot.svg are drawn on a canvas of
+       {{knobCanvas}} px that each knob stretches; the arc of WKnobComposed
+       runs on the ring, so its radius follows the knob size. The arc takes
+       the colour of the deck (CrateDeckAC and CrateDeckBD) -->
   <SetVariable name="CrateKnobSize">{{knobSize}}</SetVariable>
   <SetVariable name="CrateKnobSizeCompact">{{knobSizeCompact}}</SetVariable>
+  <SetVariable name="CrateKnobSizeFourShort">{{knobSizeFourShort}}</SetVariable>
+  <SetVariable name="CrateKnobArcRadius">{{knobArcRadius}}</SetVariable>
+  <SetVariable name="CrateKnobArcRadiusCompact">{{knobArcRadiusCompact}}</SetVariable>
+  <SetVariable name="CrateKnobArcRadiusFourShort">{{knobArcRadiusFourShort}}</SetVariable>
   <SetVariable name="CrateKnobArcColor">{{accentHi}}</SetVariable>
   <SetVariable name="CrateKnobArcWidth">{{knobArcWidth}}</SetVariable>
-  <SetVariable name="CrateKnobDot">{{knobDot}}</SetVariable>
+  <SetVariable name="CrateKnobHalfSweep">{{knobSweep.half.number}}</SetVariable>
   <SetVariable name="CrateKnobSweep">{{knobSweep}}</SetVariable>
 
-  <!-- Faders -->
+  <!-- Faders: the handle is fader-handle-*.svg; crate/ui/skin/mixerstyle.cpp
+       paints the rail and ticks at the fader's real length and fills the
+       handle in the fader's colour while it moves or syncs -->
   <SetVariable name="CrateFaderRail">{{faderRail}}</SetVariable>
+  <SetVariable name="CrateFaderRailColor">{{borderHover}}</SetVariable>
+  <SetVariable name="CrateFaderTickColor">{{textFaint}}</SetVariable>
+  <SetVariable name="CrateFaderCentreTickColor">{{textMuted}}</SetVariable>
+  <SetVariable name="CrateFaderTickStep">{{faderTickStep}}</SetVariable>
+  <SetVariable name="CrateFaderTickGap">{{faderTickGap}}</SetVariable>
+  <SetVariable name="CrateFaderTickLong">{{tickLong}}</SetVariable>
+  <SetVariable name="CrateFaderTickShort">{{tickShort}}</SetVariable>
   <SetVariable name="CrateFaderHandleWidth">{{faderHandleWidth}}</SetVariable>
   <SetVariable name="CrateFaderHandleHeight">{{faderHandleHeight}}</SetVariable>
+  <SetVariable name="CrateFaderHandleLength">{{faderHandleLength}}</SetVariable>
+  <SetVariable name="CrateFaderHandleLine">{{faderHandleLine}}</SetVariable>
+  <SetVariable name="CrateFaderHandleRadius">{{radiusSm}}</SetVariable>
+  <SetVariable name="CrateFaderHandleLineActive">{{onAccent}}</SetVariable>
+  <SetVariable name="CrateFaderActiveHold">{{motionNormal}}</SetVariable>
+  <SetVariable name="CrateFaderWidth">{{faderWidth}}</SetVariable>
+  <SetVariable name="CratePitchFaderWidth">{{pitchFaderWidth}}</SetVariable>
 
   <!-- Layout: the 1366 x 768 breakpoints of the GU1 mockups (C++ sets
        [CrateDecks],layout_narrow and layout_short from them) -->

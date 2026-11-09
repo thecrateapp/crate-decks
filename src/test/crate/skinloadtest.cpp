@@ -31,6 +31,7 @@
 #include "coreservices.h"
 #include "crate/ui/skin/crateserverstatus.h"
 #include "crate/ui/skin/crateskin.h"
+#include "crate/ui/skin/mixerstyle.h"
 #include "mixer/basetrackplayer.h"
 #include "mixer/playermanager.h"
 #include "mixxxmainwindow.h"
@@ -370,6 +371,146 @@ TEST_F(CrateSkinLoadTest, RacksKeepTheUsersChoice) {
     }
 }
 
+/// The widget of `type` named `name` inside the strip of deck `letter`
+/// (two decks), found by the strip's deck letter.
+template<typename T>
+T* findInStrip(QWidget* pSkin, const QString& letter, const QString& name) {
+    const QList<QWidget*> strips = pSkin->findChildren<QWidget*>(QStringLiteral("CrateStrip"));
+    for (QWidget* pStrip : strips) {
+        const QList<QLabel*> labels = pStrip->findChildren<QLabel*>();
+        const bool isDeck = std::any_of(labels.begin(), labels.end(), [&letter](QLabel* pLabel) {
+            return pLabel->objectName().startsWith(QLatin1String("CrateStripLetter")) &&
+                    pLabel->text() == letter;
+        });
+        if (isDeck) {
+            return pStrip->findChild<T*>(name);
+        }
+    }
+    return nullptr;
+}
+
+/// The brightest pixel of `image` around `centre`
+QRgb brightestAround(const QImage& image, QPoint centre, int reach) {
+    QRgb brightest = qRgb(0, 0, 0);
+    for (int y = centre.y() - reach; y <= centre.y() + reach; ++y) {
+        for (int x = centre.x() - reach; x <= centre.x() + reach; ++x) {
+            const QRgb pixel = image.pixel(x, y);
+            if (qGray(pixel) > qGray(brightest)) {
+                brightest = pixel;
+            }
+        }
+    }
+    return brightest;
+}
+
+TEST_F(CrateSkinLoadTest, KnobArcsTakeTheDeckColour) {
+    QTemporaryDir profile;
+    ASSERT_TRUE(profile.isValid());
+    OffscreenDecks decks(profile.path() + QLatin1Char('/'));
+    decks.writeProfile(kCrateDecks);
+    decks.start(application());
+    ASSERT_NE(nullptr, decks.skin());
+    decks.mainWindow()->resize(1920, 1080);
+    // The high EQ of both decks all the way up: the arc runs from 12
+    // o'clock past 3 o'clock, where only the arc is drawn
+    for (const char* group : {"[EqualizerRack1_[Channel1]_Effect1]",
+                 "[EqualizerRack1_[Channel2]_Effect1]"}) {
+        ControlObject::getControl(ConfigKey(group, "parameter3"))->setParameter(1);
+    }
+    waitFor([] { return false; }, 300);
+
+    const crate::SkinVariables variables = crate::readSkinVariables(
+            QDir(skinPath(kCrateDecks)).filePath(QStringLiteral("generated/vars.xml")));
+    const double radius = variables.value(QStringLiteral("CrateKnobArcRadius")).toDouble();
+    ASSERT_GT(radius, 0);
+    for (const auto& [letter, colourName] :
+            {std::pair{QStringLiteral("A"), QStringLiteral("CrateDeckAC")},
+                    std::pair{QStringLiteral("B"), QStringLiteral("CrateDeckBD")}}) {
+        // The second knob of a strip is the high EQ
+        auto* pStrip = findInStrip<QWidget>(
+                decks.skin(), letter, QStringLiteral("CrateStripKnobs"));
+        ASSERT_NE(nullptr, pStrip) << letter.toStdString();
+        const QList<QWidget*> knobs = pStrip->findChildren<QWidget*>(QStringLiteral("CrateKnob"));
+        ASSERT_EQ(5, knobs.size()) << letter.toStdString();
+        QWidget* pHigh = knobs[1];
+        // On the skin's background: grab() would fill it with the palette's
+        QImage image(pHigh->size(), QImage::Format_RGB32);
+        image.fill(QColor(variables.value(QStringLiteral("CrateBgApp"))));
+        pHigh->render(&image, QPoint(), QRegion(), QWidget::DrawChildren);
+        const QPoint threeOClock(qRound(image.width() / 2.0 + radius), image.height() / 2);
+        const QRgb arc = brightestAround(image, threeOClock, 1);
+        const QColor deck(variables.value(colourName));
+        EXPECT_NEAR(deck.red(), qRed(arc), 40) << letter.toStdString();
+        EXPECT_NEAR(deck.green(), qGreen(arc), 40) << letter.toStdString();
+        EXPECT_NEAR(deck.blue(), qBlue(arc), 40) << letter.toStdString();
+    }
+}
+
+TEST_F(CrateSkinLoadTest, FaderHandleFillsWhileItMoves) {
+    QTemporaryDir profile;
+    ASSERT_TRUE(profile.isValid());
+    OffscreenDecks decks(profile.path() + QLatin1Char('/'));
+    decks.writeProfile(kCrateDecks);
+    decks.start(application());
+    ASSERT_NE(nullptr, decks.skin());
+    decks.mainWindow()->resize(1920, 1080);
+    waitFor([] { return false; }, 300);
+    auto* pFader = decks.skin()->findChild<QWidget*>(QStringLiteral("CrateFaderChannelBD"));
+    ASSERT_NE(nullptr, pFader);
+    const crate::SkinVariables variables = crate::readSkinVariables(
+            QDir(skinPath(kCrateDecks)).filePath(QStringLiteral("generated/vars.xml")));
+    const crate::FaderStyle style = crate::FaderStyle::fromVariables(variables);
+    const QColor deck(variables.value(QStringLiteral("CrateDeckBD")));
+    const auto handleFill = [pFader, &style](double parameter) {
+        const int edge = crate::faderHandleEdge(
+                pFader->height(), style.handleLength, parameter, false);
+        // Inside the outline, away from the centre line
+        return pFader->grab().toImage().pixel(pFader->width() / 2 - 5, edge + 3);
+    };
+    // At rest the handle is the outline over the background
+    ControlObject::getControl(ConfigKey("[Channel2]", "volume"))->setParameter(0.3);
+    waitFor([] { return false; }, style.activeHoldMs + 300);
+    EXPECT_LT(qGray(handleFill(0.3)), 60);
+    // Moving, it fills with the deck colour, and empties after the hold
+    ControlObject::getControl(ConfigKey("[Channel2]", "volume"))->setParameter(0.6);
+    waitFor([] { return false; }, 50);
+    const QRgb moving = handleFill(0.6);
+    EXPECT_NEAR(deck.red(), qRed(moving), 10);
+    EXPECT_NEAR(deck.blue(), qBlue(moving), 10);
+    waitFor([] { return false; }, style.activeHoldMs + 300);
+    EXPECT_LT(qGray(handleFill(0.6)), 60);
+    // With sync, the pitch fader stays filled
+    ControlObject::set(ConfigKey("[Channel2]", "sync_enabled"), 1);
+    waitFor([] { return false; }, style.activeHoldMs + 300);
+    auto* pPitch = decks.skin()->findChild<QWidget*>(QStringLiteral("CrateFaderPitchBD"));
+    ASSERT_NE(nullptr, pPitch);
+    const double rate = ControlObject::getControl(ConfigKey("[Channel2]", "rate"))->getParameter();
+    const int edge = crate::faderHandleEdge(pPitch->height(), style.handleLength, rate, false);
+    const QRgb synced = pPitch->grab().toImage().pixel(pPitch->width() / 2 - 5, edge + 3);
+    EXPECT_NEAR(deck.red(), qRed(synced), 10);
+}
+
+TEST_F(CrateSkinLoadTest, MetersIgnoreTheMouse) {
+    QTemporaryDir profile;
+    ASSERT_TRUE(profile.isValid());
+    OffscreenDecks decks(profile.path() + QLatin1Char('/'));
+    decks.writeProfile(kCrateDecks);
+    decks.start(application());
+    ASSERT_NE(nullptr, decks.skin());
+    const QList<QWidget*> widgets = decks.skin()->findChildren<QWidget*>();
+    int meters = 0;
+    for (QWidget* pWidget : widgets) {
+        if (pWidget->objectName().startsWith(QLatin1String("CrateMeter"))) {
+            ++meters;
+            EXPECT_TRUE(pWidget->testAttribute(Qt::WA_TransparentForMouseEvents))
+                    << pWidget->objectName().toStdString();
+        }
+    }
+    // Two channels and main with two decks, four and main with four, and
+    // the two toolbar lanes
+    EXPECT_EQ(2 + 2 + 4 + 2 + 2, meters);
+}
+
 class CrateSkinTest : public MixxxTest {
   protected:
     static void SetUpTestSuite() {
@@ -702,7 +843,31 @@ TEST_F(CrateSkinScreenshots, Capture) {
     ControlObject::set(ConfigKey("[Channel1]", "beatloop_size"), 4);
     ControlObject::set(ConfigKey("[Channel2]", "beatloop_size"), 8);
     ControlObject::set(ConfigKey("[Channel3]", "beatloop_size"), 16);
+    // The mixer of the mockups (decks.js channelStrip and mixer): knob and
+    // fader positions as parameters, B in the headphones
+    const QList<std::pair<ConfigKey, double>> mixer = {
+            {ConfigKey("[EqualizerRack1_[Channel1]_Effect1]", "parameter3"), 0.56},
+            {ConfigKey("[EqualizerRack1_[Channel1]_Effect1]", "parameter1"), 0.38},
+            {ConfigKey("[EqualizerRack1_[Channel2]_Effect1]", "parameter1"), 0.2},
+            {ConfigKey("[Channel1]", "volume"), 0.86},
+            {ConfigKey("[Channel2]", "volume"), 0.18},
+            {ConfigKey("[Channel3]", "volume"), 0},
+            {ConfigKey("[Channel4]", "volume"), 0},
+            {ConfigKey("[Channel2]", "pfl"), 1},
+            {ConfigKey("[Master]", "gain"), 0.62},
+            {ConfigKey("[Master]", "headMix"), 0.3},
+            {ConfigKey("[Master]", "headGain"), 0.55},
+            {ConfigKey("[Master]", "crossfader"), 0.5},
+    };
+    for (const auto& [key, parameter] : mixer) {
+        if (ControlObject* pControl = ControlObject::getControl(key)) {
+            pControl->setParameter(parameter);
+        }
+    }
 
+    // CRATE_SKIN_GEOMETRY=1 also lists the rectangles of the skin's own
+    // widgets next to each PNG, to measure them against the mockups
+    const bool geometry = !qEnvironmentVariableIsEmpty("CRATE_SKIN_GEOMETRY");
     const auto capture = [&](const QString& name) {
         // Layouts, deferred restyles and the waveforms' timers
         waitFor([] { return false; }, 1500);
@@ -712,6 +877,33 @@ TEST_F(CrateSkinScreenshots, Capture) {
         }
         const QString file = QDir(outDir).filePath(name + QStringLiteral(".png"));
         EXPECT_TRUE(image.save(file)) << file.toStdString();
+        if (!geometry) {
+            return;
+        }
+        QFile rects(QDir(outDir).filePath(name + QStringLiteral(".geometry.txt")));
+        if (!rects.open(QIODevice::WriteOnly)) {
+            return;
+        }
+        const QList<QWidget*> widgets = decks.skin()->findChildren<QWidget*>();
+        for (QWidget* pWidget : widgets) {
+            const QString objectName = pWidget->objectName();
+            if (pWidget->isVisible() &&
+                    (objectName.startsWith(QLatin1String("Crate")) ||
+                            objectName.startsWith(QLatin1String("Mono")) ||
+                            objectName.startsWith(QLatin1String("DeckNumber")))) {
+                const QPoint at = pWidget->mapTo(decks.skin(), QPoint(0, 0));
+                // name, x, y, width, height, then the size hint
+                rects.write(QStringLiteral("%1 %2 %3 %4 %5 %6 %7\n")
+                                .arg(objectName)
+                                .arg(at.x())
+                                .arg(at.y())
+                                .arg(pWidget->width())
+                                .arg(pWidget->height())
+                                .arg(pWidget->sizeHint().width())
+                                .arg(pWidget->sizeHint().height())
+                                .toUtf8());
+            }
+        }
     };
     // The rows that wait for their data (phrase rule, Smart Mix line,
     // Crate's track state) are hidden: the "-preview" shots show them laid

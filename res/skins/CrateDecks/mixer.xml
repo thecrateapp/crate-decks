@@ -1,73 +1,92 @@
+<!--
+  The mixer (GU1 mockups .mixer, design 14.3, plan V2.PR3), between the
+  decks: the channel strips around main and headphones, and the crossfader.
+  With two decks, A | main | B, each strip with its knobs beside its fader;
+  with four, C A | main | B D, each strip in one column. The knobs are 36 px
+  (30 below the 768 breakpoint) with two decks and 30 (26) with four.
+-->
 <Template>
-  <SetVariable name="BtnType"><Variable name="TopRegion_BtnType"/></SetVariable>
-  <SetVariable name="xfaderMid">warning</SetVariable>
-
   <WidgetGroup>
+    <ObjectName>CrateMixer</ObjectName>
+    <Layout>vertical</Layout>
     <SizePolicy>max,me</SizePolicy>
-    <Layout>horizontal</Layout>
     <Children>
-
+      <!-- Two decks -->
       <WidgetGroup>
-        <ObjectName>MixerContainer</ObjectName>
-        <SizePolicy>min,me</SizePolicy>
+        <ObjectName>CrateMixerStrips</ObjectName>
         <Layout>horizontal</Layout>
-        <Children>
-
-          <WidgetGroup>
-            <ObjectName>MixerDecks</ObjectName>
-            <SizePolicy>max,min</SizePolicy>
-            <Layout>vertical</Layout>
-            <Children>
-              <Template src="skins:CrateDecks/mixer/mixer_2decks.xml"/>
-              <Template src="skins:CrateDecks/mixer/mixer_4decks.xml"/>
-            </Children>
-            <Connection>
-              <ConfigKey persist="true">[Skin],show_main_head_mixer</ConfigKey>
-              <BindProperty>highlight</BindProperty>
-            </Connection>
-          </WidgetGroup>
-
-          <Template src="skins:CrateDecks/mixer/mixer_main_headphone.xml"/>
-
-        </Children>
-      </WidgetGroup><!-- MixerContainer -->
-
-    </Children>
-    <Connection>
-      <ConfigKey persist="true">[Skin],show_mixer</ConfigKey>
-      <BindProperty>visible</BindProperty>
-    </Connection>
-  </WidgetGroup>
-
-  <WidgetGroup>
-    <SizePolicy>max,me</SizePolicy>
-    <Layout>horizontal</Layout>
-    <Children>
-
-      <WidgetGroup>
-        <ObjectName></ObjectName>
         <SizePolicy>min,me</SizePolicy>
-        <Layout>vertical</Layout>
         <Children>
-
-          <WidgetGroup><!--  width set in qss  -->
-            <ObjectName>CompactDecksCenterSpacer</ObjectName>
-          </WidgetGroup>
-
-          <Template src="skins:CrateDecks/mixer/vumeters_compact.xml"/>
-
+          <Template src="skins:CrateDecks/mixer_strip.xml">
+            <SetVariable name="ChanNum">1</SetVariable>
+            <SetVariable name="Letter">A</SetVariable>
+            <SetVariable name="Pair">AC</SetVariable>
+            <SetVariable name="CrateDeck"><Variable name="CrateDeckAC"/></SetVariable>
+          </Template>
+          <Template src="skins:CrateDecks/mixer_master.xml">
+            <SetVariable name="Size"></SetVariable>
+            <SetVariable name="ArcRadius"><Variable name="CrateKnobArcRadius"/></SetVariable>
+            <SetVariable name="ArcRadiusShort"><Variable name="CrateKnobArcRadiusCompact"/></SetVariable>
+          </Template>
+          <Template src="skins:CrateDecks/mixer_strip.xml">
+            <SetVariable name="ChanNum">2</SetVariable>
+            <SetVariable name="Letter">B</SetVariable>
+            <SetVariable name="Pair">BD</SetVariable>
+            <SetVariable name="CrateDeck"><Variable name="CrateDeckBD"/></SetVariable>
+          </Template>
         </Children>
         <Connection>
-          <ConfigKey>[LateNight],show_compact_deck</ConfigKey>
+          <ConfigKey>[Skin],show_4decks</ConfigKey>
+          <Transform><Not/></Transform>
           <BindProperty>visible</BindProperty>
         </Connection>
       </WidgetGroup>
-
+      <!-- Four decks -->
+      <WidgetGroup>
+        <ObjectName>CrateMixerStrips</ObjectName>
+        <Layout>horizontal</Layout>
+        <SizePolicy>min,me</SizePolicy>
+        <Children>
+          <Template src="skins:CrateDecks/mixer_strip_four.xml">
+            <SetVariable name="ChanNum">3</SetVariable>
+            <SetVariable name="Letter">C</SetVariable>
+            <SetVariable name="Pair">AC</SetVariable>
+            <SetVariable name="CrateDeck"><Variable name="CrateDeckAC"/></SetVariable>
+          </Template>
+          <Template src="skins:CrateDecks/mixer_strip_four.xml">
+            <SetVariable name="ChanNum">1</SetVariable>
+            <SetVariable name="Letter">A</SetVariable>
+            <SetVariable name="Pair">AC</SetVariable>
+            <SetVariable name="CrateDeck"><Variable name="CrateDeckAC"/></SetVariable>
+          </Template>
+          <Template src="skins:CrateDecks/mixer_master.xml">
+            <SetVariable name="Size">Four</SetVariable>
+            <SetVariable name="ArcRadius"><Variable name="CrateKnobArcRadiusCompact"/></SetVariable>
+            <SetVariable name="ArcRadiusShort"><Variable name="CrateKnobArcRadiusFourShort"/></SetVariable>
+          </Template>
+          <Template src="skins:CrateDecks/mixer_strip_four.xml">
+            <SetVariable name="ChanNum">2</SetVariable>
+            <SetVariable name="Letter">B</SetVariable>
+            <SetVariable name="Pair">BD</SetVariable>
+            <SetVariable name="CrateDeck"><Variable name="CrateDeckBD"/></SetVariable>
+          </Template>
+          <Template src="skins:CrateDecks/mixer_strip_four.xml">
+            <SetVariable name="ChanNum">4</SetVariable>
+            <SetVariable name="Letter">D</SetVariable>
+            <SetVariable name="Pair">BD</SetVariable>
+            <SetVariable name="CrateDeck"><Variable name="CrateDeckBD"/></SetVariable>
+          </Template>
+        </Children>
+        <Connection>
+          <ConfigKey>[Skin],show_4decks</ConfigKey>
+          <BindProperty>visible</BindProperty>
+        </Connection>
+      </WidgetGroup>
+      <Template src="skins:CrateDecks/mixer_crossfader.xml"/>
     </Children>
     <Connection>
-      <ConfigKey persist="true">[Skin],show_mixer</ConfigKey>
-      <Transform><Not/></Transform>
-      <BindProperty>visible</BindProperty>
+      <ConfigKey>[CrateDecks],layout_short</ConfigKey>
+      <BindProperty>highlight</BindProperty>
     </Connection>
   </WidgetGroup>
 </Template>

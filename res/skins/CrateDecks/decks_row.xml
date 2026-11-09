@@ -70,8 +70,16 @@
         <Layout>horizontal</Layout>
         <SizePolicy>max,me</SizePolicy>
         <Children>
+          <!-- The mixer's 1 px rules (.mixer border-left and right): a
+               group's QSS border is covered by the child that fills it -->
+          <WidgetGroup><ObjectName>CrateMixerRule</ObjectName></WidgetGroup>
           <Template src="skins:CrateDecks/mixer.xml"/>
+          <WidgetGroup><ObjectName>CrateMixerRule</ObjectName></WidgetGroup>
         </Children>
+        <Connection>
+          <ConfigKey persist="true">[Skin],show_mixer</ConfigKey>
+          <BindProperty>visible</BindProperty>
+        </Connection>
       </WidgetGroup>
       <WidgetGroup>
         <ObjectName>CrateDecksColumn</ObjectName>

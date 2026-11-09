@@ -1,4 +1,0 @@
-<!-- Unlit 1 px lane of a toolbar reading (template for generate.py) -->
-<svg xmlns="http://www.w3.org/2000/svg" width="{{readingMinWidth.number}}" height="{{laneMeter.number}}" viewBox="0 0 {{readingMinWidth.number}} {{laneMeter.number}}">
-  <rect width="{{readingMinWidth.number}}" height="{{laneMeter.number}}" fill="{{border.hex}}" fill-opacity="{{border.alpha}}"/>
-</svg>

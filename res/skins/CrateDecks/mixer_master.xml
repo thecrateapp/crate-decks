@@ -1,0 +1,69 @@
+<!--
+  Main and headphones (GU1 mockups .master): the MonoLabel, the two main
+  meters, and the main, cue mix and headphone knobs in accent, their arcs
+  growing from the minimum.
+Variables: Size ("" or "Four"), ArcRadius, ArcRadiusShort
+-->
+<Template>
+  <SetVariable name="Group">[Master]</SetVariable>
+  <SetVariable name="ArcColor"><Variable name="CrateKnobArcColor"/></SetVariable>
+  <SetVariable name="ArcUnipolar">true</SetVariable>
+  <WidgetGroup>
+    <ObjectName>CrateMaster</ObjectName>
+    <Layout>vertical</Layout>
+    <SizePolicy>min,me</SizePolicy>
+    <Children>
+      <Label>
+        <ObjectName>MonoMixerMain</ObjectName>
+        <Text>Main</Text>
+        <Alignment>center</Alignment>
+      </Label>
+      <WidgetGroup>
+        <Layout>horizontal</Layout>
+        <SizePolicy>min,max</SizePolicy>
+        <Children>
+          <WidgetGroup><SizePolicy>me,min</SizePolicy></WidgetGroup>
+          <WidgetGroup>
+            <ObjectName>CrateMasterVus</ObjectName>
+            <Layout>horizontal</Layout>
+            <SizePolicy>max,f</SizePolicy>
+            <Children>
+              <Template src="skins:CrateDecks/mixer_vu.xml">
+                <SetVariable name="Group">[Main]</SetVariable>
+                <SetVariable name="VuKey">vu_meter_left</SetVariable>
+                <SetVariable name="PeakKey">peak_indicator_left</SetVariable>
+                <SetVariable name="Colour">Main</SetVariable>
+              </Template>
+              <Template src="skins:CrateDecks/mixer_vu.xml">
+                <SetVariable name="Group">[Main]</SetVariable>
+                <SetVariable name="VuKey">vu_meter_right</SetVariable>
+                <SetVariable name="PeakKey">peak_indicator_right</SetVariable>
+                <SetVariable name="Colour">Main</SetVariable>
+              </Template>
+            </Children>
+            <Connection>
+              <ConfigKey>[CrateDecks],layout_short</ConfigKey>
+              <BindProperty>highlight</BindProperty>
+            </Connection>
+          </WidgetGroup>
+          <WidgetGroup><SizePolicy>me,min</SizePolicy></WidgetGroup>
+        </Children>
+      </WidgetGroup>
+      <Template src="skins:CrateDecks/mixer_knob.xml">
+        <SetVariable name="Control">gain</SetVariable>
+        <SetVariable name="TooltipId">main_gain</SetVariable>
+        <SetVariable name="Label">Main</SetVariable>
+      </Template>
+      <Template src="skins:CrateDecks/mixer_knob.xml">
+        <SetVariable name="Control">headMix</SetVariable>
+        <SetVariable name="TooltipId">headMix</SetVariable>
+        <SetVariable name="Label">Cue mix</SetVariable>
+      </Template>
+      <Template src="skins:CrateDecks/mixer_knob.xml">
+        <SetVariable name="Control">headGain</SetVariable>
+        <SetVariable name="TooltipId">headphone_gain</SetVariable>
+        <SetVariable name="Label">Phones</SetVariable>
+      </Template>
+    </Children>
+  </WidgetGroup>
+</Template>

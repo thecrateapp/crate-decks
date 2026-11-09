@@ -218,18 +218,18 @@
                   </Label>
                 </Children>
               </WidgetGroup>
-              <VuMeter>
+              <!-- A 1 px lane that crate/ui/skin/mixerstyle.cpp paints: a
+                   VuMeter with OpenGL cannot be thinner than 2 px -->
+              <SliderComposed>
                 <TooltipId>audio_latency_usage</TooltipId>
-                <ObjectName>CrateToolbarReadingLane</ObjectName>
+                <ObjectName>CrateMeterLane</ObjectName>
                 <Size><Variable name="CrateReadingMinWidth"/>min,<Variable name="CrateLaneMeter"/>f</Size>
-                <PathBack scalemode="STRETCH">skins:CrateDecks/generated/controls/lane-track.svg</PathBack>
-                <PathVu scalemode="STRETCH">skins:CrateDecks/generated/controls/lane-fill.svg</PathVu>
                 <Horizontal>true</Horizontal>
-                <PeakHoldSize>0</PeakHoldSize>
                 <Connection>
                   <ConfigKey>[App],audio_latency_usage</ConfigKey>
+                  <ConnectValueFromWidget>false</ConnectValueFromWidget>
                 </Connection>
-              </VuMeter>
+              </SliderComposed>
               <WidgetGroup><SizePolicy>min,me</SizePolicy></WidgetGroup>
             </Children>
           </WidgetGroup>
@@ -261,17 +261,17 @@
                   </Label>
                 </Children>
               </WidgetGroup>
-              <VuMeter>
-                <ObjectName>CrateToolbarReadingLane</ObjectName>
+              <!-- A 1 px lane that crate/ui/skin/mixerstyle.cpp paints: a
+                   VuMeter with OpenGL cannot be thinner than 2 px -->
+              <SliderComposed>
+                <ObjectName>CrateMeterLane</ObjectName>
                 <Size><Variable name="CrateReadingMinWidth"/>min,<Variable name="CrateLaneMeter"/>f</Size>
-                <PathBack scalemode="STRETCH">skins:CrateDecks/generated/controls/lane-track.svg</PathBack>
-                <PathVu scalemode="STRETCH">skins:CrateDecks/generated/controls/lane-fill.svg</PathVu>
                 <Horizontal>true</Horizontal>
-                <PeakHoldSize>0</PeakHoldSize>
                 <Connection>
                   <ConfigKey>[App],audio_latency_overload</ConfigKey>
+                  <ConnectValueFromWidget>false</ConnectValueFromWidget>
                 </Connection>
-              </VuMeter>
+              </SliderComposed>
               <WidgetGroup><SizePolicy>min,me</SizePolicy></WidgetGroup>
             </Children>
             <Connection>

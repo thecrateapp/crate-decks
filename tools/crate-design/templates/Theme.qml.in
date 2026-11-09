@@ -88,6 +88,12 @@ QtObject {
     readonly property color vuClipTrack: "{{vuClipTrack}}"
     readonly property real vuWarningDb: {{vuWarningDb}}
     readonly property real vuBarWidth: {{vuBarWidth}}
+    readonly property real vuClipHeight: {{vuClipHeight}}
+    readonly property real vuClipGap: {{vuClipGap}}
+    readonly property real vuPeakHold: {{vuPeakHold}}
+    readonly property real vuPeakHoldTime: {{vuPeakHoldTime}}
+    readonly property real vuPeakFallTime: {{vuPeakFallTime}}
+    readonly property real vuGap: {{vuGap}}
 
     // font
     readonly property string fontBody: "{{fontBody}}"
@@ -322,12 +328,44 @@ QtObject {
     readonly property real knobTickEvery: {{knobTickEvery}}
     readonly property real knobArcWidth: {{knobArcWidth}}
     readonly property real knobDot: {{knobDot}}
+    readonly property real knobCanvas: {{knobCanvas}}
+    readonly property real knobTickGap: {{knobTickGap}}
+    readonly property real knobDotInset: {{knobDotInset}}
+    readonly property real knobSizeFourShort: {{knobSizeFourShort}}
+    readonly property real knobLabelGap: {{knobLabelGap}}
+    readonly property real knobGap: {{knobGap}}
+    readonly property real knobGapShort: {{knobGapShort}}
+    readonly property real knobGapFour: {{knobGapFour}}
 
     // fader
     readonly property real faderRail: {{faderRail}}
     readonly property real faderTickStep: {{faderTickStep}}
     readonly property real faderHandleWidth: {{faderHandleWidth}}
     readonly property real faderHandleHeight: {{faderHandleHeight}}
+    readonly property real faderHandleLine: {{faderHandleLine}}
+    readonly property real faderTickGap: {{faderTickGap}}
+    readonly property real faderWidth: {{faderWidth}}
+
+    // mixerLayout
+    readonly property real mixerPaddingX: {{mixerPaddingX}}
+    readonly property real mixerPaddingTop: {{mixerPaddingTop}}
+    readonly property real mixerPaddingBottom: {{mixerPaddingBottom}}
+    readonly property real mixerPaddingTopShort: {{mixerPaddingTopShort}}
+    readonly property real mixerPaddingBottomShort: {{mixerPaddingBottomShort}}
+    readonly property real mixerRowGap: {{mixerRowGap}}
+    readonly property real stripGap: {{stripGap}}
+    readonly property real stripColumnGap: {{stripColumnGap}}
+    readonly property real stripHeadGap: {{stripHeadGap}}
+    readonly property real stripLetterSize: {{stripLetterSize}}
+    readonly property real fontSizeStripLetter: {{fontSizeStripLetter}}
+    readonly property real stripFaderGap: {{stripFaderGap}}
+    readonly property real stripFaderMarginFour: {{stripFaderMarginFour}}
+    readonly property real masterPaddingX: {{masterPaddingX}}
+    readonly property real masterGap: {{masterGap}}
+    readonly property real masterVuHeight: {{masterVuHeight}}
+    readonly property real masterVuHeightShort: {{masterVuHeightShort}}
+    readonly property real masterVuGap: {{masterVuGap}}
+    readonly property real xfaderGap: {{xfaderGap}}
 
     // deckDisplay
     readonly property string deckNumberFont: "{{deckNumberFont}}"

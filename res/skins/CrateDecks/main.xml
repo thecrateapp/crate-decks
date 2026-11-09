@@ -81,8 +81,6 @@
 
   <!-- Singletons first: they are only instantiated here, and shown where a
        SingletonContainer names them -->
-  <Template src="skins:CrateDecks/mixer/singletons.xml"/>
-
   <SingletonDefinition>
     <ObjectName>LibrarySingleton</ObjectName>
     <Children>

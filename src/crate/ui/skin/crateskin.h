@@ -64,8 +64,9 @@ void applySkinDefaults(const UserSettingsPointer& pConfig, const QString& skinPa
 
 /// Finishes a skin that SkinLoader has just loaded, with what its QSS cannot
 /// do: the font features of the widgets whose object name starts with
-/// "DeckNumber", the layout classes from the size of the skin and the Crate
-/// server status of the toolbar. Does nothing for a skin without
+/// "DeckNumber", the painters of the mixer's faders and meters
+/// (mixerstyle.h), the layout classes from the size of the skin and the
+/// Crate server status of the toolbar. Does nothing for a skin without
 /// generated/vars.xml, that is, every skin but CrateDecks.
 void prepareLoadedSkin(QWidget* pSkinRoot, const QString& skinPath);
 

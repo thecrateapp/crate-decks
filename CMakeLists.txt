@@ -5345,6 +5345,7 @@ if(CRATE)
       src/crate/ui/dlgprefcrate.cpp
       src/crate/ui/skin/crateserverstatus.cpp
       src/crate/ui/skin/crateskin.cpp
+      src/crate/ui/skin/mixerstyle.cpp
   )
   # The tests of the Crate integration are added here and not in the list of
   # mixxx-test sources, which comes before this option.
@@ -5363,6 +5364,7 @@ if(CRATE)
         src/test/crate/dlgprefcrate_test.cpp
         src/test/crate/cratesession_test.cpp
         src/test/crate/skinloadtest.cpp
+        src/test/crate/mixerstyletest.cpp
     )
   endif()
 endif()

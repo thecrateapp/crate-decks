@@ -38,7 +38,7 @@ Diseño: §14 del [documento de diseño](../../docs/plans/2026-11-02-crate-decks
 | `iconState` | `iconIdle`, `iconHover`, `iconActive`, `iconDisabled`, `iconOnAccent`, `iconPrimary` | Color de cada estado de los iconos y controles generados; `iconPrimary` es el icono encendido de los decks B y D, cuyo color es `textPrimary` |
 | `deck` | `deckA` … `deckD` | Color por deck (decidido): A y C en `accentHi`, B y D en `textPrimary` |
 | `waveform` | `waveLowAccent` … `waveHighNeutral`, `wavePlayhead`, `waveBeat`, `waveDownbeat`, `waveBg`, `waveOverviewBg`, `waveOverviewPlayed`, `wavePaletteDeckAC`, `wave*DeckAC`, `wave*DeckBD` | Paleta "filtered" de 3 bandas: cian del logo en A y C, grises fríos en B y D. `wavePaletteDeckAC` elige la paleta de A y C (`Accent` o la reserva `Neutral`) |
-| `meter` | `vuLevel`, `vuWarning`, `vuClip`, `vuTrack`, `vuClipTrack`, `vuWarningDb`, `vuBarWidth` | VU `accentHi` → `warning` desde −6 dBFS → `danger` en clip |
+| `meter` | `vuLevel`, `vuWarning`, `vuClip`, `vuTrack`, `vuClipTrack`, `vuWarningDb`, `vuBarWidth`, `vuClipHeight`, `vuClipGap`, `vuPeakHold`, `vuPeakHoldTime`, `vuPeakFallTime`, `vuGap` | VU de 4 px en el color del deck (`accentHi` en main) → `warning` desde −6 dB → `danger` en clip, con retención de pico de 1 px. Los −6 dB se cuentan en la escala del medidor de Mixxx (`EngineVuMeter`), donde quedan al 74 % |
 | `font` | `fontBody`, `fontDisplay`, `fontMono`, `fontWeight*` | Roboto, Bricolage Grotesque y JetBrains Mono, y sus pesos |
 | `fontSize` | `fontSizeCounter` … `fontSizeBody`, `fontSizeTitle`, `fontSizeDisplay`, `fontSizeLegend`, `fontSizeTable`, `fontSizeBrand`, `fontSizeDeckNumber*`, `fontSizeDeckTitle*`, `fontSizeDeckArtistCompactShort`, `fontSizeLabelSmall`, `fontSizeDropTitle`, `fontWeightDeckTitle` | Escala del admin (8 a 15 px), títulos de 30 y 40 px, leyendas de 9 px y los tamaños de la barra y los decks de las maquetas (34, 28, 26 y 22 px para las cifras) |
 | `tracking` | `trackingCaps`, `trackingKicker`, `trackingEyebrow`, `trackingTitle`, `trackingNumeral` | Espaciado en `em`: rótulos en mayúsculas, títulos y numerales |
@@ -50,8 +50,9 @@ Diseño: §14 del [documento de diseño](../../docs/plans/2026-11-02-crate-decks
 | `motion` | `motionFast`, `motionNormal`, `motionEaseSnap` | Solo para QML; QSS no anima |
 | `iconSize` | `iconNano` … `iconXl` | Escala de iconos del admin (18 px por defecto) |
 | `geometry` | Trazos, nodos, marcas, patrones de trazo, opacidades, brillo, `wheelCanvas`, `camelotRing*`, `tickPhrase`, `hotcueRadius` y `levelRingRadius` | La gramática de GenreWheel y StackMap (§14.5 del diseño), más la rueda Camelot, la marca de frase, los hotcues como nodos y el anillo de caché |
-| `knob` | `knobSize`, `knobSizeCompact`, `knobSweep`, `knobTickCount`, `knobTickEvery`, `knobTickLong`, `knobTickShort`, `knobArcWidth`, `knobDot` | Knob de instrumento: anillo, marcas, arco de valor y punto |
-| `fader` | `faderRail`, `faderTickStep`, `faderHandleWidth`, `faderHandleHeight` | Fader con carril de 1 px, marcas cada 10 % y tirador de contorno |
+| `knob` | `knobSize`, `knobSizeCompact`, `knobSizeFourShort`, `knobCanvas`, `knobSweep`, `knobTickCount`, `knobTickEvery`, `knobTickLong`, `knobTickShort`, `knobTickGap`, `knobArcWidth`, `knobDot`, `knobDotInset`, `knobLabelGap`, `knobGap*` | Knob de instrumento: anillo, marcas, arco de valor y punto, dibujados en el lienzo de 40 px de las maquetas y escalados a 36, 30 o 26 px |
+| `fader` | `faderRail`, `faderTickStep`, `faderTickGap`, `faderHandleWidth`, `faderHandleHeight`, `faderHandleLine`, `faderWidth` | Fader con carril de 1 px, marcas cada 10 % y tirador de contorno |
+| `mixerLayout` | `mixerPadding*`, `mixerRowGap`, `strip*`, `fontSizeStripLetter`, `master*`, `xfaderGap` | Geometría del mezclador de las maquetas (`.mixer`, `.strip`, `.master`, `.xfader`) |
 | `deckDisplay` | `deckNumberFont`, `deckNumberWeight` | Fuente de BPM y tiempo restante en el deck |
 
 ## Decisiones de GU1
@@ -91,10 +92,10 @@ Python 3 estándar, sin dependencias. Las salidas se commitean, y el job `design
 | `vars.xml` | `tools/crate-design/templates/vars.xml.in` | `<Template>` con los `<SetVariable>` de la skin: superficies, fuentes, color por deck, onda, VU, knobs, faders y los cortes de la distribución de 1366 × 768. Un `<Template>` se guarda sus variables, así que `skin.xml` instancia `vars.xml` y `vars.xml` instancia al final `main.xml`, la distribución de la skin |
 | `style.qss` | `tools/crate-design/templates/style.qss.in` | El estilo de la skin `CrateDecks`, que carga después del de LateNight y gana sobre él |
 | `crate-logo.svg` | `tools/crate-design/templates/crate-logo.svg.in` | El logo de Crate (`app/ui/public/assets/logo.svg`) con sus colores como tokens |
-| `controls/lane-track.svg`, `controls/lane-fill.svg` | `tools/crate-design/templates/controls/` | Carril de 1 px de las lecturas de la barra, apagado y encendido |
 | `icons/<icono>_<estado>.svg` | `tools/crate-design/svg/solar/` | Cada icono Solar, una vez por estado |
 | `controls/<control>_<estado>.svg` | `tools/crate-design/svg/controls/*.svg.in` | Controles base (checkbox, radio, punto de slider, nodo), una vez por estado |
-| `controls/knob-scale.svg`, `controls/fader-scale-{v,h}.svg`, `controls/fader-handle-{v,h}_<estado>.svg` | Tokens de `knob`, `fader` y `geometry` | Anillo y marcas del knob, carril y marcas del fader, y tirador de contorno (relleno en `active`). Las líneas no escalan (`vector-effect`) cuando la skin estira la escala |
+| `controls/knob-scale.svg`, `controls/knob-dot.svg` | Tokens de `knob` y `geometry` | Anillo y marcas del knob, y su punto, en el lienzo de 40 px de las maquetas: el knob los estira a su tamaño y las líneas siguen de 1 px (`vector-effect`) |
+| `controls/fader-handle-v30.svg`, `controls/fader-handle-v34.svg`, `controls/fader-handle-h30.svg` | Tokens de `fader` | Tirador de contorno en reposo de los faders de canal, de pitch y del crossfader, del ancho del fader y con el carril en el medio píxel de las maquetas. El carril, las marcas y el tirador relleno (al moverse o con sync) los pinta `src/crate/ui/skin/mixerstyle.cpp` a la longitud real del fader, como los medidores |
 | `controls/phrase-ruler.svg`, `controls/stem-rail.svg`, `controls/stem-handle.svg` | Tokens de `geometry` y `deckLayout` | Regla de frase del deck (64 beats con marcas de beat, compás y frase), carril de volumen de un stem y su tirador |
 | `cover-default.svg` | `tools/crate-design/templates/cover-default.svg.in` | Carátula de una pista sin carátula |
 
@@ -108,6 +109,8 @@ Python 3 estándar, sin dependencias. Las salidas se commitean, y el job `design
 | Otro número o texto | Tal cual | Tal cual (escapado en XML) | Tal cual (escapado) |
 
 Filtros: `.hex`, `.alpha` (0–1), `.argb`, `.rgba`, `.number`, `.unit`, `.list` (un patrón de trazo `"9 4"` como `9, 4`) y `.half` (la mitad de una longitud, que se puede encadenar: `{{gutter.half.number}}`).
+
+**Valores derivados:** el generador calcula a partir de los tokens unos pocos valores que las plantillas usan como tokens: `knobArcRadius`, `knobArcRadiusCompact` y `knobArcRadiusFourShort` (el radio del anillo del knob a cada tamaño, por donde corre el arco de `WKnobComposed`), `faderHandleLength` (el tirador con su contorno) y `vuWarningLevel` (`vuWarningDb` en la escala del medidor de Mixxx).
 
 **Expresiones:** QSS no tiene `calc()`, así que una plantilla suma, resta y multiplica tokens numéricos en vez de guardar valores derivados en `tokens.json`: `{{heightControlSm - iconMd - strokeHairline}}` da `12px` y `{{trackingCaps * fontSizeLabel}}` da `1.54px` (em por px es px). Los términos de una suma tienen que tener la misma unidad.
 

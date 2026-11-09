@@ -88,6 +88,12 @@ QtObject {
     readonly property color vuClipTrack: "#2eef4444"
     readonly property real vuWarningDb: -6
     readonly property real vuBarWidth: 4
+    readonly property real vuClipHeight: 4
+    readonly property real vuClipGap: 2
+    readonly property real vuPeakHold: 1
+    readonly property real vuPeakHoldTime: 500
+    readonly property real vuPeakFallTime: 1000
+    readonly property real vuGap: 6
 
     // font
     readonly property string fontBody: "Roboto"
@@ -322,12 +328,44 @@ QtObject {
     readonly property real knobTickEvery: 2
     readonly property real knobArcWidth: 1.5
     readonly property real knobDot: 3
+    readonly property real knobCanvas: 40
+    readonly property real knobTickGap: 1.5
+    readonly property real knobDotInset: 5
+    readonly property real knobSizeFourShort: 26
+    readonly property real knobLabelGap: 2
+    readonly property real knobGap: 3
+    readonly property real knobGapShort: 1
+    readonly property real knobGapFour: 0
 
     // fader
     readonly property real faderRail: 1
     readonly property real faderTickStep: 10
     readonly property real faderHandleWidth: 18
     readonly property real faderHandleHeight: 10
+    readonly property real faderHandleLine: 8
+    readonly property real faderTickGap: 2
+    readonly property real faderWidth: 30
+
+    // mixerLayout
+    readonly property real mixerPaddingX: 18
+    readonly property real mixerPaddingTop: 14
+    readonly property real mixerPaddingBottom: 12
+    readonly property real mixerPaddingTopShort: 10
+    readonly property real mixerPaddingBottomShort: 8
+    readonly property real mixerRowGap: 10
+    readonly property real stripGap: 18
+    readonly property real stripColumnGap: 10
+    readonly property real stripHeadGap: 4
+    readonly property real stripLetterSize: 18
+    readonly property real fontSizeStripLetter: 10
+    readonly property real stripFaderGap: 8
+    readonly property real stripFaderMarginFour: 10
+    readonly property real masterPaddingX: 4
+    readonly property real masterGap: 8
+    readonly property real masterVuHeight: 130
+    readonly property real masterVuHeightShort: 96
+    readonly property real masterVuGap: 4
+    readonly property real xfaderGap: 10
 
     // deckDisplay
     readonly property string deckNumberFont: "Bricolage Grotesque"

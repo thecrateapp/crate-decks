@@ -1,0 +1,48 @@
+<!--
+  A channel strip of the two-deck mixer (GU1 mockups .strip): the deck
+  letter over the knobs and, beside them, the meter, the fader and the
+  headphone button.
+Variables: ChanNum, Letter, Pair (AC or BD), CrateDeck (the deck colour)
+-->
+<Template>
+  <SetVariable name="Size"></SetVariable>
+  <SetVariable name="ArcColor"><Variable name="CrateDeck"/></SetVariable>
+  <SetVariable name="ArcRadius"><Variable name="CrateKnobArcRadius"/></SetVariable>
+  <SetVariable name="ArcRadiusShort"><Variable name="CrateKnobArcRadiusCompact"/></SetVariable>
+  <WidgetGroup>
+    <ObjectName>CrateStrip</ObjectName>
+    <Layout>vertical</Layout>
+    <SizePolicy>min,me</SizePolicy>
+    <Children>
+      <WidgetGroup>
+        <Layout>horizontal</Layout>
+        <SizePolicy>min,max</SizePolicy>
+        <Children>
+          <WidgetGroup><SizePolicy>me,min</SizePolicy></WidgetGroup>
+          <Label>
+            <ObjectName>CrateStripLetter<Variable name="Pair"/></ObjectName>
+            <Text><Variable name="Letter"/></Text>
+            <Alignment>center</Alignment>
+          </Label>
+          <WidgetGroup><SizePolicy>me,min</SizePolicy></WidgetGroup>
+        </Children>
+      </WidgetGroup>
+      <WidgetGroup>
+        <ObjectName>CrateStripBody</ObjectName>
+        <Layout>horizontal</Layout>
+        <SizePolicy>min,me</SizePolicy>
+        <Children>
+          <WidgetGroup>
+            <Layout>vertical</Layout>
+            <SizePolicy>min,me</SizePolicy>
+            <Children>
+              <Template src="skins:CrateDecks/mixer_channel_knobs.xml"/>
+              <WidgetGroup><SizePolicy>min,me</SizePolicy></WidgetGroup>
+            </Children>
+          </WidgetGroup>
+          <Template src="skins:CrateDecks/mixer_channel_fader.xml"/>
+        </Children>
+      </WidgetGroup>
+    </Children>
+  </WidgetGroup>
+</Template>

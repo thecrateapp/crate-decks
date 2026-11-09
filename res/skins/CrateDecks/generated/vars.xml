@@ -62,28 +62,59 @@
   <SetVariable name="CrateWaveMidBD">#999ca0</SetVariable>
   <SetVariable name="CrateWaveHighBD">#f1f5f9</SetVariable>
 
-  <!-- Level meters -->
+  <!-- Level meters (crate/ui/skin/mixerstyle.cpp paints them): the deck
+       colour, warning from vuWarningDb on Mixxx's meter scale
+       (CrateVuWarningLevel), a 1 px peak hold -->
   <SetVariable name="CrateVuLevel">#67e8f9</SetVariable>
   <SetVariable name="CrateVuWarning">#fbbf24</SetVariable>
   <SetVariable name="CrateVuClip">#ef4444</SetVariable>
   <SetVariable name="CrateVuTrack">#0ff1f5f9</SetVariable>
   <SetVariable name="CrateVuClipTrack">#2eef4444</SetVariable>
   <SetVariable name="CrateVuWarningDb">-6</SetVariable>
+  <SetVariable name="CrateVuWarningLevel">0.7412</SetVariable>
+  <SetVariable name="CrateVuWarningRule">#0a0a0f</SetVariable>
   <SetVariable name="CrateVuBarWidth">4</SetVariable>
+  <SetVariable name="CrateVuClipGap">2</SetVariable>
+  <SetVariable name="CrateVuPeakHold">1</SetVariable>
+  <SetVariable name="CrateVuPeakHoldTime">500</SetVariable>
+  <SetVariable name="CrateVuPeakFallTime">1000</SetVariable>
+  <SetVariable name="CrateLaneTrack">#1af1f5f9</SetVariable>
 
-  <!-- Knobs: the arc is painted by WKnobComposed over knob-scale.svg, in
-       the colour of the deck (CrateDeckA to CrateDeckD) -->
+  <!-- Knobs: knob-scale.svg and knob-dot.svg are drawn on a canvas of
+       40 px that each knob stretches; the arc of WKnobComposed
+       runs on the ring, so its radius follows the knob size. The arc takes
+       the colour of the deck (CrateDeckAC and CrateDeckBD) -->
   <SetVariable name="CrateKnobSize">36</SetVariable>
   <SetVariable name="CrateKnobSizeCompact">30</SetVariable>
+  <SetVariable name="CrateKnobSizeFourShort">26</SetVariable>
+  <SetVariable name="CrateKnobArcRadius">12.15</SetVariable>
+  <SetVariable name="CrateKnobArcRadiusCompact">10.125</SetVariable>
+  <SetVariable name="CrateKnobArcRadiusFourShort">8.775</SetVariable>
   <SetVariable name="CrateKnobArcColor">#67e8f9</SetVariable>
   <SetVariable name="CrateKnobArcWidth">1.5</SetVariable>
-  <SetVariable name="CrateKnobDot">3</SetVariable>
+  <SetVariable name="CrateKnobHalfSweep">135</SetVariable>
   <SetVariable name="CrateKnobSweep">270</SetVariable>
 
-  <!-- Faders -->
+  <!-- Faders: the handle is fader-handle-*.svg; crate/ui/skin/mixerstyle.cpp
+       paints the rail and ticks at the fader's real length and fills the
+       handle in the fader's colour while it moves or syncs -->
   <SetVariable name="CrateFaderRail">1</SetVariable>
+  <SetVariable name="CrateFaderRailColor">#33f1f5f9</SetVariable>
+  <SetVariable name="CrateFaderTickColor">#4a4c52</SetVariable>
+  <SetVariable name="CrateFaderCentreTickColor">#999ca0</SetVariable>
+  <SetVariable name="CrateFaderTickStep">10</SetVariable>
+  <SetVariable name="CrateFaderTickGap">2</SetVariable>
+  <SetVariable name="CrateFaderTickLong">7</SetVariable>
+  <SetVariable name="CrateFaderTickShort">3</SetVariable>
   <SetVariable name="CrateFaderHandleWidth">18</SetVariable>
   <SetVariable name="CrateFaderHandleHeight">10</SetVariable>
+  <SetVariable name="CrateFaderHandleLength">11</SetVariable>
+  <SetVariable name="CrateFaderHandleLine">8</SetVariable>
+  <SetVariable name="CrateFaderHandleRadius">2</SetVariable>
+  <SetVariable name="CrateFaderHandleLineActive">#0a0a0f</SetVariable>
+  <SetVariable name="CrateFaderActiveHold">250</SetVariable>
+  <SetVariable name="CrateFaderWidth">30</SetVariable>
+  <SetVariable name="CratePitchFaderWidth">34</SetVariable>
 
   <!-- Layout: the 1366 x 768 breakpoints of the GU1 mockups (C++ sets
        [CrateDecks],layout_narrow and layout_short from them) -->

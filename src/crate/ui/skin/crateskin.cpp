@@ -11,6 +11,7 @@
 #include "control/controlobject.h"
 #include "crate/crateservers.h"
 #include "crate/ui/skin/crateserverstatus.h"
+#include "crate/ui/skin/mixerstyle.h"
 #include "util/logger.h"
 
 namespace crate {
@@ -180,6 +181,7 @@ void prepareLoadedSkin(QWidget* pSkinRoot, const QString& skinPath) {
         return;
     }
     applyFonts(pSkinRoot);
+    styleMixer(pSkinRoot, variables);
 
     const SkinBreakpoints breakpoints = SkinBreakpoints::fromVariables(variables);
     if (breakpoints.isValid() && ControlObject::exists(kLayoutNarrowKey) &&
