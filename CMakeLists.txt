@@ -5392,6 +5392,7 @@ if(CRATE)
         src/test/crate/delegatestest.cpp
         src/test/crate/dialogstest.cpp
         src/test/crate/decktrackfieldstest.cpp
+        src/test/crate/brandvisibletest.cpp
     )
   endif()
 endif()
