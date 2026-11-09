@@ -385,6 +385,16 @@ class OffscreenDecks {
         m_pCoreServices.reset();
     }
 
+    /// Whether modal dialogs are answered as they show (from start()), so
+    /// that nothing waits offscreen. The screenshots keep them open.
+    void answerModalDialogs(bool answer) {
+        if (answer) {
+            QCoreApplication::instance()->installEventFilter(&m_dialogRejecter);
+        } else {
+            QCoreApplication::instance()->removeEventFilter(&m_dialogRejecter);
+        }
+    }
+
     MixxxMainWindow* mainWindow() const {
         return m_pMainWindow.get();
     }
@@ -1132,9 +1142,41 @@ void paintOpenGlWindows(QWidget* pRoot, QImage* pImage) {
 #endif
 }
 
+/// The top-level widget that inherits `className`, or nullptr.
+QWidget* topLevelOf(const char* className) {
+    const QList<QWidget*> windows = QApplication::topLevelWidgets();
+    for (QWidget* pWindow : windows) {
+        if (pWindow->inherits(className)) {
+            return pWindow;
+        }
+    }
+    return nullptr;
+}
+
+/// `pWidget` over `background`, the main window as grabbed, at `at` or
+/// centred, as the screen shows it where it opens: with the scrim between
+/// them while a blocking dialog dims the main window. grab() sees one
+/// window only, so the harness composes the three.
+QImage overMainWindow(const QImage& background, QWidget* pWidget, QPoint at = QPoint(-1, -1)) {
+    QImage over = background.convertToFormat(QImage::Format_ARGB32_Premultiplied);
+    QPainter painter(&over);
+    const crate::DialogScrim* pScrim = crate::blockingDialogScrim();
+    if (pScrim && pScrim->isActive()) {
+        painter.fillRect(over.rect(), pScrim->colour());
+    }
+    const QImage widget = pWidget->grab().toImage();
+    if (at.x() < 0) {
+        at = QPoint((over.width() - widget.width()) / 2, (over.height() - widget.height()) / 2);
+    }
+    painter.drawImage(at, widget);
+    return over;
+}
+
 /// Dev-only harness: renders the real main window to PNG at 1920 x 1080 and
 /// 1366 x 768, with 2 and 4 decks, for the side-by-side comparison with the
-/// GU1 mockups. Runs only with CRATE_SKIN_SCREENSHOTS=<output dir>;
+/// GU1 mockups; then deck A with a track without a key, and over the decks
+/// the first start and a confirmation with the scrim and Preferences
+/// without it. Runs only with CRATE_SKIN_SCREENSHOTS=<output dir>;
 /// CRATE_SKIN_TRACKS=<dir> loads the first audio files of that directory into
 /// decks A, B and C, and CRATE_SKIN_LIBRARY_ROWS=<file> fills the library
 /// with the tracks of a tab-separated file (readLibraryRows()). Never point
@@ -1186,8 +1228,10 @@ TEST_F(CrateSkinScreenshots, Capture) {
                             openGl ? QStringLiteral("3") : QStringLiteral("0")},
                     {ConfigKey("[Waveform]", "WaveformOverviewType"), QStringLiteral("0")},
                     {ConfigKey("[Waveform]", "beatGridAlpha"), QStringLiteral("20")},
-                    // Time remaining, as in the mockups
+                    // Time remaining and Lancelot keys ("8A"), as in the
+                    // mockups
                     {ConfigKey("[Controls]", "PositionDisplay"), QStringLiteral("1")},
+                    {ConfigKey("[Key]", "KeyNotation"), QStringLiteral("Lancelot")},
                     {ConfigKey("[Config]", "hide_menubar"), QStringLiteral("1")},
             });
     const QString libraryRows = qEnvironmentVariable("CRATE_SKIN_LIBRARY_ROWS");
@@ -1330,6 +1374,14 @@ TEST_F(CrateSkinScreenshots, Capture) {
     // widgets next to each PNG, to measure them against the mockups
     const bool geometry = !qEnvironmentVariableIsEmpty("CRATE_SKIN_GEOMETRY");
     const auto capture = [&](const QString& name) {
+        // The key the decks show follows the track's on each waveform tick
+        // with the engine running (DeckVisuals::process); without an audio
+        // device the harness does it
+        for (int deck = 1; deck <= 4; ++deck) {
+            const QString group = QStringLiteral("[Channel%1]").arg(deck);
+            ControlObject::set(ConfigKey(group, QStringLiteral("visual_key")),
+                    ControlObject::get(ConfigKey(group, QStringLiteral("key"))));
+        }
         // Layouts, deferred restyles and the waveforms' timers
         waitFor([] { return false; }, 1500);
         QImage image = decks.skin()->grab().toImage();
@@ -1339,11 +1391,11 @@ TEST_F(CrateSkinScreenshots, Capture) {
         const QString file = QDir(outDir).filePath(name + QStringLiteral(".png"));
         EXPECT_TRUE(image.save(file)) << file.toStdString();
         if (!geometry) {
-            return;
+            return image;
         }
         QFile rects(QDir(outDir).filePath(name + QStringLiteral(".geometry.txt")));
         if (!rects.open(QIODevice::WriteOnly)) {
-            return;
+            return image;
         }
         const QList<QWidget*> widgets = decks.skin()->findChildren<QWidget*>();
         for (QWidget* pWidget : widgets) {
@@ -1365,6 +1417,7 @@ TEST_F(CrateSkinScreenshots, Capture) {
                                 .toUtf8());
             }
         }
+        return image;
     };
     // The rows that wait for their data (phrase rule, Smart Mix line,
     // Crate's track state) are hidden: the "-preview" shots show them laid
@@ -1408,6 +1461,60 @@ TEST_F(CrateSkinScreenshots, Capture) {
     ControlObject::set(ConfigKey("[CrateDecks]", "deck1_menu"), 1);
     decks.mainWindow()->resize(QSize(1920, 1080));
     capture(skin.toLower() + QStringLiteral("-2deck-1920-menu"));
+    ControlObject::set(ConfigKey("[CrateDecks]", "deck1_menu"), 0);
+
+    // Deck A with a track without a key: its header drops the key and its
+    // separator ("DECK A · 151.14 BPM")
+    if (TrackPointer pTrack =
+                    pPlayerManager->getPlayer(QStringLiteral("[Channel1]"))->getLoadedTrack()) {
+        pTrack->resetKeys();
+    }
+    const QImage decksImage = capture(skin.toLower() + QStringLiteral("-2deck-1920-nokey"));
+
+    // Over the decks, waveforms included: the blocking dialogs dim them,
+    // Preferences does not (design 14.3)
+    decks.answerModalDialogs(false);
+    const auto saveOver = [&](QWidget* pWidget, const QString& name) {
+        waitFor([] { return false; }, 1200);
+        const QString file = QDir(outDir).filePath(name + QStringLiteral(".png"));
+        EXPECT_TRUE(overMainWindow(decksImage, pWidget).save(file)) << file.toStdString();
+    };
+    const auto dimmed = [] {
+        const crate::DialogScrim* pScrim = crate::blockingDialogScrim();
+        return pScrim && pScrim->isActive();
+    };
+    if (auto* pStatus = decks.skin()->findChild<crate::ServerStatus*>()) {
+        pStatus->showStatus(QString(), crate::ServerStatus::State::None);
+    }
+    std::unique_ptr<QDialog> pFirstRun(
+            crate::createFirstRunDialog(crate::CrateServers::instance(), decks.mainWindow()));
+    pFirstRun->open();
+    EXPECT_TRUE(dimmed());
+    if (auto* pAddress = pFirstRun->findChild<QLineEdit*>(QStringLiteral("crateServerAddress"))) {
+        pAddress->setText(QStringLiteral("dev.crate.local"));
+        pAddress->setFocus();
+    }
+    saveOver(pFirstRun.get(), QStringLiteral("crate-scrim-firstrun-over"));
+    pFirstRun->reject();
+    EXPECT_FALSE(dimmed());
+    // As Mixxx confirms the exit while a deck plays
+    QMessageBox confirm(QMessageBox::Question,
+            QStringLiteral("Confirm Exit"),
+            QStringLiteral("A deck is currently playing. Exit Mixxx?"),
+            QMessageBox::Yes | QMessageBox::No,
+            decks.mainWindow());
+    confirm.open();
+    EXPECT_TRUE(dimmed());
+    saveOver(&confirm, QStringLiteral("crate-scrim-confirm-over"));
+    confirm.done(QMessageBox::No);
+    ControlObject::set(crate::showPreferencesKey(), 1);
+    if (QWidget* pPreferences = topLevelOf("DlgPreferences")) {
+        pPreferences->resize(QSize(1180, 940));
+        EXPECT_FALSE(dimmed());
+        saveOver(pPreferences, QStringLiteral("crate-noscrim-prefs-over"));
+        pPreferences->hide();
+    }
+    decks.answerModalDialogs(true);
 }
 
 /// The last menu that showed. In a Wayland compositor a popup opened
@@ -1427,17 +1534,6 @@ class LastMenu : public QObject {
         return QObject::eventFilter(pWatched, pEvent);
     }
 };
-
-/// The top-level widget that inherits `className`, or nullptr.
-QWidget* topLevelOf(const char* className) {
-    const QList<QWidget*> windows = QApplication::topLevelWidgets();
-    for (QWidget* pWindow : windows) {
-        if (pWindow->inherits(className)) {
-            return pWindow;
-        }
-    }
-    return nullptr;
-}
 
 /// Dev-only harness: renders the dialogs of plan V2.PR5 to PNG for the side
 /// by side with the GU1 mockups (preferences-crate, first-run): Preferences
@@ -1499,16 +1595,8 @@ TEST_F(CrateSkinScreenshots, Dialogs) {
                                   const QString& name,
                                   QPoint at = QPoint(-1, -1)) {
         settle();
-        const QImage dialog = pWidget->grab().toImage();
-        save(dialog, name);
-        QImage over = background.convertToFormat(QImage::Format_ARGB32_Premultiplied);
-        QPainter painter(&over);
-        if (at.x() < 0) {
-            at = QPoint((over.width() - dialog.width()) / 2, (over.height() - dialog.height()) / 2);
-        }
-        painter.drawImage(at, dialog);
-        painter.end();
-        save(over, name + QStringLiteral("-over"));
+        save(pWidget->grab().toImage(), name);
+        save(overMainWindow(background, pWidget, at), name + QStringLiteral("-over"));
     };
 
     // Preferences, from the toolbar's button, at the mockup's size
@@ -1582,15 +1670,18 @@ TEST_F(CrateSkinScreenshots, Dialogs) {
         pStatus->showStatus(QString(), crate::ServerStatus::State::None);
     }
     const QImage withoutServer = mainWindow();
+    // Modal, as main.cpp opens it: it dims the main window
     std::unique_ptr<QDialog> pFirstRun(
             crate::createFirstRunDialog(crate::CrateServers::instance(), decks.mainWindow()));
-    pFirstRun->show();
+    decks.answerModalDialogs(false);
+    pFirstRun->open();
     if (auto* pAddress = pFirstRun->findChild<QLineEdit*>(QStringLiteral("crateServerAddress"))) {
         pAddress->setText(QStringLiteral("dev.crate.local"));
         pAddress->setFocus();
     }
     saveOver(pFirstRun.get(), withoutServer, QStringLiteral("crate-firstrun"));
-    pFirstRun->hide();
+    pFirstRun->reject();
+    decks.answerModalDialogs(true);
 
     // The splash screen, as the main window shows it while it starts
     {
