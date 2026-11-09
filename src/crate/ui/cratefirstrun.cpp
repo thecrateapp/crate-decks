@@ -1,5 +1,6 @@
 #include "crate/ui/cratefirstrun.h"
 
+#include <QApplication>
 #include <QCoreApplication>
 #include <QDialog>
 #include <QFrame>
@@ -7,7 +8,10 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QList>
+#include <QMainWindow>
+#include <QPointer>
 #include <QStyle>
+#include <QTimer>
 #include <QVBoxLayout>
 
 #include "crate/crateservers.h"
@@ -21,6 +25,9 @@ namespace {
 
 const ConfigKey kFirstRunOfferedKey(
         QStringLiteral("[CrateDecks]"), QStringLiteral("FirstRunOffered"));
+
+/// How often the first start checks whether it can show (firstRunCanShow())
+constexpr int kFirstRunWaitMs = 100;
 
 QString translate(const char* text) {
     return QCoreApplication::translate("crate::FirstRun", text);
@@ -145,16 +152,45 @@ QDialog* createFirstRunDialog(CrateServers* pServers, QWidget* pParent) {
     return pDialog;
 }
 
+bool firstRunCanShow(const QWidget* pMainWindow) {
+    if (QApplication::activeModalWidget()) {
+        return false;
+    }
+    const auto* pWindow = qobject_cast<const QMainWindow*>(pMainWindow);
+    if (!pWindow) {
+        return true;
+    }
+    const QWidget* pCentral = pWindow->centralWidget();
+    return pCentral && !pCentral->inherits("LaunchImage");
+}
+
 void offerFirstRun(const UserSettingsPointer& pConfig, CrateServers* pServers, QWidget* pParent) {
     if (!pServers || QGuiApplication::platformName() == QLatin1String("offscreen") ||
             !shouldOfferFirstRun(pConfig, *pServers)) {
         return;
     }
-    markFirstRunOffered(pConfig);
-
-    QDialog* pDialog = createFirstRunDialog(pServers, pParent);
-    pDialog->exec();
-    delete pDialog;
+    // Waits on a timer: Mixxx has no signal for the end of its start, and
+    // its startup dialogs run their own event loops
+    auto* pWait = new QTimer(pParent);
+    pWait->setInterval(kFirstRunWaitMs);
+    QObject::connect(pWait,
+            &QTimer::timeout,
+            pWait,
+            [pWait, pConfig, pServers = QPointer<CrateServers>(pServers), pParent] {
+                if (!firstRunCanShow(pParent)) {
+                    return;
+                }
+                pWait->stop();
+                pWait->deleteLater();
+                if (!pServers || !shouldOfferFirstRun(pConfig, *pServers)) {
+                    return;
+                }
+                markFirstRunOffered(pConfig);
+                QDialog* pDialog = createFirstRunDialog(pServers, pParent);
+                pDialog->exec();
+                delete pDialog;
+            });
+    pWait->start();
 }
 
 } // namespace crate

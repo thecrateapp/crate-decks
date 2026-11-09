@@ -8,6 +8,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
+#include <QMainWindow>
 #include <QPushButton>
 #include <QScopeGuard>
 #include <QSignalSpy>
@@ -25,6 +26,7 @@
 #include "crate/ui/cratefirstrun.h"
 #include "crate/ui/dialogs/dialogscrim.h"
 #include "crate/ui/dialogs/dialogstyle.h"
+#include "skin/legacy/launchimage.h"
 #include "test/crate/fakecratenetwork.h"
 #include "test/mixxxdbtest.h"
 
@@ -346,8 +348,34 @@ TEST_F(CrateAddServerFlowTest, FirstRunDimsTheMainWindowUntilItCloses) {
     EXPECT_FALSE(crate::blockingDialogScrim()->isActive());
 }
 
+// With OpenGL, Mixxx loads the skin and the dialog styles only after the
+// event loop starts, and then shows its own startup dialogs: the first start
+// waits for both, or it shows unstyled over the launch image
+TEST_F(CrateAddServerFlowTest, FirstRunWaitsForTheSkinAndOtherDialogs) {
+    QMainWindow mainWindow;
+    mainWindow.setCentralWidget(new LaunchImage(&mainWindow, QString()));
+    mainWindow.show();
+    EXPECT_FALSE(crate::firstRunCanShow(&mainWindow));
+
+    // The skin replaces the launch image
+    mainWindow.setCentralWidget(new QWidget(&mainWindow));
+    EXPECT_TRUE(crate::firstRunCanShow(&mainWindow));
+
+    // Another modal dialog, as Mixxx's "No Output Devices"
+    QDialog other(&mainWindow);
+    other.setWindowModality(Qt::ApplicationModal);
+    other.show();
+    EXPECT_FALSE(crate::firstRunCanShow(&mainWindow));
+    other.close();
+    EXPECT_TRUE(crate::firstRunCanShow(&mainWindow));
+
+    // A parent that is no main window has nothing to wait for
+    QWidget parent;
+    EXPECT_TRUE(crate::firstRunCanShow(&parent));
+}
+
 // TEST_GAP: offerFirstRun() shows a modal dialog, so it is checked by hand;
-// the tests cover when it is offered.
+// the tests cover when it is offered and that it waits for the skin.
 TEST_F(CrateAddServerFlowTest, FirstRunIsOfferedOnceWhileThereIsNoServer) {
     EXPECT_TRUE(crate::shouldOfferFirstRun(config(), *m_pServers));
 
