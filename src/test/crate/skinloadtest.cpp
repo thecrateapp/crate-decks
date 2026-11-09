@@ -2,6 +2,8 @@
 
 #include <QAbstractButton>
 #include <QAbstractItemView>
+#include <QAction>
+#include <QApplication>
 #include <QDialog>
 #include <QDir>
 #include <QElapsedTimer>
@@ -29,10 +31,12 @@
 #include <vector>
 
 #include "control/controlobject.h"
+#include "control/controlpushbutton.h"
 #include "coreservices.h"
 #include "crate/ui/skin/crateserverstatus.h"
 #include "crate/ui/skin/crateskin.h"
 #include "crate/ui/skin/mixerstyle.h"
+#include "crate/ui/skin/preferencescontrol.h"
 #include "database/mixxxdb.h"
 #include "library/trackmodel.h"
 #include "mixer/basetrackplayer.h"
@@ -421,6 +425,44 @@ TEST_F(CrateSkinLoadTest, LateNightStillLoads) {
     EXPECT_TRUE(warnings.isEmpty()) << warnings.join(QLatin1Char('\n')).toStdString();
 }
 
+TEST_F(CrateSkinLoadTest, ToolbarOpensPreferences) {
+    QTemporaryDir profile;
+    ASSERT_TRUE(profile.isValid());
+    OffscreenDecks decks(profile.path() + QLatin1Char('/'));
+    decks.writeProfile(kCrateDecks);
+    decks.start(application());
+    ASSERT_NE(nullptr, decks.skin());
+    const auto preferences = [] {
+        const QList<QWidget*> windows = QApplication::topLevelWidgets();
+        for (QWidget* pWindow : windows) {
+            if (pWindow->inherits("DlgPreferences")) {
+                return pWindow;
+            }
+        }
+        return static_cast<QWidget*>(nullptr);
+    };
+    QWidget* pPreferences = preferences();
+    ASSERT_NE(nullptr, pPreferences);
+    EXPECT_FALSE(pPreferences->isVisible());
+
+    // A click on the toolbar's settings button
+    auto* pButton = decks.skin()->findChild<QWidget*>(QStringLiteral("TbIconSettings"));
+    ASSERT_NE(nullptr, pButton);
+    const QPoint centre = pButton->rect().center();
+    for (const QEvent::Type type : {QEvent::MouseButtonPress, QEvent::MouseButtonRelease}) {
+        QMouseEvent event(type,
+                centre,
+                pButton->mapToGlobal(centre),
+                Qt::LeftButton,
+                type == QEvent::MouseButtonPress ? Qt::LeftButton : Qt::NoButton,
+                Qt::NoModifier);
+        QCoreApplication::sendEvent(pButton, &event);
+    }
+    EXPECT_TRUE(pPreferences->isVisible());
+    EXPECT_EQ(0.0, ControlObject::get(crate::showPreferencesKey()));
+    pPreferences->hide();
+}
+
 /// The settings and controls of the racks that the skin folds (design 14.3)
 const QList<ConfigKey> kRackKeys = {
         ConfigKey(QStringLiteral("[Skin]"), QStringLiteral("show_effectrack")),
@@ -709,6 +751,37 @@ TEST_F(CrateSkinTest, MonoLabelStyleHasCapitalsAndTracking) {
     EXPECT_EQ(QFont::AllUppercase, font.capitalization());
     EXPECT_EQ(QFont::AbsoluteSpacing, font.letterSpacingType());
     EXPECT_NEAR(0.14 * 11, font.letterSpacing(), 0.02);
+}
+
+TEST_F(CrateSkinTest, ToolbarButtonOpensPreferences) {
+    // The main window's menu bar and its Preferences action, as
+    // WMainMenuBar makes it, and the control the skin's manifest declares
+    QWidget window;
+    auto* pMenuBar = new QMenuBar(&window);
+    auto* pOther = new QAction(QStringLiteral("About"), pMenuBar);
+    pOther->setMenuRole(QAction::AboutRole);
+    auto* pPreferences = new QAction(QStringLiteral("Preferences"), pMenuBar);
+    pPreferences->setMenuRole(QAction::PreferencesRole);
+    int opened = 0;
+    QObject::connect(pPreferences, &QAction::triggered, [&opened] { ++opened; });
+    ControlPushButton control(crate::showPreferencesKey());
+    auto* pSkin = new QWidget(&window);
+    EXPECT_EQ(pPreferences, crate::findPreferencesAction(&window));
+
+    new crate::PreferencesControl(pSkin);
+    control.set(1);
+    EXPECT_EQ(1, opened);
+    // A push: back to 0, ready for the next click
+    EXPECT_EQ(0.0, control.get());
+    control.set(0);
+    EXPECT_EQ(1, opened);
+    control.set(1);
+    EXPECT_EQ(2, opened);
+
+    // Without a Preferences action nothing happens
+    QWidget alone;
+    EXPECT_EQ(nullptr, crate::findPreferencesAction(&alone));
+    EXPECT_EQ(nullptr, crate::findPreferencesAction(nullptr));
 }
 
 TEST_F(CrateSkinTest, DeckNumberHasTabularFigures) {

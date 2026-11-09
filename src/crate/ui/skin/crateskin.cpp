@@ -13,6 +13,7 @@
 #include "crate/ui/skin/crateserverstatus.h"
 #include "crate/ui/skin/librarystyle.h"
 #include "crate/ui/skin/mixerstyle.h"
+#include "crate/ui/skin/preferencescontrol.h"
 #include "util/logger.h"
 
 namespace crate {
@@ -196,6 +197,10 @@ void prepareLoadedSkin(QWidget* pSkinRoot,
 
     auto* pStatus = new ServerStatus(CrateServers::instance(), pSkinRoot);
     bindServerStatus(pStatus, pSkinRoot);
+
+    if (ControlObject::exists(showPreferencesKey())) {
+        new PreferencesControl(pSkinRoot);
+    }
 }
 
 } // namespace crate

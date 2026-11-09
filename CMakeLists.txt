@@ -5352,6 +5352,7 @@ if(CRATE)
       src/crate/ui/skin/crateskin.cpp
       src/crate/ui/skin/librarystyle.cpp
       src/crate/ui/skin/mixerstyle.cpp
+      src/crate/ui/skin/preferencescontrol.cpp
   )
   # The tests of the Crate integration are added here and not in the list of
   # mixxx-test sources, which comes before this option.

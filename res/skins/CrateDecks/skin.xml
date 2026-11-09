@@ -39,6 +39,9 @@
          and the breakpoints of generated/vars.xml (crate/ui/skin/) -->
       <attribute persist="false" config_key="[CrateDecks],layout_narrow">0</attribute>
       <attribute persist="false" config_key="[CrateDecks],layout_short">0</attribute>
+    <!-- The toolbar's Preferences button: C++ opens Preferences when it
+         goes to 1 (crate/ui/skin/preferencescontrol.h) -->
+      <attribute persist="false" config_key="[CrateDecks],show_preferences">0</attribute>
     <!-- Deck menus (vinyl, slip and the loop extras), closed at start -->
       <attribute persist="false" config_key="[CrateDecks],deck1_menu">0</attribute>
       <attribute persist="false" config_key="[CrateDecks],deck2_menu">0</attribute>

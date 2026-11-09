@@ -325,12 +325,14 @@
                   <BindProperty>visible</BindProperty>
                 </Connection>
               </PushButton>
+              <!-- Opens Preferences: Mixxx has no control for it, so the
+                   skin's C++ triggers the menu bar's Preferences action -->
               <PushButton>
-                <TooltipId>skin_settings</TooltipId>
+                <Tooltip>Preferences</Tooltip>
                 <ObjectName>TbIconSettings</ObjectName>
                 <NumberStates>2</NumberStates>
                 <Connection>
-                  <ConfigKey>[Skin],show_settings</ConfigKey>
+                  <ConfigKey>[CrateDecks],show_preferences</ConfigKey>
                   <ButtonState>LeftButton</ButtonState>
                 </Connection>
               </PushButton>
