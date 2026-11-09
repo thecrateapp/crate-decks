@@ -34,9 +34,9 @@ const QString kServer = QStringLiteral("srv-1");
 
 // The tree of GET /api/decks/containers as the S3 contract serves it: a flat
 // list in the server's order, string ids, track_count only for playlists and
-// one likes node with id "me". The server has no folders, but parent_id is
-// read anyway. A kind the client does not know is left out; "genre" is one
-// of the plan's kinds that the server does not serve yet.
+// genres, and one likes node with id "me". The server has no folders, but
+// parent_id is read anyway. A kind the client does not know, like "folder",
+// is left out.
 const QByteArray kTree = QByteArrayLiteral(R"({"containers": [
     {"id": "7", "kind": "playlist", "name": "Warm-up", "parent_id": null,
      "track_count": 3, "etag": "p7-1"},
@@ -46,8 +46,8 @@ const QByteArray kTree = QByteArrayLiteral(R"({"containers": [
      "track_count": 0, "etag": "p8-1"},
     {"id": "4b1e7c2a-0000-4000-8000-000000000001", "kind": "crate",
      "name": "Disco edits", "parent_id": null, "etag": "c1"},
-    {"id": "melodic-techno", "kind": "genre", "name": "Melodic Techno",
-     "parent_id": null, "etag": "g1"},
+    {"id": "17", "kind": "genre", "name": "Melodic Techno", "parent_id": null,
+     "track_count": 4312, "etag": "g1"},
     {"id": "f1", "kind": "folder", "name": "Not for Decks", "parent_id": null,
      "etag": "f1"},
     {"id": "me", "kind": "likes", "name": "Likes", "parent_id": null, "etag": "l1"}
@@ -189,7 +189,11 @@ TEST_F(CrateLibrarySyncTest, SyncsTreeIntoTables) {
             containerId(QStringLiteral("playlist"), QStringLiteral("9")));
     EXPECT_EQ(containerId(QStringLiteral("playlist"), QStringLiteral("8")), peak.parentId);
     EXPECT_LT(warmUp.position, peak.position);
-    EXPECT_FALSE(stored(containerId(QStringLiteral("genre"), QStringLiteral("melodic-techno")))
+    EXPECT_EQ(4312,
+            stored(containerId(QStringLiteral("genre"), QStringLiteral("17")))
+                    .trackCount.value_or(-1));
+    EXPECT_FALSE(stored(containerId(QStringLiteral("crate"),
+                                QStringLiteral("4b1e7c2a-0000-4000-8000-000000000001")))
                     .trackCount.has_value());
     EXPECT_FALSE(stored(containerId(QStringLiteral("likes"), QStringLiteral("me")))
                     .trackCount.has_value());
@@ -483,6 +487,8 @@ TEST(CrateLibraryJsonTest, KnowsTheSectionOfEachKind) {
     EXPECT_EQ(Section::Moods, crate::library::sectionOf(QStringLiteral("mood")));
     EXPECT_EQ(Section::Recent, crate::library::sectionOf(QStringLiteral("recent")));
     EXPECT_FALSE(crate::library::sectionOf(QStringLiteral("folder")).has_value());
+    // Not the server's spelling: the tracks path would not take it
+    EXPECT_FALSE(crate::library::sectionOf(QStringLiteral("genres")).has_value());
 }
 
 TEST(CrateLibraryJsonTest, TrackPageNeedsEntityUids) {

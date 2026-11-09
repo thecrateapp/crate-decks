@@ -23,9 +23,9 @@ enum class Section {
 };
 
 /// The section of a container `kind`, or nullopt for a kind this client does
-/// not know: the contract says clients ignore those. The server serves
-/// `playlist`, `crate` and `likes`; `genre`, `mood` and `recent` are the plan's
-/// kinds that it does not serve yet.
+/// not know: the contract says clients ignore those, since new kinds are
+/// additive. The server serves `playlist`, `crate`, `genre`, `mood`, `recent`
+/// and `likes`.
 std::optional<Section> sectionOf(const QString& kind);
 
 /// A node of `GET /api/decks/containers`.
@@ -38,12 +38,12 @@ struct RemoteContainer {
     /// Empty for a top-level node. The server has no folders yet, so it is
     /// always empty today.
     QString parentRemoteId;
-    /// Only when the server keeps it precomputed (playlists). It counts every
-    /// entry, also those without a local track that the tracks endpoint
-    /// leaves out.
+    /// Only when the server keeps it precomputed (playlists and genres). It
+    /// counts every entry, also those without a local track that the tracks
+    /// endpoint leaves out.
     std::optional<qint64> trackCount;
     /// Changes with the container's membership or order, not with its
-    /// tracks' metadata.
+    /// tracks' metadata or profiles. A mood's never changes.
     QString etag;
 };
 

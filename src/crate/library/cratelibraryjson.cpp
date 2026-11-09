@@ -31,18 +31,18 @@ QString itemPath(const char* array, qsizetype index) {
 } // namespace
 
 std::optional<Section> sectionOf(const QString& kind) {
-    // The plural spellings are accepted for the kinds the server does not
-    // serve yet, in case they arrive spelled like `likes`.
+    // As the server spells them: the kind goes back verbatim in the tracks
+    // path, which takes only these.
     if (kind == QLatin1String("playlist")) {
         return Section::Playlists;
     }
     if (kind == QLatin1String("crate")) {
         return Section::Crates;
     }
-    if (kind == QLatin1String("genre") || kind == QLatin1String("genres")) {
+    if (kind == QLatin1String("genre")) {
         return Section::Genres;
     }
-    if (kind == QLatin1String("mood") || kind == QLatin1String("moods")) {
+    if (kind == QLatin1String("mood")) {
         return Section::Moods;
     }
     if (kind == QLatin1String("recent")) {
