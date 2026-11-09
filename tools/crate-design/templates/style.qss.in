@@ -459,8 +459,10 @@ QToolTip {
 #CrateDeckArtistFour[highlight="1"] {
   font-size: {{fontSizeDeckArtistCompactShort}};
 }
+/* Packed at the bottom: a spacer above would add one more gap */
 #CrateDeckNumber {
   qproperty-layoutSpacing: {{deckNumberGap.number}};
+  qproperty-layoutAlignment: 'AlignBottom';
 }
 /* Bricolage 700 with tabular figures (C++ adds tnum and the axes) */
 [objectName^="DeckNumber"] {
@@ -506,8 +508,10 @@ QToolTip {
 #CrateOverviewBox[highlight="1"] {
   max-height: {{overviewMaxHeightShort}};
 }
+/* Four decks: 40 px, as the mockups render it (.overview's min-height of
+   40 wins over the grid row's 32) */
 #CrateOverviewBoxFour {
-  min-height: {{overviewMinHeightFour}};
+  min-height: {{overviewMinHeight}};
   max-height: {{overviewMinHeight}};
 }
 #CrateOverviewBoxFour[highlight="1"] {

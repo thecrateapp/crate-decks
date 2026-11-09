@@ -202,7 +202,6 @@ QtObject {
     readonly property real overviewMinHeight: 40
     readonly property real overviewMaxHeight: 88
     readonly property real overviewMaxHeightShort: 44
-    readonly property real overviewMinHeightFour: 32
     readonly property real overviewMaxHeightFourShort: 28
     readonly property real phraseHeight: 18
     readonly property real phraseGap: 12

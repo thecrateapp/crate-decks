@@ -202,7 +202,6 @@ QtObject {
     readonly property real overviewMinHeight: {{overviewMinHeight}}
     readonly property real overviewMaxHeight: {{overviewMaxHeight}}
     readonly property real overviewMaxHeightShort: {{overviewMaxHeightShort}}
-    readonly property real overviewMinHeightFour: {{overviewMinHeightFour}}
     readonly property real overviewMaxHeightFourShort: {{overviewMaxHeightFourShort}}
     readonly property real phraseHeight: {{phraseHeight}}
     readonly property real phraseGap: {{phraseGap}}

@@ -103,7 +103,6 @@ Variables: ChanNum, Size ("" for two decks, "Four" for the compact decks),
         <Layout>vertical</Layout>
         <SizePolicy>max,me</SizePolicy>
         <Children>
-          <WidgetGroup><SizePolicy>min,me</SizePolicy></WidgetGroup>
           <NumberBpm>
             <ObjectName>DeckNumberBpm<Variable name="Size"/></ObjectName>
             <TooltipId>visual_bpm</TooltipId>
@@ -144,7 +143,6 @@ Variables: ChanNum, Size ("" for two decks, "Four" for the compact decks),
         <Layout>vertical</Layout>
         <SizePolicy>max,me</SizePolicy>
         <Children>
-          <WidgetGroup><SizePolicy>min,me</SizePolicy></WidgetGroup>
           <NumberPos>
             <ObjectName>DeckNumberTime<Variable name="Size"/></ObjectName>
             <TooltipId>track_time</TooltipId>
