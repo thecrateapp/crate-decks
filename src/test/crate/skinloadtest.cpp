@@ -13,6 +13,7 @@
 #include <QLabel>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QMouseEvent>
 #include <QPainter>
 #include <QScrollBar>
 #include <QSqlDatabase>
@@ -32,14 +33,18 @@
 #include "crate/ui/skin/crateserverstatus.h"
 #include "crate/ui/skin/crateskin.h"
 #include "crate/ui/skin/mixerstyle.h"
+#include "database/mixxxdb.h"
+#include "library/trackmodel.h"
 #include "mixer/basetrackplayer.h"
 #include "mixer/playermanager.h"
 #include "mixxxmainwindow.h"
 #include "preferences/configobject.h"
 #include "skin/legacy/launchimage.h"
 #include "skin/skinloader.h"
+#include "sources/soundsourceproxy.h"
 #include "test/mixxxtest.h"
 #include "track/cue.h"
+#include "track/keyutils.h"
 #include "track/track.h"
 #include "util/cmdlineargs.h"
 #include "util/font.h"
@@ -191,6 +196,91 @@ bool waitFor(const std::function<bool()>& done, int timeoutMs) {
         QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
     }
     return true;
+}
+
+/// A track of the library of a disposable profile.
+struct LibraryRow {
+    QString title;
+    QString artist;
+    QString album;
+    QString genre;
+    QString key;
+    double bpm = 0;
+    double duration = 0;
+};
+
+/// Adds `rows` to the library of the profile at `settingsPath`, creating
+/// the library's schema first if no start has. Their files do not exist.
+bool insertLibraryRows(const QString& settingsPath, const QList<LibraryRow>& rows) {
+    const QString name = QStringLiteral("crate-library-rows");
+    bool ok = true;
+    {
+        QSqlDatabase db = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), name);
+        db.setDatabaseName(settingsPath + QStringLiteral("mixxxdb.sqlite"));
+        ok = db.open();
+        ok = ok && MixxxDb::initDatabaseSchema(db);
+        ok = ok && db.transaction();
+        QSqlQuery location(db);
+        location.prepare(QStringLiteral(
+                "INSERT INTO track_locations (location, filename, directory, "
+                "filesize, fs_deleted, needs_verification) "
+                "VALUES (?, ?, ?, 1000000, 0, 0)"));
+        QSqlQuery track(db);
+        track.prepare(QStringLiteral(
+                "INSERT INTO library (artist, title, album, genre, bpm, key, key_id, "
+                "duration, location, mixxx_deleted, filetype) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 'flac')"));
+        for (int i = 0; ok && i < rows.size(); ++i) {
+            const LibraryRow& row = rows[i];
+            const QString file = QStringLiteral("track-%1.flac").arg(i);
+            location.addBindValue(QString(QStringLiteral("/nonexistent/crate/") + file));
+            location.addBindValue(file);
+            location.addBindValue(QStringLiteral("/nonexistent/crate"));
+            ok = location.exec();
+            track.addBindValue(row.artist);
+            track.addBindValue(row.title);
+            track.addBindValue(row.album);
+            track.addBindValue(row.genre);
+            track.addBindValue(row.bpm);
+            track.addBindValue(row.key);
+            track.addBindValue(row.key.isEmpty()
+                            ? 0
+                            : static_cast<int>(KeyUtils::guessKeyFromText(row.key)));
+            track.addBindValue(row.duration);
+            track.addBindValue(location.lastInsertId());
+            ok = ok && track.exec();
+        }
+        ok = ok && db.commit();
+        if (!ok) {
+            qWarning() << "Library rows:" << db.lastError().text() << track.lastError().text();
+        }
+    }
+    QSqlDatabase::removeDatabase(name);
+    return ok;
+}
+
+/// The rows of a tab-separated file: title, artist, album, genre, BPM, key
+/// and duration in seconds, one track a line.
+QList<LibraryRow> readLibraryRows(const QString& path) {
+    QList<LibraryRow> rows;
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        return rows;
+    }
+    while (!file.atEnd()) {
+        const QStringList fields = QString::fromUtf8(file.readLine()).trimmed().split(u'\t');
+        if (fields.size() < 7) {
+            continue;
+        }
+        rows.append({fields[0],
+                fields[1],
+                fields[2],
+                fields[3],
+                fields[5],
+                fields[4].toDouble(),
+                fields[6].toDouble()});
+    }
+    return rows;
 }
 
 /// Crate Decks started offscreen on a disposable profile, with no sound
@@ -716,7 +806,9 @@ void paintOpenGlWindows(QWidget* pRoot, QImage* pImage) {
 /// 1366 x 768, with 2 and 4 decks, for the side-by-side comparison with the
 /// GU1 mockups. Runs only with CRATE_SKIN_SCREENSHOTS=<output dir>;
 /// CRATE_SKIN_TRACKS=<dir> loads the first audio files of that directory into
-/// decks A, B and C. Never point it at audio that belongs in the repository.
+/// decks A, B and C, and CRATE_SKIN_LIBRARY_ROWS=<file> fills the library
+/// with the tracks of a tab-separated file (readLibraryRows()). Never point
+/// it at audio that belongs in the repository.
 /// Offscreen there is no OpenGL and the scrolling waveforms stay empty;
 /// tools/crate-design/skin-screenshots.sh runs it with OpenGL in a headless
 /// Wayland compositor.
@@ -751,8 +843,14 @@ TEST_F(CrateSkinScreenshots, Capture) {
     QTemporaryDir profile;
     ASSERT_TRUE(profile.isValid());
     OffscreenDecks decks(profile.path() + QLatin1Char('/'));
+    // A first start rescans the library when the file types it knows
+    // change, and marks the rows without a file as missing: give the
+    // profile the current types, as a start would have saved them
+    SoundSourceProxy::registerProviders();
     decks.writeProfile(skin,
             {
+                    {ConfigKey("[Library]", "SupportedFileExtensions"),
+                            SoundSourceProxy::getSupportedFileSuffixes().join(u',')},
                     {ConfigKey("[Waveform]", "WaveformType"), QStringLiteral("7")},
                     {ConfigKey("[Waveform]", "use_hardware_acceleration"),
                             openGl ? QStringLiteral("3") : QStringLiteral("0")},
@@ -762,6 +860,12 @@ TEST_F(CrateSkinScreenshots, Capture) {
                     {ConfigKey("[Controls]", "PositionDisplay"), QStringLiteral("1")},
                     {ConfigKey("[Config]", "hide_menubar"), QStringLiteral("1")},
             });
+    const QString libraryRows = qEnvironmentVariable("CRATE_SKIN_LIBRARY_ROWS");
+    if (!libraryRows.isEmpty()) {
+        const QList<LibraryRow> rows = readLibraryRows(libraryRows);
+        EXPECT_FALSE(rows.isEmpty()) << libraryRows.toStdString();
+        EXPECT_TRUE(insertLibraryRows(profile.path() + QLatin1Char('/'), rows));
+    }
     decks.start(application());
     ASSERT_NE(nullptr, decks.skin());
     // The skin alone fills the window, as with the menu bar hidden
@@ -865,6 +969,33 @@ TEST_F(CrateSkinScreenshots, Capture) {
         }
     }
 
+    // The library as the mockups show it: sorted by BPM, the third row
+    // selected and the seventh under the mouse
+    waitFor([] { return false; }, 500);
+    for (WTrackTableView* pView : decks.skin()->findChildren<WTrackTableView*>()) {
+        if (!pView->isVisible() || !pView->model() || pView->model()->rowCount() == 0) {
+            continue;
+        }
+        for (int column = 0; column < pView->model()->columnCount(); ++column) {
+            if (pView->model()->headerData(column, Qt::Horizontal, TrackModel::kHeaderNameRole) ==
+                    QStringLiteral("bpm")) {
+                pView->sortByColumn(column, Qt::AscendingOrder);
+            }
+        }
+        pView->selectRow(std::min(2, pView->model()->rowCount() - 1));
+        waitFor([] { return false; }, 200);
+        const int hovered = std::min(6, pView->model()->rowCount() - 1);
+        const QPoint at(pView->viewport()->width() / 2,
+                pView->rowViewportPosition(hovered) + pView->rowHeight(hovered) / 2);
+        QMouseEvent move(QEvent::MouseMove,
+                at,
+                pView->viewport()->mapToGlobal(at),
+                Qt::NoButton,
+                Qt::NoButton,
+                Qt::NoModifier);
+        QCoreApplication::sendEvent(pView->viewport(), &move);
+    }
+
     // CRATE_SKIN_GEOMETRY=1 also lists the rectangles of the skin's own
     // widgets next to each PNG, to measure them against the mockups
     const bool geometry = !qEnvironmentVariableIsEmpty("CRATE_SKIN_GEOMETRY");
@@ -925,6 +1056,23 @@ TEST_F(CrateSkinScreenshots, Capture) {
             }
         }
     }
+    // The maximised library, with two and four decks
+    for (const char* placeholder :
+            {"show_phrase_rule", "show_smartmix_line", "show_track_state"}) {
+        ControlObject::set(ConfigKey("[CrateDecks]", placeholder), 0);
+    }
+    ControlObject::set(ConfigKey("[Skin]", "show_maximized_library"), 1);
+    for (const int deckCount : {2, 4}) {
+        ControlObject::set(ConfigKey("[Skin]", "show_4decks"), deckCount == 4 ? 1 : 0);
+        for (const QSize& size : sizes) {
+            decks.mainWindow()->resize(size);
+            capture(QStringLiteral("%1-%2deck-%3-maxlib")
+                            .arg(skin.toLower(), QString::number(deckCount))
+                            .arg(size.width()));
+        }
+    }
+    ControlObject::set(ConfigKey("[Skin]", "show_maximized_library"), 0);
+
     // The deck menu of deck A, open
     ControlObject::set(ConfigKey("[Skin]", "show_4decks"), 0);
     ControlObject::set(ConfigKey("[CrateDecks]", "deck1_menu"), 1);
@@ -946,45 +1094,18 @@ class CrateSkinPerformance : public MixxxTest {
     };
 
     static bool addLibraryRows(const QString& settingsPath, int count) {
-        const QString name = QStringLiteral("crate-q14");
-        bool ok = true;
-        {
-            QSqlDatabase db = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), name);
-            db.setDatabaseName(settingsPath + QStringLiteral("mixxxdb.sqlite"));
-            ok = db.open();
-            ok = ok && db.transaction();
-            QSqlQuery location(db);
-            location.prepare(QStringLiteral(
-                    "INSERT INTO track_locations (location, filename, directory, "
-                    "filesize, fs_deleted, needs_verification) "
-                    "VALUES (?, ?, ?, 1000000, 0, 0)"));
-            QSqlQuery track(db);
-            track.prepare(QStringLiteral(
-                    "INSERT INTO library (artist, title, album, genre, bpm, "
-                    "duration, location, mixxx_deleted, filetype) "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, 0, 'flac')"));
-            for (int i = 0; ok && i < count; ++i) {
-                const QString file = QStringLiteral("track-%1.flac").arg(i);
-                location.addBindValue(QString(QStringLiteral("/nonexistent/q14/") + file));
-                location.addBindValue(file);
-                location.addBindValue(QStringLiteral("/nonexistent/q14"));
-                ok = location.exec();
-                track.addBindValue(QStringLiteral("Artist %1").arg(i % 97));
-                track.addBindValue(QStringLiteral("Title of track %1").arg(i));
-                track.addBindValue(QStringLiteral("Album %1").arg(i % 31));
-                track.addBindValue(QStringLiteral("Genre %1").arg(i % 12));
-                track.addBindValue(118.0 + (i % 140) / 10.0);
-                track.addBindValue(300.0 + i % 200);
-                track.addBindValue(location.lastInsertId());
-                ok = ok && track.exec();
-            }
-            ok = ok && db.commit();
-            if (!ok) {
-                qWarning() << "Q14 rows:" << db.lastError().text() << track.lastError().text();
-            }
+        QList<LibraryRow> rows;
+        rows.reserve(count);
+        for (int i = 0; i < count; ++i) {
+            rows.append({QStringLiteral("Title of track %1").arg(i),
+                    QStringLiteral("Artist %1").arg(i % 97),
+                    QStringLiteral("Album %1").arg(i % 31),
+                    QStringLiteral("Genre %1").arg(i % 12),
+                    QString(),
+                    118.0 + (i % 140) / 10.0,
+                    300.0 + i % 200});
         }
-        QSqlDatabase::removeDatabase(name);
-        return ok;
+        return insertLibraryRows(settingsPath, rows);
     }
 
     Numbers measure(const QString& skin, int rows) {
