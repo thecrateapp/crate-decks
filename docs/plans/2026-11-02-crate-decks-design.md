@@ -311,7 +311,7 @@ flowchart LR
 
 Los parches de V2 (skin por defecto ampliado, `coreservices.cpp`, `mixxxmainwindow.cpp`, `dlgabout.cpp` y `dlgpreferences.cpp` ampliado) los aprobó Diego el 2026-11-09.
 
-**Marca propia (2026-11-09, [plan](2026-11-09-crate-decks-own-brand-plan.md)).** Las cadenas traducibles que nombran Mixxx no se editan en los ficheros de Mixxx: las reescribe en tiempo de ejecución la capa de marca (`crate::BrandTranslator`, instalada en `main.cpp`), con el inventario de `res/crate-brand/` y un test que falla cuando upstream añade una cadena nueva. Solo se parchea lo que no es traducible. Los parches de la marca propia están en la tabla con la etiqueta BR; los ficheros nuevos en la lista son `dlgprefrecord.cpp`, `screensaver.cpp`, `pipewireenumerator.cpp`, `engineprimeexportjob.cpp`, `cmdlineargs.cpp` y los dos `ic_mixxx_symbolic.svg`.
+**Marca propia (2026-11-09, [plan](2026-11-09-crate-decks-own-brand-plan.md)).** Las cadenas traducibles que nombran Mixxx no se editan en los ficheros de Mixxx: las reescribe en tiempo de ejecución la capa de marca (`crate::BrandTranslator`, instalada en `main.cpp`), con el inventario de `res/crate-brand/` y un test que falla cuando upstream añade una cadena nueva. Solo se parchea lo que no es traducible. Los parches de la marca propia están en la tabla con la etiqueta BR; los ficheros nuevos en la lista son `dlgprefrecord.cpp`, `screensaver.cpp`, `pipewireenumerator.cpp`, `engineprimeexportjob.cpp`, `dlglibraryexport.cpp`, `dlgprefeffects.cpp` y `cmdlineargs.cpp`.
 
 | Fichero | Cambio | ¿Hook genérico? |
 |---|---|---|
@@ -341,10 +341,11 @@ Los parches de V2 (skin por defecto ampliado, `coreservices.cpp`, `mixxxmainwind
 | `src/controllers/dlgprefcontroller.cpp`, `src/controllers/dlgprefcontrollers.cpp`, `src/preferences/dialog/dlgprefsound.cpp` | BR: las etiquetas de enlace fijas pasan por `tr()`; nombre, autor y descripción de los mapeos por `crate::brandText()` | No |
 | `src/preferences/broadcastprofile.cpp` (además del keychain) | BR: nombre de emisión por defecto desde `applicationName()` | Sí |
 | `src/preferences/dialog/dlgprefrecord.cpp` | BR: carpeta de grabaciones por defecto con el nombre de la aplicación | Sí |
-| `src/util/screensaver.cpp`, `src/soundio/pipewireenumerator.cpp`, `src/library/export/engineprimeexportjob.cpp` | BR: inhibidor del salvapantallas, nodo de PipeWire y carpetas de la exportación a Engine DJ con el nombre de la aplicación | Sí |
+| `src/util/screensaver.cpp`, `src/soundio/pipewireenumerator.cpp`, `src/library/export/engineprimeexportjob.cpp`, `src/library/export/dlglibraryexport.cpp` | BR: inhibidor del salvapantallas, nodo de PipeWire y carpetas de la exportación a Engine DJ con el nombre de la aplicación | Sí |
 | `src/util/cmdlineargs.cpp` | BR: cuatro mensajes de terminal sin "Mixxx" | No |
+| `src/preferences/dialog/dlgprefeffects.cpp` | BR: el autor de un efecto pasa por `crate::brandText()` ("The Mixxx Team" se lee "Built-in") | No |
 | `src/coreservices.cpp` y `src/mixxxmainwindow.cpp` (primer arranque) | BR: con `CRATE`, sin el aviso de carpeta de música ni "No Output Devices" mientras el primer arranque de Crate está pendiente, que ofrece lo mismo en sus páginas; la skin decide la barra de menús sin preguntar | No |
-| `res/images/preferences/{dark,light}/ic_mixxx_symbolic.svg` | BR: el símbolo de Crate con el mismo nombre de fichero (marca skins y mapeos de serie en Preferencias) | No |
+| `src/preferences/dialog/dlgprefinterface.cpp`, `src/controllers/dlgprefcontroller.cpp` (icono) | BR: las skins y los mapeos de serie se marcan con el logo de Crate generado (`:/images/crate-logo.svg`) en vez de `ic_mixxx_symbolic.svg`, que es el icono de Mixxx | No |
 | `src/skin/skinloader.cpp` (además de la skin por defecto) | BR: con `CRATE`, la lista de skins solo ofrece `CrateDecks`; las de Mixxx llevan su logo (pendiente de confirmar por Diego) | No |
 | `src/preferences/configobject.cpp`, `CMakeLists.txt`, `packaging/` (con F9.PR1) | BR: datos instalados en `share/crate-decks` en vez de `share/mixxx` | No |
 

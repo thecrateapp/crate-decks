@@ -74,7 +74,9 @@ the most recently installed translator first, so it sees every `tr()` lookup bef
   one, else Mixxx's translation (or the source) with the generic rule.
 - **Generic rule** (`crate::brandText`): "Mixxx" as a word becomes "Crate Decks" ("Mixxx's" → "Crate Decks'",
   "MIXXX" → "CRATE DECKS"), and "Mixxx 2.1"-style versions drop the number. It never touches file names, URLs,
-  paths or longer words (`mixxxdb.sqlite`, `~/.mixxx`, `https://mixxx.org`, `MixxxControl`, `MiniMixxx`).
+  paths or longer words (`mixxxdb.sqlite`, `~/.mixxx`, `https://mixxx.org`, `MixxxControl`, `MiniMixxx`). In
+  translations the name may touch other scripts or prefixes ("启动Mixxx时", Tamil "Mixxxஐ", Shona "muMixxx") and some
+  write "MIxxx": the rule brands those too.
 - Mixxx installs its own translators later, in the `CoreServices` constructor. Each install sends
   `QEvent::LanguageChange` to the application; the brand translator watches for it, moves itself back to the
   front and loads Mixxx's `.qm` for the new locale. No patch in `coreservices.cpp` or `translations.h`.
@@ -86,9 +88,11 @@ literals that name Mixxx and are allowed (identifiers and logs). It is in `res/c
 start. `tools/crate-brand/inventory.py` (standard-library Python, like `tools/crate-design/`) regenerates it from
 the sources and keeps the decisions already made.
 
-**Drift test:** `CrateBrandTest.InventoryCoversEveryMixxxString` scans the sources and fails when upstream adds
-a translatable string or a hard-coded literal that names Mixxx and the inventory does not list. A merge from
-upstream therefore stops at the test until someone reviews the new string.
+**Drift test:** `tools/crate-brand/test_inventory.py` (pytest, a step of the CI's design job) runs
+`inventory.py --check`, which scans the sources and fails when upstream adds a translatable string or a
+hard-coded literal that names Mixxx and the inventory does not list. A merge from upstream therefore stops at
+the test until someone reviews the new string. A second pytest checks the scan against `lupdate` when Qt's
+tools are installed.
 
 **Why this and not the alternatives:**
 
@@ -112,7 +116,9 @@ where Preferences shows them.
   start offers the same choices in its own pages (BR.PR3).
 - Every `QMessageBox` gets a Solar icon from the tokens when Crate styles it (no platform or Mixxx icon), so the
   sound messages and the quit confirmation look like Crate without patching their code.
-- `ic_mixxx_symbolic.svg` keeps its name (the code loads it by name) and draws the Crate symbol.
+- The two places that load `ic_mixxx_symbolic.svg` (the Mixxx app icon, marking built-in skins and mappings) load
+  the Crate logo instead: the skin's `generated/crate-logo.svg`, through `res/crate.qrc`. One logo, from the
+  generator.
 - Mixxx's skins all carry the Mixxx logo. With `CRATE` the skin list offers only `CrateDecks` (§7.4).
 
 ## 4. Tasks
@@ -136,17 +142,19 @@ Each task starts with the red test named in it. `TEST_GAP:` marks what a test ca
 - `CrateBrandTranslatorTest.WinsOverTranslatorsInstalledLater`: a Spanish Mixxx translator installed after the
   brand one; "A deck is currently playing. Exit Mixxx?" comes back in Spanish with "Crate Decks".
 - `UsesCuratedTexts` ("Mixxx DJ Hardware Guide" → "DJ Hardware Guide"), `KeepsTheAboutCredits`,
-  `BrandsTranslationsThatNameMixxx` (Catalan "&About").
-- `EveryInventoryStringIsBranded`: every entry, in English and in every shipped `.qm`, comes back without Mixxx
-  unless it is `keep`.
-- `InventoryCoversEveryMixxxString`: the drift test of §3.1.
-- `visiblestringstest.cpp` (F1.PR2b) folds into the drift test: it checked four surfaces, this checks all.
+  `BrandsTranslationsThatNameMixxx` (Catalan "&About"), `BrandsTheCommandLineHelp`.
+- `CrateBrandTextTest.EveryInventoryStringIsBrandedInEnglish` and `EveryShippedTranslationIsBranded`: every
+  entry, in English and in every finished translation of the 77 `.ts` files, comes back without Mixxx unless it
+  is `keep`.
+- The drift test of §3.1, in pytest.
+- `visiblestringstest.cpp` (F1.PR2b) stays until BR.PR9 undoes the F1.PR2b edits it guards.
 
 ### BR.PR2 · Strings outside `tr()` and mapping data
 
 | File | Change |
 | --- | --- |
 | `src/controllers/dlgprefcontroller.cpp` | The three mapping link labels in `tr()`; mapping name, author and description through `crate::brandText()` |
+| `src/preferences/dialog/dlgprefeffects.cpp` | The effect author through `crate::brandText()` ("The Mixxx Team" reads "Built-in") |
 | `src/controllers/dlgprefcontrollers.cpp`, `src/preferences/dialog/dlgprefsound.cpp` | Link labels in `tr()` |
 | `src/preferences/broadcastprofile.cpp` | Default stream name from `applicationName()` |
 | `src/preferences/dialog/dlgprefrecord.cpp` | Default recordings folder `~/Music/<application name>/Recordings` |
@@ -154,11 +162,13 @@ Each task starts with the red test named in it. `TEST_GAP:` marks what a test ca
 | `src/soundio/pipewireenumerator.cpp` | PipeWire media, node name and nick, and the lookup of its own node, from `applicationName()` |
 | `src/library/export/engineprimeexportjob.cpp` | Export folders "<application name> Crates" and "… Playlists" |
 | `src/util/cmdlineargs.cpp` | Four terminal messages without "Mixxx" |
+| `src/library/export/dlglibraryexport.cpp` | Default export folder `crate-decks-export` instead of `mixxx-export` |
+| `src/mixxxmainwindow.cpp` | The critical "default skin cannot be loaded - see mixxx trace" error in `tr()` |
 
-**Red tests:** `CrateBrandTest.ControllerMappingInfoIsBranded` (every mapping in `res/controllers`),
-`DefaultStreamNameIsTheApplication`, `RecordingsFolderIsNamedAfterTheApplication`, and the hard-coded part of
-`InventoryCoversEveryMixxxString`. `TEST_GAP:` the screensaver and PipeWire names need a session bus and a
-PipeWire daemon; the drift test sees their literals.
+**Red tests:** `CrateBrandTextTest.ControllerMappingInfoIsBranded` (every mapping in `res/controllers`),
+`CrateBrandingTest.DefaultStreamNameIsTheApplication`, `CrateBrandingTest.RecordingsFolderIsNamedAfterTheApplication`,
+and the literals of the drift test. `TEST_GAP:` the screensaver and PipeWire names need a session bus and a
+PipeWire daemon, and the effect author shows only once an effect is selected; the drift test sees their literals.
 
 ### BR.PR3 · The first start absorbs Mixxx's first-run dialogs
 
@@ -174,13 +184,17 @@ kicker, display title, paragraph, fields and Crate buttons) and only tokens and 
    chosen folders with `Library::requestAddDir()` and starts the library scan Mixxx would start.
 3. **No output:** `mixxxmainwindow.cpp` skips "No Output Devices" while the first start is pending; the sound
    page owns that case. Later starts keep Mixxx's logic, with Crate's message style (4).
-4. **Messages:** `crate::applyApplicationStyle()` gives every `QMessageBox` the Solar icon of its kind.
+4. **Messages:** `crate::applyApplicationStyle()` gives every `QMessageBox` the Solar icon of its kind:
+   `question-circle` (new in the Solar subset) and `info-circle` in accentHi, `danger-triangle` in the new
+   `iconWarning` state (warningText), `close-circle` in danger; size from the new `messageIconSize` token.
 5. **Menu bar:** `alwaysHideMenuBarDlg()` asks nothing when the skin decides: `CrateDecks` hides it (Alt shows it,
    Preferences › Interface changes it), as the mockups have no menu bar.
 
 **Red tests:**
-- `CrateFirstRunTest.PagesFollowTheFirstStart`, `MusicPageAddsTheChosenFolders`, `SoundPageListsOutputs`,
-  `SoundPageWithoutOutputsOffersToContinue`.
+- `CrateAddServerFlowTest.FirstRunPagesFollowTheServerPage`, `FirstRunPagesKeepTheMockupWidth` (560 px, the
+  approved page included, and the dialog fits the page it shows), `FirstRunSoundPageSetsTheMainOutput`,
+  `FirstRunSoundPageWithoutOutputsOffersToContinue`, `FirstRunMusicPageAddsTheChosenFolders`;
+  `CrateFirstRunTest.MenuBarIsHiddenWithoutAsking`.
 - `CrateSkinLoadTest.FirstStartAsksNoMixxxQuestions`: a new profile with no folders and no sound API; no modal
   dialog shows while the app starts, and the menu bar ends hidden.
 - `CrateDialogsTest.MessageBoxesUseSolarIcons`.
@@ -197,12 +211,14 @@ kicker, display title, paragraph, fields and Crate buttons) and only tokens and 
 
 ### BR.PR5 · Images and skins
 
-- `res/images/preferences/{dark,light}/ic_mixxx_symbolic.svg`: the Crate symbol, same size and colours.
+- `src/preferences/dialog/dlgprefinterface.cpp` and `src/controllers/dlgprefcontroller.cpp`: built-in skins and
+  mappings marked with `:/images/crate-logo.svg` (the generated logo, an alias in `res/crate.qrc`) instead of
+  `ic_mixxx_symbolic.svg`.
 - `res/skins/CrateDecks/`: delete the unused `palemoon/style/mixxx_logo*.svg` and the dead `#ToolbarLogo` rule
   (separate cleanup commit).
 - `src/skin/skinloader.cpp`: with `CRATE`, the skin list offers only `CrateDecks` (§7.4).
-- **Red tests:** `CrateSkinLoadTest.OnlyCrateDecksIsOffered`, `CrateBrandTest.BuiltInMarkerIsTheCrateSymbol`,
-  `CrateBrandTest.CrateDecksSkinHasNoMixxxImages`.
+- **Red tests:** `CrateSkinLoadTest.OnlyCrateDecksIsOffered`, `CrateBrandTextTest.NoMixxxLogoInTheInterface`,
+  `CrateBrandTextTest.CrateDecksSkinHasNoMixxxImages`.
 
 ### BR.PR6 · The library sidebar's local section
 
@@ -241,16 +257,17 @@ New entries for `CRATE_PATCHES.md`; the ones in **bold** are outside the closed 
 | **`src/preferences/dialog/dlgprefrecord.cpp`** | Default recordings folder | BR.PR2 |
 | **`src/util/screensaver.cpp`** | Inhibitor reason and ID | BR.PR2 |
 | **`src/soundio/pipewireenumerator.cpp`** | PipeWire node names | BR.PR2 |
-| **`src/library/export/engineprimeexportjob.cpp`** | Export folder names | BR.PR2 |
+| **`src/library/export/engineprimeexportjob.cpp`**, **`src/library/export/dlglibraryexport.cpp`** | Export folder names | BR.PR2 |
 | **`src/util/cmdlineargs.cpp`** | Terminal messages | BR.PR2 |
+| **`src/preferences/dialog/dlgprefeffects.cpp`** | Effect author through `brandText()` | BR.PR2 |
 | `src/coreservices.cpp` | Skip the music folder prompt | BR.PR3 |
-| `src/mixxxmainwindow.cpp` | Skip "No Output Devices" during the first start; the skin decides the menu bar | BR.PR3 |
-| **`res/images/preferences/{dark,light}/ic_mixxx_symbolic.svg`** | Crate symbol | BR.PR5 |
+| `src/mixxxmainwindow.cpp` | The skin error in `tr()` (BR.PR2); skip "No Output Devices" during the first start; the skin decides the menu bar | BR.PR2, BR.PR3 |
+| `src/preferences/dialog/dlgprefinterface.cpp`, `src/controllers/dlgprefcontroller.cpp` | Crate logo instead of `ic_mixxx_symbolic.svg` | BR.PR5 |
 | `src/skin/skinloader.cpp` | Only `CrateDecks` in the skin list | BR.PR5 |
 | `src/preferences/configobject.cpp`, `CMakeLists.txt`, `packaging/` | `share/crate-decks` | BR.PR8 |
 
-Of the new ones, all but the icon and the terminal messages read the application identity instead of a literal
-"Mixxx", so Mixxx itself would behave the same with them.
+Of the new ones, all but the terminal messages read the application identity instead of a literal "Mixxx", so
+Mixxx itself would behave the same with them.
 
 ## 6. Change to design §5.2 and AGENTS.md §5.2
 
@@ -276,3 +293,37 @@ Of the new ones, all but the icon and the terminal messages read the application
 5. **New first-start pages** (sound and local music): approve their mockups and captures, like GU1.
 6. **Local folders** stay optional next to the Crate library (assumed from the brief; BR.PR3 offers them as an
    optional last page).
+
+## 8. Status (2026-11-09)
+
+Built on `feat/decks-own-brand` (local, not pushed), one commit per task, each built on its own:
+
+| Commit | Task |
+| --- | --- |
+| `c9e3c120c7` feat(decks): brand every translatable string that names Mixxx | BR.PR1 |
+| `f45943646c` refactor(decks): share the offscreen app harness of the skin tests | BR.PR4 (refactor) |
+| `f757dfaae5` feat(decks): name Crate Decks where Mixxx hard-codes its name | BR.PR2 |
+| `29cffc1e18` feat(decks): fold Mixxx's first-run questions into the first start | BR.PR3 |
+| `9f0a11d550` feat(decks): give message boxes Solar icons of their kind | BR.PR3 |
+| `5ad3343c26` chore(decks): delete the unused Mixxx logos of the CrateDecks skin | BR.PR5 (cleanup) |
+| `fdc7b96a37` feat(decks): show the Crate logo for built-in skins and mappings | BR.PR5 |
+| `b3034b9690` feat(decks): call the sidebar's local library section "Local" | BR.PR6 |
+| `2d5f16d191` test(decks): fail on any Mixxx that the interface shows | BR.PR4 |
+
+- **Red first:** with the brand layer as stubs, the brand tests and `FirstStartAsksNoMixxxQuestions` failed; the
+  latter listed exactly "Choose music library directory, No Output Devices, Allow Crate Decks to hide the menu
+  bar?", the three dialogs of the headless run.
+- **Tests on the last commit:** `mixxx-test --gtest_filter='Crate*'` 207 passed, 3 skipped (the opt-in
+  screenshot and performance harnesses); pytest of `tools/crate-brand` and `tools/crate-design` 39 passed;
+  `generate.py --check` clean.
+- **Inventory:** 105 strings (73 by the rule, 29 curated, 3 kept: the About credits) and 57 allowed literals.
+  Translations needed more than the plan's rule: names glued to other scripts, declined (Czech, Finnish) or
+  misspelt; `EveryShippedTranslationIsBranded` covers the finished translations of all 77 `.ts` files.
+- **Headless real app** (same script as V2, new profile, no sound card): the only windows are Crate Decks, "Connect
+  to Crate", "Sound", "Music on this computer", "Confirm Exit" ("Exit Crate Decks?") and Preferences. Evidence in
+  `decks-mockups/compare/manual-tests/brand/` (contact sheet, MP4, timeline of every window shown, and the new
+  pages next to their mockups).
+- **Mockups:** `decks-mockups/first-run-pages.html` (`#sound`, `#none`, `#music`) for §7.5. The GU1 mockups say
+  "Local" instead of "Mixxx" (`first-run.html`, `lib/decks.js`; the approved versions are kept as `.gu1.bak`).
+- **Still to do:** BR.PR7 (needs §7.1), BR.PR8 (with F9.PR1), BR.PR9 (optional refactor).
+
