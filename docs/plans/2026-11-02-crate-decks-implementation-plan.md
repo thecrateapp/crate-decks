@@ -1186,11 +1186,25 @@ Base: copia de `res/skins/LateNight/` en `res/skins/CrateDecks/` (el commit de l
 
 | PR | Alcance | Ficheros principales |
 |---|---|---|
-| V2.PR1 | Esqueleto y estilo global: `skin.xml` con un único esquema `Crate` (sin PaleMoon ni Classic), `style.qss.in`, `vars.xml` generado, fuentes, barra de herramientas de 64 px con el estado de Crate (servidor y conexión), skin `CrateDecks` por defecto. MonoLabel con `QFont::setLetterSpacing` y `setCapitalization` desde C++, porque QSS no tiene `letter-spacing` ni `text-transform` | `res/skins/CrateDecks/skin.xml`, `style.qss.in`, `skin.ini`, la constante de skin por defecto en `src/skin/` |
+| V2.PR1 | Esqueleto y estilo global: `skin.xml` con un único esquema `Crate` (sin PaleMoon ni Classic), `style.qss.in`, `vars.xml` generado, fuentes, barra de herramientas de 64 px con el estado de Crate (servidor y conexión), skin `CrateDecks` por defecto. MonoLabel en QSS puro: `text-transform` y `letter-spacing` funcionan en Qt 6.12 con el tracking en px (`em` lo interpreta como porcentaje del ancho del glifo). El C++ solo pone `tnum` y los ejes variables de las cifras del deck | `res/skins/CrateDecks/skin.xml`, `style.qss.in`, `skin.ini`, la constante de skin por defecto en `src/skin/` |
 | V2.PR2 | Decks, simples: cabecera MonoLabel (`DECK A · 8A · 124.00 BPM`), título en Roboto, BPM y tiempo restante en Bricolage 700 con cifras tabulares (34 px; 26 y 22 en compacto), botones de transporte con borde y estado activo relleno en el color del deck, hotcues como nodos numerados, overview y colores de onda de §14.3 (bandas del logo en A/C y grises en B/D), regla de frase bajo el overview, línea de Smart Mix, fila de stems (carriles con 2 decks, chips con 4) y deck vacío con zona de arrastre. La regla de frase, la línea de Smart Mix y los stems se maquetan aquí y se conectan cuando haya datos (F5, F6 y ST6 del plan de stems); mientras tanto quedan ocultos. Los controles poco usados (vinilo, slip, extras de bucle) van a un menú del deck. Distribución propia a 1366 × 768 (§14.3) | `res/skins/CrateDecks/deck_*.xml`, `generated/controls/`, `generated/vars.xml` |
 | V2.PR3 | Mezclador con la gramática de StackMap (§14.3): knobs de 36 px (30 con 4 decks y a 768 px) con anillo de 1 px, 24 marcas y arco de 1,5 px en el color del deck (variable de skin por deck para el arco de `WKnobComposed`); faders, pitch y crossfader con carril de 1 px, marcas y tirador de contorno de 18 × 10 px; VU de 4 px en el color del deck → `warning` → `danger` con pico de 1 px (widget propio si `WVuMeter` no basta); MonoLabel en cada control. Efectos, muestras, mic y aux plegados por defecto (botón en la toolbar) | `mixer*.xml`, `fx*.xml`, `sampler*.xml`, `generated/controls/knob_*.svg` |
 | V2.PR4 | Biblioteca: barra lateral de 240 px como la navegación del admin (elementos MonoLabel en mayúsculas de 11 px; activo en `textPrimary` con barra izquierda de 2 px en `accentHi`; hover en `accentHi`; cabeceras de sección MonoLabel en tono `accent`). Tabla con densidad "cabina" (filas de 30 px) en lista con reglas de 1 px (sin cebra ni cajas), cabeceras MonoLabel, fila seleccionada con barra izquierda de 2 px y relleno cian al 8 %, hover cian al 4 %, BPM, tonalidad y duración en mono de 11 px en columnas fijas. Buscador de 40 px sin fondo propio, scrollbar de 8 px. Delegates para chips (Camelot, calidad, caché con anillo de r 7) en `src/crate/ui/delegates/`. Con 4 decks, la biblioteca se puede maximizar | `library.xml`, `style.qss.in` (sección biblioteca), `src/crate/ui/delegates/*.{h,cpp}` |
 | V2.PR5 | Diálogos y preferencias: reescribir `res/skins/default.qss` desde una plantilla con los mismos tokens, más `About` y el asistente de primer arranque | `res/skins/default.qss.in`, `generated/default.qss` |
+
+**Huecos de Mixxx detectados en V2.PR2.** Decks no se queda en lo que hace Mixxx: cada hueco se implementa en el
+PR indicado.
+- **Intro y outro en el overview** como subrayado del color del deck, como en la maqueta (Mixxx solo los pinta
+  como relleno tenue): V3.PR1, con un parche acotado a `WOverview` o pintado propio, justificado en el PR.
+- **Nivel por stem** para los carriles y chips de stems (Mixxx no tiene un control de nivel por stem): un
+  control de nivel por stem calculado en el motor como el VU del canal, sin reservas ni locks. Va con la
+  reproducción de stems, en ST6.PR1 del plan de stems; la skin ya tiene los carriles.
+- **Abrir Preferencias desde la barra** (ningún control lo hace; hoy el botón abre el panel de la skin): V2.PR5.
+- **Efectos, muestras, mic y aux plegados por defecto** (`SkinControls` crea sus controles valiendo 1 antes de
+  cargar la skin): V2.PR3.
+- **Pantalla de arranque** con la marca de Crate Decks en lugar del logo de Mixxx: V2.PR5.
+- **Ondas en las capturas sin pantalla:** sin OpenGL no hay ningún tipo de onda. El arnés de capturas tiene que
+  renderizar con GL sin pantalla (EGL de Mesa) para comparar las ondas con la maqueta: V2.PR3.
 
 **Tests:**
 - `src/test/crate/skinloadtest.cpp`:
@@ -1210,7 +1224,7 @@ Base: copia de `res/skins/LateNight/` en `res/skins/CrateDecks/` (el commit de l
 
 | Fichero | Contenido |
 |---|---|
-| `instrumentpainter.{h,cpp}` | Utilidades comunes: plumas cosméticas de 1 px alineadas a medio píxel, anillos con marcas (48, una larga cada 4), ejes discontinuos, patrones de trazo por tipo, nodos (hueco, activo, seleccionado, contexto), flechas, MonoLabel pintado (mayúsculas, tracking 0,14 em, separador ` · `) y cifra de display. Todo desde los tokens de geometría |
+| `instrumentpainter.{h,cpp}` | Utilidades comunes: plumas cosméticas de 1 px alineadas a medio píxel, anillos con marcas configurables (24 con una larga cada 30° en los knobs, según GU1; 48 con una larga cada 4 en los anillos de StackMap), ejes discontinuos, patrones de trazo por tipo, nodos (hueco, activo, seleccionado, contexto), flechas, MonoLabel pintado (mayúsculas, tracking 0,14 em, separador ` · `) y cifra de display. Todo desde los tokens de geometría |
 | `camelotwheel.{h,cpp}` y `camelotwheelmodel.{h,cpp}` | Rueda Camelot de §14.3: el modelo (sin widgets) calcula activo, compatibles y contexto a partir de la tonalidad del deck maestro y de los compatibles de F5; el widget dibuja dos anillos de 12 nodos, aristas activas con flecha y un centro con la tonalidad en display. Clic en un nodo filtra la vista Compatibles por esa tonalidad |
 | `transitionplanview.{h,cpp}` y `transitionplanviewmodel.{h,cpp}` | Plan de Smart Mix de §14.3: dos líneas de tiempo con marcas de beat, cues como nodos, ventana de transición, patrones por aspecto (tempo, bajos, ganancia, beatmatch largo) y leyenda MonoLabel. Durante la ejecución, cursor de progreso a 30 fps como máximo |
 | `levelring.{h,cpp}` | Anillo de nivel (progreso de descarga, cobertura de un set offline) como `stack-map__level` |
