@@ -35,15 +35,16 @@ Diseño: §14 del [documento de diseño](../../docs/plans/2026-11-02-crate-decks
 | `color` | `accent`, `onAccent`, `accentHi`, `accentBg`, `accentBorder`, `accentBorderFocus`, `rowHover`, `rowSelected`, `focusRing` | El único acento: `accent` para acción y foco, `accentHi` para lo activo, y sus mezclas para chip seleccionado, bordes y filas |
 | `color` | `warning`, `warningText`, `danger`, `dangerText` | Ámbar para problemas y rojo solo para lo destructivo y el clip. `success` e `info` no se portan: el admin no los usa |
 | `color` | `logoStart`, `logoEnd`, `logoShade` | Colores del logo, base de la paleta de onda |
-| `iconState` | `iconIdle`, `iconHover`, `iconActive`, `iconDisabled`, `iconOnAccent` | Color de cada estado de los iconos y controles generados |
+| `iconState` | `iconIdle`, `iconHover`, `iconActive`, `iconDisabled`, `iconOnAccent`, `iconPrimary` | Color de cada estado de los iconos y controles generados; `iconPrimary` es el icono encendido de los decks B y D, cuyo color es `textPrimary` |
 | `deck` | `deckA` … `deckD` | Color por deck (decidido): A y C en `accentHi`, B y D en `textPrimary` |
 | `waveform` | `waveLowAccent` … `waveHighNeutral`, `wavePlayhead`, `waveBeat`, `waveDownbeat`, `waveBg`, `waveOverviewBg`, `waveOverviewPlayed`, `wavePaletteDeckAC`, `wave*DeckAC`, `wave*DeckBD` | Paleta "filtered" de 3 bandas: cian del logo en A y C, grises fríos en B y D. `wavePaletteDeckAC` elige la paleta de A y C (`Accent` o la reserva `Neutral`) |
 | `meter` | `vuLevel`, `vuWarning`, `vuClip`, `vuTrack`, `vuClipTrack`, `vuWarningDb`, `vuBarWidth` | VU `accentHi` → `warning` desde −6 dBFS → `danger` en clip |
 | `font` | `fontBody`, `fontDisplay`, `fontMono`, `fontWeight*` | Roboto, Bricolage Grotesque y JetBrains Mono, y sus pesos |
-| `fontSize` | `fontSizeCounter` … `fontSizeBody`, `fontSizeTitle`, `fontSizeDisplay`, `fontSizeLegend`, `fontSizeTable`, `fontSizeDeckNumber`, `fontSizeDeckNumberCompact` | Escala del admin (8 a 15 px), títulos de 30 y 40 px, leyendas de 9 px y las propuestas DJ |
+| `fontSize` | `fontSizeCounter` … `fontSizeBody`, `fontSizeTitle`, `fontSizeDisplay`, `fontSizeLegend`, `fontSizeTable`, `fontSizeBrand`, `fontSizeDeckNumber*`, `fontSizeDeckTitle*`, `fontSizeDeckArtistCompactShort`, `fontSizeLabelSmall`, `fontSizeDropTitle`, `fontWeightDeckTitle` | Escala del admin (8 a 15 px), títulos de 30 y 40 px, leyendas de 9 px y los tamaños de la barra y los decks de las maquetas (34, 28, 26 y 22 px para las cifras) |
 | `tracking` | `trackingCaps`, `trackingKicker`, `trackingEyebrow`, `trackingTitle`, `trackingNumeral` | Espaciado en `em`: rótulos en mayúsculas, títulos y numerales |
 | `height` | `heightControl*`, `heightTableCell`, `heightTrackRow*`, `heightTableHeader`, `heightLibraryRow`, `heightSearch` | Alturas del admin (preferencias y diálogos) y la densidad "cabina" de la biblioteca |
-| `layout` | `sidebarWidth`, `sidebarWidthCollapsed`, `topbarHeight`, `activeBarWidth`, `focusRingWidth` | Barra lateral de 240 px, barra superior de 64 px, barra de activo de 2 px y anillo de foco |
+| `layout` | `sidebarWidth`, `sidebarWidthCollapsed`, `topbarHeight`, `activeBarWidth`, `focusRingWidth`, `gutter*`, `layoutNarrowBelow`, `layoutShortBelow`, `toolbar*`, `brand*`, `reading*`, `statusDot`, `iconTextGap`, `monoSeparatorPadding` | Barra lateral de 240 px, barra superior de 64 px, barra de activo de 2 px, anillo de foco, márgenes y huecos de la barra, y los cortes de la distribución de 1366 × 768 (1500 y 800 px, las media queries de las maquetas) |
+| `deckLayout` | `waveformRow*`, `deck*`, `cover*`, `overview*`, `phrase*`, `transport*`, `smallButton*`, `loop*`, `hotcue*`, `stem*`, `mute*`, `pitch*`, `dropZone*`, `badge*`, `menuButtonSize` | Geometría de las ondas, los decks y sus filas, sacada de `lib/decks.css` y `lib/decks.js` de las maquetas aprobadas, con sus variantes de cuatro decks y de 1366 × 768 |
 | `lane` | `laneMeter`, `laneSlider`, `sliderDot`, `scrollbarWidth` | Carriles de 1 y 2 px, punto de slider y scrollbar de 8 px |
 | `radius` | `radiusSm` … `radiusXl`, `radiusPanel`, `radiusPill` | 2–8 px en controles, 14 px en paneles y pastillas |
 | `motion` | `motionFast`, `motionNormal`, `motionEaseSnap` | Solo para QML; QSS no anima |
@@ -93,7 +94,9 @@ Python 3 estándar, sin dependencias. Las salidas se commitean, y el job `design
 | `controls/lane-track.svg`, `controls/lane-fill.svg` | `tools/crate-design/templates/controls/` | Carril de 1 px de las lecturas de la barra, apagado y encendido |
 | `icons/<icono>_<estado>.svg` | `tools/crate-design/svg/solar/` | Cada icono Solar, una vez por estado |
 | `controls/<control>_<estado>.svg` | `tools/crate-design/svg/controls/*.svg.in` | Controles base (checkbox, radio, punto de slider, nodo), una vez por estado |
-| `controls/knob-scale.svg`, `controls/fader-scale-{v,h}.svg`, `controls/fader-handle-{v,h}_<estado>.svg` | Tokens de `knob`, `fader` y `geometry` | Anillo y marcas del knob, carril y marcas del fader, y tirador de contorno (relleno en `active`) |
+| `controls/knob-scale.svg`, `controls/fader-scale-{v,h}.svg`, `controls/fader-handle-{v,h}_<estado>.svg` | Tokens de `knob`, `fader` y `geometry` | Anillo y marcas del knob, carril y marcas del fader, y tirador de contorno (relleno en `active`). Las líneas no escalan (`vector-effect`) cuando la skin estira la escala |
+| `controls/phrase-ruler.svg`, `controls/stem-rail.svg`, `controls/stem-handle.svg` | Tokens de `geometry` y `deckLayout` | Regla de frase del deck (64 beats con marcas de beat, compás y frase), carril de volumen de un stem y su tirador |
+| `cover-default.svg` | `tools/crate-design/templates/cover-default.svg.in` | Carátula de una pista sin carátula |
 
 **Plantillas:** cualquier `<nombre>.<qss|xml|qml|svg>.in` en `tools/crate-design/templates/` produce `generated/<nombre>.<ext>`, también en subcarpetas. Las plantillas SVG dibujan el logo y formas simples desde los tokens; no son iconos (los iconos son solo Solar). Los marcadores son `{{token}}`, `{{token.filtro}}` o una expresión.
 
@@ -108,7 +111,7 @@ Filtros: `.hex`, `.alpha` (0–1), `.argb`, `.rgba`, `.number`, `.unit`, `.list`
 
 **Expresiones:** QSS no tiene `calc()`, así que una plantilla suma, resta y multiplica tokens numéricos en vez de guardar valores derivados en `tokens.json`: `{{heightControlSm - iconMd - strokeHairline}}` da `12px` y `{{trackingCaps * fontSizeLabel}}` da `1.54px` (em por px es px). Los términos de una suma tienen que tener la misma unidad.
 
-**Estados** de iconos y controles: `idle` (`iconIdle`), `hover` (`iconHover`), `active` (`iconActive`), `disabled` (`iconDisabled`) y `onaccent` (`iconOnAccent`, para el icono sobre un botón activo relleno). El generador cambia `currentColor` por el color del estado.
+**Estados** de iconos y controles: `idle` (`iconIdle`), `hover` (`iconHover`), `active` (`iconActive`), `disabled` (`iconDisabled`) `onaccent` (`iconOnAccent`, para el icono sobre un botón activo relleno) y `primary` (`iconPrimary`, el icono encendido de los decks B y D). El generador cambia `currentColor` por el color del estado.
 
 **Falla** si una plantilla usa un token que no existe (con fichero y línea), si un token no lo usa ninguna plantilla ni ningún SVG generado (un `ref` cuenta como uso de su destino), si un SVG no tiene `currentColor`, o si un color no es `#rrggbb`. `Theme.qml.in` expone todos los tokens: al añadir uno, se añade también ahí.
 

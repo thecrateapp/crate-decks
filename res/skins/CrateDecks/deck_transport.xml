@@ -1,0 +1,132 @@
+<!--
+  Transport row (GU1 mockups .transport): CUE outlined in accent, play and
+  sync outlined and filled in the deck colour when on, the hotcue nodes
+  (two decks, above the 1366 breakpoint) and the loop group: loop size
+  (double, right click halves), the size, the loop, key lock and quantize.
+Variables: ChanNum, Pair, Size, InlineHotcues ("1" shows the hotcues in
+  this row above the narrow breakpoint, "5" never: the transform adds it to
+  [CrateDecks],layout_narrow and shows the group when the sum is 1)
+-->
+<Template>
+  <SetVariable name="Group">[Channel<Variable name="ChanNum"/>]</SetVariable>
+  <WidgetGroup>
+    <ObjectName>CrateTransport<Variable name="Size"/></ObjectName>
+    <Layout>horizontal</Layout>
+    <SizePolicy>me,max</SizePolicy>
+    <Children>
+      <CueButton>
+        <TooltipId>cue_default_cue_gotoandstop</TooltipId>
+        <ObjectName>MonoCue<Variable name="Size"/></ObjectName>
+        <NumberStates>2</NumberStates>
+        <RightClickIsPushButton>true</RightClickIsPushButton>
+        <Group><Variable name="Group"/></Group>
+        <State><Number>0</Number><Text>Cue</Text><Alignment>center</Alignment></State>
+        <State><Number>1</Number><Text>Cue</Text><Alignment>center</Alignment></State>
+        <Connection>
+          <ConfigKey><Variable name="Group"/>,cue_default</ConfigKey>
+          <ButtonState>LeftButton</ButtonState>
+        </Connection>
+        <Connection>
+          <ConfigKey><Variable name="Group"/>,cue_gotoandstop</ConfigKey>
+          <ButtonState>RightButton</ButtonState>
+        </Connection>
+        <Connection>
+          <ConfigKey><Variable name="Group"/>,cue_indicator</ConfigKey>
+          <ConnectValueFromWidget>false</ConnectValueFromWidget>
+        </Connection>
+      </CueButton>
+      <PlayButton>
+        <TooltipId>play_cue_set</TooltipId>
+        <ObjectName>CratePlay<Variable name="Size"/><Variable name="Pair"/></ObjectName>
+        <NumberStates>2</NumberStates>
+        <RightClickIsPushButton>true</RightClickIsPushButton>
+        <Group><Variable name="Group"/></Group>
+        <Connection>
+          <ConfigKey><Variable name="Group"/>,play</ConfigKey>
+          <ButtonState>LeftButton</ButtonState>
+        </Connection>
+        <Connection>
+          <ConfigKey><Variable name="Group"/>,cue_set</ConfigKey>
+          <ButtonState>RightButton</ButtonState>
+        </Connection>
+        <Connection>
+          <ConfigKey><Variable name="Group"/>,play_indicator</ConfigKey>
+          <ConnectValueFromWidget>false</ConnectValueFromWidget>
+        </Connection>
+      </PlayButton>
+      <Template src="skins:CrateDecks/controls/deck_text_button.xml">
+        <SetVariable name="Text">Sync</SetVariable>
+        <SetVariable name="TooltipId">sync_enabled</SetVariable>
+        <SetVariable name="ConfigKey"><Variable name="Group"/>,sync_enabled</SetVariable>
+        <SetVariable name="Kind">Sync</SetVariable>
+      </Template>
+
+      <WidgetGroup>
+        <ObjectName>CrateHotcuesInline</ObjectName>
+        <Layout>horizontal</Layout>
+        <SizePolicy>min,min</SizePolicy>
+        <Children>
+          <Template src="skins:CrateDecks/deck_hotcues.xml"/>
+        </Children>
+        <Connection>
+          <ConfigKey>[CrateDecks],layout_narrow</ConfigKey>
+          <Transform><Add><Variable name="InlineHotcues"/></Add><IsEqual>1</IsEqual></Transform>
+          <BindProperty>visible</BindProperty>
+        </Connection>
+      </WidgetGroup>
+
+      <WidgetGroup><SizePolicy>me,min</SizePolicy></WidgetGroup>
+
+      <WidgetGroup>
+        <ObjectName>CrateLoop</ObjectName>
+        <Layout>horizontal</Layout>
+        <SizePolicy>min,min</SizePolicy>
+        <Children>
+          <PushButton>
+            <TooltipId>loop_double</TooltipId>
+            <ObjectName>CrateLoopDouble<Variable name="Size"/></ObjectName>
+            <NumberStates>1</NumberStates>
+            <Connection>
+              <ConfigKey><Variable name="Group"/>,loop_double</ConfigKey>
+              <ButtonState>LeftButton</ButtonState>
+            </Connection>
+            <Connection>
+              <ConfigKey><Variable name="Group"/>,loop_halve</ConfigKey>
+              <ButtonState>RightButton</ButtonState>
+            </Connection>
+          </PushButton>
+          <BeatSpinBox>
+            <TooltipId>beatloop_size</TooltipId>
+            <ObjectName>CrateLoopSize</ObjectName>
+            <Value><Variable name="Group"/>,beatloop_size</Value>
+          </BeatSpinBox>
+          <PushButton>
+            <TooltipId>beatloop_activate</TooltipId>
+            <ObjectName>CrateLoopToggle<Variable name="Size"/><Variable name="Pair"/></ObjectName>
+            <NumberStates>2</NumberStates>
+            <Connection>
+              <ConfigKey><Variable name="Group"/>,beatloop_activate</ConfigKey>
+              <ButtonState>LeftButton</ButtonState>
+            </Connection>
+            <Connection>
+              <ConfigKey><Variable name="Group"/>,loop_enabled</ConfigKey>
+              <ConnectValueFromWidget>false</ConnectValueFromWidget>
+            </Connection>
+          </PushButton>
+          <Template src="skins:CrateDecks/controls/deck_text_button.xml">
+            <SetVariable name="Text">Key</SetVariable>
+            <SetVariable name="TooltipId">keylock</SetVariable>
+            <SetVariable name="ConfigKey"><Variable name="Group"/>,keylock</SetVariable>
+            <SetVariable name="Kind">Small</SetVariable>
+          </Template>
+          <Template src="skins:CrateDecks/controls/deck_text_button.xml">
+            <SetVariable name="Text">Q</SetVariable>
+            <SetVariable name="TooltipId">quantize</SetVariable>
+            <SetVariable name="ConfigKey"><Variable name="Group"/>,quantize</SetVariable>
+            <SetVariable name="Kind">Small</SetVariable>
+          </Template>
+        </Children>
+      </WidgetGroup>
+    </Children>
+  </WidgetGroup>
+</Template>

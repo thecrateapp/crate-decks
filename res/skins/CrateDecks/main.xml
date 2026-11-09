@@ -2,6 +2,9 @@
   Layout of the CrateDecks skin. generated/vars.xml instantiates it with the
   variables of res/crate-design/tokens.json in scope.
 
+  The layout of the GU1 mockups: toolbar, waveforms, decks and mixer, the
+  folded racks and the library.
+
   The variables below are LateNight's PaleMoon scheme. The parts of LateNight
   that V2 has not redone yet (mixer, effects, samplers, mic and aux, library)
   still use them; each V2 PR that redoes a part moves it to the Crate*
@@ -74,189 +77,93 @@
     <SetVariable name="BarMarginPitchSampler">5,5</SetVariable>
     <SetVariable name="BarMarginCrossfader">7,7</SetVariable>
 
-      <SetVariable name="Align">center</SetVariable>
+  <SetVariable name="Align">center</SetVariable>
 
-      <!-- Define singletons as early in the skin as possible.
-      Note that Singletons don't actually appear here, they are just instantiated
-      and configured. -->
-      <SingletonDefinition>
-        <ObjectName>Deck1_Src</ObjectName>
-        <Children>
-        <Template src="skins:CrateDecks/decks/deck.xml">
-          <SetVariable name="ChanNum">1</SetVariable>
-          <SetVariable name="DeckGroup">12</SetVariable>
-          <SetVariable name="SignalColor"><Variable name="SignalColor_12"/></SetVariable>
-          <SetVariable name="BgColor"><Variable name="BgColorOverview_12"/></SetVariable>
-        </Template>
-        </Children>
-      </SingletonDefinition>
+  <!-- Singletons first: they are only instantiated here, and shown where a
+       SingletonContainer names them -->
+  <Template src="skins:CrateDecks/mixer/singletons.xml"/>
 
-      <SingletonDefinition>
-        <ObjectName>Deck2_Src</ObjectName>
-        <Children>
-          <Template src="skins:CrateDecks/decks/deck.xml">
-            <SetVariable name="ChanNum">2</SetVariable>
-            <SetVariable name="DeckGroup">12</SetVariable>
-            <SetVariable name="SignalColor"><Variable name="SignalColor_12"/></SetVariable>
-            <SetVariable name="BgColor"><Variable name="BgColorOverview_12"/></SetVariable>
-          </Template>
-        </Children>
-      </SingletonDefinition>
+  <SingletonDefinition>
+    <ObjectName>LibrarySingleton</ObjectName>
+    <Children>
+      <Template src="skins:CrateDecks/library.xml"/>
+    </Children>
+  </SingletonDefinition>
 
-      <SingletonDefinition>
-        <ObjectName>Deck3_Src</ObjectName>
-        <Children>
-        <Template src="skins:CrateDecks/decks/deck.xml">
-          <SetVariable name="ChanNum">3</SetVariable>
-          <SetVariable name="DeckGroup">34</SetVariable>
-          <SetVariable name="SignalColor"><Variable name="SignalColor_34"/></SetVariable>
-          <SetVariable name="BgColor"><Variable name="BgColorOverview_34"/></SetVariable>
-        </Template>
-        </Children>
-      </SingletonDefinition>
+  <SingletonDefinition>
+    <ObjectName>SamplerSettingsSingleton</ObjectName>
+    <Children>
+      <Template src="skins:CrateDecks/helpers/skin_settings_samplers.xml"/>
+    </Children>
+  </SingletonDefinition>
 
-      <SingletonDefinition>
-        <ObjectName>Deck4_Src</ObjectName>
-        <Children>
-        <Template src="skins:CrateDecks/decks/deck.xml">
-          <SetVariable name="ChanNum">4</SetVariable>
-          <SetVariable name="DeckGroup">34</SetVariable>
-          <SetVariable name="SignalColor"><Variable name="SignalColor_34"/></SetVariable>
-          <SetVariable name="BgColor"><Variable name="BgColorOverview_34"/></SetVariable>
-        </Template>
-        </Children>
-      </SingletonDefinition>
+  <WidgetGroup>
+    <ObjectName>SkinContainer</ObjectName>
+    <Layout>vertical</Layout>
+    <!-- Expanding, not MinimumExpanding: the window may be narrower than
+         the wide toolbar, so that the skin reaches its 1366 layout -->
+    <SizePolicy>e,e</SizePolicy>
+    <Children>
 
-      <Template src="skins:CrateDecks/mixer/singletons.xml"/>
+      <Template src="skins:CrateDecks/toolbar.xml"/>
 
-      <SingletonDefinition>
-        <ObjectName>LibrarySingleton</ObjectName>
-        <Children>
-          <Template src="skins:CrateDecks/library.xml"/>
-        </Children>
-      </SingletonDefinition>
-
-      <SingletonDefinition>
-        <ObjectName>SamplerSettingsSingleton</ObjectName>
-        <Children>
-          <Template src="skins:CrateDecks/helpers/skin_settings_samplers.xml"/>
-        </Children>
-      </SingletonDefinition>
-
+      <!-- regular/maximized library  |  skin settings menu -->
       <WidgetGroup>
-        <ObjectName>SkinContainer</ObjectName>
-        <Layout>vertical</Layout>
-        <!-- Expanding, not MinimumExpanding: the window may be narrower than
-             the wide toolbar, so that the skin reaches its 1366 layout -->
-        <SizePolicy>e,e</SizePolicy>
+        <Layout>horizontal</Layout>
+        <SizePolicy>me,me</SizePolicy>
         <Children>
 
-          <Template src="skins:CrateDecks/toolbar.xml"/>
-
-          <!-- regular/maximized library  |  skin settings menu -->
-          <WidgetGroup>
-            <Layout>horizontal</Layout>
-            <SizePolicy>me,me</SizePolicy>
+          <WidgetStack currentpage="[Skin],show_maximized_library">
             <Children>
 
-              <!-- regular or maximized library -->
-              <WidgetStack currentpage="[Skin],show_maximized_library">
+              <!-- Waveforms, decks and mixer, racks, library -->
+              <WidgetGroup>
+                <ObjectName>CrateMain</ObjectName>
+                <Layout>vertical</Layout>
+                <SizePolicy>me,me</SizePolicy>
                 <Children>
-
-                  <!-- Waveforms, Decks, Effects... /  Library
-                  This view needs to be set up first because it instantiates
-                  the mini deck Singletons we need in maximized library view. -->
-                  <Splitter>
-                    <ObjectName>WaveformSplitter</ObjectName>
-                    <Orientation>vertical</Orientation>
-                    <SizePolicy>me,min</SizePolicy>
-                    <SplitSizes>100,550</SplitSizes>
-                    <SplitSizesConfigKey>[Skin],stackedWaveforms_splitSize</SplitSizesConfigKey>
-                    <Collapsible>0,0</Collapsible>
-                    <Children>
-
-                      <WidgetGroup>
-                        <Layout>vertical</Layout>
-                        <SizePolicy>me,me</SizePolicy>
-                        <Children>
-                          <Template src="skins:CrateDecks/waveforms_container.xml"/>
-                        </Children>
-                        <Connection>
-                          <ConfigKey persist="true">[Skin],show_waveforms</ConfigKey>
-                          <BindProperty>visible</BindProperty>
-                        </Connection>
-                      </WidgetGroup>
-
-                      <WidgetGroup>
-                        <ObjectName>DecksMixerContainer</ObjectName>
-                        <Layout>vertical</Layout>
-                        <SizePolicy>me,me</SizePolicy>
-                        <Children>
-                          <WidgetGroup><!-- Top spacer when waveforms are hidden -->
-                            <ObjectName>ToolbarDeckSpacer</ObjectName>
-                            <Connection>
-                              <ConfigKey persist="true">[Skin],show_waveforms</ConfigKey>
-                              <Transform><Not/></Transform>
-                              <BindProperty>visible</BindProperty>
-                            </Connection>
-                          </WidgetGroup><!-- ToolbarDeckSpacer -->
-
-                          <WidgetGroup>
-                            <Layout>horizontal</Layout>
-                            <SizePolicy>me,max</SizePolicy>
-                            <Children>
-                              <Template src="skins:CrateDecks/decks/decks_left.xml"/>
-                              <Template src="skins:CrateDecks/mixer.xml"/>
-                              <Template src="skins:CrateDecks/decks/decks_right.xml"/>
-                            </Children>
-                          </WidgetGroup>
-
-                          <Template src="skins:CrateDecks/fx_rack.xml"/>
-                          <Template src="skins:CrateDecks/samplers_rack.xml"/>
-                          <Template src="skins:CrateDecks/mic_aux_rack.xml"/>
-
-                          <SingletonContainer>
-                            <ObjectName>LibrarySingleton</ObjectName>
-                          </SingletonContainer>
-                        </Children>
-                      </WidgetGroup>
-
-                    </Children>
-                  </Splitter>
-                  <!-- Decks, Effects, Samplers, Mic/Aux, Library -->
-
-                  <!-- Maximized Library & mini decks only -->
-                  <WidgetGroup trigger="[Skin],show_maximized_library" on_hide_select="0">
+                  <WidgetGroup>
                     <Layout>vertical</Layout>
-                    <SizePolicy>me,me</SizePolicy>
+                    <SizePolicy>me,min</SizePolicy>
                     <Children>
-
-                      <WidgetGroup>
-                        <Layout>horizontal</Layout>
-                        <SizePolicy>me,max</SizePolicy>
-                        <Children>
-                          <Template src="skins:CrateDecks/decks/decks_left_mini.xml"/>
-                          <Template src="skins:CrateDecks/decks/decks_right_mini.xml"/>
-                        </Children>
-                        <Connection>
-                          <ConfigKey persist="true">[LateNight],max_lib_show_decks</ConfigKey>
-                          <BindProperty>visible</BindProperty>
-                        </Connection>
-                      </WidgetGroup>
-
-                      <SingletonContainer>
-                        <ObjectName>LibrarySingleton</ObjectName>
-                      </SingletonContainer>
+                      <Template src="skins:CrateDecks/waveforms.xml"/>
                     </Children>
-                  </WidgetGroup><!-- Maximized Library & mini decks only -->
+                    <Connection>
+                      <ConfigKey persist="true">[Skin],show_waveforms</ConfigKey>
+                      <BindProperty>visible</BindProperty>
+                    </Connection>
+                  </WidgetGroup>
 
+                  <Template src="skins:CrateDecks/decks_row.xml"/>
+
+                  <Template src="skins:CrateDecks/fx_rack.xml"/>
+                  <Template src="skins:CrateDecks/samplers_rack.xml"/>
+                  <Template src="skins:CrateDecks/mic_aux_rack.xml"/>
+
+                  <SingletonContainer>
+                    <ObjectName>LibrarySingleton</ObjectName>
+                  </SingletonContainer>
                 </Children>
-              </WidgetStack>
-              <Template src="skins:CrateDecks/skin_settings.xml"/>
+              </WidgetGroup>
+
+              <!-- Maximized library (its design is V2.PR4's) -->
+              <WidgetGroup trigger="[Skin],show_maximized_library" on_hide_select="0">
+                <Layout>vertical</Layout>
+                <SizePolicy>me,me</SizePolicy>
+                <Children>
+                  <SingletonContainer>
+                    <ObjectName>LibrarySingleton</ObjectName>
+                  </SingletonContainer>
+                </Children>
+              </WidgetGroup>
 
             </Children>
-          </WidgetGroup><!-- regular/maximized library + skin settings menu -->
+          </WidgetStack>
+          <Template src="skins:CrateDecks/skin_settings.xml"/>
 
         </Children>
       </WidgetGroup>
+
+    </Children>
+  </WidgetGroup>
 </Template>

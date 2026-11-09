@@ -227,3 +227,689 @@ QToolTip {
   font-size: 15px;
   color: #f1f5f9;
 }
+
+/* ── Waveforms (decks.css .wf): a row per deck ─────────────────────── */
+
+#CrateMain {
+  background-color: #0a0a0f;
+}
+#CrateWaveformBand {
+  border-bottom: 1px solid rgba(241, 245, 249, 26);
+}
+#CrateWaveformRowTwo {
+  min-height: 92px;
+  max-height: 92px;
+}
+#CrateWaveformRowTwo[highlight="1"] {
+  min-height: 64px;
+  max-height: 64px;
+}
+#CrateWaveformRowFour {
+  min-height: 52px;
+  max-height: 52px;
+}
+#CrateWaveformRowFour[highlight="1"] {
+  min-height: 36px;
+  max-height: 36px;
+}
+#CrateWaveformRule,
+#CrateDeckRule {
+  min-height: 1px;
+  max-height: 1px;
+}
+#CrateWaveformRule {
+  background-color: rgba(241, 245, 249, 15);
+}
+#CrateDeckRule {
+  background-color: rgba(241, 245, 249, 26);
+}
+#CrateWaveformGutter {
+  border-right: 1px solid rgba(241, 245, 249, 15);
+  padding: 7px 0;
+  min-width: 33px;
+  max-width: 33px;
+}
+#CrateWaveLetterAC,
+#CrateWaveLetterBD {
+  font-family: "JetBrains Mono";
+  font-size: 13px;
+}
+#CrateWaveLetterAC { color: #67e8f9; }
+#CrateWaveLetterBD { color: #f1f5f9; }
+#CrateWaveDotAC,
+#CrateWaveDotBD {
+  background-color: #4a4c52;
+  border-radius: 3px;
+  min-width: 6px;
+  max-width: 6px;
+  min-height: 6px;
+  max-height: 6px;
+}
+#CrateWaveDotAC[highlight="1"] { background-color: #67e8f9; }
+#CrateWaveDotBD[highlight="1"] { background-color: #f1f5f9; }
+
+/* ── Decks and mixer (decks.css .decks) ─────────────────────────────── */
+
+#CrateDecksRow {
+  border-bottom: 1px solid rgba(241, 245, 249, 26);
+}
+#CrateMixerBox {
+  border-left: 1px solid rgba(241, 245, 249, 26);
+  border-right: 1px solid rgba(241, 245, 249, 26);
+}
+
+/* A deck: padding of .deck, the gutter narrower below the 1366
+   breakpoint; the pitch column 14 px from the deck. A group's padding does
+   not follow a restyle, so the paddings are layout margins, which
+   WWidgetGroup applies twice (half the value each time). With four decks
+   below the 768 breakpoint the mockups' 7 px becomes 8. */
+#CrateDeck {
+  qproperty-layoutContentsMargins: rect(0 7 0 6);
+}
+#CrateDeck[highlight="1"],
+#CrateDeckFour {
+  qproperty-layoutContentsMargins: rect(0 5 0 5);
+}
+#CrateDeckFour[highlight="1"] {
+  qproperty-layoutContentsMargins: rect(0 4 0 4);
+}
+#CrateDeckSides,
+#CrateDeckFourSides {
+  qproperty-layoutContentsMargins: rect(10 0 10 0);
+  qproperty-layoutSpacing: 14;
+}
+#CrateDeckSides[highlight="1"],
+#CrateDeckFourSides[highlight="1"] {
+  qproperty-layoutContentsMargins: rect(7 0 7 0);
+}
+#CrateDeckMain,
+#CrateDeckBody {
+  qproperty-layoutSpacing: 10;
+}
+#CrateDeckMain[highlight="1"],
+#CrateDeckBody[highlight="1"],
+#CrateDeckMainFour,
+#CrateDeckBodyFour {
+  qproperty-layoutSpacing: 8;
+}
+#CrateDeckMainFour[highlight="1"],
+#CrateDeckBodyFour[highlight="1"] {
+  qproperty-layoutSpacing: 6;
+}
+
+/* Header: letter box, MonoLabel, Leader badge, Crate state, menu */
+#CrateDeckHead {
+  qproperty-layoutSpacing: 10;
+  min-height: 24px;
+  max-height: 24px;
+}
+#CrateDeckHeadMeta {
+  qproperty-layoutSpacing: 0;
+}
+#CrateDeckLetterAC,
+#CrateDeckLetterBD {
+  font-family: "JetBrains Mono";
+  font-size: 11px;
+  border-radius: 2px;
+  min-width: 18px;
+  max-width: 18px;
+  min-height: 18px;
+  max-height: 18px;
+}
+#CrateDeckLetterAC { border: 1px solid #67e8f9; color: #67e8f9; }
+#CrateDeckLetterBD { border: 1px solid #f1f5f9; color: #f1f5f9; }
+#MonoDeckHeadSep {
+  padding: 0 4px;
+}
+/* InfoBadge, accent tone */
+#CrateDeckLeader {
+  font-family: "JetBrains Mono";
+  font-size: 7.875pt;
+  color: #67e8f9;
+  background-color: rgba(6, 182, 212, 26);
+  border: 1px solid rgba(103, 232, 249, 102);
+  border-radius: 10px;
+  padding: 0 7px;
+  min-height: 18px;
+  max-height: 18px;
+}
+#CrateDeckTrackState {
+  qproperty-layoutSpacing: 8;
+}
+#CrateDeckStateDot {
+  background-color: #67e8f9;
+  border-radius: 3px;
+  margin: 9px 0;
+  min-width: 6px;
+  max-width: 6px;
+  min-height: 6px;
+  max-height: 6px;
+}
+#MonoDeckState {
+  color: #67e8f9;
+}
+#CrateDeckMenuButton {
+  background-color: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  image: url(skins:CrateDecks/generated/icons/menu-dots_idle.svg);
+  padding: 2px;
+  min-width: 18px;
+  max-width: 18px;
+  min-height: 18px;
+  max-height: 18px;
+}
+#CrateDeckMenuButton[displayValue="1"] {
+  image: url(skins:CrateDecks/generated/icons/menu-dots_active.svg);
+}
+
+/* Track row: cover, title, artist and genre, the deck numbers */
+#CrateDeckTrack,
+#CrateDeckTrackFour {
+  qproperty-layoutSpacing: 18;
+}
+#CrateDeckTrack[highlight="1"],
+#CrateDeckTrackFour[highlight="1"] {
+  qproperty-layoutSpacing: 12;
+}
+#CrateDeckCover {
+  min-width: 52px;
+  max-width: 52px;
+  min-height: 52px;
+  max-height: 52px;
+}
+#CrateDeckCoverFour {
+  min-width: 40px;
+  max-width: 40px;
+  min-height: 40px;
+  max-height: 40px;
+}
+#CrateDeckTitle {
+  qproperty-layoutSpacing: 3;
+}
+#CrateDeckTitleText,
+#CrateDeckTitleTextFour {
+  font-family: "Roboto";
+  font-weight: 500;
+  color: #f1f5f9;
+}
+#CrateDeckTitleText {
+  font-size: 19px;
+  letter-spacing: -0.19px;
+}
+#CrateDeckTitleTextFour {
+  font-size: 16px;
+  letter-spacing: -0.16px;
+}
+#CrateDeckTitleTextFour[highlight="1"] {
+  font-size: 14px;
+  letter-spacing: -0.14px;
+}
+#CrateDeckArtistRow {
+  qproperty-layoutSpacing: 0;
+  qproperty-layoutAlignment: 'AlignLeft | AlignVCenter';
+}
+#CrateDeckArtist,
+#CrateDeckArtistFour {
+  font-family: "Roboto";
+  font-size: 13px;
+  color: #999ca0;
+}
+#CrateDeckArtistFour[highlight="1"] {
+  font-size: 12px;
+}
+#CrateDeckNumber {
+  qproperty-layoutSpacing: 6;
+}
+/* Bricolage 700 with tabular figures (C++ adds tnum and the axes) */
+[objectName^="DeckNumber"] {
+  font-family: "Bricolage Grotesque";
+  font-weight: 700;
+  color: #f1f5f9;
+}
+/* The line box is .display's 0.95 em, tighter than the font's own */
+#DeckNumberBpm,
+#DeckNumberTime {
+  font-size: 34px;
+  letter-spacing: -1.53px;
+  min-height: 32.3px;
+  max-height: 32.3px;
+}
+#DeckNumberBpm[highlight="1"],
+#DeckNumberTime[highlight="1"] {
+  font-size: 28px;
+  letter-spacing: -1.26px;
+  min-height: 26.6px;
+  max-height: 26.6px;
+}
+#DeckNumberBpmFour,
+#DeckNumberTimeFour {
+  font-size: 26px;
+  letter-spacing: -1.17px;
+  min-height: 24.7px;
+  max-height: 24.7px;
+}
+#DeckNumberBpmFour[highlight="1"],
+#DeckNumberTimeFour[highlight="1"] {
+  font-size: 22px;
+  letter-spacing: -0.99px;
+  min-height: 20.9px;
+  max-height: 20.9px;
+}
+
+/* Overview: 40 to 88 px, the flexible row of the deck */
+#CrateOverviewBox {
+  min-height: 40px;
+  max-height: 88px;
+}
+#CrateOverviewBox[highlight="1"] {
+  max-height: 44px;
+}
+#CrateOverviewBoxFour {
+  min-height: 32px;
+  max-height: 40px;
+}
+#CrateOverviewBoxFour[highlight="1"] {
+  min-height: 28px;
+  max-height: 28px;
+}
+
+/* Deck menu over the overview */
+#CrateDeckMenu {
+  background-color: #111218;
+  border: 1px solid rgba(241, 245, 249, 26);
+  border-radius: 6px;
+  padding: 8px;
+  qproperty-layoutSpacing: 4;
+}
+
+/* Transport (decks.css .tbtn): outlined; CUE in accent; play and sync
+   filled in the deck colour when on */
+#CrateTransport,
+#CrateTransportFour {
+  qproperty-layoutSpacing: 8;
+}
+[objectName^="MonoCue"] {
+  background-color: transparent;
+  border: 1px solid #06b6d4;
+  border-radius: 4px;
+  color: #06b6d4;
+  min-width: 50px;
+  max-width: 50px;
+}
+[objectName^="MonoCue"][displayValue="1"] {
+  background-color: rgba(6, 182, 212, 26);
+}
+#MonoCue {
+  min-height: 34px;
+  max-height: 34px;
+}
+#MonoCueFour {
+  min-height: 28px;
+  max-height: 28px;
+}
+[objectName^="CratePlay"] {
+  background-color: transparent;
+  border: 1px solid rgba(241, 245, 249, 15);
+  border-radius: 4px;
+  image: url(skins:CrateDecks/generated/icons/play-bold_idle.svg);
+  min-width: 50px;
+  max-width: 50px;
+  min-height: 16px;
+  max-height: 16px;
+}
+#CratePlayAC,
+#CratePlayBD {
+  padding: 9px 0;
+}
+#CratePlayFourAC,
+#CratePlayFourBD {
+  padding: 6px 0;
+}
+[objectName^="CratePlay"][displayValue="1"] {
+  image: url(skins:CrateDecks/generated/icons/pause-bold_onaccent.svg);
+}
+[objectName^="CratePlay"][objectName$="AC"][displayValue="1"] {
+  background-color: #67e8f9;
+  border-color: #67e8f9;
+}
+[objectName^="CratePlay"][objectName$="BD"][displayValue="1"] {
+  background-color: #f1f5f9;
+  border-color: #f1f5f9;
+}
+
+/* Text buttons: a MonoLabel under a transparent frame */
+[objectName^="MonoDeckButtonText"] {
+  color: rgba(241, 245, 249, 199);
+  border: 1px solid transparent;
+}
+[objectName^="MonoDeckButtonTextSync"] {
+  padding: 0 12px;
+  min-width: 26px;
+}
+[objectName^="MonoDeckButtonTextSmall"],
+[objectName^="MonoDeckButtonTextMenu"] {
+  padding: 0 8px;
+}
+#MonoDeckButtonTextSyncAC,
+#MonoDeckButtonTextSyncBD {
+  min-height: 34px;
+  max-height: 34px;
+}
+#MonoDeckButtonTextSyncFourAC,
+#MonoDeckButtonTextSyncFourBD {
+  min-height: 28px;
+  max-height: 28px;
+}
+[objectName^="MonoDeckButtonTextSmall"],
+[objectName^="MonoDeckButtonTextMenu"] {
+  min-height: 26px;
+  max-height: 26px;
+}
+[objectName^="CrateDeckButtonFrame"] {
+  background-color: transparent;
+  border: 1px solid rgba(241, 245, 249, 15);
+  border-radius: 4px;
+}
+/* Sync on: filled in the deck colour, text onAccent */
+[objectName^="MonoDeckButtonTextSync"][highlight="1"] {
+  color: #0a0a0f;
+}
+[objectName^="CrateDeckButtonFrameSync"][objectName$="AC"][displayValue="1"] {
+  background-color: #67e8f9;
+  border-color: #67e8f9;
+}
+[objectName^="CrateDeckButtonFrameSync"][objectName$="BD"][displayValue="1"] {
+  background-color: #f1f5f9;
+  border-color: #f1f5f9;
+}
+/* Small buttons and the menu lit: outline and text in the deck colour */
+[objectName^="MonoDeckButtonTextSmall"][objectName$="AC"][highlight="1"],
+[objectName^="MonoDeckButtonTextMenu"][objectName$="AC"][highlight="1"] {
+  color: #67e8f9;
+}
+[objectName^="MonoDeckButtonTextSmall"][objectName$="BD"][highlight="1"],
+[objectName^="MonoDeckButtonTextMenu"][objectName$="BD"][highlight="1"] {
+  color: #f1f5f9;
+}
+[objectName^="CrateDeckButtonFrameSmall"][objectName$="AC"][displayValue="1"],
+[objectName^="CrateDeckButtonFrameMenu"][objectName$="AC"][displayValue="1"] {
+  border-color: rgba(103, 232, 249, 102);
+}
+[objectName^="CrateDeckButtonFrameSmall"][objectName$="BD"][displayValue="1"],
+[objectName^="CrateDeckButtonFrameMenu"][objectName$="BD"][displayValue="1"] {
+  border-color: rgba(241, 245, 249, 102);
+}
+
+/* Hotcues as nodes: a circle of hotcueRadius in its box, hollow at rest
+   and stroked in the deck colour when set. Mixxx fills a set hotcue with
+   its colour; the padding leaves no content for that fill
+   (background-clip), and the number is drawn over the whole button. */
+#CrateHotcues,
+#CrateHotcuesFour {
+  qproperty-layoutSpacing: 2;
+}
+#CrateHotcuesInline {
+  padding-left: 6px;
+}
+[objectName^="CrateCueNode"] {
+  font-family: "JetBrains Mono";
+  font-size: 10px;
+  color: #4a4c52;
+  background-color: transparent;
+  background-clip: content;
+  border: 1px solid rgba(241, 245, 249, 26);
+  border-radius: 10px;
+  margin: 4px;
+  padding: 9px;
+  min-width: 0;
+  min-height: 0;
+  max-width: 0;
+  max-height: 0;
+}
+[objectName^="CrateCueNode"][displayValue="1"],
+[objectName^="CrateCueNode"][displayValue="2"] {
+  color: #f1f5f9;
+}
+[objectName^="CrateCueNode"][objectName$="AC"][displayValue="1"],
+[objectName^="CrateCueNode"][objectName$="AC"][displayValue="2"] {
+  border-color: #67e8f9;
+}
+[objectName^="CrateCueNode"][objectName$="BD"][displayValue="1"],
+[objectName^="CrateCueNode"][objectName$="BD"][displayValue="2"] {
+  border-color: #f1f5f9;
+}
+#CrateCueRowFour[highlight="1"] [objectName^="CrateCueNode"] {
+  margin: 2px;
+}
+
+/* Loop group: loop size, the size, the loop, key lock and quantize */
+#CrateLoop {
+  qproperty-layoutSpacing: 4;
+}
+[objectName^="CrateLoopDouble"],
+[objectName^="CrateLoopToggle"] {
+  background-color: transparent;
+  border: 1px solid rgba(241, 245, 249, 15);
+  border-radius: 4px;
+  padding: 5px 8px;
+  min-width: 16px;
+  max-width: 16px;
+  min-height: 16px;
+  max-height: 16px;
+}
+[objectName^="CrateLoopDouble"] {
+  image: url(skins:CrateDecks/generated/icons/alt-arrow-right_idle.svg);
+}
+[objectName^="CrateLoopToggle"] {
+  image: url(skins:CrateDecks/generated/icons/repeat_idle.svg);
+}
+[objectName^="CrateLoopToggle"][objectName$="AC"][displayValue="1"] {
+  border-color: rgba(103, 232, 249, 102);
+  image: url(skins:CrateDecks/generated/icons/repeat_active.svg);
+}
+[objectName^="CrateLoopToggle"][objectName$="BD"][displayValue="1"] {
+  border-color: rgba(241, 245, 249, 102);
+  image: url(skins:CrateDecks/generated/icons/repeat_primary.svg);
+}
+/* The loop size keeps LateNight's spin box geometry, whose arrows still
+   change the size, but shows only its number: without the arrows' room
+   Qt leaves the edit field 1 px wide */
+WBeatSpinBox#CrateLoopSize {
+  font-family: "JetBrains Mono";
+  font-size: 13px;
+  color: #f1f5f9;
+  background-color: transparent;
+  border-image: none;
+  border-style: solid;
+  border-color: transparent;
+  /* the readout and the room of the hidden arrows */
+  min-width: 42px;
+  max-width: 42px;
+  qproperty-alignment: AlignCenter;
+}
+WBeatSpinBox#CrateLoopSize QLineEdit {
+  background-color: transparent;
+}
+WBeatSpinBox#CrateLoopSize::up-button,
+WBeatSpinBox#CrateLoopSize::down-button {
+  background-color: transparent;
+  image: none;
+}
+
+/* Cue row and stems */
+#CrateCueRow,
+#CrateCueRowFour {
+  qproperty-layoutSpacing: 12;
+}
+#CrateStems {
+  border-top: 1px solid rgba(241, 245, 249, 15);
+  padding-top: 8px;
+  qproperty-layoutSpacing: 14;
+}
+#CrateStemsRow {
+  qproperty-layoutSpacing: 14;
+}
+#CrateStemsGrid {
+  qproperty-layoutSpacing: 6;
+}
+#CrateStem {
+  qproperty-layoutSpacing: 8;
+}
+#MonoStemsLabel,
+#MonoStemName,
+[objectName^="MonoStemChipText"],
+#MonoStemChipsLabel,
+#MonoPitchLabel {
+  font-size: 7.125pt;
+  letter-spacing: 1.33px;
+}
+#MonoStemName {
+  min-width: 42px;
+}
+#MonoStemName[highlight="1"] {
+  color: #4a4c52;
+}
+#CrateStemRail {
+  min-height: 18px;
+  max-height: 18px;
+}
+[objectName^="CrateStemMute"] {
+  background-color: transparent;
+  border: 1px solid rgba(241, 245, 249, 15);
+  border-radius: 2px;
+  image: url(skins:CrateDecks/generated/icons/volume-cross_idle.svg);
+  padding: 3px 4px;
+  min-width: 14px;
+  max-width: 14px;
+  min-height: 14px;
+  max-height: 14px;
+}
+[objectName^="CrateStemMute"][displayValue="1"] {
+  image: url(skins:CrateDecks/generated/icons/volume-cross_onaccent.svg);
+}
+#CrateStemMuteAC[displayValue="1"] {
+  background-color: #67e8f9;
+  border-color: #67e8f9;
+}
+#CrateStemMuteBD[displayValue="1"] {
+  background-color: #f1f5f9;
+  border-color: #f1f5f9;
+}
+#CrateStemChips,
+#CrateStemChipsRow {
+  qproperty-layoutSpacing: 6;
+}
+[objectName^="MonoStemChipText"] {
+  color: rgba(241, 245, 249, 199);
+  border: 1px solid transparent;
+  padding: 0 9px 0 8px;
+  min-height: 20px;
+  max-height: 20px;
+}
+[objectName^="MonoStemChipText"][highlight="1"] {
+  color: #4a4c52;
+  text-decoration: line-through;
+}
+#CrateStemChipFrame {
+  background-color: transparent;
+  border: 1px solid rgba(241, 245, 249, 15);
+  border-radius: 2px;
+}
+#CrateStemChipFrame[displayValue="1"] {
+  border-color: rgba(241, 245, 249, 15);
+}
+/* Below the 1366 breakpoint the four-deck stems are a single label */
+#MonoStemChipsLabel[highlight="1"] {
+  border: 1px solid rgba(241, 245, 249, 15);
+  border-radius: 2px;
+  padding: 0 8px;
+  min-height: 20px;
+  max-height: 20px;
+}
+
+/* Phrase rule and Smart Mix line (laid out, hidden until their data) */
+#CratePhrase {
+  qproperty-layoutSpacing: 12;
+  min-height: 18px;
+  max-height: 18px;
+}
+#CratePhraseRuler {
+  border-image: url(skins:CrateDecks/generated/controls/phrase-ruler.svg) 0 0 0 0 stretch stretch;
+}
+#CratePhraseText {
+  font-family: "JetBrains Mono";
+  font-size: 11px;
+  color: rgba(241, 245, 249, 199);
+}
+#CrateNext {
+  qproperty-layoutSpacing: 10;
+  min-height: 22px;
+  max-height: 22px;
+}
+#CrateNextIcon {
+  image: url(skins:CrateDecks/generated/icons/stars_active.svg);
+  min-width: 16px;
+  max-width: 16px;
+  min-height: 16px;
+  max-height: 16px;
+}
+#CrateNextLane {
+  background-color: rgba(241, 245, 249, 26);
+  margin: 10.5px 0;
+  min-height: 1px;
+  max-height: 1px;
+}
+#CrateNextCountdown {
+  font-family: "JetBrains Mono";
+  font-size: 11px;
+  color: #f1f5f9;
+}
+
+/* Pitch column (decks.css .pitch) */
+#CratePitch,
+#CratePitchFour {
+  qproperty-layoutSpacing: 8;
+  min-width: 54px;
+  max-width: 54px;
+}
+[objectName^="CratePitchFader"] {
+  min-width: 34px;
+  max-width: 34px;
+}
+#CratePitchFader {
+  min-height: 120px;
+}
+#CratePitchFaderFour {
+  min-height: 80px;
+}
+#CratePitchFaderFour[highlight="1"] {
+  min-height: 60px;
+}
+#CratePitchValue {
+  font-family: "JetBrains Mono";
+  font-size: 11px;
+  color: rgba(241, 245, 249, 199);
+}
+
+/* Empty deck: drop zone */
+#CrateDropZone {
+  border: 1px dashed rgba(241, 245, 249, 26);
+  border-radius: 6px;
+  qproperty-layoutSpacing: 14;
+}
+#CrateDropIcon {
+  image: url(skins:CrateDecks/generated/icons/vinyl-record_disabled.svg);
+  min-width: 28px;
+  max-width: 28px;
+  min-height: 28px;
+  max-height: 28px;
+}
+#CrateDropText {
+  qproperty-layoutSpacing: 4;
+}
+#CrateDropTitle {
+  font-family: "Roboto";
+  font-size: 14px;
+  color: #999ca0;
+}

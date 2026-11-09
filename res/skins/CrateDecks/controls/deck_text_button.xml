@@ -1,0 +1,43 @@
+<!--
+Description:
+  A small text button of a deck (.tbtn[data-small]): a MonoLabel text under
+  a transparent button that takes the clicks and draws the border, the
+  outline in the deck colour when lit and the fill when on. The text gives
+  the button its width.
+Variables:
+  Text       : label text
+  TooltipId  : tooltip from src/skin/legacy/tooltips.cpp
+  ConfigKey  : control the button toggles
+  Kind       : Sync (a transport button), Small (the loop group) or Menu
+  Size       : "" for two decks, "Four" for the compact decks
+  Pair       : AC or BD, the colour of the deck
+  QSS selects the size on the start of the object names and the colour on
+  their end.
+-->
+<Template>
+  <WidgetGroup>
+    <ObjectName>CrateDeckButton</ObjectName>
+    <Layout>stacked</Layout>
+    <SizePolicy>max,max</SizePolicy>
+    <Children>
+      <Label>
+        <ObjectName>MonoDeckButtonText<Variable name="Kind"/><Variable name="Size"/><Variable name="Pair"/></ObjectName>
+        <Text><Variable name="Text"/></Text>
+        <Alignment>center</Alignment>
+        <Connection>
+          <ConfigKey><Variable name="ConfigKey"/></ConfigKey>
+          <BindProperty>highlight</BindProperty>
+        </Connection>
+      </Label>
+      <PushButton>
+        <TooltipId><Variable name="TooltipId"/></TooltipId>
+        <ObjectName>CrateDeckButtonFrame<Variable name="Kind"/><Variable name="Size"/><Variable name="Pair"/></ObjectName>
+        <NumberStates>2</NumberStates>
+        <Connection>
+          <ConfigKey><Variable name="ConfigKey"/></ConfigKey>
+          <ButtonState>LeftButton</ButtonState>
+        </Connection>
+      </PushButton>
+    </Children>
+  </WidgetGroup>
+</Template>

@@ -1,0 +1,53 @@
+<!--
+  A row of the waveform band: the gutter with the deck letter and the play
+  dot, and the deck's waveform (a singleton of waveforms.xml).
+Variables:
+  ChanNum : deck number, 1 to 4
+  Letter  : deck letter, A to D
+  Pair    : AC or BD, the colour of the deck (design 14.3)
+  Rows    : Two or Four, the row height of the two- and four-deck bands
+-->
+<Template>
+  <WidgetGroup>
+    <ObjectName>CrateWaveformRow<Variable name="Rows"/></ObjectName>
+    <Layout>horizontal</Layout>
+    <SizePolicy>me,f</SizePolicy>
+    <Children>
+      <WidgetGroup>
+        <ObjectName>CrateWaveformGutter</ObjectName>
+        <Layout>vertical</Layout>
+        <SizePolicy>f,me</SizePolicy>
+        <Children>
+          <Label>
+            <ObjectName>CrateWaveLetter<Variable name="Pair"/></ObjectName>
+            <Text><Variable name="Letter"/></Text>
+            <Alignment>center</Alignment>
+          </Label>
+          <WidgetGroup><SizePolicy>min,me</SizePolicy></WidgetGroup>
+          <WidgetGroup>
+            <Layout>horizontal</Layout>
+            <SizePolicy>min,min</SizePolicy>
+            <Children>
+              <WidgetGroup><SizePolicy>me,min</SizePolicy></WidgetGroup>
+              <Label>
+                <ObjectName>CrateWaveDot<Variable name="Pair"/></ObjectName>
+                <Connection>
+                  <ConfigKey>[Channel<Variable name="ChanNum"/>],play_indicator</ConfigKey>
+                  <BindProperty>highlight</BindProperty>
+                </Connection>
+              </Label>
+              <WidgetGroup><SizePolicy>me,min</SizePolicy></WidgetGroup>
+            </Children>
+          </WidgetGroup>
+        </Children>
+      </WidgetGroup>
+      <SingletonContainer>
+        <ObjectName>CrateWaveform<Variable name="ChanNum"/></ObjectName>
+      </SingletonContainer>
+    </Children>
+    <Connection>
+      <ConfigKey>[CrateDecks],layout_short</ConfigKey>
+      <BindProperty>highlight</BindProperty>
+    </Connection>
+  </WidgetGroup>
+</Template>

@@ -46,7 +46,17 @@ TERM_RE = re.compile(r"\s*([+-])\s*")
 EXPRESSION_RE = re.compile(r"[+*-]")
 SELECTOR_RE = re.compile(r"\{([A-Za-z0-9]+)\}")
 FORMATS = ("qss", "xml", "qml", "svg")
-FILTERS = ("hex", "alpha", "argb", "rgba", "number", "list", "unit", "half")
+FILTERS = (
+    "hex",
+    "alpha",
+    "argb",
+    "rgba",
+    "number",
+    "list",
+    "unit",
+    "half",
+    "fontsize",
+)
 
 # Icon states, in output order, and the token that colours each one.
 STATES = {
@@ -55,6 +65,7 @@ STATES = {
     "active": "iconActive",
     "disabled": "iconDisabled",
     "onaccent": "iconOnAccent",
+    "primary": "iconPrimary",
 }
 
 
@@ -299,6 +310,17 @@ def half(token, where):
     return replace(token, value=token.value / 2)
 
 
+def font_size(token, where):
+    """A QSS font size: QFont rounds pixel sizes to whole pixels, so a
+    fractional size (10.5 px) is given in points, 0.75 pt per px at the
+    96 dpi of QSS, which keeps it exact."""
+    if token.unit != "px" or isinstance(token.value, bool):
+        raise GeneratorError([f"{where}: {token.name} is not a size in px"])
+    if float(token.value).is_integer():
+        return f"{int(token.value)}px"
+    return f"{number(token.value * 0.75)}pt"
+
+
 def render(text, fmt, tokens, used, origin):
     """Replace the placeholders of one template; record the tokens used."""
     problems = []
@@ -321,6 +343,8 @@ def render(text, fmt, tokens, used, origin):
                 filters.pop(0)
             if len(filters) > 1:
                 raise GeneratorError([f"{where}: only .half chains: {flt}"])
+            if filters == ["fontsize"]:
+                return font_size(token, where)
             if filters:
                 return apply_filter(token, filters[0], where)
             return format_token(token, fmt)
@@ -351,6 +375,11 @@ def template_format(path):
 def recolour(svg_text, colour):
     """Paint an icon or base control: currentColor becomes the colour."""
     return svg_text.replace("currentColor", colour)
+
+
+# Skins stretch scales to the length of their control: the hairlines keep
+# their width (QtSvg supports non-scaling strokes).
+NON_SCALING = ' vector-effect="non-scaling-stroke"'
 
 
 def stroke_line(x1, y1, x2, y2, colour, width, extra=""):
@@ -437,7 +466,9 @@ def fader_scale(t, used, vertical, length=120):
     rail = number(t["faderRail"].value)
     width = number(t["strokeHairline"].value)
     rail_colour = t["borderHover"]
-    rail_opacity = f' stroke-opacity="{number(rail_colour.alpha)}"'
+    rail_opacity = (
+        f' stroke-opacity="{number(rail_colour.alpha)}"' + NON_SCALING
+    )
     steps = int(100 // t["faderTickStep"].value)
     handle_half = t["faderHandleWidth"].value / 2
     body = []
@@ -475,11 +506,27 @@ def fader_scale(t, used, vertical, length=120):
             b = a + side * size
             if vertical:
                 body.append(
-                    stroke_line(a, position, b, position, tick_colour, width)
+                    stroke_line(
+                        a,
+                        position,
+                        b,
+                        position,
+                        tick_colour,
+                        width,
+                        NON_SCALING,
+                    )
                 )
             else:
                 body.append(
-                    stroke_line(position, a, position, b, tick_colour, width)
+                    stroke_line(
+                        position,
+                        a,
+                        position,
+                        b,
+                        tick_colour,
+                        width,
+                        NON_SCALING,
+                    )
                 )
     if vertical:
         return svg_document(across, length, body)
@@ -522,6 +569,136 @@ def fader_handle(t, used, vertical, state):
             t["bgApp"].value if state == "active" else t["textPrimary"].value,
             stroke,
         ),
+    ]
+    return svg_document(width, height, body)
+
+
+def opacity(token):
+    return (
+        ""
+        if token.alpha is None
+        else (f' stroke-opacity="{number(token.alpha)}"')
+    )
+
+
+def phrase_ruler(t, used, beats=64):
+    """The deck's phrase rule (GU1 proposal): a baseline with a tick per
+    beat, a longer one per bar of 4 and the longest per phrase of 16."""
+    names = (
+        "phraseHeight",
+        "tickShort",
+        "tickLong",
+        "tickPhrase",
+        "strokeHairline",
+        "border",
+        "borderHover",
+        "textFaint",
+    )
+    used.update(names)
+    height = t["phraseHeight"].value
+    step = 10
+    width = beats * step + 2
+    width_text = number(t["strokeHairline"].value)
+    baseline = height - 4.5
+    border = t["border"]
+    body = [
+        stroke_line(
+            1,
+            baseline,
+            width - 1,
+            baseline,
+            border.value,
+            width_text,
+            opacity(border) + NON_SCALING,
+        )
+    ]
+    for beat in range(beats + 1):
+        x = 1 + beat * step + 0.5
+        if beat % 16 == 0:
+            length = t["tickPhrase"].value
+        elif beat % 4 == 0:
+            length = t["tickLong"].value
+        else:
+            length = t["tickShort"].value
+        colour = t["textFaint" if beat % 4 == 0 else "borderHover"]
+        body.append(
+            stroke_line(
+                x,
+                baseline - length,
+                x,
+                baseline,
+                colour.value,
+                width_text,
+                opacity(colour) + NON_SCALING,
+            )
+        )
+    return svg_document(width, height, body)
+
+
+def stem_rail(t, used, length=100):
+    """A stem's volume rail (GU1 proposal): 1 px rail with ticks every
+    quarter below it."""
+    names = (
+        "stemRailHeight",
+        "stemRailInset",
+        "stemTickOffset",
+        "stemTickShort",
+        "stemTickLong",
+        "strokeHairline",
+        "borderHover",
+        "textFaint",
+    )
+    used.update(names)
+    height = t["stemRailHeight"].value
+    inset = t["stemRailInset"].value
+    middle = round(height / 2) + 0.5
+    width = number(t["strokeHairline"].value)
+    rail = t["borderHover"]
+    tick = t["textFaint"]
+    body = [
+        stroke_line(
+            inset,
+            middle,
+            length - inset,
+            middle,
+            rail.value,
+            width,
+            opacity(rail) + NON_SCALING,
+        )
+    ]
+    for quarter in range(5):
+        x = round(inset + (length - 2 * inset) * quarter / 4) + 0.5
+        size = t[
+            "stemTickLong" if quarter in (0, 4) else "stemTickShort"
+        ].value
+        top = middle + t["stemTickOffset"].value
+        body.append(
+            stroke_line(x, top, x, top + size, tick.value, width, NON_SCALING)
+        )
+    return svg_document(length, height, body)
+
+
+def stem_handle(t, used):
+    """The outline handle of a stem's volume rail."""
+    names = (
+        "stemHandleWidth",
+        "stemHandleHeight",
+        "strokeHairline",
+        "radiusSm",
+        "bgApp",
+        "textMuted",
+    )
+    used.update(names)
+    width = t["stemHandleWidth"].value
+    height = t["stemHandleHeight"].value
+    inset = t["strokeHairline"].value / 2
+    body = [
+        f'<rect x="{number(inset)}" y="{number(inset)}" '
+        f'width="{number(width - 2 * inset)}" '
+        f'height="{number(height - 2 * inset)}" '
+        f'rx="{number(t["radiusSm"].value / 2)}" fill="{t["bgApp"].value}" '
+        f'stroke="{t["textMuted"].value}" '
+        f'stroke-width="{number(t["strokeHairline"].value)}"/>'
     ]
     return svg_document(width, height, body)
 
@@ -574,6 +751,9 @@ def build(tokens_path, templates_dir, svg_dir, out_dir):
     outputs[controls / "knob-scale.svg"] = knob_scale(tokens, used)
     outputs[controls / "fader-scale-v.svg"] = fader_scale(tokens, used, True)
     outputs[controls / "fader-scale-h.svg"] = fader_scale(tokens, used, False)
+    outputs[controls / "phrase-ruler.svg"] = phrase_ruler(tokens, used)
+    outputs[controls / "stem-rail.svg"] = stem_rail(tokens, used)
+    outputs[controls / "stem-handle.svg"] = stem_handle(tokens, used)
     for state in STATES:
         for vertical, suffix in ((True, "v"), (False, "h")):
             outputs[controls / f"fader-handle-{suffix}_{state}.svg"] = (

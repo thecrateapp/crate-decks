@@ -37,6 +37,8 @@
   <SetVariable name="CrateDeckB">#f1f5f9</SetVariable>
   <SetVariable name="CrateDeckC">#67e8f9</SetVariable>
   <SetVariable name="CrateDeckD">#f1f5f9</SetVariable>
+  <SetVariable name="CrateDeckAC">#67e8f9</SetVariable>
+  <SetVariable name="CrateDeckBD">#f1f5f9</SetVariable>
 
   <!-- Waveforms and overviews -->
   <SetVariable name="CrateWaveBg">#0a0a0f</SetVariable>

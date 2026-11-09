@@ -1,0 +1,88 @@
+<!--
+  A deck with two decks (GU1 mockups deck()): header, track row, overview,
+  phrase rule, transport with the hotcue nodes, stems and Smart Mix line;
+  the drop zone when it is empty. Below the 1366 breakpoint the hotcues
+  move to their own row and the stems go two by two.
+Variables: ChanNum, Letter, Pair, and the deck's colours CrateDeck, WaveLow,
+  WaveMid and WaveHigh
+-->
+<Template>
+  <SetVariable name="Size"></SetVariable>
+  <SetVariable name="NumberSizeKey">[CrateDecks],layout_narrow</SetVariable>
+  <SetVariable name="CoverKey">[Skin],show_coverart</SetVariable>
+  <SetVariable name="CoverValue">1</SetVariable>
+  <WidgetGroup>
+    <ObjectName>CrateDeckMain</ObjectName>
+    <Layout>vertical</Layout>
+    <SizePolicy>me,me</SizePolicy>
+    <Children>
+      <Template src="skins:CrateDecks/deck_head.xml"/>
+      <Template src="skins:CrateDecks/deck_menu.xml">
+        <SetVariable name="Group">[Channel<Variable name="ChanNum"/>]</SetVariable>
+      </Template>
+      <WidgetGroup>
+        <ObjectName>CrateDeckBody</ObjectName>
+        <Layout>vertical</Layout>
+        <SizePolicy>me,me</SizePolicy>
+        <Children>
+          <Template src="skins:CrateDecks/deck_track.xml"/>
+          <Template src="skins:CrateDecks/deck_overview.xml"/>
+          <WidgetGroup>
+            <Layout>vertical</Layout>
+            <SizePolicy>me,min</SizePolicy>
+            <Children>
+              <Template src="skins:CrateDecks/deck_phrase.xml"/>
+            </Children>
+            <Connection>
+              <ConfigKey>[CrateDecks],layout_short</ConfigKey>
+              <Transform><Not/></Transform>
+              <BindProperty>visible</BindProperty>
+            </Connection>
+          </WidgetGroup>
+          <Template src="skins:CrateDecks/deck_transport.xml">
+            <SetVariable name="InlineHotcues">1</SetVariable>
+          </Template>
+          <WidgetGroup>
+            <Layout>vertical</Layout>
+            <SizePolicy>me,min</SizePolicy>
+            <Children>
+              <Template src="skins:CrateDecks/deck_cue_row.xml">
+                <SetVariable name="ChipsOff">-100</SetVariable>
+              </Template>
+            </Children>
+            <Connection>
+              <ConfigKey>[CrateDecks],layout_narrow</ConfigKey>
+              <BindProperty>visible</BindProperty>
+            </Connection>
+          </WidgetGroup>
+          <Template src="skins:CrateDecks/deck_stems.xml"/>
+          <WidgetGroup>
+            <Layout>vertical</Layout>
+            <SizePolicy>me,min</SizePolicy>
+            <Children>
+              <Template src="skins:CrateDecks/deck_next.xml"/>
+            </Children>
+            <Connection>
+              <ConfigKey>[CrateDecks],layout_short</ConfigKey>
+              <Transform><Not/></Transform>
+              <BindProperty>visible</BindProperty>
+            </Connection>
+          </WidgetGroup>
+        </Children>
+        <Connection>
+          <ConfigKey>[Channel<Variable name="ChanNum"/>],track_loaded</ConfigKey>
+          <BindProperty>visible</BindProperty>
+        </Connection>
+        <Connection>
+          <ConfigKey>[CrateDecks],layout_short</ConfigKey>
+          <BindProperty>highlight</BindProperty>
+        </Connection>
+      </WidgetGroup>
+      <Template src="skins:CrateDecks/deck_empty.xml"/>
+    </Children>
+    <Connection>
+      <ConfigKey>[CrateDecks],layout_short</ConfigKey>
+      <BindProperty>highlight</BindProperty>
+    </Connection>
+  </WidgetGroup>
+</Template>

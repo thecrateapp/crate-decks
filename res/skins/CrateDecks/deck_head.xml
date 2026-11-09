@@ -1,0 +1,137 @@
+<!--
+  Deck header (GU1 mockups .deck-head): the deck letter in its box, the
+  MonoLabel "DECK A · 8A · 124.00 BPM" ("DECK D · NO TRACK" when empty),
+  the Leader badge, Crate's track state and the deck menu button.
+Variables: ChanNum, Letter, Pair (AC or BD)
+-->
+<Template>
+  <WidgetGroup>
+    <ObjectName>CrateDeckHead</ObjectName>
+    <Layout>horizontal</Layout>
+    <SizePolicy>me,f</SizePolicy>
+    <Children>
+      <Label>
+        <ObjectName>CrateDeckLetter<Variable name="Pair"/></ObjectName>
+        <Text><Variable name="Letter"/></Text>
+        <Alignment>center</Alignment>
+      </Label>
+      <WidgetGroup>
+        <ObjectName>CrateDeckHeadMeta</ObjectName>
+        <Layout>horizontal</Layout>
+        <SizePolicy>min,min</SizePolicy>
+        <Children>
+          <Label>
+            <ObjectName>MonoDeckHead</ObjectName>
+            <Text>Deck <Variable name="Letter"/></Text>
+          </Label>
+          <WidgetGroup>
+            <Layout>horizontal</Layout>
+            <SizePolicy>min,min</SizePolicy>
+            <Children>
+              <!-- The key, while the track has one -->
+              <WidgetGroup>
+                <Layout>horizontal</Layout>
+                <SizePolicy>min,min</SizePolicy>
+                <Children>
+                  <Label>
+                    <ObjectName>MonoDeckHeadSep</ObjectName>
+                    <Text> ·</Text>
+                  </Label>
+                  <Key>
+                    <ObjectName>MonoDeckHeadKey</ObjectName>
+                    <TooltipId>track_key</TooltipId>
+                    <Group>[Channel<Variable name="ChanNum"/>]</Group>
+                    <Connection>
+                      <ConfigKey>[Channel<Variable name="ChanNum"/>],visual_key</ConfigKey>
+                    </Connection>
+                  </Key>
+                </Children>
+                <Connection>
+                  <ConfigKey>[Channel<Variable name="ChanNum"/>],key</ConfigKey>
+                  <BindProperty>visible</BindProperty>
+                </Connection>
+              </WidgetGroup>
+              <Label>
+                <ObjectName>MonoDeckHeadSep</ObjectName>
+                <Text> ·</Text>
+              </Label>
+              <NumberBpm>
+                <ObjectName>MonoDeckHead</ObjectName>
+                <TooltipId>visual_bpm</TooltipId>
+                <Channel><Variable name="ChanNum"/></Channel>
+                <NumberOfDigits>2</NumberOfDigits>
+                <Connection>
+                  <ConfigKey>[Channel<Variable name="ChanNum"/>],file_bpm</ConfigKey>
+                </Connection>
+              </NumberBpm>
+              <Label>
+                <ObjectName>MonoDeckHead</ObjectName>
+                <Text> BPM</Text>
+              </Label>
+            </Children>
+            <Connection>
+              <ConfigKey>[Channel<Variable name="ChanNum"/>],track_loaded</ConfigKey>
+              <BindProperty>visible</BindProperty>
+            </Connection>
+          </WidgetGroup>
+          <WidgetGroup>
+            <Layout>horizontal</Layout>
+            <SizePolicy>min,min</SizePolicy>
+            <Children>
+              <Label>
+                <ObjectName>MonoDeckHeadSep</ObjectName>
+                <Text> ·</Text>
+              </Label>
+              <Label>
+                <ObjectName>MonoDeckHead</ObjectName>
+                <Text>No track</Text>
+              </Label>
+            </Children>
+            <Connection>
+              <ConfigKey>[Channel<Variable name="ChanNum"/>],track_loaded</ConfigKey>
+              <Transform><Not/></Transform>
+              <BindProperty>visible</BindProperty>
+            </Connection>
+          </WidgetGroup>
+        </Children>
+      </WidgetGroup>
+      <!-- InfoBadge, accent tone: the leader of sync -->
+      <Label>
+        <ObjectName>CrateDeckLeader</ObjectName>
+        <Text>Leader</Text>
+        <Alignment>center</Alignment>
+        <Connection>
+          <ConfigKey>[Channel<Variable name="ChanNum"/>],sync_leader</ConfigKey>
+          <BindProperty>visible</BindProperty>
+        </Connection>
+      </Label>
+      <WidgetGroup><SizePolicy>me,min</SizePolicy></WidgetGroup>
+      <!-- Crate's state of the track: profile and cache (design 14.3).
+           Laid out until the cache and profiles of F4 feed it -->
+      <WidgetGroup>
+        <ObjectName>CrateDeckTrackState</ObjectName>
+        <Layout>horizontal</Layout>
+        <SizePolicy>min,min</SizePolicy>
+        <Children>
+          <Label><ObjectName>CrateDeckStateDot</ObjectName></Label>
+          <Label>
+            <ObjectName>MonoDeckState</ObjectName>
+            <Text>Cached</Text>
+          </Label>
+        </Children>
+        <Connection>
+          <ConfigKey>[CrateDecks],show_track_state</ConfigKey>
+          <BindProperty>visible</BindProperty>
+        </Connection>
+      </WidgetGroup>
+      <PushButton>
+        <ObjectName>CrateDeckMenuButton</ObjectName>
+        <NumberStates>2</NumberStates>
+        <Connection>
+          <ConfigKey>[CrateDecks],deck<Variable name="ChanNum"/>_menu</ConfigKey>
+          <ButtonState>LeftButton</ButtonState>
+        </Connection>
+      </PushButton>
+    </Children>
+  </WidgetGroup>
+</Template>

@@ -1,0 +1,49 @@
+<!--
+  Pitch column of a deck (GU1 mockups .pitch): MonoLabel, the rate fader
+  with the instrument scale of design 14.3 and its value.
+Variables: ChanNum, Size
+-->
+<Template>
+  <WidgetGroup>
+    <ObjectName>CratePitch<Variable name="Size"/></ObjectName>
+    <Layout>vertical</Layout>
+    <SizePolicy>f,me</SizePolicy>
+    <Children>
+      <Label>
+        <ObjectName>MonoPitchLabel</ObjectName>
+        <Text>Pitch</Text>
+        <Alignment>center</Alignment>
+      </Label>
+      <WidgetGroup>
+        <Layout>horizontal</Layout>
+        <SizePolicy>me,me</SizePolicy>
+        <Children>
+          <WidgetGroup><SizePolicy>me,min</SizePolicy></WidgetGroup>
+          <SliderComposed>
+            <ObjectName>CratePitchFader<Variable name="Size"/></ObjectName>
+            <TooltipId>rate</TooltipId>
+            <SizePolicy>f,me</SizePolicy>
+            <Slider scalemode="STRETCH">skins:CrateDecks/generated/controls/fader-scale-v.svg</Slider>
+            <Handle scalemode="STRETCH_ASPECT">skins:CrateDecks/generated/controls/fader-handle-v_idle.svg</Handle>
+            <Horizontal>false</Horizontal>
+            <Connection>
+              <ConfigKey>[Channel<Variable name="ChanNum"/>],rate</ConfigKey>
+            </Connection>
+            <Connection>
+              <ConfigKey>[CrateDecks],layout_short</ConfigKey>
+              <BindProperty>highlight</BindProperty>
+            </Connection>
+          </SliderComposed>
+          <WidgetGroup><SizePolicy>me,min</SizePolicy></WidgetGroup>
+        </Children>
+      </WidgetGroup>
+      <NumberRate>
+        <ObjectName>CratePitchValue</ObjectName>
+        <TooltipId>rate_display</TooltipId>
+        <Alignment>center</Alignment>
+        <Channel><Variable name="ChanNum"/></Channel>
+        <NumberOfDigits>2</NumberOfDigits>
+      </NumberRate>
+    </Children>
+  </WidgetGroup>
+</Template>

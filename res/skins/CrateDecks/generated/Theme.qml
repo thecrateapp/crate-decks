@@ -42,6 +42,7 @@ QtObject {
     readonly property color logoEnd: "#0e7490"
     readonly property color logoShade: "#0e4f5c"
     readonly property color accentHiBorder: "#6667e8f9"
+    readonly property color textPrimaryBorder: "#66f1f5f9"
 
     // iconState
     readonly property color iconIdle: "#999ca0"
@@ -49,6 +50,7 @@ QtObject {
     readonly property color iconActive: "#67e8f9"
     readonly property color iconDisabled: "#4a4c52"
     readonly property color iconOnAccent: "#0a0a0f"
+    readonly property color iconPrimary: "#f1f5f9"
 
     // deck
     readonly property color deckA: "#67e8f9"
@@ -112,6 +114,15 @@ QtObject {
     readonly property real fontSizeDeckNumber: 34
     readonly property real fontSizeDeckNumberCompact: 26
     readonly property real fontSizeBrand: 14
+    readonly property real fontSizeDeckNumberNarrow: 28
+    readonly property real fontSizeDeckNumberCompactShort: 22
+    readonly property real fontSizeDeckTitle: 19
+    readonly property real fontSizeDeckTitleCompact: 16
+    readonly property real fontSizeDeckTitleCompactShort: 14
+    readonly property real fontSizeDeckArtistCompactShort: 12
+    readonly property real fontSizeLabelSmall: 9.5
+    readonly property real fontSizeDropTitle: 14
+    readonly property real fontWeightDeckTitle: 500
 
     // tracking
     readonly property real trackingCaps: 0.14
@@ -119,6 +130,8 @@ QtObject {
     readonly property real trackingEyebrow: 0.18
     readonly property real trackingTitle: -0.045
     readonly property real trackingNumeral: -0.05
+    readonly property real trackingDeckTitle: -0.01
+    readonly property real lineHeightDisplay: 0.95
 
     // height
     readonly property real heightControl: 40
@@ -156,6 +169,87 @@ QtObject {
     readonly property real readingGap: 5
     readonly property real statusDot: 6
     readonly property real monoSeparatorPadding: 4
+
+    // deckLayout
+    readonly property real waveformRowHeight: 92
+    readonly property real waveformRowHeightShort: 64
+    readonly property real waveformRowHeightFour: 52
+    readonly property real waveformRowHeightFourShort: 36
+    readonly property real waveformGutterWidth: 34
+    readonly property real waveformGutterPadding: 7
+    readonly property real deckPaddingTop: 14
+    readonly property real deckPaddingBottom: 12
+    readonly property real deckPaddingShort: 10
+    readonly property real deckPaddingFourShort: 7
+    readonly property real deckColumnGap: 14
+    readonly property real deckRowGap: 10
+    readonly property real deckRowGapShort: 8
+    readonly property real deckRowGapFourShort: 6
+    readonly property real deckHeadGap: 10
+    readonly property real deckLetterSize: 20
+    readonly property real deckTrackGap: 18
+    readonly property real deckTrackGapNarrow: 12
+    readonly property real coverSize: 52
+    readonly property real coverSizeCompact: 40
+    readonly property real deckTitleGap: 3
+    readonly property real deckNumberGap: 6
+    readonly property real overviewMinHeight: 40
+    readonly property real overviewMaxHeight: 88
+    readonly property real overviewMaxHeightShort: 44
+    readonly property real overviewMinHeightFour: 32
+    readonly property real overviewMaxHeightFourShort: 28
+    readonly property real phraseHeight: 18
+    readonly property real phraseGap: 12
+    readonly property real nextHeight: 22
+    readonly property real transportGap: 8
+    readonly property real transportButtonHeight: 36
+    readonly property real transportButtonHeightFour: 30
+    readonly property real transportButtonHeightFourShort: 26
+    readonly property real transportButtonMinWidth: 52
+    readonly property real transportButtonPadding: 12
+    readonly property real smallButtonHeight: 28
+    readonly property real smallButtonPadding: 8
+    readonly property real loopGap: 4
+    readonly property real loopReadoutWidth: 26
+    readonly property real hotcueSize: 28
+    readonly property real hotcueSizeFourShort: 24
+    readonly property real hotcueGap: 2
+    readonly property real hotcueInset: 6
+    readonly property real stemsGap: 14
+    readonly property real stemsPaddingTop: 8
+    readonly property real stemGap: 8
+    readonly property real stemsRowGap: 6
+    readonly property real stemNameMinWidth: 42
+    readonly property real stemRailHeight: 18
+    readonly property real stemHandleWidth: 5
+    readonly property real stemHandleHeight: 9
+    readonly property real stemLevelHeight: 2
+    readonly property real stemLevelOpacity: 0.85
+    readonly property real stemTickShort: 2
+    readonly property real stemTickLong: 3
+    readonly property real stemTickOffset: 4
+    readonly property real stemRailInset: 3
+    readonly property real muteWidth: 24
+    readonly property real muteHeight: 22
+    readonly property real stemChipHeight: 22
+    readonly property real stemChipGap: 7
+    readonly property real stemChipPaddingLeft: 8
+    readonly property real stemChipPaddingRight: 9
+    readonly property real stemChipLevelWidth: 3
+    readonly property real stemChipLevelHeight: 12
+    readonly property real stemChipsGap: 6
+    readonly property real pitchColumnWidth: 54
+    readonly property real pitchFaderWidth: 34
+    readonly property real pitchGap: 8
+    readonly property real pitchFaderMinHeight: 120
+    readonly property real pitchFaderMinHeightFour: 80
+    readonly property real pitchFaderMinHeightFourShort: 60
+    readonly property real dropZoneGap: 14
+    readonly property real dropZoneTextGap: 4
+    readonly property real badgeHeight: 20
+    readonly property real badgePadding: 7
+    readonly property real menuButtonSize: 24
+    readonly property real dropIconSize: 28
 
     // lane
     readonly property real laneMeter: 1

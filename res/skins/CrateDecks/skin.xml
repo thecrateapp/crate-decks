@@ -39,6 +39,18 @@
          and the breakpoints of generated/vars.xml (crate/ui/skin/) -->
       <attribute persist="false" config_key="[CrateDecks],layout_narrow">0</attribute>
       <attribute persist="false" config_key="[CrateDecks],layout_short">0</attribute>
+    <!-- Deck menus (vinyl, slip and the loop extras), closed at start -->
+      <attribute persist="false" config_key="[CrateDecks],deck1_menu">0</attribute>
+      <attribute persist="false" config_key="[CrateDecks],deck2_menu">0</attribute>
+      <attribute persist="false" config_key="[CrateDecks],deck3_menu">0</attribute>
+      <attribute persist="false" config_key="[CrateDecks],deck4_menu">0</attribute>
+    <!-- Rows that the GU1 mockups lay out and that wait for their data: the
+         phrase rule (plans F5 and F6), the Smart Mix line (F6) and Crate's
+         track state, profile and cache (F4). They are skin switches, not
+         data: the PR that brings the data binds the rows to it instead -->
+      <attribute persist="false" config_key="[CrateDecks],show_phrase_rule">0</attribute>
+      <attribute persist="false" config_key="[CrateDecks],show_smartmix_line">0</attribute>
+      <attribute persist="false" config_key="[CrateDecks],show_track_state">0</attribute>
 
     <!-- Decks -->
       <!-- general -->

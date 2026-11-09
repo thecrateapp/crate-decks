@@ -1,0 +1,135 @@
+<!--
+  Scrolling waveforms of the GU1 mockups (decks.js waveformBand(),
+  decks.css .wf): one row per deck, A and B with two decks, C, A, B and D
+  with four. Each row has a 34 px gutter with the deck letter and a dot that
+  lights in the deck colour while it plays. The waveform of a deck is a
+  singleton, so that the two- and four-deck bands share it.
+-->
+<Template>
+  <SingletonDefinition>
+    <ObjectName>CrateWaveform1</ObjectName>
+    <Children>
+      <Template src="skins:CrateDecks/waveform_visual.xml">
+        <SetVariable name="ChanNum">1</SetVariable>
+        <SetVariable name="Pair">AC</SetVariable>
+        <SetVariable name="CrateDeck"><Variable name="CrateDeckAC"/></SetVariable>
+        <SetVariable name="WaveLow"><Variable name="CrateWaveLowAC"/></SetVariable>
+        <SetVariable name="WaveMid"><Variable name="CrateWaveMidAC"/></SetVariable>
+        <SetVariable name="WaveHigh"><Variable name="CrateWaveHighAC"/></SetVariable>
+      </Template>
+    </Children>
+  </SingletonDefinition>
+  <SingletonDefinition>
+    <ObjectName>CrateWaveform2</ObjectName>
+    <Children>
+      <Template src="skins:CrateDecks/waveform_visual.xml">
+        <SetVariable name="ChanNum">2</SetVariable>
+        <SetVariable name="Pair">BD</SetVariable>
+        <SetVariable name="CrateDeck"><Variable name="CrateDeckBD"/></SetVariable>
+        <SetVariable name="WaveLow"><Variable name="CrateWaveLowBD"/></SetVariable>
+        <SetVariable name="WaveMid"><Variable name="CrateWaveMidBD"/></SetVariable>
+        <SetVariable name="WaveHigh"><Variable name="CrateWaveHighBD"/></SetVariable>
+      </Template>
+    </Children>
+  </SingletonDefinition>
+  <SingletonDefinition>
+    <ObjectName>CrateWaveform3</ObjectName>
+    <Children>
+      <Template src="skins:CrateDecks/waveform_visual.xml">
+        <SetVariable name="ChanNum">3</SetVariable>
+        <SetVariable name="Pair">AC</SetVariable>
+        <SetVariable name="CrateDeck"><Variable name="CrateDeckAC"/></SetVariable>
+        <SetVariable name="WaveLow"><Variable name="CrateWaveLowAC"/></SetVariable>
+        <SetVariable name="WaveMid"><Variable name="CrateWaveMidAC"/></SetVariable>
+        <SetVariable name="WaveHigh"><Variable name="CrateWaveHighAC"/></SetVariable>
+      </Template>
+    </Children>
+  </SingletonDefinition>
+  <SingletonDefinition>
+    <ObjectName>CrateWaveform4</ObjectName>
+    <Children>
+      <Template src="skins:CrateDecks/waveform_visual.xml">
+        <SetVariable name="ChanNum">4</SetVariable>
+        <SetVariable name="Pair">BD</SetVariable>
+        <SetVariable name="CrateDeck"><Variable name="CrateDeckBD"/></SetVariable>
+        <SetVariable name="WaveLow"><Variable name="CrateWaveLowBD"/></SetVariable>
+        <SetVariable name="WaveMid"><Variable name="CrateWaveMidBD"/></SetVariable>
+        <SetVariable name="WaveHigh"><Variable name="CrateWaveHighBD"/></SetVariable>
+      </Template>
+    </Children>
+  </SingletonDefinition>
+
+  <WidgetGroup>
+    <ObjectName>CrateWaveformBand</ObjectName>
+    <Layout>vertical</Layout>
+    <SizePolicy>me,f</SizePolicy>
+    <Children>
+
+      <!-- Two decks: A, B -->
+      <WidgetGroup>
+        <Layout>vertical</Layout>
+        <SizePolicy>me,f</SizePolicy>
+        <Children>
+          <Template src="skins:CrateDecks/waveform_row.xml">
+            <SetVariable name="ChanNum">1</SetVariable>
+            <SetVariable name="Letter">A</SetVariable>
+            <SetVariable name="Pair">AC</SetVariable>
+            <SetVariable name="Rows">Two</SetVariable>
+          </Template>
+          <WidgetGroup><ObjectName>CrateWaveformRule</ObjectName></WidgetGroup>
+          <Template src="skins:CrateDecks/waveform_row.xml">
+            <SetVariable name="ChanNum">2</SetVariable>
+            <SetVariable name="Letter">B</SetVariable>
+            <SetVariable name="Pair">BD</SetVariable>
+            <SetVariable name="Rows">Two</SetVariable>
+          </Template>
+        </Children>
+        <Connection>
+          <ConfigKey>[Skin],show_4decks</ConfigKey>
+          <Transform><Not/></Transform>
+          <BindProperty>visible</BindProperty>
+        </Connection>
+      </WidgetGroup>
+
+      <!-- Four decks: C, A, B, D -->
+      <WidgetGroup>
+        <Layout>vertical</Layout>
+        <SizePolicy>me,f</SizePolicy>
+        <Children>
+          <Template src="skins:CrateDecks/waveform_row.xml">
+            <SetVariable name="ChanNum">3</SetVariable>
+            <SetVariable name="Letter">C</SetVariable>
+            <SetVariable name="Pair">AC</SetVariable>
+            <SetVariable name="Rows">Four</SetVariable>
+          </Template>
+          <WidgetGroup><ObjectName>CrateWaveformRule</ObjectName></WidgetGroup>
+          <Template src="skins:CrateDecks/waveform_row.xml">
+            <SetVariable name="ChanNum">1</SetVariable>
+            <SetVariable name="Letter">A</SetVariable>
+            <SetVariable name="Pair">AC</SetVariable>
+            <SetVariable name="Rows">Four</SetVariable>
+          </Template>
+          <WidgetGroup><ObjectName>CrateWaveformRule</ObjectName></WidgetGroup>
+          <Template src="skins:CrateDecks/waveform_row.xml">
+            <SetVariable name="ChanNum">2</SetVariable>
+            <SetVariable name="Letter">B</SetVariable>
+            <SetVariable name="Pair">BD</SetVariable>
+            <SetVariable name="Rows">Four</SetVariable>
+          </Template>
+          <WidgetGroup><ObjectName>CrateWaveformRule</ObjectName></WidgetGroup>
+          <Template src="skins:CrateDecks/waveform_row.xml">
+            <SetVariable name="ChanNum">4</SetVariable>
+            <SetVariable name="Letter">D</SetVariable>
+            <SetVariable name="Pair">BD</SetVariable>
+            <SetVariable name="Rows">Four</SetVariable>
+          </Template>
+        </Children>
+        <Connection>
+          <ConfigKey>[Skin],show_4decks</ConfigKey>
+          <BindProperty>visible</BindProperty>
+        </Connection>
+      </WidgetGroup>
+
+    </Children>
+  </WidgetGroup>
+</Template>

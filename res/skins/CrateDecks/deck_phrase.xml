@@ -1,0 +1,33 @@
+<!--
+  Phrase rule under the overview (GU1 proposal): 64 beats with beat, bar
+  and phrase ticks, the bar and the phrase. Laid out until Crate's phrase
+  analysis reaches the deck (plans F5 and F6): it needs the deck's position
+  in the phrase, which no control has yet. Below the 768 px breakpoint the
+  mockups leave it out.
+Variables: ChanNum
+-->
+<Template>
+  <WidgetGroup>
+    <ObjectName>CratePhrase</ObjectName>
+    <Layout>horizontal</Layout>
+    <SizePolicy>me,f</SizePolicy>
+    <Children>
+      <Label>
+        <ObjectName>MonoPhraseBar</ObjectName>
+        <Text>Bar · 1.1</Text>
+      </Label>
+      <Label>
+        <ObjectName>CratePhraseRuler</ObjectName>
+        <SizePolicy>me,f</SizePolicy>
+      </Label>
+      <Label>
+        <ObjectName>CratePhraseText</ObjectName>
+        <Text>Phrase 1 · bar 1 of 16</Text>
+      </Label>
+    </Children>
+    <Connection>
+      <ConfigKey>[CrateDecks],show_phrase_rule</ConfigKey>
+      <BindProperty>visible</BindProperty>
+    </Connection>
+  </WidgetGroup>
+</Template>

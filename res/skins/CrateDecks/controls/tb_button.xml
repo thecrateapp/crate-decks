@@ -17,7 +17,7 @@ Variables:
   <WidgetGroup>
     <ObjectName>TbButton</ObjectName>
     <Layout>stacked</Layout>
-    <SizePolicy>min,min</SizePolicy>
+    <SizePolicy>max,max</SizePolicy>
     <Children>
       <Label>
         <ObjectName>MonoTbButtonText</ObjectName>

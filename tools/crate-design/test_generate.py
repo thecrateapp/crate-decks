@@ -27,6 +27,7 @@ TOKENS = {
             "iconActive": {"ref": "accentHi"},
             "iconDisabled": {"ref": "textFaint"},
             "iconOnAccent": {"ref": "onAccent"},
+            "iconPrimary": {"ref": "textPrimary"},
         },
         "geometry": {
             "radiusMd": {"value": 4, "unit": "px"},
@@ -48,6 +49,15 @@ TOKENS = {
             "faderTickStep": {"value": 10, "unit": "%"},
             "faderHandleWidth": {"value": 18, "unit": "px"},
             "faderHandleHeight": {"value": 10, "unit": "px"},
+            "phraseHeight": {"value": 18, "unit": "px"},
+            "tickPhrase": {"value": 10, "unit": "px"},
+            "stemRailHeight": {"value": 18, "unit": "px"},
+            "stemRailInset": {"value": 3, "unit": "px"},
+            "stemTickOffset": {"value": 4, "unit": "px"},
+            "stemTickShort": {"value": 2, "unit": "px"},
+            "stemTickLong": {"value": 3, "unit": "px"},
+            "stemHandleWidth": {"value": 5, "unit": "px"},
+            "stemHandleHeight": {"value": 9, "unit": "px"},
         },
     },
 }
@@ -145,6 +155,7 @@ def test_svg_recolor_per_state(design):
         "active": "#67e8f9",
         "disabled": "#4a4c52",
         "onaccent": "#0a0a0f",
+        "primary": "#f1f5f9",
     }
     assert set(generate.STATES) == set(expected)
     for state, colour in expected.items():
@@ -398,3 +409,31 @@ def test_tracking_times_size_is_a_length(design):
     run(design)
     qss = (design["out"] / "style.qss").read_text(encoding="utf-8")
     assert "letter-spacing: 1.54px;" in qss
+
+
+def test_fractional_font_size_in_points(design):
+    data = json.loads(design["tokens"].read_text(encoding="utf-8"))
+    data["tokens"]["geometry"]["fontSizeMeta"] = {"value": 10.5, "unit": "px"}
+    design["tokens"].write_text(json.dumps(data), encoding="utf-8")
+    template = design["templates"] / "style.qss.in"
+    template.write_text(
+        QSS_TEMPLATE
+        + "QLabel { font-size: {{fontSizeMeta.fontsize}}; }\n"
+        + "QSpinBox { font-size: {{tickLong.fontsize}}; }\n",
+        encoding="utf-8",
+    )
+    run(design)
+    qss = (design["out"] / "style.qss").read_text(encoding="utf-8")
+    assert "font-size: 7.875pt;" in qss
+    assert "font-size: 7px;" in qss
+
+
+def test_scales_keep_hairlines_when_stretched(design):
+    run(design)
+    controls = design["out"] / "controls"
+    for name in ("phrase-ruler.svg", "stem-rail.svg", "fader-scale-v.svg"):
+        svg = (controls / name).read_text(encoding="utf-8")
+        assert 'vector-effect="non-scaling-stroke"' in svg, name
+    ruler = (controls / "phrase-ruler.svg").read_text(encoding="utf-8")
+    # 64 beats: a baseline and 65 ticks
+    assert ruler.count("<line") == 66

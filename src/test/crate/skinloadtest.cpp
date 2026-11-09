@@ -41,6 +41,7 @@
 #include "util/cmdlineargs.h"
 #include "util/font.h"
 #include "util/versionstore.h"
+#include "waveform/visualplayposition.h"
 #include "waveform/waveform.h"
 #include "widget/wtracktableview.h"
 
@@ -457,6 +458,7 @@ TEST_F(CrateSkinScreenshots, Capture) {
                     // The software "filtered" waveform and overview: offscreen
                     // there is no OpenGL
                     {ConfigKey("[Waveform]", "WaveformType"), QStringLiteral("7")},
+                    {ConfigKey("[Waveform]", "use_hardware_acceleration"), QStringLiteral("0")},
                     {ConfigKey("[Waveform]", "WaveformOverviewType"), QStringLiteral("0")},
                     {ConfigKey("[Waveform]", "beatGridAlpha"), QStringLiteral("20")},
                     // Time remaining, as in the mockups
@@ -519,6 +521,29 @@ TEST_F(CrateSkinScreenshots, Capture) {
             }
         }
         ControlObject::set(ConfigKey(group, "playposition"), positions[i].second);
+        // Without an audio device no engine callback tells the scrolling
+        // waveforms where the deck is: give them the position, paused (no
+        // audio buffer, so no interpolation). TEST_GAP: offscreen there is no
+        // OpenGL, and without it this Mixxx offers no waveform type at all
+        // (WaveformWidgetFactory::addHandle in a build with QML): the
+        // scrolling waveforms stay empty and the overviews, which share their
+        // palette, show it.
+        auto pVisual = VisualPlayPosition::getVisualPlayPosition(group);
+        for (int buffer = 0; buffer < 3; ++buffer) {
+            pVisual->set(positions[i].second,
+                    0.0,
+                    0.0,
+                    positions[i].second,
+                    0.0,
+                    SlipModeState::Disabled,
+                    false,
+                    false,
+                    false,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0);
+        }
     }
     ControlObject::set(ConfigKey("[Channel1]", "sync_enabled"), 1);
     ControlObject::set(ConfigKey("[Channel2]", "sync_enabled"), 1);
@@ -527,21 +552,38 @@ TEST_F(CrateSkinScreenshots, Capture) {
     ControlObject::set(ConfigKey("[Channel2]", "beatloop_size"), 8);
     ControlObject::set(ConfigKey("[Channel3]", "beatloop_size"), 16);
 
+    const auto capture = [&](const QString& name) {
+        // Layouts, deferred restyles and the waveforms' timers
+        waitFor([] { return false; }, 1500);
+        const QImage image = decks.skin()->grab().toImage();
+        const QString file = QDir(outDir).filePath(name + QStringLiteral(".png"));
+        EXPECT_TRUE(image.save(file)) << file.toStdString();
+    };
+    // The rows that wait for their data (phrase rule, Smart Mix line,
+    // Crate's track state) are hidden: the "-preview" shots show them laid
+    // out, empty, to compare with the mockups
     const QList<QSize> sizes = {QSize(1920, 1080), QSize(1366, 768)};
-    for (const int deckCount : {2, 4}) {
-        ControlObject::set(ConfigKey("[Skin]", "show_4decks"), deckCount == 4 ? 1 : 0);
-        for (const QSize& size : sizes) {
-            decks.mainWindow()->resize(size);
-            // Layouts, deferred restyles and the waveforms' timers
-            waitFor([] { return false; }, 1500);
-            const QImage image = decks.skin()->grab().toImage();
-            const QString file = QDir(outDir).filePath(
-                    QStringLiteral("%1-%2deck-%3.png")
-                            .arg(skin.toLower(), QString::number(deckCount))
-                            .arg(size.width()));
-            EXPECT_TRUE(image.save(file)) << file.toStdString();
+    for (const bool preview : {false, true}) {
+        for (const char* placeholder :
+                {"show_phrase_rule", "show_smartmix_line", "show_track_state"}) {
+            ControlObject::set(ConfigKey("[CrateDecks]", placeholder), preview ? 1 : 0);
+        }
+        for (const int deckCount : {2, 4}) {
+            ControlObject::set(ConfigKey("[Skin]", "show_4decks"), deckCount == 4 ? 1 : 0);
+            for (const QSize& size : sizes) {
+                decks.mainWindow()->resize(size);
+                capture(QStringLiteral("%1-%2deck-%3%4")
+                                .arg(skin.toLower(), QString::number(deckCount))
+                                .arg(size.width())
+                                .arg(preview ? QStringLiteral("-preview") : QString()));
+            }
         }
     }
+    // The deck menu of deck A, open
+    ControlObject::set(ConfigKey("[Skin]", "show_4decks"), 0);
+    ControlObject::set(ConfigKey("[CrateDecks]", "deck1_menu"), 1);
+    decks.mainWindow()->resize(QSize(1920, 1080));
+    capture(skin.toLower() + QStringLiteral("-2deck-1920-menu"));
 }
 
 /// Dev-only harness for Q14 (plan V2, performance): skin load time and

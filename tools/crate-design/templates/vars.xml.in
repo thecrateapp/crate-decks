@@ -37,6 +37,8 @@
   <SetVariable name="CrateDeckB">{{deckB}}</SetVariable>
   <SetVariable name="CrateDeckC">{{deckC}}</SetVariable>
   <SetVariable name="CrateDeckD">{{deckD}}</SetVariable>
+  <SetVariable name="CrateDeckAC">{{deckA}}</SetVariable>
+  <SetVariable name="CrateDeckBD">{{deckB}}</SetVariable>
 
   <!-- Waveforms and overviews -->
   <SetVariable name="CrateWaveBg">{{waveBg}}</SetVariable>
