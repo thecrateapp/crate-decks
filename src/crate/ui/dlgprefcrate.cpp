@@ -1,60 +1,29 @@
 #include "crate/ui/dlgprefcrate.h"
 
-#include <QGroupBox>
+#include <QFrame>
 #include <QHBoxLayout>
-#include <QJsonDocument>
 #include <QLabel>
 #include <QListWidget>
 #include <QPushButton>
 #include <QStringList>
 #include <QVBoxLayout>
 
-#include "crate/client/cratecapabilities.h"
 #include "crate/crateservers.h"
 #include "crate/session/cratesession.h"
 #include "crate/ui/crateaddserverwidget.h"
+#include "crate/ui/crateprefsections.h"
+#include "crate/ui/dialogs/dialogstyle.h"
 
 namespace crate {
 
 namespace {
 
-QString stateText(const Session& session) {
-    switch (session.state()) {
-    case Session::State::SignedIn:
-        return session.profile().accountEmail.isEmpty()
-                ? DlgPrefCrate::tr("Signed in")
-                : DlgPrefCrate::tr("Signed in as %1").arg(session.profile().accountEmail);
-    case Session::State::SigningIn:
-        return DlgPrefCrate::tr("Connecting…");
-    case Session::State::SignedOut:
-        return DlgPrefCrate::tr("Signed out: sign out and add the server again");
-    }
-    return QString();
-}
-
-QString featuresText(const QByteArray& capabilitiesJson) {
-    const Result<Capabilities> capabilities =
-            Capabilities::fromJson(QJsonDocument::fromJson(capabilitiesJson));
-    if (!capabilities.ok()) {
-        return QString();
-    }
-    const std::pair<DecksFeature, QString> names[] = {
-            {DecksFeature::LibraryCursor, DlgPrefCrate::tr("library")},
-            {DecksFeature::ProfilesBatch, DlgPrefCrate::tr("analysis")},
-            {DecksFeature::Beatmatch, DlgPrefCrate::tr("beatmatch")},
-            {DecksFeature::BassHandoff, DlgPrefCrate::tr("bass handoff")},
-            {DecksFeature::LongBeatmatch, DlgPrefCrate::tr("long beatmatch")},
-            {DecksFeature::Cues, DlgPrefCrate::tr("cues")},
-    };
-    QStringList available;
-    for (const auto& [feature, name] : names) {
-        if (capabilities.value().has(feature)) {
-            available.append(name);
-        }
-    }
-    return available.isEmpty()
-            ? DlgPrefCrate::tr("No Crate Decks features announced yet.")
-            : DlgPrefCrate::tr("Features: %1").arg(available.join(QStringLiteral(", ")));
+QLabel* plainLabel(const QString& text, const char* objectName, QWidget* pParent) {
+    auto* pLabel = new QLabel(text, pParent);
+    pLabel->setObjectName(QLatin1String(objectName));
+    // Server names and messages are shown as they are, never as rich text
+    pLabel->setTextFormat(Qt::PlainText);
+    return pLabel;
 }
 
 } // namespace
@@ -63,17 +32,23 @@ DlgPrefCrate::DlgPrefCrate(QWidget* pParent, CrateServers* pServers)
         : DlgPreferencePage(pParent),
           m_pServers(pServers),
           m_pServerList(new QListWidget(this)),
-          m_pStatus(new QLabel(this)),
-          m_pKeychainWarning(new QLabel(this)),
+          m_pStatus(plainLabel(QString(), "crateServerStatus", this)),
+          m_pKeychainWarning(plainLabel(QString(), "crateKeychainWarning", this)),
           m_pAdd(new QPushButton(tr("Add a server…"), this)),
-          m_pRemove(new QPushButton(tr("Sign out and remove"), this)),
-          m_pAddServer(new AddServerWidget(pServers, this)) {
+          m_pAddBox(new QWidget(this)),
+          m_pAddServer(new AddServerWidget(pServers, m_pAddBox)),
+          m_pCache(new CacheSection(this)),
+          m_pSmartMix(new SmartMixSection(this)),
+          m_pColumns(new QWidget(this)) {
+    const DialogMetrics& metrics = DialogMetrics::installed();
     m_pServerList->setObjectName(QStringLiteral("crateServers"));
+    m_pServerList->setSelectionMode(QAbstractItemView::NoSelection);
+    m_pServerList->setFocusPolicy(Qt::NoFocus);
+    m_pServerList->setFrameShape(QFrame::NoFrame);
+    m_pServerList->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_pServerList->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_pAdd->setObjectName(QStringLiteral("crateAddServer"));
-    m_pRemove->setObjectName(QStringLiteral("crateRemoveServer"));
-    m_pStatus->setObjectName(QStringLiteral("crateServerStatus"));
-    m_pStatus->setTextFormat(Qt::PlainText);
-    m_pKeychainWarning->setObjectName(QStringLiteral("crateKeychainWarning"));
+    setButtonVariant(m_pAdd, "primary");
     m_pStatus->setWordWrap(true);
     m_pKeychainWarning->setWordWrap(true);
     m_pKeychainWarning->setText(
@@ -81,41 +56,57 @@ DlgPrefCrate::DlgPrefCrate(QWidget* pParent, CrateServers* pServers)
                "after Crate Decks restarts."));
     m_pKeychainWarning->hide();
 
-    auto* pServersBox = new QGroupBox(tr("Crate servers"), this);
-    auto* pServersLayout = new QVBoxLayout(pServersBox);
-    auto* pButtons = new QHBoxLayout();
-    pButtons->addWidget(m_pAdd);
-    pButtons->addWidget(m_pRemove);
-    pButtons->addStretch();
-    pServersLayout->addWidget(m_pServerList);
-    pServersLayout->addWidget(m_pStatus);
-    pServersLayout->addLayout(pButtons);
+    auto* pIntro = plainLabel(QString(), "CratePrefsIntro", this);
+    setParagraph(pIntro,
+            tr("Crate servers are the library and the brain of Crate Decks: your tracks, "
+               "Crate's analysis, recommendations and Smart Mix. Sessions are kept in the "
+               "system keychain; nothing is stored in mixxx.cfg."),
+            "fontSizeCaption");
+    pIntro->setMaximumWidth(metrics.px("prefsIntroMaxWidth"));
 
-    auto* pAddBox = new QGroupBox(tr("Add a Crate server"), this);
-    pAddBox->setObjectName(QStringLiteral("crateAddServerBox"));
-    auto* pAddLayout = new QVBoxLayout(pAddBox);
+    // Servers
+    auto* pServersSection = new PrefsSection(tr("Servers"), this);
+    pServersSection->rows()->addWidget(m_pServerList);
+    pServersSection->rows()->addWidget(m_pStatus);
+    auto* pAddRow = new QHBoxLayout();
+    pAddRow->setContentsMargins(0, metrics.px("addServerTop"), 0, 0);
+    pAddRow->setSpacing(metrics.px("helperGap"));
+    pAddRow->addWidget(m_pAdd);
+    auto* pHelper = plainLabel(tr("HTTPS by default · HTTP only on this computer, or on the "
+                                  "local network after confirming"),
+            "CrateFormHelper",
+            this);
+    pAddRow->addWidget(pHelper, 1);
+    pServersSection->rows()->addLayout(pAddRow);
+    m_pAddBox->setObjectName(QStringLiteral("crateAddServerBox"));
+    auto* pAddLayout = new QVBoxLayout(m_pAddBox);
+    pAddLayout->setContentsMargins(0, metrics.px("addServerTop"), 0, 0);
     pAddLayout->addWidget(m_pAddServer);
-    pAddBox->hide();
+    m_pAddBox->hide();
+    pServersSection->rows()->addWidget(m_pAddBox);
+    pServersSection->rows()->addWidget(m_pKeychainWarning);
+
+    // Cache and Auto DJ and Smart Mix, side by side (decks.css .pcols),
+    // hidden until F4 and F6 give them their data
+    auto* pColumns = new QHBoxLayout(m_pColumns);
+    pColumns->setContentsMargins(0, 0, 0, 0);
+    pColumns->setSpacing(metrics.px("prefsColumnGap"));
+    pColumns->addWidget(m_pCache, 115, Qt::AlignTop);
+    pColumns->addWidget(m_pSmartMix, 100, Qt::AlignTop);
+    m_pCache->hide();
+    m_pSmartMix->hide();
 
     auto* pLayout = new QVBoxLayout(this);
-    pLayout->addWidget(pServersBox);
-    pLayout->addWidget(pAddBox);
-    pLayout->addWidget(m_pKeychainWarning);
-    pLayout->addStretch();
+    pLayout->setSpacing(0);
+    pLayout->addWidget(pIntro);
+    pLayout->addSpacing(metrics.px("prefsIntroGap"));
+    pLayout->addWidget(pServersSection);
+    pLayout->addWidget(m_pColumns);
+    pLayout->addStretch(1);
 
-    connect(m_pAdd, &QPushButton::clicked, pAddBox, &QWidget::show);
-    connect(m_pAddServer, &AddServerWidget::cancelled, pAddBox, &QWidget::hide);
-    connect(m_pAddServer, &AddServerWidget::serverAdded, pAddBox, &QWidget::hide);
-    connect(m_pServerList,
-            &QListWidget::currentRowChanged,
-            this,
-            &DlgPrefCrate::showSelectedServer);
-    connect(m_pRemove, &QPushButton::clicked, this, [this] {
-        const QListWidgetItem* pItem = m_pServerList->currentItem();
-        if (pItem && m_pServers) {
-            m_pServers->removeServer(pItem->data(Qt::UserRole).toString());
-        }
-    });
+    connect(m_pAdd, &QPushButton::clicked, m_pAddBox, &QWidget::show);
+    connect(m_pAddServer, &AddServerWidget::cancelled, m_pAddBox, &QWidget::hide);
+    connect(m_pAddServer, &AddServerWidget::serverAdded, m_pAddBox, &QWidget::hide);
     if (m_pServers) {
         connect(m_pServers, &CrateServers::serversChanged, this, &DlgPrefCrate::slotUpdate);
     }
@@ -123,61 +114,101 @@ DlgPrefCrate::DlgPrefCrate(QWidget* pParent, CrateServers* pServers)
 }
 
 void DlgPrefCrate::slotUpdate() {
-    const QString selected = m_pServerList->currentItem()
-            ? m_pServerList->currentItem()->data(Qt::UserRole).toString()
-            : QString();
-    m_pServerList->clear();
     if (!m_pServers) {
-        showSelectedServer();
+        showRows({});
         return;
     }
-    const QList<Session*> sessions = m_pServers->sessions();
     bool keychainAvailable = true;
+    const QList<Session*> sessions = m_pServers->sessions();
     for (Session* pSession : sessions) {
         keychainAvailable = keychainAvailable && pSession->keychainAvailable();
-        const ServerProfile& profile = pSession->profile();
-        // A server being added is listed once it is saved.
-        if (!m_pServers->isSaved(profile.id)) {
-            continue;
-        }
-        const QString name =
-                profile.displayName.isEmpty() ? profile.baseUrl.host() : profile.displayName;
-        auto* pItem = new QListWidgetItem(
-                QStringLiteral("%1 — %2").arg(name, profile.baseUrl.toString()), m_pServerList);
-        pItem->setData(Qt::UserRole, profile.id);
-        if (profile.id == selected) {
-            m_pServerList->setCurrentItem(pItem);
-        }
         connect(pSession,
                 &Session::stateChanged,
                 this,
-                &DlgPrefCrate::showSelectedServer,
+                &DlgPrefCrate::slotUpdate,
                 Qt::UniqueConnection);
     }
     m_pKeychainWarning->setVisible(!keychainAvailable);
-    if (!m_pServerList->currentItem() && m_pServerList->count() > 0) {
-        m_pServerList->setCurrentRow(0);
-    }
-    showSelectedServer();
+    showRows(serverRows(*m_pServers));
 }
 
-void DlgPrefCrate::showSelectedServer() {
-    const QListWidgetItem* pItem = m_pServerList->currentItem();
-    Session* pSession = pItem && m_pServers
-            ? m_pServers->session(pItem->data(Qt::UserRole).toString())
-            : nullptr;
-    m_pRemove->setEnabled(pSession != nullptr);
-    if (!pSession) {
-        m_pStatus->setText(m_pServerList->count() == 0
-                        ? tr("No Crate server yet. Add yours to browse your library and "
-                             "mix with Smart Mix.")
-                        : QString());
-        return;
+void DlgPrefCrate::showServerRows(const QList<ServerRow>& rows) {
+    showRows(rows);
+}
+
+void DlgPrefCrate::showRows(const QList<ServerRow>& rows) {
+    m_pServerList->clear();
+    int height = 0;
+    for (const ServerRow& row : rows) {
+        auto* pItem = new QListWidgetItem(
+                QStringLiteral("%1 — %2").arg(row.name, row.meta.value(0)), m_pServerList);
+        pItem->setData(Qt::UserRole, row.id);
+        QWidget* pRow = rowWidget(row);
+        m_pServerList->setItemWidget(pItem, pRow);
+        // Measured once it is inside the dialog, with the dialog's style
+        pRow->ensurePolished();
+        const QList<QWidget*> children = pRow->findChildren<QWidget*>();
+        for (QWidget* pChild : children) {
+            pChild->ensurePolished();
+        }
+        pItem->setSizeHint(QSize(0, pRow->sizeHint().height()));
+        height += pRow->sizeHint().height();
     }
-    const QString features = featuresText(m_pServers->lastCapabilities(pSession->profile().id));
-    m_pStatus->setText(features.isEmpty()
-                    ? stateText(*pSession)
-                    : stateText(*pSession) + QStringLiteral("\n") + features);
+    // As tall as its rows: the page scrolls, not the list
+    m_pServerList->setFixedHeight(height);
+    m_pServerList->setVisible(!rows.isEmpty());
+    m_pStatus->setText(rows.isEmpty() ? tr("No Crate server yet. Add yours to browse your "
+                                           "library and mix with Smart Mix.")
+                                      : QString());
+    m_pStatus->setVisible(rows.isEmpty());
+}
+
+QWidget* DlgPrefCrate::rowWidget(const ServerRow& row) {
+    const DialogMetrics& metrics = DialogMetrics::installed();
+    auto* pRow = new QFrame();
+    pRow->setObjectName(QStringLiteral("CrateServerRow"));
+    auto* pLayout = new QHBoxLayout(pRow);
+    pLayout->setContentsMargins(0, metrics.px("serverPaddingY"), 0, metrics.px("serverPaddingY"));
+    pLayout->setSpacing(metrics.px("serverGap"));
+
+    auto* pDot = new QLabel(pRow);
+    pDot->setObjectName(QStringLiteral("CrateServerDot"));
+    pDot->setProperty("crateState", row.stateName());
+    pLayout->addWidget(pDot, 0, Qt::AlignVCenter);
+
+    auto* pText = new QVBoxLayout();
+    pText->setSpacing(0);
+    pText->addWidget(plainLabel(row.name, "CrateServerName", pRow));
+    pText->addSpacing(metrics.px("serverNameGap"));
+    pText->addWidget(plainLabel(row.meta.join(QStringLiteral("  ·  ")), "CrateServerMeta", pRow));
+    if (!row.features.isEmpty()) {
+        pText->addSpacing(metrics.px("featuresTop"));
+        auto* pFeatures = new QHBoxLayout();
+        pFeatures->setSpacing(metrics.px("featureGap"));
+        for (const ServerRow::Feature& feature : row.features) {
+            auto* pBadge = plainLabel(feature.name, "CrateFeatureBadge", pRow);
+            pBadge->setProperty("available", feature.available);
+            pFeatures->addWidget(pBadge);
+        }
+        pFeatures->addStretch(1);
+        pText->addLayout(pFeatures);
+    }
+    pLayout->addLayout(pText, 1);
+
+    auto* pState = plainLabel(row.stateText(), "CrateStateBadge", pRow);
+    pState->setProperty("crateState", row.stateName());
+    pLayout->addWidget(pState, 0, Qt::AlignVCenter);
+    auto* pRemove = new QPushButton(tr("Sign out and remove"), pRow);
+    pRemove->setObjectName(QStringLiteral("crateRemoveServer"));
+    setButtonVariant(pRemove, "danger");
+    pLayout->addWidget(pRemove, 0, Qt::AlignVCenter);
+    const QString id = row.id;
+    connect(pRemove, &QPushButton::clicked, this, [this, id] {
+        if (m_pServers && !id.isEmpty()) {
+            m_pServers->removeServer(id);
+        }
+    });
+    return pRow;
 }
 
 } // namespace crate

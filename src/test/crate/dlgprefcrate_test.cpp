@@ -15,6 +15,7 @@
 
 #include "crate/client/crateserveraddress.h"
 #include "crate/crateaddserverflow.h"
+#include "crate/crateserverrows.h"
 #include "crate/crateservers.h"
 #include "crate/db/crateserverprofiles.h"
 #include "crate/ui/cratefirstrun.h"
@@ -255,6 +256,37 @@ TEST_F(CrateAddServerFlowTest, PageAddsAServer) {
 
     ASSERT_EQ(1, pList->count());
     EXPECT_TRUE(pList->item(0)->text().contains(QStringLiteral("https://crate.test")));
+}
+
+TEST_F(CrateAddServerFlowTest, ServerRowsShowFeaturesAndState) {
+    EXPECT_TRUE(crate::serverRows(*m_pServers).isEmpty());
+    const QByteArray capabilities = QByteArrayLiteral(R"({"decks": {
+        "available": true, "min_client_version": "0.1.0", "contract_version": 1,
+        "features": ["library_cursor", "beatmatch"]}})");
+    m_pFlow->setAddress(QStringLiteral("https://crate.test"));
+    lastSent().pReply->respond(200, capabilities);
+    m_pFlow->loginWithPassword(QStringLiteral("dj@crate.test"), QStringLiteral("right"));
+    lastSent().pReply->respond(200, kLoginAnswer);
+
+    const QList<crate::ServerRow> rows = crate::serverRows(*m_pServers);
+    ASSERT_EQ(1, rows.size());
+    const crate::ServerRow& row = rows.first();
+    EXPECT_QSTRING_EQ(QStringLiteral("crate.test"), row.name);
+    EXPECT_QSTRING_EQ(QStringLiteral("https://crate.test"), row.meta.value(0));
+    EXPECT_TRUE(row.meta.join(u' ').contains(QStringLiteral("dj@crate.test")));
+    EXPECT_EQ(crate::ServerRow::State::SignedIn, row.state);
+    EXPECT_QSTRING_EQ(QStringLiteral("signedIn"), row.stateName());
+    // Every feature of the contract, in the mockup's order, available or not
+    ASSERT_EQ(6, row.features.size());
+    EXPECT_EQ((crate::ServerRow::Feature{QStringLiteral("library"), true}), row.features[0]);
+    EXPECT_EQ((crate::ServerRow::Feature{QStringLiteral("analysis"), false}), row.features[1]);
+    EXPECT_EQ((crate::ServerRow::Feature{QStringLiteral("beatmatch"), true}), row.features[2]);
+    EXPECT_FALSE(row.features[5].available);
+}
+
+TEST(CrateServerRowsTest, FeaturesNeedAValidAnswer) {
+    EXPECT_TRUE(crate::serverFeatures(QByteArray()).isEmpty());
+    EXPECT_EQ(6, crate::serverFeatures(kDecksCapabilities).size());
 }
 
 // TEST_GAP: offerFirstRun() shows a modal dialog, so it is checked by hand;

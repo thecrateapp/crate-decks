@@ -4,6 +4,7 @@
 #include <QFontMetrics>
 #include <QPainter>
 #include <QRegularExpression>
+#include <QSvgRenderer>
 
 #include "crate/ui/delegates/delegateroles.h"
 #include "moc_sidebardelegate.cpp"
@@ -39,6 +40,12 @@ SidebarDelegate::SidebarDelegate(const DelegateStyle& style, QAbstractItemView* 
         : QStyledItemDelegate(pView),
           m_style(style),
           m_pView(pView) {
+}
+
+void SidebarDelegate::setLogo(int role, const QString& svgPath, QSize size) {
+    m_logoRole = role;
+    m_logoPath = svgPath;
+    m_logoSize = size;
 }
 
 QString SidebarDelegate::sectionOf(const QModelIndex& index) const {
@@ -120,7 +127,16 @@ void SidebarDelegate::paint(QPainter* pPainter,
     const int depth = depthOf(index);
     int left = item.left() + m_style.sidebarItemPadding + depth * m_style.sidebarIndent;
     int right = item.right() - m_style.sidebarItemPadding;
-    if (depth == 0 && m_iconNameRole >= 0) {
+    if (m_logoRole >= 0 && index.data(m_logoRole).toBool() && !m_logoSize.isEmpty()) {
+        // The logo keeps its colours: it is the brand, not a Solar icon
+        QSvgRenderer logo(m_logoPath);
+        const QRect rect(left,
+                item.top() + (item.height() - m_logoSize.height()) / 2,
+                m_logoSize.width(),
+                m_logoSize.height());
+        logo.render(pPainter, rect);
+        left += m_logoSize.width() + m_style.sidebarIconGap;
+    } else if (depth == 0 && m_iconNameRole >= 0) {
         const QString path = m_iconPaths.value(index.data(m_iconNameRole).toString());
         if (!path.isEmpty()) {
             const int size = m_style.sidebarIcon;

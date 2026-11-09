@@ -2,6 +2,7 @@
 
 #include <QHash>
 #include <QPointer>
+#include <QSize>
 #include <QStyledItemDelegate>
 
 #include "crate/ui/delegates/delegatestyle.h"
@@ -47,6 +48,11 @@ class SidebarDelegate : public QStyledItemDelegate {
         m_iconNameRole = role;
     }
 
+    /// Items whose `role` is true show the logo at `svgPath`, in its own
+    /// colours, at `size` before their label: the Crate page in the
+    /// navigation of Preferences (GU1 mockups preferences-crate).
+    void setLogo(int role, const QString& svgPath, QSize size);
+
     void paint(QPainter* pPainter,
             const QStyleOptionViewItem& option,
             const QModelIndex& index) const override;
@@ -66,6 +72,9 @@ class SidebarDelegate : public QStyledItemDelegate {
     QString m_defaultSection;
     QHash<QString, QString> m_iconPaths;
     int m_iconNameRole = -1;
+    int m_logoRole = -1;
+    QString m_logoPath;
+    QSize m_logoSize;
 };
 
 } // namespace crate::delegates

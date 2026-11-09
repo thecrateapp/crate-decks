@@ -5,6 +5,7 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QImage>
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
@@ -13,7 +14,9 @@
 #include <QSpinBox>
 #include <QString>
 
+#include "crate/ui/crateaddserverwidget.h"
 #include "crate/ui/dialogs/dialogstyle.h"
+#include "crate/ui/dialogs/levelgauge.h"
 #include "preferences/configobject.h"
 #include "test/mixxxtest.h"
 #include "util/font.h"
@@ -167,6 +170,26 @@ TEST_F(CrateDialogsTest, DefaultStyleReachesParentlessDialogs) {
     EXPECT_NE(QStringLiteral("Roboto"), pSkinButton->font().family());
 }
 
+TEST_F(CrateDialogsTest, CacheRingShowsTheLevel) {
+    crate::LevelGauge gauge;
+    gauge.setValue(0.5);
+    QImage image(gauge.size(), QImage::Format_ARGB32_Premultiplied);
+    image.fill(Qt::transparent);
+    gauge.render(&image);
+    const QColor accent = crate::DialogMetrics::installed().colour("CrateAccentHi");
+    const int radius = crate::DialogMetrics::installed().px("cacheGaugeRadius");
+    const QPoint centre(gauge.width() / 2, gauge.height() / 2);
+    const auto isAccent = [&](QPoint at) {
+        const QColor pixel = image.pixelColor(at);
+        return pixel.alpha() > 128 && std::abs(pixel.red() - accent.red()) < 40 &&
+                std::abs(pixel.blue() - accent.blue()) < 40;
+    };
+    // From the top clockwise: the right half is lit, the left is not
+    EXPECT_TRUE(isAccent(centre + QPoint(radius, 0)));
+    EXPECT_FALSE(isAccent(centre - QPoint(radius, 0)));
+    EXPECT_DOUBLE_EQ(1.0, (gauge.setValue(3), gauge.value()));
+}
+
 TEST_F(CrateDialogsTest, SpinBoxesInDialogsShowTheirValue) {
     crate::applyApplicationStyle(crate::defaultStyleSheet(resourcePath()));
     QDialog dialog;
@@ -184,6 +207,16 @@ TEST_F(CrateDialogsTest, SpinBoxesInDialogsShowTheirValue) {
     EXPECT_EQ(metrics.px("fieldPaddingX") - metrics.px("strokeHairline"),
             pEdit->textMargins().left());
     EXPECT_QSTRING_EQ(QStringLiteral("10"), pEdit->text());
+}
+
+TEST(CrateAddServerWidgetTest, StepsAreNumberedAsTheMockup) {
+    using Step = crate::AddServerFlow::Step;
+    EXPECT_EQ(1, crate::AddServerWidget::stepNumber(Step::EnterAddress));
+    EXPECT_EQ(2, crate::AddServerWidget::stepNumber(Step::ConfirmLocalNetwork));
+    EXPECT_EQ(2, crate::AddServerWidget::stepNumber(Step::CheckingServer));
+    EXPECT_EQ(3, crate::AddServerWidget::stepNumber(Step::SignIn));
+    EXPECT_EQ(3, crate::AddServerWidget::stepNumber(Step::SigningIn));
+    EXPECT_EQ(3, crate::AddServerWidget::kStepCount);
 }
 
 } // namespace

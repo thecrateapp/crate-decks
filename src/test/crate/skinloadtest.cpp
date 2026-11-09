@@ -5,6 +5,7 @@
 #include <QAction>
 #include <QApplication>
 #include <QDialog>
+#include <QDialogButtonBox>
 #include <QDir>
 #include <QElapsedTimer>
 #include <QFile>
@@ -17,12 +18,14 @@
 #include <QMessageBox>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QPushButton>
 #include <QScrollBar>
 #include <QSqlDatabase>
 #include <QSqlError>
 #include <QSqlQuery>
 #include <QTemporaryDir>
 #include <QTimer>
+#include <QTreeWidget>
 #include <QWidget>
 #include <algorithm>
 #include <functional>
@@ -33,6 +36,7 @@
 #include "control/controlobject.h"
 #include "control/controlpushbutton.h"
 #include "coreservices.h"
+#include "crate/ui/dialogs/preferenceschrome.h"
 #include "crate/ui/skin/crateserverstatus.h"
 #include "crate/ui/skin/crateskin.h"
 #include "crate/ui/skin/mixerstyle.h"
@@ -461,6 +465,59 @@ TEST_F(CrateSkinLoadTest, ToolbarOpensPreferences) {
     EXPECT_TRUE(pPreferences->isVisible());
     EXPECT_EQ(0.0, ControlObject::get(crate::showPreferencesKey()));
     pPreferences->hide();
+}
+
+TEST_F(CrateSkinLoadTest, PreferencesHaveTheMockupsDialog) {
+    QTemporaryDir profile;
+    ASSERT_TRUE(profile.isValid());
+    OffscreenDecks decks(profile.path() + QLatin1Char('/'));
+    decks.writeProfile(kCrateDecks);
+    decks.start(application());
+    QWidget* pPreferences = nullptr;
+    for (QWidget* pWindow : QApplication::topLevelWidgets()) {
+        if (pWindow->inherits("DlgPreferences")) {
+            pPreferences = pWindow;
+        }
+    }
+    ASSERT_NE(nullptr, pPreferences);
+
+    // Its own frame and title row (GU1 mockups preferences-crate)
+    EXPECT_TRUE(pPreferences->windowFlags().testFlag(Qt::FramelessWindowHint));
+    auto* pTitle = pPreferences->findChild<QLabel*>(QStringLiteral("MonoDialogTitle"));
+    ASSERT_NE(nullptr, pTitle);
+    EXPECT_QSTRING_EQ(QStringLiteral("Crate Decks · Preferences"), pTitle->text());
+
+    // The Crate page last, with the Crate logo
+    auto* pTree = pPreferences->findChild<QTreeWidget*>(QStringLiteral("contentsTreeWidget"));
+    ASSERT_NE(nullptr, pTree);
+    QTreeWidgetItem* pLast = pTree->topLevelItem(pTree->topLevelItemCount() - 1);
+    EXPECT_QSTRING_EQ(QStringLiteral("Crate"), pLast->text(0));
+    EXPECT_TRUE(pLast->data(0, crate::kPreferencesLogoRole).toBool());
+
+    // The foot in the mockup's order; Mixxx's own buttons stay, hidden
+    auto* pButtons = pPreferences->findChild<QDialogButtonBox*>(QStringLiteral("buttonBox"));
+    ASSERT_NE(nullptr, pButtons);
+    EXPECT_TRUE(pButtons->isHidden());
+    QStringList foot;
+    QPushButton* pOk = nullptr;
+    for (QPushButton* pButton :
+            pPreferences->findChildren<QPushButton*>(QStringLiteral("CratePrefsButton"))) {
+        foot.append(pButton->text());
+        if (pButton->isDefault()) {
+            pOk = pButton;
+        }
+    }
+    EXPECT_EQ((QStringList{QStringLiteral("Restore Defaults"),
+                      QStringLiteral("Help"),
+                      QStringLiteral("Cancel"),
+                      QStringLiteral("Apply"),
+                      QStringLiteral("Ok")}),
+            foot);
+    ASSERT_NE(nullptr, pOk);
+    pPreferences->show();
+    EXPECT_TRUE(pPreferences->isVisible());
+    pOk->click();
+    EXPECT_FALSE(pPreferences->isVisible());
 }
 
 /// The settings and controls of the racks that the skin folds (design 14.3)

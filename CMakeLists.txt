@@ -5339,8 +5339,10 @@ if(CRATE)
       src/crate/session/cratesecretstore.cpp
       src/crate/session/cratesession.cpp
       src/crate/crateaddserverflow.cpp
+      src/crate/crateserverrows.cpp
       src/crate/crateservers.cpp
       src/crate/ui/crateaddserverwidget.cpp
+      src/crate/ui/crateprefsections.cpp
       src/crate/ui/cratefirstrun.cpp
       src/crate/ui/dlgprefcrate.cpp
       src/crate/ui/delegates/camelotdelegate.cpp
@@ -5348,7 +5350,10 @@ if(CRATE)
       src/crate/ui/delegates/delegatestyle.cpp
       src/crate/ui/delegates/sidebardelegate.cpp
       src/crate/ui/delegates/statedelegates.cpp
+      src/crate/ui/dialogs/dialogchrome.cpp
       src/crate/ui/dialogs/dialogstyle.cpp
+      src/crate/ui/dialogs/levelgauge.cpp
+      src/crate/ui/dialogs/preferenceschrome.cpp
       src/crate/ui/skin/crateserverstatus.cpp
       src/crate/ui/skin/crateskin.cpp
       src/crate/ui/skin/librarystyle.cpp
