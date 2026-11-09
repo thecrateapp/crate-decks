@@ -596,11 +596,15 @@ En `cratecapabilities_test.cpp`:
 | Fichero | Contenido |
 |---|---|
 | `src/library/crateserver/crateserverfeature.{h,cpp}` | `title()` = "Crate"; `sidebarModel()` (`TreeItemModel`: un nodo por servidor y, dentro, Biblioteca, Playlists, Crates, Géneros, Moods, Recientes y Likes); `activate()` y `activateChild()` muestran el modelo de pistas; carga perezosa (`onLazyChildExpandation`); menú contextual mínimo (Actualizar) |
-| `src/library/crateserver/crateservertrackmodel.{h,cpp}` | Sobre `BaseExternalTrackModel`: vista TEMPORARY `crateserver_view_<container>` sobre `crateserver_container_tracks ⨝ crateserver_tracks`; columnas Camelot, Energía, Calidad del perfil y Estado de caché (`ColumnCache` / `TrackModel::Capabilities` como en Rekordbox); `getTrack()` sin implementar todavía (F4) |
+| `src/library/crateserver/crateservertrackmodel.{h,cpp}` | Modelo propio sobre `QAbstractTableModel` y `TrackModel` (ver la desviación debajo): lee `crateserver_container_tracks ⨝ crateserver_tracks` en un hilo de trabajo, filtra y ordena allí y cambia las filas de una vez; columnas Camelot, Energía, Calidad del perfil y Estado de caché con sus delegates; solo la capacidad de ordenar hasta F4; `getTrack()` sin implementar todavía (F4) |
 | `src/library/library.cpp` | Registrar `CrateServerFeature` con `addFeature` detrás de `CRATE` (unas 4 líneas, F0 Q9). **Parche de Mixxx**: anotarlo |
 | (sin `ExternalTrackCollection`) | F0 Q9: `TrackCollectionManager` no puede registrarla (`trackcollectionmanager.cpp:56-60` es un `TODO`), y repartiría `saveTrack`, purgas y reubicaciones desde cualquier hilo. Se reconsidera en F7/F8 si hacen falta esos avisos |
 
 Si F0/Q9 recomendó `library.cpp` en lugar de `ExternalTrackCollection`, se usa esa vía y se ajusta esta tabla.
+
+**Desviación aprobada (Diego, 2026-11-09):** el modelo de pistas no deriva de `BaseExternalTrackModel` ni de `BaseSqlTableModel`.
+- `BaseTrackTableModel` declara `data()` y `delegateForColumn()` como `final`, así que una subclase no puede dar a los delegates de Crate sus roles (Camelot, calidad del perfil, estado de caché).
+- Un modelo propio lee, filtra y ordena las filas fuera del hilo principal, que nunca espera a SQLite (diseño §9). No hace falta la vista TEMPORARY ni la caché de toda la tabla que exige `BaseExternalTrackModel`.
 
 **Tests:**
 - `crateserverfeature_test.cpp` (fixture `LibraryTest`):
