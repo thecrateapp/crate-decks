@@ -1,6 +1,7 @@
 <!--
   Deck header (GU1 mockups .deck-head): the deck letter in its box, the
-  MonoLabel "DECK A · 8A · 124.00 BPM" ("DECK D · NO TRACK" when empty),
+  MonoLabel "DECK A · 8A · 124.00 BPM" ("DECK D · NO TRACK" when empty;
+  a missing key or BPM hides with its separator),
   the Leader badge, Crate's track state and the deck menu button.
 Variables: ChanNum, Letter, Pair (AC or BD)
 -->
@@ -28,7 +29,11 @@ Variables: ChanNum, Letter, Pair (AC or BD)
             <Layout>horizontal</Layout>
             <SizePolicy>min,min</SizePolicy>
             <Children>
-              <!-- The key, while the track has one -->
+              <!-- Each optional field goes with its separator, and both
+                   hide while the field is empty: "DECK A · 151.14 BPM",
+                   never "DECK A · · 151.14 BPM" -->
+              <!-- The key: shown by the same control that paints it, so
+                   the separator never stays alone -->
               <WidgetGroup>
                 <Layout>horizontal</Layout>
                 <SizePolicy>min,min</SizePolicy>
@@ -47,27 +52,38 @@ Variables: ChanNum, Letter, Pair (AC or BD)
                   </Key>
                 </Children>
                 <Connection>
-                  <ConfigKey>[Channel<Variable name="ChanNum"/>],key</ConfigKey>
+                  <ConfigKey>[Channel<Variable name="ChanNum"/>],visual_key</ConfigKey>
                   <BindProperty>visible</BindProperty>
                 </Connection>
               </WidgetGroup>
-              <Label>
-                <ObjectName>MonoDeckHeadSep</ObjectName>
-                <Text> ·</Text>
-              </Label>
-              <NumberBpm>
-                <ObjectName>MonoDeckHead</ObjectName>
-                <TooltipId>visual_bpm</TooltipId>
-                <Channel><Variable name="ChanNum"/></Channel>
-                <NumberOfDigits>2</NumberOfDigits>
+              <!-- The BPM: no "0.00 BPM" for a track without one -->
+              <WidgetGroup>
+                <Layout>horizontal</Layout>
+                <SizePolicy>min,min</SizePolicy>
+                <Children>
+                  <Label>
+                    <ObjectName>MonoDeckHeadSep</ObjectName>
+                    <Text> ·</Text>
+                  </Label>
+                  <NumberBpm>
+                    <ObjectName>MonoDeckHead</ObjectName>
+                    <TooltipId>visual_bpm</TooltipId>
+                    <Channel><Variable name="ChanNum"/></Channel>
+                    <NumberOfDigits>2</NumberOfDigits>
+                    <Connection>
+                      <ConfigKey>[Channel<Variable name="ChanNum"/>],file_bpm</ConfigKey>
+                    </Connection>
+                  </NumberBpm>
+                  <Label>
+                    <ObjectName>MonoDeckHead</ObjectName>
+                    <Text> BPM</Text>
+                  </Label>
+                </Children>
                 <Connection>
                   <ConfigKey>[Channel<Variable name="ChanNum"/>],file_bpm</ConfigKey>
+                  <BindProperty>visible</BindProperty>
                 </Connection>
-              </NumberBpm>
-              <Label>
-                <ObjectName>MonoDeckHead</ObjectName>
-                <Text> BPM</Text>
-              </Label>
+              </WidgetGroup>
             </Children>
             <Connection>
               <ConfigKey>[Channel<Variable name="ChanNum"/>],track_loaded</ConfigKey>

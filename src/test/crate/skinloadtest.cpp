@@ -715,6 +715,103 @@ TEST_F(CrateSkinLoadTest, MetersIgnoreTheMouse) {
     EXPECT_EQ(2 + 2 + 4 + 2 + 2, meters);
 }
 
+/// The texts that `pLayout` shows, in its order, without blanks.
+void appendShownTexts(QLayout* pLayout, const QWidget* pTop, QStringList* pTexts) {
+    for (int i = 0; i < pLayout->count(); ++i) {
+        QLayoutItem* pItem = pLayout->itemAt(i);
+        QWidget* pWidget = pItem->widget();
+        if (!pWidget) {
+            if (pItem->layout()) {
+                appendShownTexts(pItem->layout(), pTop, pTexts);
+            }
+            continue;
+        }
+        if (!pWidget->isVisibleTo(pTop)) {
+            continue;
+        }
+        if (auto* pLabel = qobject_cast<QLabel*>(pWidget)) {
+            const QString text = pLabel->text().trimmed();
+            if (!text.isEmpty()) {
+                pTexts->append(text);
+            }
+        } else if (pWidget->layout()) {
+            appendShownTexts(pWidget->layout(), pTop, pTexts);
+        }
+    }
+}
+
+/// What the MonoLabel of the header of deck `letter` reads, one text per
+/// label ("Deck A", "·", "8A", "·", "124.00", "BPM").
+QStringList deckHeadTexts(QWidget* pSkin, const QString& letter) {
+    const QList<QWidget*> heads = pSkin->findChildren<QWidget*>(QStringLiteral("CrateDeckHead"));
+    for (QWidget* pHead : heads) {
+        const QList<QLabel*> labels = pHead->findChildren<QLabel*>();
+        const bool isDeck = std::any_of(labels.begin(), labels.end(), [&letter](QLabel* pLabel) {
+            return pLabel->objectName().startsWith(QLatin1String("CrateDeckLetter")) &&
+                    pLabel->text() == letter;
+        });
+        auto* pMeta = pHead->findChild<QWidget*>(QStringLiteral("CrateDeckHeadMeta"));
+        if (isDeck && pHead->isVisible() && pMeta && pMeta->layout()) {
+            QStringList texts;
+            appendShownTexts(pMeta->layout(), pMeta, &texts);
+            return texts;
+        }
+    }
+    return {};
+}
+
+TEST_F(CrateSkinLoadTest, DeckHeadHidesEmptyFields) {
+    QTemporaryDir profile;
+    ASSERT_TRUE(profile.isValid());
+    OffscreenDecks decks(profile.path() + QLatin1Char('/'));
+    decks.writeProfile(kCrateDecks);
+    decks.start(application());
+    ASSERT_NE(nullptr, decks.skin());
+    const QString group = QStringLiteral("[Channel1]");
+    // forceSet: track_loaded is read-only, and key has a request handler
+    const auto set = [&group](const char* item, double value) {
+        ControlObject* pControl = ControlObject::getControl(group, QString::fromLatin1(item));
+        ASSERT_NE(nullptr, pControl) << item;
+        pControl->forceSet(value);
+    };
+    // The texts of the header joined by "|", which reads well in a failure
+    const auto head = [&decks] {
+        waitFor([] { return false; }, 100);
+        return deckHeadTexts(decks.skin(), QStringLiteral("A")).join(u'|');
+    };
+    const double key = KeyUtils::keyToNumericValue(mixxx::track::io::key::A_MINOR);
+
+    // A loaded track whose key the header does not show: none, or not
+    // shown yet (visual_key follows key on the GUI tick, which only runs
+    // with the engine). Neither the key nor its separator remain
+    set("track_loaded", 1);
+    set("file_bpm", 151.14);
+    set("key", 0);
+    set("visual_key", 0);
+    EXPECT_QSTRING_EQ(QStringLiteral("Deck A|·|151.14|BPM"), head());
+    set("key", key);
+    EXPECT_QSTRING_EQ(QStringLiteral("Deck A|·|151.14|BPM"), head());
+
+    // With its key, between two separators
+    set("visual_key", key);
+    const QStringList withKey = head().split(u'|');
+    ASSERT_EQ(6, withKey.size()) << withKey.join(u'|').toStdString();
+    EXPECT_QSTRING_EQ(QStringLiteral("Deck A|·"), withKey.mid(0, 2).join(u'|'));
+    EXPECT_FALSE(withKey[2].isEmpty());
+    EXPECT_QSTRING_EQ(QStringLiteral("·|151.14|BPM"), withKey.mid(3).join(u'|'));
+
+    // Without a BPM the same rule: no "0.00 BPM", no separator
+    set("file_bpm", 0);
+    EXPECT_QSTRING_EQ(QStringLiteral("Deck A|·|") + withKey[2], head());
+    set("key", 0);
+    set("visual_key", 0);
+    EXPECT_QSTRING_EQ(QStringLiteral("Deck A"), head());
+
+    // An empty deck
+    set("track_loaded", 0);
+    EXPECT_QSTRING_EQ(QStringLiteral("Deck A|·|No track"), head());
+}
+
 class CrateSkinTest : public MixxxTest {
   protected:
     static void SetUpTestSuite() {
