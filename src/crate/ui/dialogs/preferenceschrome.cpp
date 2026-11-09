@@ -74,30 +74,6 @@ class ButtonMirror : public QObject {
     QPushButton* m_pMirror;
 };
 
-/// Gives the page title its display axes the first time Preferences shows:
-/// the dialog is built before the application has its style.
-class TitleAxes : public QObject {
-  public:
-    explicit TitleAxes(QLabel* pTitle)
-            : QObject(pTitle),
-              m_pTitle(pTitle) {
-        pTitle->installEventFilter(this);
-    }
-
-  protected:
-    bool eventFilter(QObject* pWatched, QEvent* pEvent) override {
-        if (pEvent->type() == QEvent::Show && !m_done) {
-            m_done = true;
-            setDisplayAxes(m_pTitle);
-        }
-        return QObject::eventFilter(pWatched, pEvent);
-    }
-
-  private:
-    QLabel* m_pTitle;
-    bool m_done = false;
-};
-
 /// The mockups' page padding on a page of the stack (a QScrollArea around
 /// the page). The Crate page starts with its intro right under the title;
 /// Mixxx's pages start with a section after the intro's gap.
@@ -171,7 +147,7 @@ void stylePreferences(QDialog* pDialog) {
     auto* pTitle = new QLabel(pHeader);
     pTitle->setObjectName(QStringLiteral("CratePrefsTitle"));
     pTitle->setTextFormat(Qt::PlainText);
-    new TitleAxes(pTitle);
+    setDisplayAxes(pTitle);
     pHeaderLayout->addWidget(pTitle);
     pRightLayout->insertWidget(0, pHeader);
     const auto showTitle = [pTitle](QTreeWidgetItem* pCurrent) {

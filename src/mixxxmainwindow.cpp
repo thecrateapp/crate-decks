@@ -1413,12 +1413,11 @@ bool MixxxMainWindow::loadConfiguredSkin() {
 void MixxxMainWindow::tryParseAndSetDefaultStyleSheet() {
     const QString resPath = m_pCoreServices->getSettings()->getResourcePath();
 #ifdef __CRATE__
-    // Crate Decks: the default style generated from the design tokens, for
-    // the whole application, so that it also reaches Preferences, About and
-    // the other dialogs, which are windows of their own (design 5.2, V2.PR5)
-    const QString crateStyle = crate::defaultStyleSheet(resPath);
-    if (!crateStyle.isEmpty()) {
-        crate::applyApplicationStyle(crateStyle);
+    // Crate Decks: the styles generated from the design tokens, for this
+    // window and for each dialog, so that they also reach Preferences, About
+    // and the other dialogs, which are windows of their own (design 5.2,
+    // V2.PR5)
+    if (crate::applyApplicationStyle(this, resPath)) {
         return;
     }
 #endif // __CRATE__

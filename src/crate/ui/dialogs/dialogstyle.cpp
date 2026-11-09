@@ -46,16 +46,25 @@ QString readFile(const QString& path) {
 ///   and polishing comes before the first show;
 /// - Qt lays a spin box's text out on the box's border and ignores its
 ///   padding: in dialogs, the text gets the field's padding as margins.
+/// - each dialog gets the dialog style as its own. The filter sees the
+///   Polish event before the dialog handles it, so the dialog and then its
+///   children are polished with it.
 class PolishFixes : public QObject {
   public:
     using QObject::QObject;
+
+    QString dialogStyleSheet;
 
   protected:
     bool eventFilter(QObject* pWatched, QEvent* pEvent) override {
         if (pEvent->type() != QEvent::Polish) {
             return QObject::eventFilter(pWatched, pEvent);
         }
-        if (auto* pMenu = qobject_cast<QMenu*>(pWatched)) {
+        if (auto* pDialog = qobject_cast<QDialog*>(pWatched)) {
+            if (pDialog->styleSheet().isEmpty() && !dialogStyleSheet.isEmpty()) {
+                pDialog->setStyleSheet(dialogStyleSheet);
+            }
+        } else if (auto* pMenu = qobject_cast<QMenu*>(pWatched)) {
             if (!pMenu->testAttribute(Qt::WA_WState_Created)) {
                 pMenu->setAttribute(Qt::WA_TranslucentBackground);
                 pMenu->setWindowFlag(Qt::NoDropShadowWindowHint);
@@ -133,7 +142,12 @@ QString defaultStyleSheet(const QString& resourcePath) {
     return style.isEmpty() ? QString() : absoluteSkinUrls(style, resourcePath);
 }
 
-void applyApplicationStyle(const QString& styleSheet) {
+QString dialogStyleSheet(const QString& resourcePath) {
+    const QString style = readFile(QDir(resourcePath).filePath(kGenerated + "dialogs.qss"));
+    return style.isEmpty() ? QString() : absoluteSkinUrls(style, resourcePath);
+}
+
+void applyStyles(QWidget* pMainWindow, const QString& styleSheet, const QString& dialogStyleSheet) {
     auto* pApp = qobject_cast<QApplication*>(QCoreApplication::instance());
     if (!pApp) {
         return;
@@ -143,9 +157,23 @@ void applyApplicationStyle(const QString& styleSheet) {
         s_pPolishFixes = new PolishFixes(pApp);
         pApp->installEventFilter(s_pPolishFixes);
     }
-    if (pApp->styleSheet() != styleSheet) {
-        pApp->setStyleSheet(styleSheet);
+    // A dialog's own style replaces its parents': it needs the menus and
+    // Mixxx's rules too
+    s_pPolishFixes->dialogStyleSheet =
+            dialogStyleSheet.isEmpty() ? QString() : styleSheet + dialogStyleSheet;
+    if (pMainWindow && pMainWindow->styleSheet() != styleSheet) {
+        pMainWindow->setStyleSheet(styleSheet);
     }
+}
+
+bool applyApplicationStyle(QWidget* pMainWindow, const QString& resourcePath) {
+    const QString style = defaultStyleSheet(resourcePath);
+    const QString dialogs = dialogStyleSheet(resourcePath);
+    if (style.isEmpty() || dialogs.isEmpty()) {
+        return false;
+    }
+    applyStyles(pMainWindow, style, dialogs);
+    return true;
 }
 
 void styleLaunchImage(QWidget* pLaunchImage, const QString& resourcePath) {
@@ -224,8 +252,39 @@ void setParagraph(QLabel* pLabel, const QString& text, const char* fontSizeToken
                     .arg(QString::number(lineHeight), text.toHtmlEscaped()));
 }
 
+namespace {
+
+/// Gives a label its display axes when it first shows.
+class DisplayAxesOnShow : public QObject {
+  public:
+    explicit DisplayAxesOnShow(QLabel* pLabel)
+            : QObject(pLabel),
+              m_pLabel(pLabel) {
+        pLabel->installEventFilter(this);
+    }
+
+  protected:
+    bool eventFilter(QObject* pWatched, QEvent* pEvent) override {
+        if (pEvent->type() == QEvent::Show) {
+            m_pLabel->removeEventFilter(this);
+            setDisplayAxes(m_pLabel);
+            deleteLater();
+        }
+        return QObject::eventFilter(pWatched, pEvent);
+    }
+
+  private:
+    QLabel* m_pLabel;
+};
+
+} // namespace
+
 void setDisplayAxes(QLabel* pLabel) {
     if (!pLabel) {
+        return;
+    }
+    if (!pLabel->isVisible()) {
+        new DisplayAxesOnShow(pLabel);
         return;
     }
     pLabel->ensurePolished();

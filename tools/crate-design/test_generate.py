@@ -547,7 +547,7 @@ def test_missing_icon_for_a_button_colour_fails(design):
 def test_application_style_is_generated():
     # The application's default style and the splash screen: generated, and
     # with every placeholder resolved
-    for name in ("default.qss", "launch.qss"):
+    for name in ("default.qss", "dialogs.qss", "launch.qss"):
         text = (generate.OUT / name).read_text(encoding="utf-8")
         assert "{{" not in text and "}}" not in text, name
         assert "#" in text and ":/images/" not in text, name

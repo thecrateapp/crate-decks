@@ -58,16 +58,27 @@ QString absoluteSkinUrls(const QString& styleSheet, const QString& resourcePath)
 /// CrateDecks skin, with absolute URLs. Empty if it cannot be read.
 QString defaultStyleSheet(const QString& resourcePath);
 
-/// Sets `styleSheet` as the style of the whole application, not of one
-/// window: the dialogs are windows of their own (Preferences and About have
-/// no parent) and a style on the main window does not reach them. Mixxx
-/// sets res/skins/default.qss on the main window; with CRATE,
-/// MixxxMainWindow calls this instead (design 5.2). Skins keep winning
-/// inside the skin. Menus, which are popups, get rounded corners, and the
-/// spin boxes of dialogs their padding (what QSS cannot do).
-/// Setting the same style again does nothing, so that a skin reload does not
-/// repolish every widget.
-void applyApplicationStyle(const QString& styleSheet);
+/// The style of dialogs: the generated dialogs.qss, with absolute URLs.
+QString dialogStyleSheet(const QString& resourcePath);
+
+/// Styles Crate Decks: `pMainWindow` gets `styleSheet` (defaultStyleSheet()),
+/// as Mixxx sets res/skins/default.qss on it, and each dialog gets
+/// `styleSheet` and `dialogStyleSheet` as its own style when it is
+/// polished: Preferences and About have no parent, so the main window's
+/// style does not reach them. With CRATE, MixxxMainWindow calls this instead
+/// of setting res/skins/default.qss (design 5.2). Skins keep winning inside
+/// the skin. Nothing goes on the application: an application style makes
+/// every widget go through QSS, Preferences' hundreds of widgets included,
+/// which made the start a quarter of a second slower; a dialog is styled
+/// when it first shows. Menus, which are popups, get rounded corners, and
+/// the spin boxes of dialogs their padding (what QSS cannot do). Setting the
+/// same styles again does nothing, so that a skin reload does not repolish
+/// every widget. Empty styles undo it, for tests.
+void applyStyles(QWidget* pMainWindow, const QString& styleSheet, const QString& dialogStyleSheet);
+
+/// applyStyles() with the generated styles under `resourcePath`. False if
+/// they cannot be read.
+bool applyApplicationStyle(QWidget* pMainWindow, const QString& resourcePath);
 
 /// Gives Mixxx's splash screen (LaunchImage) the Crate Decks brand instead
 /// of the Mixxx logo, for every skin: the logo, the name and a 1 px progress
@@ -94,7 +105,8 @@ void setParagraph(QLabel* pLabel, const QString& text, const char* fontSizeToken
 /// Gives a title in display type (Bricolage Grotesque) the optical size of
 /// its pixel size and its weight on the weight axis, as the browser does
 /// with font-optical-sizing: QSS sets the family, size and weight only.
-/// Call it once the label has its style.
+/// A label that is not shown yet gets them when it first shows, once its
+/// dialog has its style.
 void setDisplayAxes(QLabel* pLabel);
 
 /// The look of an admin button (base.css .crate-button): "primary" (cyan

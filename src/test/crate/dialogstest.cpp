@@ -95,8 +95,8 @@ class CrateDialogsTest : public MixxxTest {
         FontUtils::initializeFonts(ConfigObject<ConfigValue>::computeResourcePath());
     }
     void TearDown() override {
-        // Other tests must not run under the application's style
-        application()->setStyleSheet(QString());
+        // Other tests must not run under Crate's dialog style
+        crate::applyStyles(nullptr, QString(), QString());
     }
 };
 
@@ -131,8 +131,10 @@ TEST_F(CrateDialogsTest, DefaultStyleKeepsMixxxDefaultRules) {
 }
 
 TEST_F(CrateDialogsTest, DefaultStyleUsesOnlyGeneratedImages) {
-    const QString style = crate::defaultStyleSheet(resourcePath());
-    ASSERT_FALSE(style.isEmpty());
+    const QString style = crate::defaultStyleSheet(resourcePath()) +
+            crate::dialogStyleSheet(resourcePath());
+    ASSERT_FALSE(crate::defaultStyleSheet(resourcePath()).isEmpty());
+    ASSERT_FALSE(crate::dialogStyleSheet(resourcePath()).isEmpty());
     // Solar icons and generated controls only, no Mixxx images
     EXPECT_FALSE(style.contains(QLatin1String(":/images/")));
     EXPECT_FALSE(style.contains(QLatin1String("url(skins:")));
@@ -147,18 +149,20 @@ TEST_F(CrateDialogsTest, DefaultStyleUsesOnlyGeneratedImages) {
 }
 
 TEST_F(CrateDialogsTest, DefaultStyleReachesParentlessDialogs) {
-    const QString style = crate::defaultStyleSheet(resourcePath());
-    ASSERT_FALSE(style.isEmpty());
     Warnings warnings;
-    crate::applyApplicationStyle(style);
+    QWidget mainWindow;
+    ASSERT_TRUE(crate::applyApplicationStyle(&mainWindow, resourcePath()));
+    // The main window's style, as Mixxx's default.qss, and nothing on the
+    // application, which would put every widget through QSS
+    EXPECT_FALSE(mainWindow.styleSheet().isEmpty());
+    EXPECT_TRUE(application()->styleSheet().isEmpty());
     // About and Preferences have no parent: a style on the main window
     // would not reach them
     QDialog dialog;
     auto* pButton = new QPushButton(QStringLiteral("OK"), &dialog);
     auto* pLabel = crate::monoLabel(QStringLiteral("Servers"), QStringLiteral("MonoTest"), &dialog);
     dialog.ensurePolished();
-    pButton->ensurePolished();
-    pLabel->ensurePolished();
+    EXPECT_FALSE(dialog.styleSheet().isEmpty());
     EXPECT_QSTRING_EQ(QStringLiteral("Roboto"), pButton->font().family());
     EXPECT_QSTRING_EQ(QStringLiteral("JetBrains Mono"), pLabel->font().family());
     EXPECT_EQ(QFont::AllUppercase, pLabel->font().capitalization());
@@ -166,8 +170,7 @@ TEST_F(CrateDialogsTest, DefaultStyleReachesParentlessDialogs) {
         EXPECT_FALSE(message.contains(QLatin1String("Could not parse"))) << message.toStdString();
     }
     // Outside dialogs, the buttons are the skin's
-    QWidget skin;
-    auto* pSkinButton = new QPushButton(QStringLiteral("Play"), &skin);
+    auto* pSkinButton = new QPushButton(QStringLiteral("Play"), &mainWindow);
     pSkinButton->ensurePolished();
     EXPECT_NE(QStringLiteral("Roboto"), pSkinButton->font().family());
 }
@@ -225,7 +228,7 @@ TEST_F(CrateDialogsTest, CacheRingShowsTheLevel) {
 }
 
 TEST_F(CrateDialogsTest, SpinBoxesInDialogsShowTheirValue) {
-    crate::applyApplicationStyle(crate::defaultStyleSheet(resourcePath()));
+    ASSERT_TRUE(crate::applyApplicationStyle(nullptr, resourcePath()));
     QDialog dialog;
     auto* pSpinBox = new QSpinBox(&dialog);
     pSpinBox->setValue(10);
