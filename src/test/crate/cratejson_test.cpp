@@ -120,4 +120,34 @@ TEST(CrateJsonTest, RequireObjectRejectsOtherDocuments) {
     EXPECT_TRUE(crate::json::requireObject(QJsonDocument::fromJson(R"({"a": 1})")).ok());
 }
 
+TEST(CrateJsonTest, OptionalDoubleReadsAnyNumber) {
+    ObjectReader reader(parse(R"({"bpm": 124.5, "energy": 7, "none": null})"));
+
+    EXPECT_EQ(124.5, reader.optionalDouble(u"bpm").value_or(0));
+    EXPECT_EQ(7.0, reader.optionalDouble(u"energy").value_or(0));
+    EXPECT_FALSE(reader.optionalDouble(u"none").has_value());
+    EXPECT_FALSE(reader.optionalDouble(u"missing").has_value());
+    EXPECT_TRUE(reader.ok());
+
+    ObjectReader wrong(parse(R"({"bpm": "124"})"));
+    EXPECT_FALSE(wrong.optionalDouble(u"bpm").has_value());
+    EXPECT_FALSE(wrong.ok());
+}
+
+TEST(CrateJsonTest, IdIsAStringOrAnInteger) {
+    ObjectReader reader(parse(R"({"uuid": "4f1c", "id": 42, "parent": null})"));
+
+    EXPECT_EQ(QStringLiteral("4f1c"), reader.requiredId(u"uuid"));
+    EXPECT_EQ(QStringLiteral("42"), reader.requiredId(u"id"));
+    EXPECT_EQ(QString(), reader.optionalId(u"parent"));
+    EXPECT_TRUE(reader.ok());
+
+    ObjectReader fraction(parse(R"({"id": 4.5})"));
+    fraction.requiredId(u"id");
+    EXPECT_FALSE(fraction.ok());
+    ObjectReader missing(parse(R"({})"));
+    missing.requiredId(u"id");
+    EXPECT_EQ(QStringLiteral("id is missing"), missing.error().message);
+}
+
 } // namespace
