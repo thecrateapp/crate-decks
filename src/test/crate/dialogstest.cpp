@@ -316,9 +316,16 @@ TEST_F(CrateDialogsTest, BlockingDialogsDimTheMainWindow) {
                  QPoint(painted.width() / 2, painted.height() / 2),
                  QPoint(painted.width() - 2, painted.height() - 2)}) {
         const QColor pixel = painted.pixelColor(at);
-        EXPECT_NEAR(colour.alpha(), pixel.alpha(), 1);
-        EXPECT_NEAR(colour.red(), pixel.red(), 2);
-        EXPECT_NEAR(colour.blue(), pixel.blue(), 2);
+        if (pixel.alpha() == 255) {
+            // Qt 6.4's offscreen platform grabs windows opaque: the scrim
+            // reads as its colour over black
+            EXPECT_NEAR(colour.red() * colour.alphaF(), pixel.red(), 2);
+            EXPECT_NEAR(colour.blue() * colour.alphaF(), pixel.blue(), 2);
+        } else {
+            EXPECT_NEAR(colour.alpha(), pixel.alpha(), 1);
+            EXPECT_NEAR(colour.red(), pixel.red(), 2);
+            EXPECT_NEAR(colour.blue(), pixel.blue(), 2);
+        }
     }
 
     // It follows the main window
