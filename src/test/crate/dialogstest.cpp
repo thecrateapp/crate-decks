@@ -18,6 +18,8 @@
 #include "crate/ui/dialogs/dialogstyle.h"
 #include "crate/ui/dialogs/levelgauge.h"
 #include "preferences/configobject.h"
+#include "skin/legacy/launchimage.h"
+#include "skin/skinloader.h"
 #include "test/mixxxtest.h"
 #include "util/font.h"
 
@@ -168,6 +170,38 @@ TEST_F(CrateDialogsTest, DefaultStyleReachesParentlessDialogs) {
     auto* pSkinButton = new QPushButton(QStringLiteral("Play"), &skin);
     pSkinButton->ensurePolished();
     EXPECT_NE(QStringLiteral("Roboto"), pSkinButton->font().family());
+}
+
+TEST_F(CrateDialogsTest, SplashShowsTheCrateBrand) {
+    Warnings warnings;
+    // Mixxx's own splash, with the Mixxx logo
+    LaunchImage splash(nullptr, QString());
+    EXPECT_TRUE(splash.styleSheet().contains(QLatin1String("mixxx-icon-logo")));
+    crate::styleLaunchImage(&splash, resourcePath());
+    EXPECT_FALSE(splash.styleSheet().contains(QLatin1String("mixxx")));
+    EXPECT_TRUE(splash.styleSheet().contains(QLatin1String("crate-logo.svg")));
+    auto* pName = splash.findChild<QLabel*>(QStringLiteral("CrateSplashName"));
+    ASSERT_NE(nullptr, pName);
+    EXPECT_QSTRING_EQ(QStringLiteral("Crate Decks"), pName->text());
+    EXPECT_NE(nullptr, splash.findChild<QLabel*>(QStringLiteral("CrateSplashLogo")));
+    // Painted on the app's background, not Mixxx's grey
+    splash.resize(400, 300);
+    const QImage image = splash.grab().toImage();
+    EXPECT_EQ(crate::DialogMetrics::installed().colour("CrateBgApp").rgb(),
+            image.pixelColor(2, 2).rgb())
+            << warnings.messages.join(QLatin1Char('\n')).toStdString();
+    EXPECT_TRUE(warnings.messages.isEmpty());
+
+    // The same with any skin: the splash belongs to the application
+    for (const QString& skin : {QStringLiteral("LateNight"), QStringLiteral("CrateDecks")}) {
+        config()->setValue(ConfigKey("[Config]", "ResizableSkin"), skin);
+        mixxx::skin::SkinLoader loader(config());
+        std::unique_ptr<LaunchImage> pSplash(loader.loadLaunchImage(nullptr));
+        ASSERT_TRUE(pSplash) << skin.toStdString();
+        EXPECT_TRUE(pSplash->styleSheet().contains(QLatin1String("crate-logo.svg")))
+                << skin.toStdString();
+        EXPECT_NE(nullptr, pSplash->findChild<QLabel*>(QStringLiteral("CrateSplashName")));
+    }
 }
 
 TEST_F(CrateDialogsTest, CacheRingShowsTheLevel) {

@@ -8,6 +8,7 @@
 #include "control/controlpushbutton.h"
 #ifdef __CRATE__
 #include "coreservices.h"
+#include "crate/ui/dialogs/dialogstyle.h"
 #include "crate/ui/skin/crateskin.h"
 #endif
 #include "mixer/playermanager.h"
@@ -255,6 +256,11 @@ LaunchImage* SkinLoader::loadLaunchImage(QWidget* pParent) const {
         // Construct default LaunchImage
         pLaunchImage = new LaunchImage(pParent, QString());
     }
+#ifdef __CRATE__
+    // Crate Decks: the Crate Decks brand instead of the Mixxx logo, whatever
+    // the skin (V2.PR5)
+    crate::styleLaunchImage(pLaunchImage, m_pConfig->getResourcePath());
+#endif // __CRATE__
 
     return pLaunchImage;
 }
