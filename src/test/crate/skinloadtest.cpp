@@ -358,6 +358,18 @@ TEST_F(CrateSkinLoadTest, FirstStartAsksNoMixxxQuestions) {
     EXPECT_EQ(0, pConfig->getValue<int>(ConfigKey("[Config]", "show_menubar_hint"), 1));
 }
 
+// Plan "Own brand", BR.PR5: Mixxx's skins carry the Mixxx logo, so
+// Preferences offers only CrateDecks; the others still load by name
+TEST_F(CrateSkinLoadTest, OnlyCrateDecksIsOffered) {
+    mixxx::skin::SkinLoader loader(config());
+    QStringList offered;
+    for (const auto& pSkin : loader.getSystemSkins()) {
+        offered.append(pSkin->name());
+    }
+    EXPECT_EQ(QStringList{kCrateDecks}, offered);
+    EXPECT_NE(nullptr, loader.getSkin(kLateNight));
+}
+
 TEST_F(CrateSkinLoadTest, ToolbarOpensPreferences) {
     QTemporaryDir profile;
     ASSERT_TRUE(profile.isValid());

@@ -49,7 +49,16 @@ QList<SkinPointer> SkinLoader::getUserSkins() const {
 }
 
 QList<SkinPointer> SkinLoader::getSystemSkins() const {
-    return getSkinsFromDir(getSytemSkinDir());
+    QList<SkinPointer> skins = getSkinsFromDir(getSytemSkinDir());
+#ifdef __CRATE__
+    // Crate Decks: Mixxx's skins carry the Mixxx logo, so only CrateDecks is
+    // offered. The others stay in the tree and load by name (plan "Own
+    // brand", BR.PR5).
+    skins.removeIf([](const SkinPointer& pSkin) {
+        return pSkin->name() != QLatin1String(crate::kSkinName);
+    });
+#endif
+    return skins;
 }
 
 QList<SkinPointer> SkinLoader::getSkinsFromDir(const QDir& dir) const {

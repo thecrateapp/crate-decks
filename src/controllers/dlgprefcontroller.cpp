@@ -599,7 +599,8 @@ void DlgPrefController::enumerateMappings(const QString& selectedMappingPath) {
     m_ui.comboBoxMapping->insertSeparator(m_ui.comboBoxMapping->count());
 
     // Enumerate system mappings
-    QIcon systemMappingIcon(iconsPath.filePath("ic_mixxx_symbolic.svg"));
+    // Crate Decks: the built-in mappings carry the Crate logo, not Mixxx's
+    QIcon systemMappingIcon(QStringLiteral(":/images/crate-logo.svg"));
     MappingInfo systemMappingsMatch = enumerateMappingsFromEnumerator(
             m_pControllerManager->getMainThreadSystemMappingEnumerator(),
             systemMappingIcon);

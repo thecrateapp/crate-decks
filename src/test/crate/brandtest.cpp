@@ -235,6 +235,59 @@ TEST(CrateBrandTextTest, ControllerMappingInfoIsBranded) {
     EXPECT_GT(named, 15) << "The mappings that name Mixxx";
 }
 
+// Plan "Own brand", BR.PR5: Preferences marks the built-in skins and
+// mappings with the Crate logo, and no code loads a Mixxx logo.
+TEST(CrateBrandTextTest, NoMixxxLogoInTheInterface) {
+    const QPixmap logo = QIcon(QStringLiteral(":/images/crate-logo.svg")).pixmap(32, 32);
+    EXPECT_FALSE(logo.isNull());
+
+    const QDir src(ConfigObject<ConfigValue>::computeResourcePath() + QStringLiteral("../src"));
+    const QRegularExpression mixxxLogo(
+            QStringLiteral("ic_mixxx_symbolic|mixxx_logo|mixxx-icon-logo|MIXXX_LOGO_PATH"));
+    // The splash screen's default style, which crate::styleLaunchImage()
+    // replaces; About, which hides the .ui's logo (F1.PR2); an unused define
+    const QStringList allowed = {
+            QStringLiteral("defs_urls.h"),
+            QStringLiteral("dialog/dlgabout.cpp"),
+            QStringLiteral("skin/legacy/launchimage.cpp"),
+            QStringLiteral("skin/legacy/launchimage.h"),
+            QStringLiteral("skin/legacy/legacyskinparser.cpp"),
+    };
+    QDirIterator it(src.path(),
+            {QStringLiteral("*.cpp"), QStringLiteral("*.h")},
+            QDir::Files,
+            QDirIterator::Subdirectories);
+    int files = 0;
+    while (it.hasNext()) {
+        const QString path = src.relativeFilePath(it.next());
+        if (path.startsWith(QLatin1String("test/")) || allowed.contains(path)) {
+            continue;
+        }
+        QFile file(it.filePath());
+        ASSERT_TRUE(file.open(QIODevice::ReadOnly));
+        EXPECT_FALSE(QString::fromUtf8(file.readAll()).contains(mixxxLogo)) << qPrintable(path);
+        ++files;
+    }
+    EXPECT_GT(files, 500);
+}
+
+TEST(CrateBrandTextTest, CrateDecksSkinHasNoMixxxImages) {
+    const QDir skin(ConfigObject<ConfigValue>::computeResourcePath() +
+            QStringLiteral("skins/CrateDecks"));
+    ASSERT_TRUE(skin.exists());
+    QDirIterator it(skin.path(), QDir::Files, QDirIterator::Subdirectories);
+    while (it.hasNext()) {
+        const QString path = skin.relativeFilePath(it.next());
+        EXPECT_FALSE(it.fileName().contains(QLatin1String("mixxx"), Qt::CaseInsensitive))
+                << qPrintable(path);
+        if (path.endsWith(QLatin1String(".qss")) || path.endsWith(QLatin1String(".xml"))) {
+            QFile file(it.filePath());
+            ASSERT_TRUE(file.open(QIODevice::ReadOnly));
+            EXPECT_FALSE(file.readAll().contains("mixxx_logo")) << qPrintable(path);
+        }
+    }
+}
+
 /// Installs the brand translator for one test and restores the default
 /// locale and the translators afterwards.
 class CrateBrandTranslatorTest : public MixxxTest {
