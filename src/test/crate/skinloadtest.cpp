@@ -54,17 +54,22 @@ QString skinPath(const QString& skin) {
             .filePath(QStringLiteral("skins/") + skin);
 }
 
-/// Keeps the warnings that Qt and Mixxx log while it is alive, and passes
-/// every message on to the handler that was installed before.
+/// Keeps the warnings that Qt and Mixxx log while it is alive, counts every
+/// message, and passes them on to the handler that was installed before.
 class WarningCollector {
   public:
     WarningCollector() {
-        s_pWarnings = &m_warnings;
+        s_pCollector = this;
         s_previous = qInstallMessageHandler(&WarningCollector::handle);
     }
     ~WarningCollector() {
         qInstallMessageHandler(s_previous);
-        s_pWarnings = nullptr;
+        s_pCollector = nullptr;
+    }
+
+    /// How many messages of any level it saw.
+    int messageCount() const {
+        return m_messageCount;
     }
 
     /// The warnings of skin parsing and styling: LegacySkinParser and
@@ -87,17 +92,21 @@ class WarningCollector {
 
   private:
     static void handle(QtMsgType type, const QMessageLogContext& context, const QString& message) {
-        if (s_pWarnings && type >= QtWarningMsg) {
-            s_pWarnings->append(message);
+        if (s_pCollector) {
+            ++s_pCollector->m_messageCount;
+            if (type == QtWarningMsg || type == QtCriticalMsg) {
+                s_pCollector->m_warnings.append(message);
+            }
         }
         if (s_previous) {
             s_previous(type, context, message);
         }
     }
 
-    static inline QStringList* s_pWarnings = nullptr;
+    static inline WarningCollector* s_pCollector = nullptr;
     static inline QtMessageHandler s_previous = nullptr;
     QStringList m_warnings;
+    int m_messageCount = 0;
 };
 
 /// Times the skin load from the log: from LegacySkinParser's "loading skin"
@@ -211,7 +220,10 @@ class OffscreenDecks {
 
     /// Starts the core services and the main window. Returns how long the
     /// main window took to initialize, skin included, in milliseconds.
-    qint64 start(QApplication* pApp) {
+    /// `beforeSkin` runs once the core services are up, just before the
+    /// skin loads: the first CoreServices of a process installs Mixxx's log
+    /// handler, so message handlers go in there.
+    qint64 start(QApplication* pApp, const std::function<void()>& beforeSkin = {}) {
         pApp->installEventFilter(&m_dialogRejecter);
         CmdlineArgs::Instance().setSettingsPath(m_settingsPath);
         CmdlineArgs args;
@@ -219,6 +231,9 @@ class OffscreenDecks {
         m_pCoreServices = std::make_shared<mixxx::CoreServices>(args, pApp);
         m_pMainWindow = std::make_unique<MixxxMainWindow>(m_pCoreServices);
         m_pCoreServices->initialize();
+        if (beforeSkin) {
+            beforeSkin();
+        }
         QElapsedTimer timer;
         timer.start();
         m_pMainWindow->initialize();
@@ -258,13 +273,18 @@ class CrateSkinLoadTest : public MixxxTest {
         EXPECT_TRUE(profile.isValid());
         OffscreenDecks decks(profile.path() + QLatin1Char('/'));
         decks.writeProfile(skin);
-        WarningCollector warnings;
-        decks.start(application());
+        std::unique_ptr<WarningCollector> pWarnings;
+        decks.start(application(), [&pWarnings] {
+            pWarnings = std::make_unique<WarningCollector>();
+        });
+        // Deferred restyles and the first paint
+        waitFor([] { return false; }, 500);
         if (pLoadedRootName && decks.skin()) {
             *pLoadedRootName = decks.skin()->objectName();
         }
         EXPECT_NE(nullptr, decks.skin());
-        return warnings.skinWarnings();
+        EXPECT_GT(pWarnings->messageCount(), 0) << "The log handler saw nothing";
+        return pWarnings->skinWarnings();
     }
 };
 
@@ -593,9 +613,11 @@ class CrateSkinPerformance : public MixxxTest {
         EXPECT_TRUE(addLibraryRows(settingsPath, rows));
         OffscreenDecks decks(settingsPath);
         {
-            SkinLoadClock clock;
-            numbers.loadMs = decks.start(application());
-            numbers.skinMs = clock.elapsedMs();
+            std::unique_ptr<SkinLoadClock> pClock;
+            numbers.loadMs = decks.start(application(), [&pClock] {
+                pClock = std::make_unique<SkinLoadClock>();
+            });
+            numbers.skinMs = pClock->elapsedMs();
         }
         decks.mainWindow()->resize(1920, 1080);
         waitFor([] { return false; }, 1000);
