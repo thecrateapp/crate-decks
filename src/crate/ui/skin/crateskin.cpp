@@ -5,7 +5,11 @@
 #include <QEvent>
 #include <QFile>
 #include <QFontInfo>
+#include <QLabel>
+#include <QPainter>
 #include <QPointer>
+#include <QStyle>
+#include <QStyleOption>
 #include <QWidget>
 
 #include "control/controlobject.h"
@@ -25,6 +29,7 @@ const mixxx::Logger kLogger("crate::skin");
 const QString kVarsXml = QStringLiteral("generated/vars.xml");
 const QString kSkinXml = QStringLiteral("skin.xml");
 const QString kDeckNumberPrefix = QStringLiteral("DeckNumber");
+const QString kMonoPrefix = QStringLiteral("Mono");
 
 const ConfigKey kLayoutNarrowKey(QStringLiteral("[CrateDecks]"), QStringLiteral("layout_narrow"));
 const ConfigKey kLayoutShortKey(QStringLiteral("[CrateDecks]"), QStringLiteral("layout_short"));
@@ -49,6 +54,55 @@ void applyFonts(QWidget* pSkinRoot) {
         if (pWidget->objectName().startsWith(kDeckNumberPrefix)) {
             pWidget->ensurePolished();
             pWidget->setFont(deckNumberFont(pWidget->font()));
+        }
+    }
+}
+
+/// Paints a key that is a MonoLabel, the deck header's (GU1 mockups
+/// .deck-head), as one: its text in the MonoLabel's type and colour. With
+/// Mixxx's key colours on, its default, WKey paints a bar of the key's colour
+/// by the text, which the mockups do not have, and it paints both in the
+/// style's contents rectangle, which is empty when QSS gives the label no
+/// box: the key did not show at all.
+class MonoKeyPainter : public QObject {
+  public:
+    explicit MonoKeyPainter(QLabel* pKey)
+            : QObject(pKey),
+              m_pKey(pKey) {
+        pKey->installEventFilter(this);
+    }
+
+  protected:
+    bool eventFilter(QObject* pWatched, QEvent* pEvent) override {
+        if (pWatched != m_pKey || pEvent->type() != QEvent::Paint) {
+            return QObject::eventFilter(pWatched, pEvent);
+        }
+        // What QLabel paints for plain text
+        QPainter painter(m_pKey);
+        QStyleOption option;
+        option.initFrom(m_pKey);
+        QStyle* pStyle = m_pKey->style();
+        pStyle->drawPrimitive(QStyle::PE_Widget, &option, &painter, m_pKey);
+        pStyle->drawItemText(&painter,
+                m_pKey->contentsRect(),
+                QStyle::visualAlignment(m_pKey->layoutDirection(), m_pKey->alignment()),
+                m_pKey->palette(),
+                m_pKey->isEnabled(),
+                m_pKey->text(),
+                m_pKey->foregroundRole());
+        return true;
+    }
+
+  private:
+    QPointer<QLabel> m_pKey;
+};
+
+/// The keys of the skin that are MonoLabels paint as MonoLabels.
+void paintMonoKeys(QWidget* pSkinRoot) {
+    const QList<QLabel*> labels = pSkinRoot->findChildren<QLabel*>();
+    for (QLabel* pLabel : labels) {
+        if (pLabel->inherits("WKey") && pLabel->objectName().startsWith(kMonoPrefix)) {
+            new MonoKeyPainter(pLabel);
         }
     }
 }
@@ -186,6 +240,7 @@ void prepareLoadedSkin(QWidget* pSkinRoot,
         return;
     }
     applyFonts(pSkinRoot);
+    paintMonoKeys(pSkinRoot);
     styleMixer(pSkinRoot, variables);
     styleLibrary(pSkinRoot, variables, skinPath, pLibrary, pConfig);
 

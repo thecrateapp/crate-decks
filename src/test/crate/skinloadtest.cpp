@@ -61,6 +61,7 @@
 #include "mixer/basetrackplayer.h"
 #include "mixer/playermanager.h"
 #include "mixxxmainwindow.h"
+#include "preferences/colorpalettesettings.h"
 #include "preferences/configobject.h"
 #include "skin/legacy/launchimage.h"
 #include "skin/skinloader.h"
@@ -788,9 +789,8 @@ void appendShownTexts(QLayout* pLayout, const QWidget* pTop, QStringList* pTexts
     }
 }
 
-/// What the MonoLabel of the header of deck `letter` reads, one text per
-/// label ("Deck A", "·", "8A", "·", "124.00", "BPM").
-QStringList deckHeadTexts(QWidget* pSkin, const QString& letter) {
+/// The MonoLabel of the header of deck `letter`, while it shows.
+QWidget* deckHeadMeta(QWidget* pSkin, const QString& letter) {
     const QList<QWidget*> heads = pSkin->findChildren<QWidget*>(QStringLiteral("CrateDeckHead"));
     for (QWidget* pHead : heads) {
         const QList<QLabel*> labels = pHead->findChildren<QLabel*>();
@@ -800,12 +800,34 @@ QStringList deckHeadTexts(QWidget* pSkin, const QString& letter) {
         });
         auto* pMeta = pHead->findChild<QWidget*>(QStringLiteral("CrateDeckHeadMeta"));
         if (isDeck && pHead->isVisible() && pMeta && pMeta->layout()) {
-            QStringList texts;
-            appendShownTexts(pMeta->layout(), pMeta, &texts);
-            return texts;
+            return pMeta;
         }
     }
-    return {};
+    return nullptr;
+}
+
+/// What the MonoLabel of the header of deck `letter` reads, one text per
+/// label ("Deck A", "·", "8A", "·", "124.00", "BPM").
+QStringList deckHeadTexts(QWidget* pSkin, const QString& letter) {
+    QStringList texts;
+    if (QWidget* pMeta = deckHeadMeta(pSkin, letter)) {
+        appendShownTexts(pMeta->layout(), pMeta, &texts);
+    }
+    return texts;
+}
+
+/// How many pixels `pWidget` paints itself: no background, no parents.
+int paintedPixels(QWidget* pWidget) {
+    QImage image(pWidget->size(), QImage::Format_ARGB32);
+    image.fill(Qt::transparent);
+    pWidget->render(&image, QPoint(), QRegion(), QWidget::DrawChildren);
+    int painted = 0;
+    for (int y = 0; y < image.height(); ++y) {
+        for (int x = 0; x < image.width(); ++x) {
+            painted += qAlpha(image.pixel(x, y)) > 128 ? 1 : 0;
+        }
+    }
+    return painted;
 }
 
 TEST_F(CrateSkinLoadTest, DeckHeadHidesEmptyFields) {
@@ -847,6 +869,19 @@ TEST_F(CrateSkinLoadTest, DeckHeadHidesEmptyFields) {
     EXPECT_QSTRING_EQ(QStringLiteral("Deck A|·"), withKey.mid(0, 2).join(u'|'));
     EXPECT_FALSE(withKey[2].isEmpty());
     EXPECT_QSTRING_EQ(QStringLiteral("·|151.14|BPM"), withKey.mid(3).join(u'|'));
+    // And painted as the MonoLabel it is in the mockups, whether Mixxx's key
+    // colours are on (its default: WKey adds a bar of the key's colour) or
+    // off
+    QWidget* pMeta = deckHeadMeta(decks.skin(), QStringLiteral("A"));
+    ASSERT_NE(nullptr, pMeta);
+    auto* pKey = pMeta->findChild<QLabel*>(QStringLiteral("MonoDeckHeadKey"));
+    ASSERT_NE(nullptr, pKey);
+    ColorPaletteSettings colours(decks.coreServices()->getSettings());
+    colours.setKeyColorsEnabled(false);
+    const int painted = paintedPixels(pKey);
+    EXPECT_GT(painted, 10);
+    colours.setKeyColorsEnabled(true);
+    EXPECT_EQ(painted, paintedPixels(pKey));
 
     // Without a BPM the same rule: no "0.00 BPM", no separator
     set("file_bpm", 0);
