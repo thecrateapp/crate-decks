@@ -205,6 +205,16 @@ The new `beat_model` (Beat This!, both bar paths, madmom arbiter) in the product
   - Each day of v9 adds about 15 hours of CPU of v10 redo, a few hours of wall time with the night window.
 - **Ship v10 after v9 finishes** (about 2026-11-22 to 25): about 200 hours of CPU over the whole library, about two more days.
 
+### Release PR (2026-11-09)
+
+- **PR:** #409, branch `release/2026-11-10-smart-mix-v10` on `main` `073522582` (after the stems release #408). It merges `feat/smart-mix-meter-arbiter`; the migration is now 159.
+- **Scope, frozen by Diego that night:**
+  - the meter arbiter and `smart-mix-audio-v10`;
+  - model beats are never replaced by an own-tracker draft, whatever the version;
+  - the backfill upgrades current profiles on the analyzer's own beats;
+  - a completed campaign reopens by itself when tracks become claimable.
+- **Later findings** go to the backlog: the "Known issues of v10" list in the operations runbook.
+
 ### Gate MG2 (Diego): approved 2026-11-09
 
 - **Decision:** Diego approved releasing v10 with the meter arbiter in the release after the stems one (#408), and starting a v10 campaign that supersedes the running v9 one ("sí, le doy el visto bueno").
