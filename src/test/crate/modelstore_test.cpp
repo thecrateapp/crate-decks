@@ -193,13 +193,14 @@ TEST_F(ModelStoreTest, StopsAFileLargerThanTheManifestSays) {
 
 TEST_F(ModelStoreTest, NeverStoresOutsideTheDataDirectory) {
     QList<ModelManifestEntry> manifest;
-    for (const auto& [name, version] : QList<std::pair<QString, QString>>{
-                 {QStringLiteral("../escaped"), QStringLiteral("1")},
-                 {QStringLiteral("nested/escaped"), QStringLiteral("1")},
-                 {m_root.filePath(QStringLiteral("escaped")), QStringLiteral("1")},
-                 {QStringLiteral("escaped"), QStringLiteral("../../1")},
-                 {QStringLiteral(".."), QStringLiteral("1")},
-         }) {
+    const QList<std::pair<QString, QString>> escapes = {
+            {QStringLiteral("../escaped"), QStringLiteral("1")},
+            {QStringLiteral("nested/escaped"), QStringLiteral("1")},
+            {m_root.filePath(QStringLiteral("escaped")), QStringLiteral("1")},
+            {QStringLiteral("escaped"), QStringLiteral("../../1")},
+            {QStringLiteral(".."), QStringLiteral("1")},
+    };
+    for (const auto& [name, version] : escapes) {
         ModelManifestEntry entry = entryFor(kModel);
         entry.name = name;
         entry.version = version;
