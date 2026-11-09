@@ -29,9 +29,17 @@ LabelAndCount splitCount(const QString& text);
 /// Top-level items belong to sections, which start with a MonoLabel header
 /// in the accent tone above their first item. An item's section is its
 /// SidebarSectionRole or, without one, the default section: Mixxx's own
-/// features have none and fall in "Mixxx", and Crate's section (F3) gives
-/// its own. Child items indent 20 px a level and have no icon, as in the
-/// mockups; the view's own indentation and branch arrows are off.
+/// features have none and fall in "Mixxx". Child items indent 20 px a level
+/// and have no icon, as in the mockups; the view's own indentation and
+/// branch arrows are off.
+///
+/// A section root (setSectionRoot()) is a top-level item that is painted as
+/// the header of its own section, with its label as the title, and whose
+/// children are painted as top-level items, with the icon their
+/// DecorationRole names (QIcon::name()). The Crate feature (F3) is one: its
+/// title is "Crate · <server>" and its children are Library, Playlists and
+/// the rest, without patching Mixxx's SidebarModel, which forwards no custom
+/// role of a feature's items.
 class SidebarDelegate : public QStyledItemDelegate {
     Q_OBJECT
   public:
@@ -47,6 +55,13 @@ class SidebarDelegate : public QStyledItemDelegate {
         m_iconPaths = svgPathOfIconName;
         m_iconNameRole = role;
     }
+
+    /// Top-level items whose icon name (the role of setIcons()) is
+    /// `iconName` are section roots.
+    void setSectionRoot(const QString& iconName) {
+        m_sectionRootIcon = iconName;
+    }
+    bool isSectionRoot(const QModelIndex& index) const;
 
     /// Items whose `role` is true show the logo at `svgPath`, in its own
     /// colours, at `size` before their label: the Crate page in the
@@ -66,12 +81,15 @@ class SidebarDelegate : public QStyledItemDelegate {
 
   private:
     QString sectionOf(const QModelIndex& index) const;
+    /// The indentation level an item is painted at.
+    int levelOf(const QModelIndex& index) const;
 
     const DelegateStyle m_style;
     QPointer<QAbstractItemView> m_pView;
     QString m_defaultSection;
     QHash<QString, QString> m_iconPaths;
     int m_iconNameRole = -1;
+    QString m_sectionRootIcon;
     int m_logoRole = -1;
     QString m_logoPath;
     QSize m_logoSize;

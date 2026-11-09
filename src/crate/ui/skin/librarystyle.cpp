@@ -21,6 +21,7 @@
 #include "crate/ui/delegates/celldelegate.h"
 #include "crate/ui/delegates/delegatestyle.h"
 #include "crate/ui/delegates/sidebardelegate.h"
+#include "crate/ui/delegates/statedelegates.h"
 #include "library/dao/trackschema.h"
 #include "library/library.h"
 #include "library/library_prefs.h"
@@ -72,6 +73,15 @@ QHash<QString, QString> sidebarIcons(const QString& skinPath) {
             {QStringLiteral("traktor"), QStringLiteral("music-library-2")},
             {QStringLiteral("rekordbox"), QStringLiteral("music-library-2")},
             {QStringLiteral("serato"), QStringLiteral("music-library-2")},
+            // The Crate section (crate::library::CrateServerFeature)
+            {QStringLiteral("crate-server"), QStringLiteral("server")},
+            {QStringLiteral("crate-library"), QStringLiteral("music-library")},
+            {QStringLiteral("crate-playlists"), QStringLiteral("playlist-2")},
+            {QStringLiteral("crate-crates"), QStringLiteral("inbox-archive")},
+            {QStringLiteral("crate-genres"), QStringLiteral("tag")},
+            {QStringLiteral("crate-moods"), QStringLiteral("pulse")},
+            {QStringLiteral("crate-recent"), QStringLiteral("clock-circle")},
+            {QStringLiteral("crate-likes"), QStringLiteral("heart")},
     };
     QHash<QString, QString> paths;
     for (const auto& [iconName, solarName] : icons) {
@@ -143,7 +153,19 @@ enum class ColumnKind {
     Meta,
     Bpm,
     Key,
+    /// Crate's columns (plan F3.C-PR2), which only Crate's track models have
+    Profile,
+    Cache,
 };
+
+// The icon name of crate::library::CrateServerFeature, whose root is a
+// section header
+const QString kCrateSectionIcon = QStringLiteral("crateserver");
+
+// The field names of Crate's columns in crate::library::CrateServerTrackModel
+const QString kCrateEnergyField = QStringLiteral("crate_energy");
+const QString kCrateProfileField = QStringLiteral("crate_profile");
+const QString kCrateCacheField = QStringLiteral("crate_cache");
 
 ColumnKind columnKind(const QString& field) {
     if (field == LIBRARYTABLE_TITLE) {
@@ -155,12 +177,18 @@ ColumnKind columnKind(const QString& field) {
     if (field == LIBRARYTABLE_KEY) {
         return ColumnKind::Key;
     }
+    if (field == kCrateProfileField) {
+        return ColumnKind::Profile;
+    }
+    if (field == kCrateCacheField) {
+        return ColumnKind::Cache;
+    }
     if (field == LIBRARYTABLE_DURATION || field == LIBRARYTABLE_YEAR ||
             field == LIBRARYTABLE_TRACKNUMBER || field == LIBRARYTABLE_BITRATE ||
             field == LIBRARYTABLE_SAMPLERATE || field == LIBRARYTABLE_REPLAYGAIN ||
             field == LIBRARYTABLE_CHANNELS || field == LIBRARYTABLE_DATETIMEADDED ||
             field == LIBRARYTABLE_LAST_PLAYED_AT || field == PLAYLISTTRACKSTABLE_POSITION ||
-            field == PLAYLISTTRACKSTABLE_DATETIMEADDED) {
+            field == PLAYLISTTRACKSTABLE_DATETIMEADDED || field == kCrateEnergyField) {
         return ColumnKind::Meta;
     }
     if (field == LIBRARYTABLE_ARTIST || field == LIBRARYTABLE_ALBUM ||
@@ -185,10 +213,11 @@ bool isMixxxTextDelegate(const QAbstractItemDelegate* pDelegate) {
             className == QLatin1String("KeyDelegate");
 }
 
-/// The columns of the mockups' track list that Mixxx has, in their order:
-/// the playlist position where there is one, title, artist, BPM, key,
-/// duration and genre. The mockups' energy, profile, cache and like columns
-/// are Crate's (plans F3 and F4).
+/// The columns of the mockups' track list, in their order: the playlist
+/// position where there is one, title, artist, BPM, key, duration, energy,
+/// genre, profile and cache. Energy, profile and cache are Crate's (plan
+/// F3.C-PR2): Mixxx's own track models do not have them. The like column
+/// waits for F4.
 const QStringList& defaultColumns() {
     static const QStringList columns = {
             PLAYLISTTRACKSTABLE_POSITION,
@@ -197,7 +226,10 @@ const QStringList& defaultColumns() {
             LIBRARYTABLE_BPM,
             LIBRARYTABLE_KEY,
             LIBRARYTABLE_DURATION,
+            kCrateEnergyField,
             LIBRARYTABLE_GENRE,
+            kCrateProfileField,
+            kCrateCacheField,
     };
     return columns;
 }
@@ -207,6 +239,9 @@ struct ColumnWidths {
     int bpm = 0;
     int key = 0;
     int time = 0;
+    int energy = 0;
+    int profile = 0;
+    int cache = 0;
     double artist = 0;
     double genre = 0;
 
@@ -218,6 +253,9 @@ struct ColumnWidths {
         widths.bpm = static_cast<int>(number(QStringLiteral("CrateLibColumnBpm")));
         widths.key = static_cast<int>(number(QStringLiteral("CrateLibColumnKey")));
         widths.time = static_cast<int>(number(QStringLiteral("CrateLibColumnTime")));
+        widths.energy = static_cast<int>(number(QStringLiteral("CrateLibColumnEnergy")));
+        widths.profile = static_cast<int>(number(QStringLiteral("CrateLibColumnProfile")));
+        widths.cache = static_cast<int>(number(QStringLiteral("CrateLibColumnCache")));
         widths.artist = number(QStringLiteral("CrateLibColumnArtist"));
         widths.genre = number(QStringLiteral("CrateLibColumnGenre"));
         return widths;
@@ -364,9 +402,18 @@ class LibraryMeta : public QObject {
                 : QCoreApplication::translate("crate::LibraryStyle", "%1 tracks")
                           .arg(groupThousands(QString::number(count)));
         if (m_pSidebar) {
-            const QString source =
-                    splitCount(m_pSidebar->currentIndex().data(Qt::DisplayRole).toString())
-                            .label;
+            const QModelIndex current = m_pSidebar->currentIndex();
+            QString source = splitCount(current.data(Qt::DisplayRole).toString()).label;
+            QModelIndex top = current;
+            while (top.parent().isValid()) {
+                top = top.parent();
+            }
+            if (!source.isEmpty() && top != current &&
+                    top.data(SidebarModel::IconNameRole).toString() == kCrateSectionIcon) {
+                // The mockups' "Crate library": where the tracks come from
+                source = QCoreApplication::translate("crate::LibraryStyle", "Crate %1")
+                                 .arg(source.toLower());
+            }
             if (!source.isEmpty()) {
                 text += QStringLiteral(" · ") + source;
             }
@@ -568,16 +615,19 @@ class TrackTableStyle : public QObject {
                             ? QStringLiteral(" ↑")
                             : QStringLiteral(" ↓");
                 }
+                // A left-aligned title may run into its right padding, as a
+                // browser lets it ("Cache" in its 58 px column)
+                const Qt::Alignment alignment = m_alignments.value(logical, Qt::AlignLeft);
                 const QRect cell(left + m_style.cellPadding,
                         area.top(),
-                        width - 2 * m_style.cellPadding,
+                        width - (alignment & Qt::AlignRight ? 2 : 1) * m_style.cellPadding,
                         area.height() - m_style.rule);
                 paintText(&painter,
                         cell,
                         title,
                         font,
                         sorted ? m_style.textPrimary : m_style.textSubtle,
-                        m_alignments.value(logical, Qt::AlignLeft) | Qt::AlignVCenter);
+                        alignment | Qt::AlignVCenter);
             }
         }
         painter.fillRect(
@@ -608,6 +658,7 @@ class TrackTableStyle : public QObject {
             }
             const ColumnKind kind = columnKind(field);
             if (kind == ColumnKind::Bpm || field == LIBRARYTABLE_DURATION ||
+                    field == kCrateEnergyField ||
                     field == LIBRARYTABLE_BITRATE || field == LIBRARYTABLE_TRACKNUMBER ||
                     field == LIBRARYTABLE_REPLAYGAIN) {
                 // As Mixxx aligns their cells
@@ -679,6 +730,10 @@ class TrackTableStyle : public QObject {
             return pDelegate;
         case ColumnKind::Meta:
             return new TrackTextDelegate(m_style, TrackTextDelegate::Kind::Meta, m_pView);
+        case ColumnKind::Profile:
+            return new ProfileQualityDelegate(m_style, m_pView);
+        case ColumnKind::Cache:
+            return new CacheStateDelegate(m_style, m_pView);
         case ColumnKind::Name:
         case ColumnKind::Keep:
             break;
@@ -706,6 +761,9 @@ class TrackTableStyle : public QObject {
         fix(LIBRARYTABLE_BPM, m_widths.bpm);
         fix(LIBRARYTABLE_KEY, m_widths.key);
         fix(LIBRARYTABLE_DURATION, m_widths.time);
+        fix(kCrateEnergyField, m_widths.energy);
+        fix(kCrateProfileField, m_widths.profile);
+        fix(kCrateCacheField, m_widths.cache);
         // The mockups' shares are of the whole table, deck letters included
         const int table = width + m_style.deckMarkWidth;
         fix(LIBRARYTABLE_ARTIST, static_cast<int>(std::lround(table * m_widths.artist)));
@@ -794,12 +852,15 @@ void styleLibrary(QWidget* pSkinRoot,
     if (!pSkinRoot || !style.isValid()) {
         return;
     }
+    DelegateStyle::setCurrent(style);
 
     const QList<WLibrarySidebar*> sidebars = pSkinRoot->findChildren<WLibrarySidebar*>();
     for (WLibrarySidebar* pSidebar : sidebars) {
         auto* pDelegate = new SidebarDelegate(style, pSidebar);
         pDelegate->setDefaultSection(QStringLiteral("Mixxx"));
         pDelegate->setIcons(sidebarIcons(skinPath), SidebarModel::IconNameRole);
+        // The Crate feature's root is its section's header
+        pDelegate->setSectionRoot(kCrateSectionIcon);
         pSidebar->setItemDelegate(pDelegate);
         // The delegate indents child items itself and draws no branches,
         // as the admin's navigation, and the rows are as wide as the sidebar.

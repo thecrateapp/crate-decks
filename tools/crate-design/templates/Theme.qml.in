@@ -275,6 +275,9 @@ QtObject {
     readonly property real libraryColumnBpm: {{libraryColumnBpm}}
     readonly property real libraryColumnKey: {{libraryColumnKey}}
     readonly property real libraryColumnTime: {{libraryColumnTime}}
+    readonly property real libraryColumnEnergy: {{libraryColumnEnergy}}
+    readonly property real libraryColumnProfile: {{libraryColumnProfile}}
+    readonly property real libraryColumnCache: {{libraryColumnCache}}
     readonly property real libraryColumnArtist: {{libraryColumnArtist}}
     readonly property real libraryColumnGenre: {{libraryColumnGenre}}
     readonly property real libraryStateGap: {{libraryStateGap}}

@@ -1,10 +1,13 @@
 #include <gtest/gtest.h>
 
 #include <QDir>
+#include <QFile>
+#include <QIconEngine>
 #include <QImage>
 #include <QPainter>
 #include <QStandardItemModel>
 #include <QStyleOptionViewItem>
+#include <QTemporaryDir>
 #include <QTreeView>
 #include <cmath>
 
@@ -316,6 +319,88 @@ TEST_F(CrateDelegatesTest, PaintsSidebarSectionsAndActiveItem) {
             30,
             m_style.rowHeight);
     EXPECT_GT(strongestShade(image, right, m_style.textFaint, m_background), 0.5);
+}
+
+// The Crate feature's root (plan F3.C-PR2): its title is the section's
+// header and its children are painted as top-level items with their icons
+TEST_F(CrateDelegatesTest, PaintsSectionRootAsHeaderAndItsChildrenAtTheTop) {
+    QTreeView view;
+    view.resize(240, 300);
+    SidebarDelegate delegate(m_style, &view);
+    delegate.setDefaultSection(QStringLiteral("Mixxx"));
+    constexpr int kIconNameRole = Qt::UserRole + 7;
+    QTemporaryDir icons;
+    ASSERT_TRUE(icons.isValid());
+    const QString iconPath = icons.filePath(QStringLiteral("library.svg"));
+    {
+        QFile icon(iconPath);
+        ASSERT_TRUE(icon.open(QIODevice::WriteOnly));
+        icon.write(R"(<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24">)"
+                   R"(<rect width="24" height="24" fill="black"/></svg>)");
+    }
+    delegate.setIcons({{QStringLiteral("crate-library"), iconPath}}, kIconNameRole);
+    delegate.setSectionRoot(QStringLiteral("crateserver"));
+
+    auto* pRoot = new QStandardItem(QStringLiteral("Crate · dev.crate.local"));
+    pRoot->setData(QStringLiteral("crateserver"), kIconNameRole);
+    auto* pLibrary = new QStandardItem(QStringLiteral("Library (136512)"));
+    // An icon that only names the Solar icon, as the Crate feature's
+    class NamedEngine : public QIconEngine {
+      public:
+        void paint(QPainter*, const QRect&, QIcon::Mode, QIcon::State) override {
+        }
+        QIconEngine* clone() const override {
+            return new NamedEngine();
+        }
+        QString iconName() override {
+            return QStringLiteral("crate-library");
+        }
+    };
+    pLibrary->setIcon(QIcon(new NamedEngine()));
+    pRoot->appendRow(pLibrary);
+    m_model.appendRow(pRoot);
+    const QModelIndex tracks = item({{Qt::DisplayRole, QStringLiteral("Tracks")}});
+    const QModelIndex root = pRoot->index();
+    const QModelIndex library = pLibrary->index();
+
+    EXPECT_TRUE(delegate.isSectionRoot(root));
+    EXPECT_FALSE(delegate.isSectionRoot(library));
+    EXPECT_EQ(QStringLiteral("Crate · dev.crate.local"), delegate.sectionHeader(root));
+    EXPECT_EQ(QString(), delegate.sectionHeader(library));
+    // Mixxx's section starts after it
+    EXPECT_EQ(QStringLiteral("Mixxx"), delegate.sectionHeader(tracks));
+    QStyleOptionViewItem option;
+    option.rect = QRect(0, 0, 240, m_style.rowHeight);
+    EXPECT_EQ(delegate.sectionHeaderHeight(), delegate.sizeHint(option, root).height());
+    EXPECT_EQ(m_style.rowHeight, delegate.sizeHint(option, library).height());
+
+    // The root: only its header, never as an active item
+    QImage image(240, delegate.sectionHeaderHeight(), QImage::Format_RGB32);
+    image.fill(m_background);
+    {
+        QPainter painter(&image);
+        option.rect = image.rect();
+        option.state = QStyle::State_Enabled | QStyle::State_Selected;
+        delegate.paint(&painter, option, root);
+    }
+    EXPECT_GT(strongestShade(image, image.rect(), m_style.accentHi, m_background), 0.5);
+    EXPECT_LT(strongestShade(image, image.rect(), m_style.textPrimary, m_background), 0.5);
+
+    // Its child: unindented, with its icon where a top-level item has it
+    image = QImage(240, m_style.rowHeight, QImage::Format_RGB32);
+    image.fill(m_background);
+    {
+        QPainter painter(&image);
+        option.rect = image.rect();
+        option.state = QStyle::State_Enabled;
+        delegate.paint(&painter, option, library);
+    }
+    const int iconLeft = m_style.sidebarItemInset + m_style.sidebarItemPadding;
+    const QRect iconArea(iconLeft,
+            (m_style.rowHeight - m_style.sidebarIcon) / 2,
+            m_style.sidebarIcon,
+            m_style.sidebarIcon);
+    EXPECT_GT(strongestShade(image, iconArea, m_style.navIdle, m_background), 0.5);
 }
 
 TEST_F(CrateDelegatesTest, PaintsLoadedTitleInTheDeckColour) {

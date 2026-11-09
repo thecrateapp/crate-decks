@@ -153,6 +153,9 @@
   <SetVariable name="CrateLibColumnBpm">76</SetVariable>
   <SetVariable name="CrateLibColumnKey">54</SetVariable>
   <SetVariable name="CrateLibColumnTime">60</SetVariable>
+  <SetVariable name="CrateLibColumnEnergy">46</SetVariable>
+  <SetVariable name="CrateLibColumnProfile">108</SetVariable>
+  <SetVariable name="CrateLibColumnCache">58</SetVariable>
   <SetVariable name="CrateLibColumnArtist">0.16</SetVariable>
   <SetVariable name="CrateLibColumnGenre">0.13</SetVariable>
   <SetVariable name="CrateLibFontSizeText">13</SetVariable>

@@ -42,7 +42,20 @@ void setPixelSize(QFont* pFont, double pixelSize) {
     }
 }
 
+DelegateStyle& currentStyle() {
+    static DelegateStyle style;
+    return style;
+}
+
 } // namespace
+
+const DelegateStyle& DelegateStyle::current() {
+    return currentStyle();
+}
+
+void DelegateStyle::setCurrent(const DelegateStyle& style) {
+    currentStyle() = style;
+}
 
 DelegateStyle DelegateStyle::fromVariables(const SkinVariables& variables) {
     DelegateStyle style;

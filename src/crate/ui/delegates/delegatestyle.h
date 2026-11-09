@@ -81,6 +81,12 @@ struct DelegateStyle {
     }
     static DelegateStyle fromVariables(const SkinVariables& variables);
 
+    /// The style of the loaded skin, for the delegates a track model creates
+    /// in delegateForColumn() (plan F3.C-PR2); invalid while the loaded skin
+    /// is not CrateDecks. styleLibrary() sets it. Main thread only.
+    static const DelegateStyle& current();
+    static void setCurrent(const DelegateStyle& style);
+
     /// The colour of deck `letter` ("A" to "D"); invalid for anything else.
     QColor deckColour(const QString& letter) const;
 
