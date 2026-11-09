@@ -88,6 +88,15 @@
 - **LV-D6. Measure first.** SM5 compared v3 with v2 only in the `dj` context, and the harness's `listen` context (beatmatch without long blends) matches no real Listen request. LV0 measures Listen's three real contexts on the four v8 sets before any product code.
 - **LV-D7. No UI change.** v3 adds no mode, so `PlayerMixIndicator` keeps working, and there is no new copy.
 
+**Diego's decisions (2026-11-09, "sí a todo"):**
+
+- **LV-D8. The LV-G1 rule.** Stop if v3 measures worse than v2 in any context or set, on net (SM5's four metrics) or on the loudness dip, with the sign test at p < 0.1.
+- **LV-D9. Caps on the music Listen loses.** For every source but `decks`, v3 serves its best-ranked candidate that skips at most **10 s** of the incoming intro and cuts at most **20 s** of the outgoing outro; when none does, it serves v2's own plan, which is on the menu. Both are measured as `music_left_out` measures them (`app/crate/smart_mix/evaluation.py`): skipped from the start of the incoming music to where the deck starts, cut from the end of the mix to the end of the outgoing music. These are starting values: LV0 measures them (Task 1b) and LV-G1 tunes them from the data. Crate Decks and v2 do not change.
+- **LV-D10. The user's "Transición máxima" always wins.** With `smart-mix-v3`, Listen never asks for `allowLongBeatmatch`, neither in its plan batches nor in the native continuation, so no v3 mix is longer than `preferredDurationMs`, beatmatch or not. The v2 path keeps today's request, so a rollback restores today's behaviour.
+- **LV-D11. The phone.** The local dev stack already set up in `~/Code/Ninja/crate-agents/listening/android-local/`, with JDK 21 and the Android SDK in user space (about 3 GB). The phone is still not visible to adb.
+- **LV-D12. Default-on.** After LV-G2, one to two weeks of rollout behind the switch in production, then v3 as the code default.
+- **Production flags** (read 2026-11-09, read-only): `CRATE_ANDROID_NATIVE_CROSSFADE_ENABLED`, `CRATE_ANDROID_BEATMATCH_ENABLED` and `CRATE_ANDROID_BASS_HANDOFF_ENABLED` are all `true`, so real users can reach Listen's three contexts.
+
 ## Global Constraints
 
 - **Repository:** `thecrateapp/crate` (monorepo), following its root `AGENTS.md` and `app/listen/AGENTS.md`. Every Listen change also runs `app/listen-desktop`'s typecheck.
@@ -98,8 +107,9 @@
   - capability `smart_mix.listen_planner_version`: one of `planner_versions`, null while Smart Mix is off;
   - planner identifiers `smart-mix-v2` and `smart-mix-v3`; every plan keeps `plannerVersion: 2`;
   - `smart_mix.planner_version` and `vdj.planner_version` stay `smart-mix-v2`;
-  - Listen's `preferredDurationMs` stays at 12,000 ms at most.
-- **Crate Decks, VirtualDJ and v2 stay byte-identical:** no change under `app/crate/smart_mix/` (planner, candidates, policy), and the golden fixtures in `app/tests/fixtures/smart_mix/` stay as they are.
+  - Listen's `preferredDurationMs` stays at 12,000 ms at most, and with v3 no mix is longer (LV-D10);
+  - Listen's caps (LV-D9): 10,000 ms of skipped intro and 20,000 ms of cut outro until LV-G1 tunes them.
+- **Crate Decks, VirtualDJ and v2 stay byte-identical.** The only change under `app/crate/smart_mix/` is Task 5b's caps, which apply to sources other than `decks` and to v3 only. The golden fixtures in `app/tests/fixtures/smart_mix/` stay as they are; Task 5b adds one for Listen.
 - **Resources** (`~/Code/Ninja/crate-agents/handoffs/2026-11-09/crash-1129/README.md`):
   - `free -g` with at least 6 GB available before a heavy job;
   - one `listen_metrics.py` at a time, `--jobs 4`, with `TMPDIR` and outputs on disk (`~/Code/Ninja/crate-agents/scratch/listen-v3/` and the worktree's ignored `out/`), never audio in `/tmp`;
@@ -116,7 +126,7 @@
 1. **A new APK on a server that lists v3 without `listen_planner_version`** (`origin/main` today, self-hosted installs): it must plan with v2 and never send v3 to `/api/playback/continuation`, which answers 422 there. Tests in Tasks 6, 8 and 9.
 2. **The switch changes between two capabilities reads:** the queue is replanned and the native continuation follows the new planner. Tests in Tasks 7 and 8.
 3. **An old APK against a server with the switch on:** its v2 requests and continuations are answered as before. Tests in Tasks 3 and 4.
-4. **A beatmatch user gets a long v3 phrase blend** (more than 12 s, `dj-blend`): the client keeps it intact and the native engine accepts it. Tests in Tasks 7 and 9.
+4. **A beatmatch user on v3** must never get a mix longer than their "Transición máxima" (LV-D10), in the foreground or in the background continuation. Tests in Tasks 7 and 8; the native engine still accepts long v2 plans (Task 9).
 5. **Album playback** stays gapless under v3. Test in Task 7.
 
 ## Phase map
@@ -134,8 +144,8 @@ flowchart TD
 
 | Phase | Result | PRs | Size |
 | --- | --- | --- | --- |
-| LV0 | Listen's contexts in the harness; report with v2 against v3, latency and a listening list | 1 (harness) + report here | 1–2 days, mostly compute |
-| LV1 | Capability, switch, v3 continuation, no stem reads for Listen | 1 | 1 day |
+| LV0 | Listen's contexts and caps in the harness; v9 profiles; report with v2 against v3, latency and a listening list | 1 (harness) + report here | 1–2 days, mostly compute |
+| LV1 | Capability, switch, v3 continuation, no stem reads for Listen, Listen's caps in the planner | 1 | 2 days |
 | LV2 | Listen and Android use the recommended planner | 1 | 2 days |
 | LV3 | Debug APK on Diego's phone against the dev stack | none | 1 day plus Diego's session |
 | LV4 | Releases, production switch, code default | 1 | Diego's schedule |
@@ -170,18 +180,19 @@ def test_listen_contexts_mirror_listen_requests() -> None:
         allow_beatmatch=False,
         allow_tempo_adjustment=False,
     )
-    # Beatmatch on: Listen also allows long blends (android_long_beatmatch).
+    # Beatmatch on. No long blends: with v3 the user's maximum always wins (LV-D10).
     assert CONTEXTS["listen-beatmatch"] == replace(
         crossfade,
         allow_beatmatch=True,
         allow_tempo_adjustment=True,
-        allow_long_beatmatch=True,
     )
     assert CONTEXTS["listen-bass"] == replace(
         CONTEXTS["listen-beatmatch"], allow_bass_handoff=True
     )
-    assert CONTEXTS["listen"].allow_beatmatch
-    assert not CONTEXTS["listen"].allow_long_beatmatch
+    # ST3's context is listen-beatmatch with the "auto" cue profile, which no planner reads.
+    assert CONTEXTS["listen"] == replace(
+        CONTEXTS["listen-beatmatch"], user_cue_profile="auto"
+    )
 
 
 @pytest.mark.parametrize(
@@ -211,6 +222,39 @@ git add tools/smart-mix-eval/run_eval.py tools/smart-mix-eval/tests/test_run_eva
 git commit -m "feat(smart-mix-eval): add Listen's real request contexts"
 ```
 
+### Task 1b: Listen's caps as a harness planner (LV-D9)
+
+**Files:**
+
+- Modify: `tools/smart-mix-eval/run_eval.py` (`PLANNERS`, `PLANNER_RULES`, `parse_args`)
+- Test: `tools/smart-mix-eval/tests/test_run_eval.py`
+
+**Interfaces:**
+
+- Produces: the planner `smart-mix-v3-listen-caps` and the options `--max-skipped-intro-ms` (default 10000) and `--max-unplayed-outro-ms` (default 20000). It takes v3's menu (`plan_transition_candidates`) in rank order and serves the first candidate whose `music_left_out` keeps both caps; when none does, it serves the menu's v2 plan. The report's meta records both caps. Task 5b moves the same rule into the planner.
+
+- [ ] **Step 1: Write the failing tests**, on a structured pair whose best v3 candidate skips more than 10 s of the incoming intro:
+
+```python
+def test_listen_caps_serve_the_best_candidate_within_them() -> None:
+    capped = evaluate_dataset(rows, profiles, planner="smart-mix-v3-listen-caps",
+                              context=CONTEXTS["listen-crossfade"])
+    left_out = capped[0]["musicLeftOut"]
+    assert left_out["incomingSkippedMs"] <= 10_000
+    assert left_out["outgoingUnplayedMs"] <= 20_000
+    assert capped[0]["plan"] == <the best-ranked menu plan within both caps>
+
+
+def test_listen_caps_fall_back_to_v2_when_no_candidate_keeps_them() -> None:
+    # Caps of 0 ms: only v2's own plan can be served.
+    assert capped[0]["plan"] == v2[0]["plan"]
+```
+
+- [ ] **Step 2: Run them and check they fail.** `cd app && ../.venv/bin/python -m pytest ../tools/smart-mix-eval/tests/test_run_eval.py -q -k listen_caps`. Expected: FAIL, unknown planner.
+- [ ] **Step 3: Implement** the planner and the two options.
+- [ ] **Step 4: Run the tests and check they pass.** Same command. Expected: PASS.
+- [ ] **Step 5: Commit:** `git commit -m "feat(smart-mix-eval): measure Listen's caps on the music it loses"` with the two files.
+
 ### Task 2: Run the comparison and write the report
 
 No product code. The output is a report in this repository and a listening list.
@@ -218,7 +262,7 @@ No product code. The output is a report in this repository and a listening list.
 **Inputs:**
 
 - Sets and audio roots: `~/Code/Ninja/crate-agents/handoffs/2026-11-09/eval-v8-data.md` §3. Datasets in `~/Code/Ninja/crate-agents/eval-v8/sets/<set>/dataset.jsonl`, for the sets `electronic`, `phrase`, `industrial` and `metalpunk`.
-- Database: `postgresql://crate:crate@127.0.0.1:55473/crate_eval_v8` (container `sm5-eval-postgres`), read-only.
+- Database: the four sets re-analysed with analyzer v9 (branch `fix/smart-mix-v8-anchor-m4a`: bar anchor and m4a decoding) into `crate_eval_v9`, a copy of `crate_eval_v8` in `sm5-eval-postgres`; `crate_eval` and `crate_eval_v8` are never written. If that branch cannot analyse yet, `crate_eval_v8`, and the report says so.
 - Stems, only to prove that Listen gets none: `stems-st3/tools/smart-mix-eval/out/st3/stems/{electronic,spike}` and `eval-v8/stems/{industrial,metalpunk}`, mounted read-only.
 
 - [ ] **Step 1: Pre-flight.** Run `free -g` (at least 6 GB available) and check with `docker ps` that no other `listen_metrics.py` is running and that `sm5-eval-postgres` is up.
@@ -233,9 +277,14 @@ for S in electronic phrase industrial metalpunk; do
     python run_eval.py --dataset /eval-v8/sets/$S/dataset.jsonl --planner smart-mix-v3 \
       --context $C --stems <stems of $S> --output out/listen-v3/$S/$C/v3 \
       --compare out/listen-v3/$S/$C/v2/report.json
+    python run_eval.py --dataset /eval-v8/sets/$S/dataset.jsonl \
+      --planner smart-mix-v3-listen-caps --context $C \
+      --output out/listen-v3/$S/$C/v3-caps --compare out/listen-v3/$S/$C/v2/report.json
   done
 done
 ```
+
+For the tuning, the profile metrics of `smart-mix-v3-listen-caps` also run with caps of 5/10 s and 20/40 s (planning only, no listening metrics).
 
 - [ ] **Step 3: Check that no Listen plan used stems.**
 
@@ -257,6 +306,8 @@ python listen_metrics.py \
   --music-root /music=<audio root of $S> --output out/listen-v3/$S/listen --jobs 4
 ```
 
+The same run takes the three `v3-caps` reports as `v3caps-<context>` with `--compare v3caps-<context>:v2-<context>`.
+
 - [ ] **Step 5: Latency of a Listen batch.** On a dev stack with v8 profiles on at least 33 tracks (the one in `~/Code/Ninja/crate-agents/listening/android-local/`), with a script kept in `~/Code/Ninja/crate-agents/scratch/listen-v3/` and not committed:
   - post a 32-edge batch in the `listen-crossfade` context, 20 times per planner, each time with a `preferredDurationMs` not used before (6001, 6002…), so that every request misses the plan cache; then 20 times with one value, cached;
   - log in as the dev test user and never print the session;
@@ -267,7 +318,7 @@ python listen_metrics.py \
   - listening metrics: means, then v3 against v2 on paired edges (beat clash, voice on voice, bass on bass, loudness step, loudness dip; net on SM5's four; sign test; clearly worse edges);
   - the latency of step 5 against the design budget (uncached p95 under 150 ms) and Listen's deadline floor (1 s).
 
-- [ ] **Step 7: Prepare the listening list.** At most 40 edges, rendered as A (v2) and B (v3) with `render_pair.py --report … --edge …` into `~/Code/Ninja/crate-agents/listening/listen-v3/`, with `playlist.m3u8` and a README in Spanish like `stem-g1-v8/`:
+- [ ] **Step 7: Prepare the listening list.** At most 40 edges, rendered as A (v2) and B (v3 with the caps) with `render_pair.py --report … --edge …` into `~/Code/Ninja/crate-agents/listening/listen-v3-lv0/`, with `playlist.m3u8` and a README in Spanish like `stem-g1-v8/`:
   - per context, the 5 edges where v3's loudness dip is deepest compared with v2;
   - the 5 with the most skipped intro and the 5 with the most unplayed outro;
   - in the beatmatch contexts, 5 long blends;
@@ -279,10 +330,10 @@ python listen_metrics.py \
 git commit -m "docs(plans): measure Smart Mix v3 in Listen's contexts" -- docs/plans/2026-11-<dd>-listen-smart-mix-v3-evaluation.md
 ```
 
-**Gate LV-G1 (Diego): whether v3 is good enough for Listen offline.** The agent stops and presents the report, the listening list and this proposed reading:
+**Gate LV-G1 (Diego): whether v3 is good enough for Listen offline.** The agent stops and presents the report, the listening list and a verdict proposal under Diego's rule (LV-D8):
 
-- **Go** when, in each of the three contexts and on each of the four sets, v3 is not significantly worse than v2 (sign test p < 0.1) on net or on the loudness dip, and Diego accepts the unplayed and skipped distributions.
-- **Stop** otherwise. A fix to v3 for non-Decks sources (a dip term, a cap on skipped music) gets its own plan and its own measurement; it is not added here.
+- **Stop** if v3 with the caps (the planner Listen would get) measures worse than v2 in any context or set, on net or on the loudness dip (sign test p < 0.1). A fix to v3 for non-Decks sources (a dip term, other caps) then gets its own plan and measurement.
+- **Go** otherwise, with the caps' values for Task 5b, tuned from the data.
 - The uncached p95 for 32 edges must stay under 1 s. Above the 150 ms budget, the report says by how much.
 
 ---
@@ -454,6 +505,29 @@ git add app/crate/api/smart_mix.py app/tests/test_smart_mix_api_stems.py
 git commit -m "perf(smart-mix): skip stem reads for batches the layer does not serve"
 ```
 
+### Task 5b: Listen's caps in the v3 planner (LV-D9)
+
+**Files:**
+
+- Modify: `app/crate/smart_mix/policy.py` (`PlannerPolicy`, `PLANNER_POLICY_V3`), `app/crate/smart_mix/candidates.py` (`plan_transition_candidates`)
+- Create: `app/tests/fixtures/smart_mix/candidates_v3_listen_caps.json`
+- Test: `app/tests/test_smart_mix_candidates.py`, `app/tests/test_candidates_stems.py`
+- Modify: `docs/technical/smart-mix-operations.md` (the rules revision row and the section "Planner smart-mix-v3")
+
+**Interfaces:**
+
+- Produces: `PlannerPolicy.listen_max_skipped_intro_ms: int | None`, `listen_max_unplayed_outro_ms: int | None` (None in v2's policy) and `listen_cap_exempt_sources: tuple[str, ...] = ("decks",)`; `PLANNER_POLICY_V3` with the values LV-G1 fixes (10,000 and 20,000 ms to start) and the next rules revision. For a capped source the menu is reordered: the candidates within both caps first, in their rank order, then v2's own plan, then the rest; so the served plan is the one `smart-mix-v3-listen-caps` serves in the harness.
+
+- [ ] **Step 1: Write the failing tests:**
+  - `test_listen_caps_serve_the_best_candidate_within_them` and `test_listen_caps_fall_back_to_v2s_plan`, on the cases of `smart_mix_candidate_cases.py`, with the `playlist` source;
+  - `test_decks_menus_ignore_the_listen_caps`: the `candidates_v3_rules5.json` golden is still met byte for byte with the `decks` source;
+  - `test_v2_ignores_the_listen_caps`: `transition_plans_v2.json` is still met;
+  - `test_listen_caps_golden`: the new fixture, generated once from the tested code and never regenerated after a change.
+- [ ] **Step 2: Run them and check they fail.** `cd app && ../.venv/bin/python -m pytest tests/test_smart_mix_candidates.py tests/test_candidates_stems.py -q -k "caps or golden"`. Expected: FAIL on the new fields.
+- [ ] **Step 3: Implement** the fields, the reordering and the rules revision bump.
+- [ ] **Step 4: Run the tests and check they pass,** with the harness: `smart-mix-v3` in the `listen-crossfade` context plans as `smart-mix-v3-listen-caps` did in LV0 on the four sets (`run_eval.py --compare`, 0 changed edges).
+- [ ] **Step 5: Commit:** `git commit -m "feat(smart-mix): cap the music v3 leaves out for Listen"` with the files above.
+
 ---
 
 ## LV2 · Listen and Android: the recommended planner
@@ -565,6 +639,11 @@ it("drops a response from another planner than the one it asked for", async () =
   // Every requested edge: fallbackReason "missing_profile", confidence 0.
 });
 
+it("never asks for long blends with smart-mix-v3", async () => {
+  // LV-D10. Beatmatch and long beatmatch on, capabilities resolving to v3:
+  // the edge context has no allowLongBeatmatch. With v2 it keeps it, as today.
+});
+
 it("a planner change starts a new planning generation", async () => {
   // Same input with ENABLED_CAPABILITIES, then with V3_CAPABILITIES.
   // Two requests; the second asks for smart-mix-v3.
@@ -592,7 +671,7 @@ Update the existing literals that reach the request so that the v2 tests still d
 Run: `cd app/listen && npx vitest run src/lib/smart-mix.test.ts`
 Expected: FAIL. The client still asks for `smart-mix-v2` and drops the v3 response.
 
-- [ ] **Step 3: Implement.** `capabilityAvailable` requires `resolvePlannerVersion(input.capabilities) !== null`; the request body and the response check use the resolved identifier; the per-plan check stays at policy version 2.
+- [ ] **Step 3: Implement.** `capabilityAvailable` requires `resolvePlannerVersion(input.capabilities) !== null`; the request body and the response check use the resolved identifier; `allowLongBeatmatch` is sent only when the resolved planner is v2; the per-plan check stays at policy version 2.
 
 - [ ] **Step 4: Run the tests and check they pass**
 
@@ -631,6 +710,9 @@ it("hands the resolved planner to the native continuation", async () => {
 it("hands smart-mix-v2 to the native continuation without a Listen recommendation", async () => {
   expect(snapshot.continuation?.plannerVersion).toBe("smart-mix-v2");
 });
+it("never asks the native continuation for long blends with smart-mix-v3", async () => {
+  // LV-D10. Long beatmatch on and v3: continuation.allowLongBeatmatch is false.
+});
 
 // android-native-engine.test.ts
 it("continuationWithModes follows a planner change", () => {
@@ -655,7 +737,7 @@ The two capabilities objects of the third test keep the context's beatmatch, bas
 Run: `cd app/listen && npx vitest run src/contexts/player-engine-adapter.test.ts src/lib/android-native-engine.test.ts`
 Expected: FAIL. The context has no `plannerVersion`.
 
-- [ ] **Step 3: Implement.** Set the field in `toStartupEngineQueueSnapshot`; compare it in `continuationWithModes` and return the updated context when it changes; pass it in `configureContinuation`; add it to the plugin's option type.
+- [ ] **Step 3: Implement.** Set the field in `toStartupEngineQueueSnapshot`, with `allowLongBeatmatch` false when it is v3; compare it in `continuationWithModes` and return the updated context when it changes; pass it in `configureContinuation`; add it to the plugin's option type.
 
 - [ ] **Step 4: Run the tests and the checks**
 
@@ -753,14 +835,14 @@ Nothing here is committed. Everything lives under `~/Code/Ninja/crate-agents/lis
 
 ### Task 10: Phone access, listening build and dev stack
 
-- [ ] **Step 1: Ask Diego** which server the phone uses (decision D4): the local dev stack through `adb reverse` (the default, `listening/android-local/README.md`), or a test server he names. Never production.
+- [ ] **Step 1: The server** is the local dev stack already set up in `listening/android-local/` (LV-D11), through `adb reverse`. Never production.
 
 - [ ] **Step 2: Make the phone reachable.** On 2026-11-09 `adb devices -l` was empty and `lsusb` did not list the phone.
   - **USB:** a data cable and another port; on the phone, USB mode "File transfer", developer options and USB debugging on, and the RSA prompt accepted. When `lsusb` lists it and adb does not, the udev rules need `sudo`: ask Diego.
   - **Without USB (Android 11 or later, same Wi-Fi):** Developer options → Wireless debugging → Pair device with pairing code. Then `adb pair <ip>:<pairing port> <code>` and `adb connect <ip>:<port>`. `adb reverse tcp:8585 tcp:8585` works the same way, and the API stays on `localhost`.
   - Expected: `adb devices -l` lists the phone.
 
-- [ ] **Step 3: Toolchain.** JDK 21 and the Android SDK (platform 36, build-tools, platform-tools) in user space under `~/Android`, without `sudo`. About 3 GB: only with Diego's approval. `adb` is already in `/usr/bin`.
+- [ ] **Step 3: Toolchain.** JDK 21 and the Android SDK (platform 36, build-tools, platform-tools) in user space under `~/Android`, without `sudo`, about 3 GB (approved, LV-D11). `adb` is already in `/usr/bin`.
 
 - [ ] **Step 4: Build "Crate DBG" from the LV2 branch**, with `free -g` checked first:
 
@@ -821,7 +903,7 @@ Agents prepare; Diego decides and runs each step.
 - [ ] **Step 2: Android release** (`v*` tag) with LV2, with the gates of `docs/technical/listen-mobile-release-gates.md`. Add one row to the device matrix: "Smart Mix v3: crossfade, beatmatch, radio with the screen off, switch off".
 - [ ] **Step 3: Production switch:** `CRATE_LISTEN_SMART_MIX_V3_ENABLED=true`, then the API restarts.
 Expected: `/api/capabilities` shows `listen_planner_version: "smart-mix-v3"`. APKs from before LV2 keep asking for v2.
-- [ ] **Step 4: Soak** for as long as Diego decides, listening on his phone. **Rollback:** switch off and restart the API. Clients go back to v2 at their next app start, and no app release is needed.
+- [ ] **Step 4: Rollout** behind the switch for one to two weeks (LV-D12), with Diego listening on his phone. **Rollback:** switch off and restart the API. Clients go back to v2 at their next app start, and no app release is needed. Task 13 follows.
 
 ### Task 13: v3 by default in the code
 
@@ -857,8 +939,8 @@ PR: `feat(smart-mix): recommend smart-mix-v3 to Listen by default`.
 | --- | --- | --- |
 | v3 is not better than v2 in Listen's short crossfades; SM5 only measured `dj` | LV0 report | Stop at LV-G1 (LV-D6) |
 | Loudness dips without stems | Paired dip worse with p < 0.1 | Previous section |
-| v3 cuts more music: up to 30 s unplayed and 16 s skipped on average in `listen`; in the dev playlists, Melvins → Pallbearer enters at 1:12, and e0096 leaves at 2:52 where v2 leaves at 4:05 | LV0 distributions, Diego's ear | Decision D2 at LV-G1 |
-| Beatmatch users get long phrase blends (up to 48 s) much more often than with v2, beyond the "Maximum transition" they chose | LV0 share of mixes longer than 12 s | Decision D3 |
+| v3 cuts more music: up to 30 s unplayed and 16 s skipped on average in `listen`; in the dev playlists, Melvins → Pallbearer enters at 1:12, and e0096 leaves at 2:52 where v2 leaves at 4:05 | LV0 distributions, Diego's ear | Caps of 10 s and 20 s (LV-D9), tuned at LV-G1 |
+| Beatmatch users would get long phrase blends (up to 48 s) much more often than with v2, beyond the "Maximum transition" they chose | LV0 durations | No long blends with v3 (LV-D10) |
 | The harness renders beatmatch as perfect; the phone only engages it with a phase lock and otherwise crossfades on v3's cues | Phone sessions 2 and 3 | LV-G2 |
 | The v8 sets are compatible-track edges, not Listen queues (any order, radio) | Phone sessions on real playlists | LV-G2; a Listen-queue set is out of scope |
 | Analyzer v8 finds no phrases on 45 of 399 tracks | `structureUsed` false | None: v3 plans as v2 there |
@@ -874,17 +956,12 @@ PR: `feat(smart-mix): recommend smart-mix-v3 to Listen by default`.
 - Web, desktop (Tauri) and iOS: they do not execute plans.
 - Stems, AI refinement, the candidate menu and set history for Listen.
 - Changing the API default planner, VirtualDJ's planner or removing v2.
-- Any change to v3's scoring or limits for Listen. If LV-G1 asks for one, it gets its own plan.
+- Any change to v3's scoring or limits for Listen beyond the caps (LV-D9). If LV-G1 asks for one, it gets its own plan.
 - Native execution changes beyond the continuation's planner.
 - Server metrics per planner, and refreshing capabilities while the app runs.
 - A harness set built from real Listen queues.
 - Smart Mix's R1 physical gate (an external capture for clipping and underruns), which stays open.
 
-## Open decisions for Diego
+## Decisions taken
 
-- **D1 (LV-G1):** the reading of the offline comparison; the proposal is in Task 2.
-- **D2 (LV-G1):** whether Listen needs a cap on the intro v3 skips and the outro it leaves unplayed, once the v2 and v3 distributions are known.
-- **D3 (LV-G1):** long blends for beatmatch users. Either keep them (as v2 already does, now more often), or ask for them only when the user's maximum is 12 s.
-- **D4 (LV3):** the phone setup (local dev stack through adb or a test server), the `sudo` udev rules if USB needs them, and installing JDK and the Android SDK in user space (about 3 GB).
-- **D5 (LV-G2, LV4):** default-on, the soak time in production, and when the code default changes for self-hosted servers.
-- **For the report:** which Android flags production has on (`CRATE_ANDROID_BEATMATCH_ENABLED`, `CRATE_ANDROID_BASS_HANDOFF_ENABLED`). They decide which of Listen's three contexts real users can reach.
+Diego answered every open decision on 2026-11-09 ("sí a todo"); they are LV-D8 to LV-D12 in §2, with the production flags.
