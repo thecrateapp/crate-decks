@@ -148,6 +148,9 @@ void DialogScrim::setActive(bool active) {
         return;
     }
     if (!active) {
+        if (m_kind == Kind::ChildWindow) {
+            QCoreApplication::instance()->removeEventFilter(this);
+        }
         // A child window also belongs to the main window's, which may have
         // deleted it already
         delete m_pWindow.data();
@@ -174,6 +177,10 @@ void DialogScrim::setActive(bool active) {
     m_pWindow = pWindow;
     place();
     pWindow->show();
+    if (m_kind == Kind::ChildWindow) {
+        // To see the native children that show while it is up
+        QCoreApplication::instance()->installEventFilter(this);
+    }
 }
 
 bool DialogScrim::isActive() const {
@@ -185,11 +192,27 @@ QWindow* DialogScrim::window() const {
 }
 
 bool DialogScrim::eventFilter(QObject* pWatched, QEvent* pEvent) {
-    if (pWatched == m_pMainWindow &&
-            (pEvent->type() == QEvent::Move || pEvent->type() == QEvent::Resize)) {
+    const QEvent::Type type = pEvent->type();
+    if (pWatched == m_pMainWindow && (type == QEvent::Move || type == QEvent::Resize)) {
         place();
+    } else if (type == QEvent::Show && m_kind == Kind::ChildWindow && m_pWindow &&
+            pWatched != m_pWindow && !m_restackPending) {
+        auto* pWindow = qobject_cast<QWindow*>(pWatched);
+        if (pWindow && m_pMainWindow && pWindow->parent() == m_pMainWindow->windowHandle()) {
+            // Its subsurface comes once it shows, after this event
+            m_restackPending = true;
+            QMetaObject::invokeMethod(this, &DialogScrim::restack, Qt::QueuedConnection);
+        }
     }
     return QObject::eventFilter(pWatched, pEvent);
+}
+
+void DialogScrim::restack() {
+    m_restackPending = false;
+    if (isActive()) {
+        setActive(false);
+        setActive(true);
+    }
 }
 
 void DialogScrim::place() {

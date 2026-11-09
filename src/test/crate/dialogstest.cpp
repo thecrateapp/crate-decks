@@ -445,6 +445,28 @@ TEST_F(CrateDialogsTest, ScrimIsAChildWindowOnWayland) {
     ASSERT_FALSE(children.isEmpty());
     EXPECT_EQ(scrim.window(), children.last());
     EXPECT_GT(children.indexOf(scrim.window()), children.indexOf(&waveform));
+
+    // A native child that shows while the scrim is up, as a waveform when a
+    // controller switches to four decks under a dialog: on Wayland it gets a
+    // new subsurface above the scrim, so the scrim goes above it again
+    const auto lastChild = [pMainHandle] {
+        QWindow* pLast = nullptr;
+        for (QObject* pChild : pMainHandle->children()) {
+            if (auto* pWindow = qobject_cast<QWindow*>(pChild)) {
+                pLast = pWindow;
+            }
+        }
+        return pLast;
+    };
+    waveform.hide();
+    QCoreApplication::processEvents();
+    EXPECT_EQ(scrim.window(), lastChild());
+    QWindow later(pMainHandle);
+    later.show();
+    waveform.show();
+    QCoreApplication::processEvents();
+    ASSERT_TRUE(scrim.isActive());
+    EXPECT_EQ(scrim.window(), lastChild());
     scrim.setActive(false);
 }
 

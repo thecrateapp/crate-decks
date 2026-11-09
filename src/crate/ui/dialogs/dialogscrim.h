@@ -26,7 +26,9 @@ namespace crate {
 ///   so a top-level scrim could neither cover the main window nor follow
 ///   it. It covers the window's contents, not the title bar that the client
 ///   draws (there is none in full screen).
-/// It follows the main window while it moves and resizes.
+/// It follows the main window while it moves and resizes. On Wayland it goes
+/// back above a native child of the main window that shows while it is up:
+/// a native child that shows gets a new subsurface, on top.
 class DialogScrim : public QObject {
   public:
     enum class Kind {
@@ -59,11 +61,14 @@ class DialogScrim : public QObject {
 
   private:
     void place();
+    /// A new scrim, above the main window's native children.
+    void restack();
 
     const QPointer<QWidget> m_pMainWindow;
     const Kind m_kind;
     const QColor m_colour;
     QPointer<QWindow> m_pWindow;
+    bool m_restackPending = false;
 };
 
 /// Whether `pDialog` blocks the main window and takes the scrim: a dialog
