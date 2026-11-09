@@ -534,7 +534,11 @@ En `cratecapabilities_test.cpp`:
 ## F3 · Biblioteca Crate navegable
 
 **Antes de F3:**
-- **Bloqueo durante el escaneo:** el escáner de la biblioteca de Mixxx bloqueaba la base de datos durante todo el escaneo (upstream #6631). Crate Decks lo parchea guardando cada pista en su propia transacción (`fix/decks-scanner-lock`), pendiente de la prueba manual de Diego.
+- **Bloqueo durante el escaneo** (hueco de Mixxx, upstream #6631): el escáner tenía la base de datos bloqueada durante todo el escaneo, y cada escritura de la interfaz esperaba 5 s y fallaba con "database is locked". La primera versión del arreglo, una transacción por pista, no pasó la prueba manual del 2026-11-09: un escaneo de 5000 ficheros tardaba entre 47 y 75 s (de 5 a 9 s la base), con esperas de hasta 4,4 s y entre 12 y 22 escrituras fallidas. Diego aprobó el arreglo completo, en `fix/decks-scanner-lock`:
+  - **Transacciones de escritura:** `SqlTransaction` y `ScopedTransaction` empiezan con `BEGIN IMMEDIATE`, así que esperan el bloqueo en vez de fallar al pasar de leer a escribir.
+  - **Espera:** cada conexión, también la que clona cada tabla de pistas, reintenta cada milisegundo (el manejador de SQLite llegaba a dormir 100 ms entre intentos) y avisa de que espera.
+  - **Escáner:** confirma en lotes de 64 pistas o 40 ms, cierra el lote en cuanto otra conexión espera y la deja pasar antes del siguiente.
+  - **Prueba manual** (8 escaneos, 3 de ellos alternados con la base y el arreglo anterior con la misma carga): ningún "database is locked". El p95 de las escrituras de la interfaz queda entre 17 y 41 ms en 5 de 8, y el máximo entre 25 y 227 ms en 6 de 8; los peores (p95 de 221 ms, máximo de 1,56 s) coinciden con una carga de 17 a 33 en 22 núcleos por otros trabajos. El escaneo tarda entre 6,4 y 17,6 s, frente a 5,3–8,8 s de la base en las mismas rondas.
 - **Escrituras de Crate:** las de las tablas `crateserver_` van igualmente fuera del hilo de la interfaz y reintentan si la base de datos está ocupada.
 
 ### F3.S-PR1 · Servidor: navegación paginada para clientes (S3)
