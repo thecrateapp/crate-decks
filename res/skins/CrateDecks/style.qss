@@ -314,31 +314,6 @@ WRecordingDuration {
   text-align: right;
 }
 
-WTrackTableViewHeader::item {
-  border-bottom: 1px solid #000;
-  }
-/* This is now set in c++ WTrackTableViewHeader::paintSection()
-   which also works around a Qt bug with the sort indicator */
-/*WTrackTableViewHeader::section {
-    height: 1.1em;
-    border: 0;
-    padding: 0.1em;
-  }*/
-  /*WTrackTableViewHeader::up-arrow,
-  WTrackTableViewHeader::down-arrow {
-    width: 0.8em;
-    padding: 0 0.3em;
-  }*/
-  /*WTrackTableViewHeader::up-arrow,
-  WTrackTableViewHeader::down-arrow {
-    padding: 0 1px;
-  }*/
-
-/* Prevent OS-style checkbox from being rendered underneath the custom style. */
-#LibraryBPMButton::item,
-#LibraryPlayedCheckbox::item {
-  border: 0px;
-}
 
 #HotcueButton {
   /* ronso0
@@ -4052,84 +4027,6 @@ WLibrary QPlainTextEdit,
   background-color: #0f0f0f;
 }
 
-WTrackTableView,
-WLibraryTextBrowser,
-WLibrarySidebar {
-  alternate-background-color: #0a0a0a;
-/* In selected library rows this sets the color of
-  * shapes in star rating delegate
-  * focus border of Cover Art and Color delegates
-   > See src/library/coverartdelegate.cpp: "option.palette.highlightedText().color();" */
-  selection-color: #fff;
-  /* background of Color delegate in selected row */
-  selection-background-color: #2c454f;
-}
-WLibrarySidebar {
-  outline: none;
-}
-/* Selected rows in Tree and Tracks table */
-WLibrarySidebar::item:selected,
-WTrackTableView::item:selected,
-#LibraryBPMButton::item:selected,
-#LibraryPlayedCheckbox::item:selected {
-  /* disabled since it interferes with selection-color
-     which we use in DefaultDelegate and TableItemDelegate to
-     blend the highlight color with the played/missing color.
-   color: #fff;*/
-  /* This is not required for painting the background,
-     but it is for applying the focus outline. */
-  background-color: #2c454f;
-  }
-  /* Highlight currentIndex which can be moved with Ctrl + arrow keys */
-  WTrackTableView::item:!selected:focus {
-    /* For outline to be applied, background-color must be set, too ...
-       Use a value between #0f0f0f and #0a0a0a (alternate-background-color) */
-    background-color: #0c0c0c;
-    outline: 1px solid #fff;
-    color: #fff;
-  }
-
-WLibrarySidebar::item:selected:focus {
-  outline: none;
-}
-WLibrarySidebar::item:!selected:focus,
-/* This, in conjunction with the c++ counterpart, styles only items hovered while dragging */
-WLibrarySidebar[dragHover="true"]::item:hover {
-  outline: none;
-  border: 1px solid white;
-}
-
-WTrackTableView:focus,
-WLibrarySidebar:focus,
-WLibraryTextBrowser:focus {
-  border: 1px solid #257b82;
-}
-
-WLibrarySidebar {
-  show-decoration-selected: 0;
-}
-
-/* Use the native focus decoration */
-/* This is for all cells including Played and Location */
-WTrackTableView,
-/* This is for the BPM and play count cells */
-WTrackTableView QCheckBox:focus {
-  outline: 1px solid #fff;
-}
-WTrackTableView {
-  /* This uses a custom qproperty to set the focus border
-     for Color and Cover Art cells, 1px solid, sharp corners.
-     See src/library/tableitemdelegate.cpp */
-  qproperty-focusBorderColor: #fff;
-  /* This is the color used to paint the text of played tracks.
-     BaseTrackTableModel::data() uses this to override Qt::ForegroundRole (QBrush). */
-  qproperty-trackPlayedColor: #555;
-  /* This is the color used to paint the text of missing tracks. */
-  qproperty-trackMissingColor: #f856e7; /* pink */
-  /* Color for the track drop indicator line, ie. target position in playlist */
-  qproperty-dropIndicatorColor: #984015; /* orange like fader highlight */
-}
-
 /* Table cell in edit mode */
 WLibrary QLineEdit,
 WLibrary QPlainTextEdit,
@@ -4428,43 +4325,6 @@ QLabel#labelSelectionInfo /* AutoDJ track selection info */ {
 WLibrarySidebar {
   show-decoration-selected: 0;
 }
-/* triangle for closed/opened branches in treeview */
-/* closed */
-WLibrarySidebar::branch:closed:has-children:!has-siblings:!selected,
-WLibrarySidebar::branch:closed:has-children:has-siblings:!selected {
-/* Suppresses that selected sidebar items branch indicator shows wrong color when
-    out of focus ; #6040 */
-  border-image: none;
-  image: url(skins:CrateDecks/palemoon/style/library_branch_closed.svg);
-  }
-  /* closed, selected */
-  WLibrarySidebar::branch:closed:has-children:!has-siblings:selected,
-  WLibrarySidebar::branch:closed:has-children:has-siblings:selected {
-    border-image: none;
-    image: url(skins:CrateDecks/palemoon/style/library_branch_closed_selected.svg);
-    background-color: #2c454f;
-  }
-/* open */
-WLibrarySidebar::branch:open:has-children:!has-siblings,
-WLibrarySidebar::branch:open:has-children:has-siblings {
-  border-image: none;
-  image: url(skins:CrateDecks/palemoon/style/library_branch_open.svg);
-  }
-  /* open, selected */
-  WLibrarySidebar::branch:open:has-children:!has-siblings:selected,
-  WLibrarySidebar::branch:open:has-children:has-siblings:selected {
-    border-image: none;
-    image: url(skins:CrateDecks/palemoon/style/library_branch_open_selected.svg);
-    background-color: #2c454f;
-    }
-  /* space left of selected child item */
-  WLibrarySidebar::branch:closed:!has-children:!has-siblings:selected,
-  WLibrarySidebar::branch:closed:!has-children:has-siblings:selected,
-  WLibrarySidebar::branch:open:!has-children:!has-siblings:selected,
-  WLibrarySidebar::branch:open:!has-children:has-siblings:selected {
-    border-image: none;
-    background-color: #0f0f0f;
-  }
 /************** Library *******************************************************/
 
 

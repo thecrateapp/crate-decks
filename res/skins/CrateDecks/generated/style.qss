@@ -230,7 +230,8 @@ QToolTip {
 
 /* ── Waveforms (decks.css .wf): a row per deck ─────────────────────── */
 
-#CrateMain {
+#CrateMain,
+#CrateMainLibrary {
   background-color: #0a0a0f;
 }
 /* The band's bottom rule is a group of its own: a border on the band would
@@ -271,6 +272,28 @@ QToolTip {
   max-height: 51px;
 }
 #CrateWaveformRowFourNext[highlight="1"] {
+  min-height: 35px;
+  max-height: 35px;
+}
+/* Over the maximised library (library-compatibles.html --wf-h): 44 px with
+   two decks, the short four-deck rows with four, at any window height */
+#CrateWaveformRowLibraryTwo,
+#CrateWaveformRowLibraryTwo[highlight="1"] {
+  min-height: 44px;
+  max-height: 44px;
+}
+#CrateWaveformRowLibraryTwoNext,
+#CrateWaveformRowLibraryTwoNext[highlight="1"] {
+  min-height: 43px;
+  max-height: 43px;
+}
+#CrateWaveformRowLibraryFour,
+#CrateWaveformRowLibraryFour[highlight="1"] {
+  min-height: 36px;
+  max-height: 36px;
+}
+#CrateWaveformRowLibraryFourNext,
+#CrateWaveformRowLibraryFourNext[highlight="1"] {
   min-height: 35px;
   max-height: 35px;
 }
@@ -1185,3 +1208,208 @@ WBeatSpinBox[objectName^="CrateLoopSize"]::down-button {
   color: #999ca0;
 }
 
+/* ── Library (decks.css .lib, plan V2.PR4) ────────────────────────────── */
+
+/* C++ paints what QSS cannot (crate/ui/skin/librarystyle.cpp and
+   crate/ui/delegates/): the sidebar's items and section headers, the
+   table's rows, rules, hover and selection, its MonoLabel column headers,
+   the deck letters of loaded tracks and the cells. QSS lays the library out
+   and clears what Qt would paint on its own. No rule here styles ::item,
+   which is what costs most when a table scrolls (plan V2, performance). */
+#CrateLibrary {
+  background-color: #0a0a0f;
+  qproperty-layoutSpacing: 0;
+}
+#CrateLibraryMain {
+  qproperty-layoutSpacing: 0;
+}
+
+/* Sidebar: 240 px with its 1 px rule, as the admin's navigation */
+#CrateSidebar {
+  min-width: 239px;
+  max-width: 239px;
+}
+#CrateSidebarRule {
+  background-color: rgba(241, 245, 249, 15);
+  min-width: 1px;
+  max-width: 1px;
+}
+#CrateLibrary WLibrarySidebar {
+  background-color: #0a0a0f;
+  border: 0;
+  outline: none;
+  padding: 6px 0 12px 0;
+  selection-background-color: transparent;
+  show-decoration-selected: 0;
+}
+
+/* Search row: 44 px, 40 below the 768 breakpoint, with its rule; the
+   search field has no background of its own */
+#CrateSearchRow {
+  min-height: 43px;
+  max-height: 43px;
+}
+#CrateSearchRow[highlight="1"] {
+  min-height: 39px;
+  max-height: 39px;
+}
+#CrateSearchRowInner {
+  qproperty-layoutContentsMargins: rect(10 0 10 0);
+  qproperty-layoutSpacing: 14;
+}
+#CrateSearchRowInner[highlight="1"] {
+  qproperty-layoutContentsMargins: rect(7 0 7 0);
+}
+#CrateSearchQuery {
+  qproperty-layoutSpacing: 10;
+}
+/* MonoLabel as the mockups render it here (fontSizeNav) */
+#MonoLibraryMeta {
+  font-size: 7.734375pt;
+  letter-spacing: 1.4438px;
+}
+#CrateSearchRule {
+  background-color: rgba(241, 245, 249, 26);
+  min-height: 1px;
+  max-height: 1px;
+}
+#CrateSearchIcon {
+  image: url(skins:CrateDecks/generated/icons/magnifier_idle.svg);
+  min-width: 18px;
+  max-width: 18px;
+  min-height: 18px;
+  max-height: 18px;
+}
+#CrateLibrary WSearchLineEdit,
+#CrateLibrary WSearchLineEdit QLineEdit {
+  font-family: "JetBrains Mono";
+  font-size: 13px;
+  color: #f1f5f9;
+  background-color: transparent;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  selection-color: #0a0a0f;
+  selection-background-color: #67e8f9;
+}
+/* No arrow for the search history, which opens with the down key */
+#CrateLibrary WSearchLineEdit::drop-down,
+#CrateLibrary WSearchLineEdit::down-arrow {
+  width: 0;
+  border: 0;
+  image: none;
+}
+#CrateLibrary WSearchLineEdit QToolButton {
+  image: url(skins:CrateDecks/generated/icons/close-circle_idle.svg);
+  background-color: transparent;
+  border: 0;
+}
+#CrateLibrary WSearchLineEdit QToolButton:hover {
+  image: url(skins:CrateDecks/generated/icons/close-circle_hover.svg);
+}
+#TbIconMaximize { image: url(skins:CrateDecks/generated/icons/maximize_idle.svg); }
+#TbIconMaximize:hover { image: url(skins:CrateDecks/generated/icons/maximize_hover.svg); }
+#TbIconMaximize[displayValue="1"] {
+  image: url(skins:CrateDecks/generated/icons/maximize_active.svg);
+  border-color: transparent;
+  background-color: transparent;
+}
+
+/* Track table: "cabin" density, a list with 1 px rules and no zebra or
+   boxes (design 14.3). The view's text colour is that of names; C++ gives
+   titles, BPM, key and duration their own. Mixxx colours the text of played
+   and missing tracks with these properties. */
+#CrateLibrary WTrackTableView {
+  font-family: "Roboto";
+  font-size: 13px;
+  color: #999ca0;
+  background-color: #0a0a0f;
+  alternate-background-color: #0a0a0f;
+  selection-color: #f1f5f9;
+  selection-background-color: transparent;
+  border: 0;
+  outline: none;
+  qproperty-alternatingRowColors: false;
+  qproperty-showGrid: false;
+  qproperty-focusBorderColor: transparent;
+  qproperty-trackPlayedColor: #7e8084;
+  qproperty-trackMissingColor: #f9c94a;
+  qproperty-dropIndicatorColor: #67e8f9;
+}
+/* C++ paints the column headers as MonoLabels; QSS gives the header its
+   font, which Mixxx also measures it with */
+#CrateLibrary WTrackTableViewHeader,
+#CrateLibrary WTrackTableViewHeader::section {
+  font-family: "JetBrains Mono";
+  font-size: 7.875pt;
+  text-transform: uppercase;
+  letter-spacing: 1.47px;
+  color: #7e8084;
+  background-color: #0a0a0f;
+  border: 0;
+  padding: 0;
+}
+#CrateLibrary QAbstractScrollArea::corner,
+#CrateLibrary WTrackTableView QHeaderView {
+  background-color: #0a0a0f;
+  border: 0;
+}
+/* The corner over the deck letters carries on the header's rule */
+#CrateLibrary QTableCornerButton::section {
+  background-color: #0a0a0f;
+  border: 0;
+  border-bottom: 1px solid rgba(241, 245, 249, 26);
+}
+
+/* Cell editors */
+#CrateLibrary WTrackTableView QLineEdit,
+#CrateLibrary WTrackTableView QPlainTextEdit,
+#CrateLibrary WTrackTableView QDoubleSpinBox {
+  font-family: "Roboto";
+  font-size: 13px;
+  color: #f1f5f9;
+  background-color: #111218;
+  border: 1px solid rgba(6, 182, 212, 102);
+  border-radius: 2px;
+  selection-color: #0a0a0f;
+  selection-background-color: #67e8f9;
+}
+
+/* Scroll bars of 8 px, a rounded thumb on no track (typography.css) */
+#CrateLibrary QScrollBar:vertical {
+  background-color: transparent;
+  border: 0;
+  margin: 0;
+  width: 8px;
+}
+#CrateLibrary QScrollBar:horizontal {
+  background-color: transparent;
+  border: 0;
+  margin: 0;
+  height: 8px;
+}
+#CrateLibrary QScrollBar::handle {
+  background-color: rgba(241, 245, 249, 26);
+  border: 0;
+  border-radius: 4px;
+}
+#CrateLibrary QScrollBar::handle:vertical {
+  min-height: 24px;
+}
+#CrateLibrary QScrollBar::handle:horizontal {
+  min-width: 24px;
+}
+#CrateLibrary QScrollBar::handle:hover {
+  background-color: rgba(241, 245, 249, 46);
+}
+#CrateLibrary QScrollBar::add-line,
+#CrateLibrary QScrollBar::sub-line {
+  width: 0;
+  height: 0;
+  border: 0;
+  background: none;
+}
+#CrateLibrary QScrollBar::add-page,
+#CrateLibrary QScrollBar::sub-page {
+  background: none;
+}

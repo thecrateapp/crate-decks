@@ -5,8 +5,8 @@
   the first take their 1 px rule out of their height, as the mockups'
   .wf-row + .wf-row border does, and a 1 px rule closes the band.
 Variables:
-  Band : a prefix of the rows' object names (waveform_row.xml), empty for
-         the band over the decks
+  Band : "" for the band over the decks, "Library" for the lower one over
+         the maximised library (library-compatibles.html, its wf-h)
 -->
 <Template>
   <WidgetGroup>

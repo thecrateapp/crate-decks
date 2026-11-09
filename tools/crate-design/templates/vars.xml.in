@@ -127,6 +127,52 @@
   <!-- Cache and download level ring -->
   <SetVariable name="CrateLevelRingRadius">{{levelRingRadius}}</SetVariable>
   <SetVariable name="CrateLevelRingWidth">{{strokeActive}}</SetVariable>
+  <SetVariable name="CrateLevelRingTrackWidth">{{strokeHairline}}</SetVariable>
+  <SetVariable name="CrateLevelRingMinimum">{{levelRingMinimum}}</SetVariable>
+
+  <!-- Library: crate/ui/delegates/ paints its cells and its sidebar, and
+       crate/ui/skin/librarystyle.cpp its rows, column headers and deck
+       letters (GU1 mockups decks.css .tracks and .side) -->
+  <SetVariable name="CrateTextSecondary">{{textSecondary}}</SetVariable>
+  <SetVariable name="CrateTextFaint">{{textFaint}}</SetVariable>
+  <SetVariable name="CrateNavIdle">{{navIdle}}</SetVariable>
+  <SetVariable name="CrateBorderSubtle">{{borderSubtle}}</SetVariable>
+  <SetVariable name="CrateRowHover">{{rowHover}}</SetVariable>
+  <SetVariable name="CrateRowSelected">{{rowSelected}}</SetVariable>
+  <SetVariable name="CrateAccentHiBorder">{{accentHiBorder}}</SetVariable>
+  <SetVariable name="CrateWarningText">{{warningText}}</SetVariable>
+  <SetVariable name="CrateRule">{{strokeHairline}}</SetVariable>
+  <SetVariable name="CrateActiveBarWidth">{{activeBarWidth}}</SetVariable>
+  <SetVariable name="CrateStatusDot">{{statusDot}}</SetVariable>
+  <SetVariable name="CrateTrackingCaps">{{trackingCaps}}</SetVariable>
+  <SetVariable name="CrateLineHeightLabel">{{lineHeightLabel}}</SetVariable>
+  <SetVariable name="CrateLibRowHeight">{{heightLibraryRow}}</SetVariable>
+  <SetVariable name="CrateLibHeaderHeight">{{heightTableHeader}}</SetVariable>
+  <SetVariable name="CrateLibCellPadding">{{libraryCellPadding}}</SetVariable>
+  <SetVariable name="CrateLibDeckMarkWidth">{{libraryDeckMarkWidth}}</SetVariable>
+  <SetVariable name="CrateLibColumnBpm">{{libraryColumnBpm}}</SetVariable>
+  <SetVariable name="CrateLibColumnKey">{{libraryColumnKey}}</SetVariable>
+  <SetVariable name="CrateLibColumnTime">{{libraryColumnTime}}</SetVariable>
+  <SetVariable name="CrateLibColumnArtist">{{libraryColumnArtist}}</SetVariable>
+  <SetVariable name="CrateLibColumnGenre">{{libraryColumnGenre}}</SetVariable>
+  <SetVariable name="CrateLibFontSizeText">{{fontSizeCaption}}</SetVariable>
+  <SetVariable name="CrateLibFontSizeMeta">{{fontSizeTable}}</SetVariable>
+  <SetVariable name="CrateLibFontSizeHeader">{{fontSizeMeta}}</SetVariable>
+  <SetVariable name="CrateLibFontSizeMark">{{fontSizeBadge}}</SetVariable>
+  <SetVariable name="CrateLibFontSizeNav">{{fontSizeNav}}</SetVariable>
+  <SetVariable name="CrateLibStateGap">{{libraryStateGap}}</SetVariable>
+  <SetVariable name="CrateLibChipHeight">{{badgeHeight}}</SetVariable>
+  <SetVariable name="CrateLibChipPadding">{{badgePadding}}</SetVariable>
+  <SetVariable name="CrateLibSmallIcon">{{iconMicro}}</SetVariable>
+  <SetVariable name="CrateSidebarItemInset">{{sidebarItemInset}}</SetVariable>
+  <SetVariable name="CrateSidebarItemPadding">{{sidebarItemPadding}}</SetVariable>
+  <SetVariable name="CrateSidebarIndent">{{sidebarIndent}}</SetVariable>
+  <SetVariable name="CrateSidebarIcon">{{iconSm}}</SetVariable>
+  <SetVariable name="CrateSidebarIconGap">{{iconTextGap}}</SetVariable>
+  <SetVariable name="CrateSidebarBarInset">{{sidebarBarInset}}</SetVariable>
+  <SetVariable name="CrateSidebarSectionTop">{{sidebarSectionPaddingTop}}</SetVariable>
+  <SetVariable name="CrateSidebarSectionX">{{sidebarSectionPaddingX}}</SetVariable>
+  <SetVariable name="CrateSidebarSectionBottom">{{sidebarSectionPaddingBottom}}</SetVariable>
 
   <!-- The layout of the skin, with every variable above in scope -->
   <Template src="skins:CrateDecks/main.xml"/>

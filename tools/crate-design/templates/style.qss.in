@@ -230,7 +230,8 @@ QToolTip {
 
 /* ── Waveforms (decks.css .wf): a row per deck ─────────────────────── */
 
-#CrateMain {
+#CrateMain,
+#CrateMainLibrary {
   background-color: {{bgApp}};
 }
 /* The band's bottom rule is a group of its own: a border on the band would
@@ -271,6 +272,28 @@ QToolTip {
   max-height: {{waveformRowHeightFour - strokeHairline}};
 }
 #CrateWaveformRowFourNext[highlight="1"] {
+  min-height: {{waveformRowHeightFourShort - strokeHairline}};
+  max-height: {{waveformRowHeightFourShort - strokeHairline}};
+}
+/* Over the maximised library (library-compatibles.html --wf-h): 44 px with
+   two decks, the short four-deck rows with four, at any window height */
+#CrateWaveformRowLibraryTwo,
+#CrateWaveformRowLibraryTwo[highlight="1"] {
+  min-height: {{waveformRowHeightLibrary}};
+  max-height: {{waveformRowHeightLibrary}};
+}
+#CrateWaveformRowLibraryTwoNext,
+#CrateWaveformRowLibraryTwoNext[highlight="1"] {
+  min-height: {{waveformRowHeightLibrary - strokeHairline}};
+  max-height: {{waveformRowHeightLibrary - strokeHairline}};
+}
+#CrateWaveformRowLibraryFour,
+#CrateWaveformRowLibraryFour[highlight="1"] {
+  min-height: {{waveformRowHeightFourShort}};
+  max-height: {{waveformRowHeightFourShort}};
+}
+#CrateWaveformRowLibraryFourNext,
+#CrateWaveformRowLibraryFourNext[highlight="1"] {
   min-height: {{waveformRowHeightFourShort - strokeHairline}};
   max-height: {{waveformRowHeightFourShort - strokeHairline}};
 }
@@ -1185,3 +1208,208 @@ WBeatSpinBox[objectName^="CrateLoopSize"]::down-button {
   color: {{textMuted}};
 }
 
+/* ── Library (decks.css .lib, plan V2.PR4) ────────────────────────────── */
+
+/* C++ paints what QSS cannot (crate/ui/skin/librarystyle.cpp and
+   crate/ui/delegates/): the sidebar's items and section headers, the
+   table's rows, rules, hover and selection, its MonoLabel column headers,
+   the deck letters of loaded tracks and the cells. QSS lays the library out
+   and clears what Qt would paint on its own. No rule here styles ::item,
+   which is what costs most when a table scrolls (plan V2, performance). */
+#CrateLibrary {
+  background-color: {{bgApp}};
+  qproperty-layoutSpacing: 0;
+}
+#CrateLibraryMain {
+  qproperty-layoutSpacing: 0;
+}
+
+/* Sidebar: 240 px with its 1 px rule, as the admin's navigation */
+#CrateSidebar {
+  min-width: {{sidebarWidth - strokeHairline}};
+  max-width: {{sidebarWidth - strokeHairline}};
+}
+#CrateSidebarRule {
+  background-color: {{borderSubtle}};
+  min-width: {{strokeHairline}};
+  max-width: {{strokeHairline}};
+}
+#CrateLibrary WLibrarySidebar {
+  background-color: {{bgApp}};
+  border: 0;
+  outline: none;
+  padding: {{sidebarPaddingTop}} 0 {{sidebarPaddingBottom}} 0;
+  selection-background-color: transparent;
+  show-decoration-selected: 0;
+}
+
+/* Search row: 44 px, 40 below the 768 breakpoint, with its rule; the
+   search field has no background of its own */
+#CrateSearchRow {
+  min-height: {{heightSearchTall - strokeHairline}};
+  max-height: {{heightSearchTall - strokeHairline}};
+}
+#CrateSearchRow[highlight="1"] {
+  min-height: {{heightSearch - strokeHairline}};
+  max-height: {{heightSearch - strokeHairline}};
+}
+#CrateSearchRowInner {
+  qproperty-layoutContentsMargins: rect({{gutter.half.number}} 0 {{gutter.half.number}} 0);
+  qproperty-layoutSpacing: {{searchGap.number}};
+}
+#CrateSearchRowInner[highlight="1"] {
+  qproperty-layoutContentsMargins: rect({{gutterNarrow.half.number}} 0 {{gutterNarrow.half.number}} 0);
+}
+#CrateSearchQuery {
+  qproperty-layoutSpacing: {{searchIconGap.number}};
+}
+/* MonoLabel as the mockups render it here (fontSizeNav) */
+#MonoLibraryMeta {
+  font-size: {{fontSizeNav.fontsize}};
+  letter-spacing: {{trackingCaps * fontSizeNav}};
+}
+#CrateSearchRule {
+  background-color: {{border}};
+  min-height: {{strokeHairline}};
+  max-height: {{strokeHairline}};
+}
+#CrateSearchIcon {
+  image: url(skins:CrateDecks/generated/icons/magnifier_idle.svg);
+  min-width: {{iconMd}};
+  max-width: {{iconMd}};
+  min-height: {{iconMd}};
+  max-height: {{iconMd}};
+}
+#CrateLibrary WSearchLineEdit,
+#CrateLibrary WSearchLineEdit QLineEdit {
+  font-family: "{{fontMono}}";
+  font-size: {{fontSizeCaption}};
+  color: {{textPrimary}};
+  background-color: transparent;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  selection-color: {{onAccent}};
+  selection-background-color: {{accentHi}};
+}
+/* No arrow for the search history, which opens with the down key */
+#CrateLibrary WSearchLineEdit::drop-down,
+#CrateLibrary WSearchLineEdit::down-arrow {
+  width: 0;
+  border: 0;
+  image: none;
+}
+#CrateLibrary WSearchLineEdit QToolButton {
+  image: url(skins:CrateDecks/generated/icons/close-circle_idle.svg);
+  background-color: transparent;
+  border: 0;
+}
+#CrateLibrary WSearchLineEdit QToolButton:hover {
+  image: url(skins:CrateDecks/generated/icons/close-circle_hover.svg);
+}
+#TbIconMaximize { image: url(skins:CrateDecks/generated/icons/maximize_idle.svg); }
+#TbIconMaximize:hover { image: url(skins:CrateDecks/generated/icons/maximize_hover.svg); }
+#TbIconMaximize[displayValue="1"] {
+  image: url(skins:CrateDecks/generated/icons/maximize_active.svg);
+  border-color: transparent;
+  background-color: transparent;
+}
+
+/* Track table: "cabin" density, a list with 1 px rules and no zebra or
+   boxes (design 14.3). The view's text colour is that of names; C++ gives
+   titles, BPM, key and duration their own. Mixxx colours the text of played
+   and missing tracks with these properties. */
+#CrateLibrary WTrackTableView {
+  font-family: "{{fontBody}}";
+  font-size: {{fontSizeCaption}};
+  color: {{textMuted}};
+  background-color: {{bgApp}};
+  alternate-background-color: {{bgApp}};
+  selection-color: {{textPrimary}};
+  selection-background-color: transparent;
+  border: 0;
+  outline: none;
+  qproperty-alternatingRowColors: false;
+  qproperty-showGrid: false;
+  qproperty-focusBorderColor: transparent;
+  qproperty-trackPlayedColor: {{textSubtle}};
+  qproperty-trackMissingColor: {{warningText}};
+  qproperty-dropIndicatorColor: {{accentHi}};
+}
+/* C++ paints the column headers as MonoLabels; QSS gives the header its
+   font, which Mixxx also measures it with */
+#CrateLibrary WTrackTableViewHeader,
+#CrateLibrary WTrackTableViewHeader::section {
+  font-family: "{{fontMono}}";
+  font-size: {{fontSizeMeta.fontsize}};
+  text-transform: uppercase;
+  letter-spacing: {{trackingCaps * fontSizeMeta}};
+  color: {{textSubtle}};
+  background-color: {{bgApp}};
+  border: 0;
+  padding: 0;
+}
+#CrateLibrary QAbstractScrollArea::corner,
+#CrateLibrary WTrackTableView QHeaderView {
+  background-color: {{bgApp}};
+  border: 0;
+}
+/* The corner over the deck letters carries on the header's rule */
+#CrateLibrary QTableCornerButton::section {
+  background-color: {{bgApp}};
+  border: 0;
+  border-bottom: {{strokeHairline}} solid {{border}};
+}
+
+/* Cell editors */
+#CrateLibrary WTrackTableView QLineEdit,
+#CrateLibrary WTrackTableView QPlainTextEdit,
+#CrateLibrary WTrackTableView QDoubleSpinBox {
+  font-family: "{{fontBody}}";
+  font-size: {{fontSizeCaption}};
+  color: {{textPrimary}};
+  background-color: {{bgPopover}};
+  border: {{strokeHairline}} solid {{accentBorderFocus}};
+  border-radius: {{radiusSm}};
+  selection-color: {{onAccent}};
+  selection-background-color: {{accentHi}};
+}
+
+/* Scroll bars of 8 px, a rounded thumb on no track (typography.css) */
+#CrateLibrary QScrollBar:vertical {
+  background-color: transparent;
+  border: 0;
+  margin: 0;
+  width: {{scrollbarWidth}};
+}
+#CrateLibrary QScrollBar:horizontal {
+  background-color: transparent;
+  border: 0;
+  margin: 0;
+  height: {{scrollbarWidth}};
+}
+#CrateLibrary QScrollBar::handle {
+  background-color: {{scrollbarThumb}};
+  border: 0;
+  border-radius: {{radiusMd}};
+}
+#CrateLibrary QScrollBar::handle:vertical {
+  min-height: {{heightControlXs}};
+}
+#CrateLibrary QScrollBar::handle:horizontal {
+  min-width: {{heightControlXs}};
+}
+#CrateLibrary QScrollBar::handle:hover {
+  background-color: {{scrollbarHover}};
+}
+#CrateLibrary QScrollBar::add-line,
+#CrateLibrary QScrollBar::sub-line {
+  width: 0;
+  height: 0;
+  border: 0;
+  background: none;
+}
+#CrateLibrary QScrollBar::add-page,
+#CrateLibrary QScrollBar::sub-page {
+  background: none;
+}

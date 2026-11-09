@@ -51,6 +51,9 @@
       <attribute persist="false" config_key="[CrateDecks],show_phrase_rule">0</attribute>
       <attribute persist="false" config_key="[CrateDecks],show_smartmix_line">0</attribute>
       <attribute persist="false" config_key="[CrateDecks],show_track_state">0</attribute>
+    <!-- The library's switch between the track list and the Compatibles
+         view (plans F5 and V3), whose slot the search row keeps -->
+      <attribute persist="false" config_key="[CrateDecks],show_library_views">0</attribute>
 
     <!-- Decks -->
       <!-- general -->

@@ -7,6 +7,7 @@
 #include "control/controlproxy.h"
 #include "control/controlpushbutton.h"
 #ifdef __CRATE__
+#include "coreservices.h"
 #include "crate/ui/skin/crateskin.h"
 #endif
 #include "mixer/playermanager.h"
@@ -232,9 +233,12 @@ QWidget* SkinLoader::loadConfiguredSkin(QWidget* pParent,
     }
 #ifdef __CRATE__
     // Crate Decks: what the CrateDecks skin's QSS cannot do (MonoLabel
-    // tracking and capitals, layout classes, Crate status). Other skins are
-    // left as they are.
-    crate::prepareLoadedSkin(pLoadedSkin, pSkin->path().absoluteFilePath());
+    // tracking and capitals, layout classes, Crate status, the library's
+    // painting). Other skins are left as they are.
+    crate::prepareLoadedSkin(pLoadedSkin,
+            pSkin->path().absoluteFilePath(),
+            pCoreServices ? pCoreServices->getLibrary().get() : nullptr,
+            m_pConfig);
 #endif
     qInfo() << "Loaded skin" << pSkin->name() << "from" << pSkin->path().filePath();
     return pLoadedSkin;

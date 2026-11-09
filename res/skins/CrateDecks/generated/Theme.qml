@@ -117,6 +117,7 @@ QtObject {
     readonly property real fontSizeDisplay: 40
     readonly property real fontSizeLegend: 9
     readonly property real fontSizeTable: 11
+    readonly property real fontSizeNav: 10.3125
     readonly property real fontSizeDeckNumber: 34
     readonly property real fontSizeDeckNumberCompact: 26
     readonly property real fontSizeBrand: 14
@@ -138,6 +139,7 @@ QtObject {
     readonly property real trackingNumeral: -0.05
     readonly property real trackingDeckTitle: -0.01
     readonly property real lineHeightDisplay: 0.95
+    readonly property real lineHeightLabel: 1.4
 
     // height
     readonly property real heightControl: 40
@@ -150,6 +152,7 @@ QtObject {
     readonly property real heightTableHeader: 32
     readonly property real heightLibraryRow: 30
     readonly property real heightSearch: 40
+    readonly property real heightSearchTall: 44
 
     // layout
     readonly property real sidebarWidth: 240
@@ -181,6 +184,7 @@ QtObject {
     readonly property real waveformRowHeightShort: 64
     readonly property real waveformRowHeightFour: 52
     readonly property real waveformRowHeightFourShort: 36
+    readonly property real waveformRowHeightLibrary: 44
     readonly property real waveformGutterWidth: 34
     readonly property real waveformGutterPadding: 7
     readonly property real deckPaddingTop: 14
@@ -255,6 +259,27 @@ QtObject {
     readonly property real menuButtonSize: 24
     readonly property real dropIconSize: 28
 
+    // library
+    readonly property real libraryCellPadding: 10
+    readonly property real libraryDeckMarkWidth: 34
+    readonly property real libraryColumnBpm: 76
+    readonly property real libraryColumnKey: 54
+    readonly property real libraryColumnTime: 60
+    readonly property real libraryColumnArtist: 0.16
+    readonly property real libraryColumnGenre: 0.13
+    readonly property real libraryStateGap: 6
+    readonly property real searchGap: 14
+    readonly property real searchIconGap: 10
+    readonly property real sidebarPaddingTop: 6
+    readonly property real sidebarPaddingBottom: 12
+    readonly property real sidebarSectionPaddingTop: 14
+    readonly property real sidebarSectionPaddingX: 16
+    readonly property real sidebarSectionPaddingBottom: 6
+    readonly property real sidebarItemInset: 8
+    readonly property real sidebarItemPadding: 10
+    readonly property real sidebarIndent: 20
+    readonly property real sidebarBarInset: 6
+
     // lane
     readonly property real laneMeter: 1
     readonly property real laneSlider: 2
@@ -316,6 +341,7 @@ QtObject {
     readonly property real hotcueRadius: 10
     readonly property real hotcueRadiusFourShort: 9
     readonly property real levelRingRadius: 7
+    readonly property real levelRingMinimum: 0.04
 
     // knob
     readonly property real knobSize: 36

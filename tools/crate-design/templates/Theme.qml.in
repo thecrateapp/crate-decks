@@ -117,6 +117,7 @@ QtObject {
     readonly property real fontSizeDisplay: {{fontSizeDisplay}}
     readonly property real fontSizeLegend: {{fontSizeLegend}}
     readonly property real fontSizeTable: {{fontSizeTable}}
+    readonly property real fontSizeNav: {{fontSizeNav}}
     readonly property real fontSizeDeckNumber: {{fontSizeDeckNumber}}
     readonly property real fontSizeDeckNumberCompact: {{fontSizeDeckNumberCompact}}
     readonly property real fontSizeBrand: {{fontSizeBrand}}
@@ -138,6 +139,7 @@ QtObject {
     readonly property real trackingNumeral: {{trackingNumeral}}
     readonly property real trackingDeckTitle: {{trackingDeckTitle}}
     readonly property real lineHeightDisplay: {{lineHeightDisplay}}
+    readonly property real lineHeightLabel: {{lineHeightLabel}}
 
     // height
     readonly property real heightControl: {{heightControl}}
@@ -150,6 +152,7 @@ QtObject {
     readonly property real heightTableHeader: {{heightTableHeader}}
     readonly property real heightLibraryRow: {{heightLibraryRow}}
     readonly property real heightSearch: {{heightSearch}}
+    readonly property real heightSearchTall: {{heightSearchTall}}
 
     // layout
     readonly property real sidebarWidth: {{sidebarWidth}}
@@ -181,6 +184,7 @@ QtObject {
     readonly property real waveformRowHeightShort: {{waveformRowHeightShort}}
     readonly property real waveformRowHeightFour: {{waveformRowHeightFour}}
     readonly property real waveformRowHeightFourShort: {{waveformRowHeightFourShort}}
+    readonly property real waveformRowHeightLibrary: {{waveformRowHeightLibrary}}
     readonly property real waveformGutterWidth: {{waveformGutterWidth}}
     readonly property real waveformGutterPadding: {{waveformGutterPadding}}
     readonly property real deckPaddingTop: {{deckPaddingTop}}
@@ -255,6 +259,27 @@ QtObject {
     readonly property real menuButtonSize: {{menuButtonSize}}
     readonly property real dropIconSize: {{dropIconSize}}
 
+    // library
+    readonly property real libraryCellPadding: {{libraryCellPadding}}
+    readonly property real libraryDeckMarkWidth: {{libraryDeckMarkWidth}}
+    readonly property real libraryColumnBpm: {{libraryColumnBpm}}
+    readonly property real libraryColumnKey: {{libraryColumnKey}}
+    readonly property real libraryColumnTime: {{libraryColumnTime}}
+    readonly property real libraryColumnArtist: {{libraryColumnArtist}}
+    readonly property real libraryColumnGenre: {{libraryColumnGenre}}
+    readonly property real libraryStateGap: {{libraryStateGap}}
+    readonly property real searchGap: {{searchGap}}
+    readonly property real searchIconGap: {{searchIconGap}}
+    readonly property real sidebarPaddingTop: {{sidebarPaddingTop}}
+    readonly property real sidebarPaddingBottom: {{sidebarPaddingBottom}}
+    readonly property real sidebarSectionPaddingTop: {{sidebarSectionPaddingTop}}
+    readonly property real sidebarSectionPaddingX: {{sidebarSectionPaddingX}}
+    readonly property real sidebarSectionPaddingBottom: {{sidebarSectionPaddingBottom}}
+    readonly property real sidebarItemInset: {{sidebarItemInset}}
+    readonly property real sidebarItemPadding: {{sidebarItemPadding}}
+    readonly property real sidebarIndent: {{sidebarIndent}}
+    readonly property real sidebarBarInset: {{sidebarBarInset}}
+
     // lane
     readonly property real laneMeter: {{laneMeter}}
     readonly property real laneSlider: {{laneSlider}}
@@ -316,6 +341,7 @@ QtObject {
     readonly property real hotcueRadius: {{hotcueRadius}}
     readonly property real hotcueRadiusFourShort: {{hotcueRadiusFourShort}}
     readonly property real levelRingRadius: {{levelRingRadius}}
+    readonly property real levelRingMinimum: {{levelRingMinimum}}
 
     // knob
     readonly property real knobSize: {{knobSize}}

@@ -6,7 +6,8 @@ Variables:
   Letter  : deck letter, A to D
   Pair    : AC or BD, the colour of the deck (design 14.3)
   Rows    : the row height: Two or Four for the two- and four-deck bands,
-            with a Next suffix after the first row (waveform_band.xml)
+            with a Library prefix in the band over the maximised library and
+            a Next suffix after the first row (waveform_band.xml)
 -->
 <Template>
   <WidgetGroup>

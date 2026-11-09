@@ -127,6 +127,52 @@
   <!-- Cache and download level ring -->
   <SetVariable name="CrateLevelRingRadius">7</SetVariable>
   <SetVariable name="CrateLevelRingWidth">1.5</SetVariable>
+  <SetVariable name="CrateLevelRingTrackWidth">1</SetVariable>
+  <SetVariable name="CrateLevelRingMinimum">0.04</SetVariable>
+
+  <!-- Library: crate/ui/delegates/ paints its cells and its sidebar, and
+       crate/ui/skin/librarystyle.cpp its rows, column headers and deck
+       letters (GU1 mockups decks.css .tracks and .side) -->
+  <SetVariable name="CrateTextSecondary">#c7f1f5f9</SetVariable>
+  <SetVariable name="CrateTextFaint">#4a4c52</SetVariable>
+  <SetVariable name="CrateNavIdle">#6bffffff</SetVariable>
+  <SetVariable name="CrateBorderSubtle">#0ff1f5f9</SetVariable>
+  <SetVariable name="CrateRowHover">#0a06b6d4</SetVariable>
+  <SetVariable name="CrateRowSelected">#1406b6d4</SetVariable>
+  <SetVariable name="CrateAccentHiBorder">#6667e8f9</SetVariable>
+  <SetVariable name="CrateWarningText">#f9c94a</SetVariable>
+  <SetVariable name="CrateRule">1</SetVariable>
+  <SetVariable name="CrateActiveBarWidth">2</SetVariable>
+  <SetVariable name="CrateStatusDot">6</SetVariable>
+  <SetVariable name="CrateTrackingCaps">0.14</SetVariable>
+  <SetVariable name="CrateLineHeightLabel">1.4</SetVariable>
+  <SetVariable name="CrateLibRowHeight">30</SetVariable>
+  <SetVariable name="CrateLibHeaderHeight">32</SetVariable>
+  <SetVariable name="CrateLibCellPadding">10</SetVariable>
+  <SetVariable name="CrateLibDeckMarkWidth">34</SetVariable>
+  <SetVariable name="CrateLibColumnBpm">76</SetVariable>
+  <SetVariable name="CrateLibColumnKey">54</SetVariable>
+  <SetVariable name="CrateLibColumnTime">60</SetVariable>
+  <SetVariable name="CrateLibColumnArtist">0.16</SetVariable>
+  <SetVariable name="CrateLibColumnGenre">0.13</SetVariable>
+  <SetVariable name="CrateLibFontSizeText">13</SetVariable>
+  <SetVariable name="CrateLibFontSizeMeta">11</SetVariable>
+  <SetVariable name="CrateLibFontSizeHeader">10.5</SetVariable>
+  <SetVariable name="CrateLibFontSizeMark">10</SetVariable>
+  <SetVariable name="CrateLibFontSizeNav">10.3125</SetVariable>
+  <SetVariable name="CrateLibStateGap">6</SetVariable>
+  <SetVariable name="CrateLibChipHeight">20</SetVariable>
+  <SetVariable name="CrateLibChipPadding">7</SetVariable>
+  <SetVariable name="CrateLibSmallIcon">12</SetVariable>
+  <SetVariable name="CrateSidebarItemInset">8</SetVariable>
+  <SetVariable name="CrateSidebarItemPadding">10</SetVariable>
+  <SetVariable name="CrateSidebarIndent">20</SetVariable>
+  <SetVariable name="CrateSidebarIcon">16</SetVariable>
+  <SetVariable name="CrateSidebarIconGap">8</SetVariable>
+  <SetVariable name="CrateSidebarBarInset">6</SetVariable>
+  <SetVariable name="CrateSidebarSectionTop">14</SetVariable>
+  <SetVariable name="CrateSidebarSectionX">16</SetVariable>
+  <SetVariable name="CrateSidebarSectionBottom">6</SetVariable>
 
   <!-- The layout of the skin, with every variable above in scope -->
   <Template src="skins:CrateDecks/main.xml"/>

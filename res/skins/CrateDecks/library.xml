@@ -1,126 +1,120 @@
+<!--
+  The library of the GU1 mockups (decks.js library(), decks.css .lib): a
+  sidebar of 240 px as the admin's navigation, a 1 px rule, and the search
+  row (the field, how many tracks the view shows and from where, and the
+  maximise button) over the track table. C++ paints what QSS cannot (plan V2.PR4,
+  crate/ui/skin/librarystyle.cpp): the sidebar's items and section headers,
+  the table's rows, rules and selection, its MonoLabel column headers, the
+  deck letters of loaded tracks and the cells (crate/ui/delegates/).
+
+  The search row keeps a slot, CrateLibraryViews, for the switch between the
+  track list and the Compatibles view (F5, with V3's Camelot wheel), which
+  the mockups show on its right; it is empty and hidden until then.
+-->
 <Template>
+  <!-- The singleton takes this group and names it LibrarySingleton, so the
+       library's own name goes on the group inside. 'ignore' lets the
+       library shrink to nothing, the inner groups expand to fill the space
+       it gets (as in LateNight) -->
   <WidgetGroup>
-    <!-- This extra wrapper with 'ignore' size policy allows to
-      shrink the library to zero height, while the inner LibraryContainer
-      expands to fill the available vertical space. -->
     <SizePolicy>me,i</SizePolicy>
     <Layout>vertical</Layout>
     <Children>
-      <!--
-      **********************************************
-      Library / Preview Deck / Search / Tree view
-      **********************************************
-      -->
       <WidgetGroup>
-        <ObjectName>LibraryContainer</ObjectName>
-        <Layout>horizontal</Layout>
+        <ObjectName>CrateLibrary</ObjectName>
         <SizePolicy>me,me</SizePolicy>
+        <Layout>horizontal</Layout>
         <Children>
 
-          <Splitter>
-            <ObjectName>LibrarySplitter</ObjectName>
+          <WidgetGroup>
+            <ObjectName>CrateSidebar</ObjectName>
+            <Layout>vertical</Layout>
+            <SizePolicy>f,me</SizePolicy>
+            <Children>
+              <LibrarySidebar></LibrarySidebar>
+            </Children>
+          </WidgetGroup>
+          <WidgetGroup><ObjectName>CrateSidebarRule</ObjectName></WidgetGroup>
+
+          <WidgetGroup>
+            <ObjectName>CrateLibraryMain</ObjectName>
+            <Layout>vertical</Layout>
             <SizePolicy>me,me</SizePolicy>
-            <SplitSizes>1,10</SplitSizes>
-            <SplitSizesConfigKey>[Skin],librarySidebar_splitsize</SplitSizesConfigKey>
-            <Collapsible>1,0</Collapsible>
             <Children>
 
+              <!-- 44 px, 40 below the 768 breakpoint; the gutter of the
+                   decks, narrower below the 1366 one -->
               <WidgetGroup>
-                <ObjectName>LibSidebarContainer</ObjectName>
-                <Layout>vertical</Layout>
-                <SizePolicy>min,me</SizePolicy>
-                <MinimumSize>100,</MinimumSize>
+                <ObjectName>CrateSearchRow</ObjectName>
+                <Layout>horizontal</Layout>
+                <SizePolicy>me,f</SizePolicy>
                 <Children>
-
-                  <Template src="skins:CrateDecks/decks/preview_deck.xml"/>
-
-                  <WidgetGroup><!--SearchBox + Library expand toggle -->
+                  <WidgetGroup>
+                    <ObjectName>CrateSearchRowInner</ObjectName>
                     <Layout>horizontal</Layout>
-                    <SizePolicy>min,max</SizePolicy>
+                    <SizePolicy>me,me</SizePolicy>
                     <Children>
-
                       <WidgetGroup>
-                        <ObjectName>SearchLineBox</ObjectName>
+                        <ObjectName>CrateSearchQuery</ObjectName>
                         <Layout>horizontal</Layout>
-                        <SizePolicy>min,max</SizePolicy>
+                        <SizePolicy>me,f</SizePolicy>
                         <Children>
+                          <Label><ObjectName>CrateSearchIcon</ObjectName></Label>
                           <SearchBox></SearchBox>
                         </Children>
                       </WidgetGroup>
 
-                      <WidgetGroup>
-                        <ObjectName>LibExpandBox</ObjectName>
-                        <Layout>vertical</Layout>
-                        <Children>
-                          <Template src="skins:CrateDecks/controls/button_2state.xml">
-                            <SetVariable name="TooltipId">maximize_library</SetVariable>
-                            <SetVariable name="ObjectName">LibExpand</SetVariable>
-                            <SetVariable name="Size">18f,18me</SetVariable>
-                            <SetVariable name="ConfigKey">[Skin],show_maximized_library</SetVariable>
-                          </Template>
-                        </Children>
-                      </WidgetGroup><!-- LibExpandBox -->
-                    </Children>
-                  </WidgetGroup><!--SearchBox + Library expand toggle -->
+                      <!-- How many tracks the view shows and from where;
+                       C++ writes it (crate/ui/skin/librarystyle.cpp) -->
+                  <Label><ObjectName>MonoLibraryMeta</ObjectName></Label>
 
-                  <WidgetGroup>
-                    <ObjectName>SearchTreeSpacer</ObjectName>
-                    <Layout>horizontal</Layout>
-                    <Children/>
-                  </WidgetGroup>
-
-                  <Splitter>
-                    <ObjectName>SidebarCoverSplitter</ObjectName>
-                    <Size>me,me</Size>
-                    <SplitSizes>1,1</SplitSizes>
-                    <SplitSizesConfigKey>[Skin],coverArt_splitsize</SplitSizesConfigKey>
-                    <Orientation>vertical</Orientation>
-                    <Collapsible>0,0</Collapsible>
-                    <Children>
-                      <!--Library Tree View-->
+                  <!-- Slot of the Tracks / Compatibles switch (F5, V3) -->
                       <WidgetGroup>
-                        <ObjectName>SidebarBox</ObjectName>
-                        <Layout>vertical</Layout>
-                        <Children>
-                          <LibrarySidebar></LibrarySidebar>
-                        </Children>
-                      </WidgetGroup>
-                      <!--Cover Art-->
-                      <WidgetGroup>
-                        <ObjectName>AlignCenter</ObjectName>
-                        <Layout>vertical</Layout>
-                        <Children>
-                          <CoverArt>
-                            <SizePolicy>me,me</SizePolicy>
-                            <MinimumSize>40,40</MinimumSize>
-                          </CoverArt>
-                        </Children>
+                        <ObjectName>CrateLibraryViews</ObjectName>
+                        <Layout>horizontal</Layout>
+                        <SizePolicy>min,min</SizePolicy>
+                        <Children/>
                         <Connection>
-                          <ConfigKey persist="true">[Skin],show_library_coverart</ConfigKey>
+                          <ConfigKey>[CrateDecks],show_library_views</ConfigKey>
                           <BindProperty>visible</BindProperty>
                         </Connection>
-                      </WidgetGroup><!--Cover Art-->
+                      </WidgetGroup>
+
+                      <PushButton>
+                        <TooltipId>maximize_library</TooltipId>
+                        <ObjectName>TbIconMaximize</ObjectName>
+                        <NumberStates>2</NumberStates>
+                        <Connection>
+                          <ConfigKey>[Skin],show_maximized_library</ConfigKey>
+                          <ButtonState>LeftButton</ButtonState>
+                        </Connection>
+                      </PushButton>
                     </Children>
-                  </Splitter><!-- SidebarCoverSplitter -->
-
+                    <Connection>
+                      <ConfigKey>[CrateDecks],layout_narrow</ConfigKey>
+                      <BindProperty>highlight</BindProperty>
+                    </Connection>
+                  </WidgetGroup>
                 </Children>
-              </WidgetGroup><!-- LibSidebarContainer -->
+                <Connection>
+                  <ConfigKey>[CrateDecks],layout_short</ConfigKey>
+                  <BindProperty>highlight</BindProperty>
+                </Connection>
+              </WidgetGroup>
+              <WidgetGroup><ObjectName>CrateSearchRule</ObjectName></WidgetGroup>
 
-              <!-- Library Table-->
               <Library>
                 <ShowButtonText>false</ShowButtonText>
+                <!-- Mixxx's track colours, faint under the row -->
                 <TrackTableBackgroundColorOpacity>0.175</TrackTableBackgroundColorOpacity>
-                <!-- Colors for the render modes of the Overview column -->
-                <!-- For the overview column we only set the signal color,
-                     other colors are the defaults. -->
-                <SignalColor><Variable name="SignalColor_12"/></SignalColor>
+                <SignalColor><Variable name="CrateWaveMidAccent"/></SignalColor>
               </Library>
 
             </Children>
-          </Splitter><!-- LibrarySplitter -->
+          </WidgetGroup>
 
         </Children>
-      </WidgetGroup><!-- LibraryContainer -->
+      </WidgetGroup>
     </Children>
   </WidgetGroup>
 </Template>

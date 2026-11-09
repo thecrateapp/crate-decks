@@ -5343,8 +5343,14 @@ if(CRATE)
       src/crate/ui/crateaddserverwidget.cpp
       src/crate/ui/cratefirstrun.cpp
       src/crate/ui/dlgprefcrate.cpp
+      src/crate/ui/delegates/camelotdelegate.cpp
+      src/crate/ui/delegates/celldelegate.cpp
+      src/crate/ui/delegates/delegatestyle.cpp
+      src/crate/ui/delegates/sidebardelegate.cpp
+      src/crate/ui/delegates/statedelegates.cpp
       src/crate/ui/skin/crateserverstatus.cpp
       src/crate/ui/skin/crateskin.cpp
+      src/crate/ui/skin/librarystyle.cpp
       src/crate/ui/skin/mixerstyle.cpp
   )
   # The tests of the Crate integration are added here and not in the list of
@@ -5365,6 +5371,7 @@ if(CRATE)
         src/test/crate/cratesession_test.cpp
         src/test/crate/skinloadtest.cpp
         src/test/crate/mixerstyletest.cpp
+        src/test/crate/delegatestest.cpp
     )
   endif()
 endif()

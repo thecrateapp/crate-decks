@@ -11,6 +11,7 @@
 #include "control/controlobject.h"
 #include "crate/crateservers.h"
 #include "crate/ui/skin/crateserverstatus.h"
+#include "crate/ui/skin/librarystyle.h"
 #include "crate/ui/skin/mixerstyle.h"
 #include "util/logger.h"
 
@@ -172,7 +173,10 @@ void applySkinDefaults(const UserSettingsPointer& pConfig, const QString& skinPa
     }
 }
 
-void prepareLoadedSkin(QWidget* pSkinRoot, const QString& skinPath) {
+void prepareLoadedSkin(QWidget* pSkinRoot,
+        const QString& skinPath,
+        Library* pLibrary,
+        const UserSettingsPointer& pConfig) {
     if (!pSkinRoot) {
         return;
     }
@@ -182,6 +186,7 @@ void prepareLoadedSkin(QWidget* pSkinRoot, const QString& skinPath) {
     }
     applyFonts(pSkinRoot);
     styleMixer(pSkinRoot, variables);
+    styleLibrary(pSkinRoot, variables, skinPath, pLibrary, pConfig);
 
     const SkinBreakpoints breakpoints = SkinBreakpoints::fromVariables(variables);
     if (breakpoints.isValid() && ControlObject::exists(kLayoutNarrowKey) &&

@@ -6,8 +6,8 @@
   folded racks and the library.
 
   The variables below are LateNight's PaleMoon scheme. The parts of LateNight
-  that V2 has not redone yet (mixer, effects, samplers, mic and aux, library)
-  still use them; each V2 PR that redoes a part moves it to the Crate*
+  that V2 has not redone yet (effects, samplers, mic and aux) still use
+  them; each V2 PR that redoes a part moves it to the Crate*
   variables and the generated style.
 -->
 <Template>
@@ -144,11 +144,27 @@
                 </Children>
               </WidgetGroup>
 
-              <!-- Maximized library (its design is V2.PR4's) -->
+              <!-- Maximised library (GU1 mockups library-compatibles.html):
+                   the decks and the mixer fold away and the waveforms stay,
+                   in lower rows, over the library -->
               <WidgetGroup trigger="[Skin],show_maximized_library" on_hide_select="0">
+                <ObjectName>CrateMainLibrary</ObjectName>
                 <Layout>vertical</Layout>
                 <SizePolicy>me,me</SizePolicy>
                 <Children>
+                  <WidgetGroup>
+                    <Layout>vertical</Layout>
+                    <SizePolicy>me,min</SizePolicy>
+                    <Children>
+                      <Template src="skins:CrateDecks/waveform_band.xml">
+                        <SetVariable name="Band">Library</SetVariable>
+                      </Template>
+                    </Children>
+                    <Connection>
+                      <ConfigKey persist="true">[Skin],show_waveforms</ConfigKey>
+                      <BindProperty>visible</BindProperty>
+                    </Connection>
+                  </WidgetGroup>
                   <SingletonContainer>
                     <ObjectName>LibrarySingleton</ObjectName>
                   </SingletonContainer>

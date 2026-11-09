@@ -13,6 +13,7 @@
 #endif
 #ifdef __CRATE__
 #include "crate/crateservers.h"
+#include "crate/ui/skin/librarystyle.h"
 #endif
 #include "control/controlindicatortimer.h"
 #include "controllers/controllermanager.h"
@@ -596,6 +597,9 @@ void CoreServices::initialize() {
         crate::CrateServers::setInstance(m_pCrateServers.get());
         m_pCrateServers->start();
     }
+    // Crate Decks' defaults of the library preferences, before the
+    // preferences dialog saves Mixxx's
+    crate::applyLibraryDefaults(pConfig);
 #endif
 
     OverviewCache* pOverviewCache = OverviewCache::createInstance(pConfig, m_pDbConnectionPool);
