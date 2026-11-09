@@ -48,9 +48,9 @@ Ningún cambio de servidor se hace desde este repositorio.
 
 ## 4. Planes, decisiones y gates
 
-- Las decisiones se citan por su ID: D1–D15 y S1–S7 (Crate Decks), SM3-D1–D12 (Smart Mix 3).
+- Las decisiones se citan por su ID: D1–D15 y S1–S7 (Crate Decks), SM3-D1–D13 (Smart Mix 3).
 - Nada marcado como *pendiente* de un gate se implementa sin la aprobación explícita de Diego.
-- **Gates:** G0–G6, G3b, G4b, GU1 y GU2 (§13 del diseño de Decks); SG0–SG4 (§13 del diseño de Smart Mix 3). Al llegar a uno, el agente para, presenta lo que pide el gate y espera.
+- **Gates:** G0–G6, G3b, G4b, GU1 y GU2 (§13 del diseño de Decks); SG0–SG4 y SG1b (§13 del diseño de Smart Mix 3). Al llegar a uno, el agente para, presenta lo que pide el gate y espera.
 - Las fases se ejecutan en el orden del plan, y cada tarea empieza por el test en rojo que indica.
 - **Si el código no coincide con el plan** (rutas, números de línea o APIs que no existen o se comportan de otra forma): para, informa y propone el cambio al plan. No te desvíes en silencio. Los números de línea de los planes son de Mixxx `bc49961`; revalídalos antes de usarlos.
 - Los planes viven en `docs/plans/` y se cambian por PR, como cualquier otro fichero. Los informes (spike y evaluaciones) también van a `docs/plans/`.
