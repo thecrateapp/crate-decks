@@ -242,6 +242,7 @@ flowchart TD
   - shown only when the track has a stem analysis or stem files, like the Phrases tab;
   - stem levels over time with phrase boundaries, in the grammar of the Phrases tab and StackMap; the per-phrase stems layer; the source; the server stem files and job state;
   - data: the mix profile with `detail=full` already carries the `stems` layer (ST1); a new read endpoint `GET /api/smart-mix/tracks/{trackId}/stems` returns files, job state and the Smart Mix playlists that hold the track, with `last_error` only for `library.analysis.manage`, in ≤ 3 bounded queries;
+  - no audio playback of stems in the admin for now (Diego, 2026-11-09);
   - mocked up first with the admin components and shown to Diego; the approved mockup is the spec.
 - **Tests:** next to each component, following the existing patterns.
   - Stems tab: `the stems tab appears only with stem data`, `levels draw one lane per stem`, `the source says server or Decks upload`, `admins see the last error and other users don't`.

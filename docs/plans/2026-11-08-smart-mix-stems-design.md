@@ -86,6 +86,7 @@ Use source separation (stems) where it pays for itself, without separating the w
   - the per-phrase stems layer the planner reads;
   - the source: server or Crate Decks upload (and who contributed it), separator, source revision and whether it is current, date, and the drum-stem beat count;
   - the server stem files: stored or not, size, last use, the Smart Mix playlists that hold the track, and the job state (with the last error for admins).
+  - No audio playback: for now nothing plays in the admin (Diego, 2026-11-09).
 - **Model:** its own table, `smart_mix_playlists`, one row per playlist (§5), rather than more columns on `playlists`. It carries the playlist's Smart Mix state: owner, on or off, when it was turned on, last use and a revision for client sync.
 - **Caps: admin settings of each instance** (Diego, 2026-11-08), in the Smart Mix settings:
   - `stem_max_tracks_per_playlist`: 300 by default;
