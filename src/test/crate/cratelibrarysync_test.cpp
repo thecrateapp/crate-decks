@@ -36,8 +36,9 @@ const QString kServer = QStringLiteral("srv-1");
 // list in the server's order, string ids, track_count only for playlists and
 // genres, and one likes node with id "me". The server has no folders, but
 // parent_id is read anyway. A kind the client does not know, like "folder",
-// is left out.
-const QByteArray kTree = QByteArrayLiteral(R"({"containers": [
+// is left out. Beside the containers, the whole library's track count.
+const QByteArray kTree = QByteArrayLiteral(R"({"library": {"track_count": 136512},
+    "containers": [
     {"id": "7", "kind": "playlist", "name": "Warm-up", "parent_id": null,
      "track_count": 3, "etag": "p7-1"},
     {"id": "9", "kind": "playlist", "name": "Peak", "parent_id": "8",
@@ -198,6 +199,7 @@ TEST_F(CrateLibrarySyncTest, SyncsTreeIntoTables) {
     EXPECT_FALSE(stored(containerId(QStringLiteral("likes"), QStringLiteral("me")))
                     .trackCount.has_value());
     EXPECT_EQ(containers.last().id, containerId(QStringLiteral("likes"), QStringLiteral("me")));
+    EXPECT_EQ(136512, crate::library::loadLibraryTrackCount(dbConnection(), kServer).value_or(-1));
 
     // A container the server no longer lists goes, with its tracks
     const qint64 sets = containerId(QStringLiteral("playlist"), QStringLiteral("8"));
@@ -218,6 +220,25 @@ TEST_F(CrateLibrarySyncTest, SyncsTreeIntoTables) {
     ASSERT_TRUE(orphans.exec(QStringLiteral("SELECT COUNT(*) FROM crateserver_container_tracks")));
     ASSERT_TRUE(orphans.next());
     EXPECT_EQ(0, orphans.value(0).toInt());
+}
+
+TEST_F(CrateLibrarySyncTest, AnOlderServerLeavesTheLibraryCountUnknown) {
+    storeTree();
+    ASSERT_TRUE(crate::library::loadLibraryTrackCount(dbConnection(), kServer).has_value());
+    LibrarySync* pSync = makeSync();
+    QSignalSpy updated(pSync, &LibrarySync::containersUpdated);
+
+    // A server from before the library count: its tree has no "library"
+    pSync->syncContainers();
+    ASSERT_EQ(1, m_network.sent.size());
+    m_network.last().pReply->respond(200,
+            QByteArrayLiteral(R"({"containers": [{"id": "7", "kind": "playlist",
+                "name": "Warm-up", "parent_id": null, "etag": "p7-1"}]})"));
+    ASSERT_TRUE(updated.wait(5000));
+
+    // Not the count of the server it was before: the sidebar counts the
+    // synced tracks instead
+    EXPECT_FALSE(crate::library::loadLibraryTrackCount(dbConnection(), kServer).has_value());
 }
 
 TEST_F(CrateLibrarySyncTest, PagesUntilCursorExhausted) {
@@ -448,23 +469,24 @@ TEST_F(CrateLibrarySyncTest, ParseRunsOffMainThread) {
 TEST(CrateLibraryJsonTest, ReadsTheContractTree) {
     const auto tree = crate::library::parseContainerTree(kTree);
     ASSERT_TRUE(tree.ok());
-    ASSERT_EQ(6, tree.value().size());
-    const RemoteContainer& warmUp = tree.value().first();
+    ASSERT_EQ(6, tree.value().containers.size());
+    EXPECT_EQ(136512, tree.value().libraryTrackCount.value_or(-1));
+    const RemoteContainer& warmUp = tree.value().containers.first();
     EXPECT_EQ(QStringLiteral("playlist"), warmUp.kind);
     EXPECT_EQ(QStringLiteral("7"), warmUp.remoteId);
     EXPECT_EQ(QStringLiteral("Warm-up"), warmUp.name);
     EXPECT_TRUE(warmUp.parentRemoteId.isEmpty());
     EXPECT_EQ(3, warmUp.trackCount.value_or(0));
     EXPECT_EQ(QStringLiteral("p7-1"), warmUp.etag);
-    EXPECT_EQ(QStringLiteral("8"), tree.value()[1].parentRemoteId);
-    EXPECT_EQ(QStringLiteral("likes"), tree.value().last().kind);
-    EXPECT_EQ(QStringLiteral("me"), tree.value().last().remoteId);
+    EXPECT_EQ(QStringLiteral("8"), tree.value().containers[1].parentRemoteId);
+    EXPECT_EQ(QStringLiteral("likes"), tree.value().containers.last().kind);
+    EXPECT_EQ(QStringLiteral("me"), tree.value().containers.last().remoteId);
 
     // An integer id is read as text
     const auto integer = crate::library::parseContainerTree(QByteArrayLiteral(
             R"({"containers": [{"id": 28, "kind": "playlist", "name": "A", "etag": "e"}]})"));
     ASSERT_TRUE(integer.ok());
-    EXPECT_EQ(QStringLiteral("28"), integer.value().first().remoteId);
+    EXPECT_EQ(QStringLiteral("28"), integer.value().containers.first().remoteId);
 
     EXPECT_FALSE(crate::library::parseContainerTree(
             QByteArrayLiteral(R"({"containers": [{"kind": "playlist", "name": "No id"}]})"))
@@ -476,6 +498,27 @@ TEST(CrateLibraryJsonTest, ReadsTheContractTree) {
             QByteArrayLiteral(R"({"playlists": []})"))
                     .ok());
     EXPECT_FALSE(crate::library::parseContainerTree(QByteArrayLiteral("[]")).ok());
+}
+
+TEST(CrateLibraryJsonTest, ReadsTheLibraryTrackCount) {
+    const auto count = [](const char* json) {
+        return crate::library::parseContainerTree(QByteArray(json));
+    };
+    EXPECT_EQ(0,
+            count(R"({"library": {"track_count": 0}, "containers": []})")
+                    .value()
+                    .libraryTrackCount.value_or(-1));
+    // A server older than the count, or one that has none to give
+    EXPECT_FALSE(count(R"({"containers": []})").value().libraryTrackCount.has_value());
+    EXPECT_FALSE(count(R"({"library": null, "containers": []})")
+                    .value()
+                    .libraryTrackCount.has_value());
+    EXPECT_FALSE(
+            count(R"({"library": {}, "containers": []})").value().libraryTrackCount.has_value());
+    // Not a count
+    EXPECT_FALSE(count(R"({"library": 136512, "containers": []})").ok());
+    EXPECT_FALSE(count(R"({"library": {"track_count": "many"}, "containers": []})").ok());
+    EXPECT_FALSE(count(R"({"library": {"track_count": -1}, "containers": []})").ok());
 }
 
 TEST(CrateLibraryJsonTest, KnowsTheSectionOfEachKind) {

@@ -156,7 +156,7 @@ void LibrarySync::syncContainers() {
                     if (options.onParse) {
                         options.onParse();
                     }
-                    const Result<QList<RemoteContainer>> tree = parseContainerTree(body);
+                    const Result<ContainerTree> tree = parseContainerTree(body);
                     if (!tree.ok()) {
                         return tree.error();
                     }

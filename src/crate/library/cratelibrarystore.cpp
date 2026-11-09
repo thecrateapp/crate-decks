@@ -179,10 +179,21 @@ std::optional<StoredContainer> loadContainer(const QSqlDatabase& database, qint6
     return containerOf(query);
 }
 
-WriteStatus storeContainerTree(const QSqlDatabase& database,
-        const QString& serverId,
-        const QList<RemoteContainer>& containers) {
+WriteStatus storeContainerTree(
+        const QSqlDatabase& database, const QString& serverId, const ContainerTree& tree) {
+    const QList<RemoteContainer>& containers = tree.containers;
     return inTransaction(database, "store the Crate containers", [&](QSqlError* pError) {
+        QSqlQuery library(database);
+        library.prepare(QStringLiteral(
+                "INSERT INTO crateserver_libraries (server_id, track_count) "
+                "VALUES (:server, :count) "
+                "ON CONFLICT(server_id) DO UPDATE SET track_count = excluded.track_count"));
+        library.bindValue(QStringLiteral(":server"), serverId);
+        library.bindValue(QStringLiteral(":count"), nullable(tree.libraryTrackCount));
+        if (!exec(library, pError)) {
+            return false;
+        }
+
         QSqlQuery upsert(database);
         upsert.prepare(QStringLiteral(
                 "INSERT INTO crateserver_containers "
@@ -272,6 +283,28 @@ WriteStatus storeContainerTree(const QSqlDatabase& database,
         orphans.bindValue(QStringLiteral(":server2"), serverId);
         return exec(orphans, pError);
     });
+}
+
+WriteStatus storeContainerTree(const QSqlDatabase& database,
+        const QString& serverId,
+        const QList<RemoteContainer>& containers) {
+    return storeContainerTree(database, serverId, ContainerTree{containers, std::nullopt});
+}
+
+std::optional<qint64> loadLibraryTrackCount(
+        const QSqlDatabase& database, const QString& serverId) {
+    QSqlQuery query(database);
+    query.prepare(QStringLiteral(
+            "SELECT track_count FROM crateserver_libraries WHERE server_id = :server"));
+    query.bindValue(QStringLiteral(":server"), serverId);
+    if (!query.exec()) {
+        kLogger.warning() << "Cannot load the Crate library count:" << query.lastError().text();
+        return std::nullopt;
+    }
+    if (!query.next() || query.isNull(0)) {
+        return std::nullopt;
+    }
+    return query.value(0).toLongLong();
 }
 
 WriteStatus storeTracks(const QSqlDatabase& database,

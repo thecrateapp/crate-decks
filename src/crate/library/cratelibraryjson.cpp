@@ -54,17 +54,29 @@ std::optional<Section> sectionOf(const QString& kind) {
     return std::nullopt;
 }
 
-Result<QList<RemoteContainer>> parseContainerTree(const QByteArray& json) {
+Result<ContainerTree> parseContainerTree(const QByteArray& json) {
     const Result<QJsonObject> root = parseObject(json);
     if (!root.ok()) {
         return root.error();
     }
     ObjectReader rootReader(root.value());
     const QJsonArray nodes = rootReader.requiredArray(u"containers");
+    const std::optional<QJsonObject> library = rootReader.optionalObject(u"library");
     if (!rootReader.ok()) {
         return rootReader.error();
     }
-    QList<RemoteContainer> containers;
+    ContainerTree tree;
+    if (library) {
+        ObjectReader libraryReader(*library, QStringLiteral("library"));
+        tree.libraryTrackCount = libraryReader.optionalInteger(u"track_count");
+        if (!libraryReader.ok()) {
+            return libraryReader.error();
+        }
+        if (tree.libraryTrackCount.value_or(0) < 0) {
+            return Error::decode(QStringLiteral("library.track_count is negative"));
+        }
+    }
+    QList<RemoteContainer>& containers = tree.containers;
     containers.reserve(nodes.size());
     for (qsizetype i = 0; i < nodes.size(); ++i) {
         const QString path = itemPath("containers", i);
@@ -89,7 +101,7 @@ Result<QList<RemoteContainer>> parseContainerTree(const QByteArray& json) {
             containers.append(container);
         }
     }
-    return containers;
+    return tree;
 }
 
 Result<TrackPage> parseTrackPage(const QByteArray& json) {

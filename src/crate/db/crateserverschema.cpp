@@ -76,6 +76,11 @@ const QStringList kLibraryStatements = {
                        "position INTEGER NOT NULL, "
                        "entity_uid TEXT NOT NULL, "
                        "PRIMARY KEY (container_id, position))"),
+        // What the server's tree says of the whole library, which is not a
+        // container. `track_count` is NULL when the server does not give it.
+        QStringLiteral("CREATE TABLE IF NOT EXISTS crateserver_libraries ("
+                       "server_id TEXT PRIMARY KEY NOT NULL, "
+                       "track_count INTEGER)"),
 };
 
 // Each statement must be idempotent: they run at every start.

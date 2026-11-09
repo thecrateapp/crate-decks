@@ -83,13 +83,21 @@ struct Invalidation {
 QList<StoredContainer> loadContainers(const QSqlDatabase& database, const QString& serverId);
 std::optional<StoredContainer> loadContainer(const QSqlDatabase& database, qint64 containerId);
 
-/// Replaces the tree of a server with `containers`: existing containers keep
-/// their id, synced tracks and ETags; the ones the server no longer lists go,
-/// with their tracks, and so do the catalogue tracks no container lists any
-/// more (unless Mixxx's library has them).
+/// Replaces the tree of a server with `tree`: existing containers keep their
+/// id, synced tracks and ETags; the ones the server no longer lists go, with
+/// their tracks, and so do the catalogue tracks no container lists any more
+/// (unless Mixxx's library has them). The library's track count is replaced
+/// too, also by none when the tree has none.
+WriteStatus storeContainerTree(
+        const QSqlDatabase& database, const QString& serverId, const ContainerTree& tree);
+/// The same for a tree without a library count.
 WriteStatus storeContainerTree(const QSqlDatabase& database,
         const QString& serverId,
         const QList<RemoteContainer>& containers);
+
+/// The library's track count the server's tree gave last, if any.
+std::optional<qint64> loadLibraryTrackCount(
+        const QSqlDatabase& database, const QString& serverId);
 
 /// Adds the tracks to the catalogue or updates them. Never touches
 /// `mixxx_track_id`.

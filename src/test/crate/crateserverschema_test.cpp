@@ -138,6 +138,9 @@ TEST_F(CrateServerSchemaTest, CreatesLibraryTablesWithTheirIndexes) {
                       QStringLiteral("position"),
                       QStringLiteral("entity_uid")}),
             columns(QStringLiteral("crateserver_container_tracks")));
+    // The library's track count, per server: it is not a container
+    EXPECT_EQ(QStringList({QStringLiteral("server_id"), QStringLiteral("track_count")}),
+            columns(QStringLiteral("crateserver_libraries")));
 
     QSqlQuery duplicate(dbConnection());
     EXPECT_FALSE(duplicate.exec(QStringLiteral(

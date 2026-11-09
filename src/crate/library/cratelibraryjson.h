@@ -47,10 +47,20 @@ struct RemoteContainer {
     QString etag;
 };
 
-/// The answer of `GET /api/decks/containers`: `{"containers": [...]}`, in the
-/// server's order. Nodes of unknown kinds are left out. A node without `id`
-/// or `kind`, or a field of the wrong type, is a Decode error.
-Result<QList<RemoteContainer>> parseContainerTree(const QByteArray& json);
+/// The answer of `GET /api/decks/containers`.
+struct ContainerTree {
+    /// In the server's order, without the nodes of unknown kinds.
+    QList<RemoteContainer> containers;
+    /// `library.track_count`: the tracks of the whole library, also those
+    /// without an entity uid that no container lists. Not a container. Absent
+    /// from servers older than it.
+    std::optional<qint64> libraryTrackCount;
+};
+
+/// Parses `{"library": {"track_count": N}, "containers": [...]}`. A node
+/// without `id` or `kind`, a field of the wrong type or a negative count is
+/// a Decode error.
+Result<ContainerTree> parseContainerTree(const QByteArray& json);
 
 /// A track of a container page, with the DJ fields.
 struct RemoteTrack {
