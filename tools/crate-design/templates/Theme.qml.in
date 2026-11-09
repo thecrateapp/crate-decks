@@ -41,6 +41,7 @@ QtObject {
     readonly property color logoStart: "{{logoStart}}"
     readonly property color logoEnd: "{{logoEnd}}"
     readonly property color logoShade: "{{logoShade}}"
+    readonly property color accentHiBorder: "{{accentHiBorder}}"
 
     // iconState
     readonly property color iconIdle: "{{iconIdle}}"
@@ -110,6 +111,7 @@ QtObject {
     readonly property real fontSizeTable: {{fontSizeTable}}
     readonly property real fontSizeDeckNumber: {{fontSizeDeckNumber}}
     readonly property real fontSizeDeckNumberCompact: {{fontSizeDeckNumberCompact}}
+    readonly property real fontSizeBrand: {{fontSizeBrand}}
 
     // tracking
     readonly property real trackingCaps: {{trackingCaps}}
@@ -136,6 +138,24 @@ QtObject {
     readonly property real topbarHeight: {{topbarHeight}}
     readonly property real activeBarWidth: {{activeBarWidth}}
     readonly property real focusRingWidth: {{focusRingWidth}}
+    readonly property real gutter: {{gutter}}
+    readonly property real gutterNarrow: {{gutterNarrow}}
+    readonly property real layoutNarrowBelow: {{layoutNarrowBelow}}
+    readonly property real layoutShortBelow: {{layoutShortBelow}}
+    readonly property real toolbarGap: {{toolbarGap}}
+    readonly property real toolbarGapNarrow: {{toolbarGapNarrow}}
+    readonly property real toolbarGroupGap: {{toolbarGroupGap}}
+    readonly property real toolbarSeparatorHeight: {{toolbarSeparatorHeight}}
+    readonly property real toolbarButtonPadding: {{toolbarButtonPadding}}
+    readonly property real toolbarButtonPaddingNarrow: {{toolbarButtonPaddingNarrow}}
+    readonly property real iconTextGap: {{iconTextGap}}
+    readonly property real brandGap: {{brandGap}}
+    readonly property real brandLogoWidth: {{brandLogoWidth}}
+    readonly property real brandLogoHeight: {{brandLogoHeight}}
+    readonly property real readingMinWidth: {{readingMinWidth}}
+    readonly property real readingGap: {{readingGap}}
+    readonly property real statusDot: {{statusDot}}
+    readonly property real monoSeparatorPadding: {{monoSeparatorPadding}}
 
     // lane
     readonly property real laneMeter: {{laneMeter}}

@@ -2,6 +2,11 @@
   Crate Decks skin variables, from res/crate-design/tokens.json.
   Template for tools/crate-design/generate.py. Colours are #rrggbb, or
   #aarrggbb when they have alpha; lengths are in pixels.
+
+  A <Template> keeps its variables to itself, so skin.xml instantiates this
+  file and this file instantiates the layout of the skin (main.xml) at its
+  end: every template of the skin then sees these variables. C++ reads the
+  layout breakpoints from here too (crate/ui/skin/).
 -->
 <Template>
   <!-- Surfaces and text -->
@@ -78,7 +83,18 @@
   <SetVariable name="CrateFaderHandleWidth">{{faderHandleWidth}}</SetVariable>
   <SetVariable name="CrateFaderHandleHeight">{{faderHandleHeight}}</SetVariable>
 
+  <!-- Layout: the 1366 x 768 breakpoints of the GU1 mockups (C++ sets
+       [CrateDecks],layout_narrow and layout_short from them) -->
+  <SetVariable name="CrateLayoutNarrowBelow">{{layoutNarrowBelow}}</SetVariable>
+  <SetVariable name="CrateLayoutShortBelow">{{layoutShortBelow}}</SetVariable>
+  <!-- Toolbar readings -->
+  <SetVariable name="CrateReadingMinWidth">{{readingMinWidth}}</SetVariable>
+  <SetVariable name="CrateLaneMeter">{{laneMeter}}</SetVariable>
+
   <!-- Cache and download level ring -->
   <SetVariable name="CrateLevelRingRadius">{{levelRingRadius}}</SetVariable>
   <SetVariable name="CrateLevelRingWidth">{{strokeActive}}</SetVariable>
+
+  <!-- The layout of the skin, with every variable above in scope -->
+  <Template src="skins:CrateDecks/main.xml"/>
 </Template>

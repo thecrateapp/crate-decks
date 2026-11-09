@@ -236,6 +236,12 @@ def test_only_solar_icons():
     allowed = {generate.SVG / "solar", generate.SVG / "controls"}
     for path in generate.HERE.rglob("*"):
         if path.name.endswith((".svg", ".svg.in")):
+            # Templates draw the logo and plain shapes from tokens; they are
+            # not icons and never come from an icon set.
+            if generate.TEMPLATES in path.parents:
+                assert path.name.endswith(".svg.in"), path
+                assert "currentColor" not in path.read_text(), path
+                continue
             assert path.parent in allowed, f"{path}: icons are Solar only"
     subset = set()
     for line in (generate.SVG / "solar" / "SUBSET").read_text().splitlines():
@@ -329,3 +335,66 @@ def test_wave_palette_of_the_decks():
         bd = tokens[f"wave{band}DeckBD"].value
         assert ac == tokens[f"wave{band}Accent"].value
         assert bd == tokens[f"wave{band}Neutral"].value
+
+
+def test_qss_sum_of_tokens(design):
+    template = design["templates"] / "style.qss.in"
+    template.write_text(
+        QSS_TEMPLATE
+        + "QLabel { padding-left: {{ tickLong + tickShort - strokeHairline }};"
+        + " qproperty-layoutSpacing: {{tickLong+tickShort.number}}; }\n",
+        encoding="utf-8",
+    )
+    run(design)
+    qss = (design["out"] / "style.qss").read_text(encoding="utf-8")
+    assert "padding-left: 9px;" in qss
+    assert "qproperty-layoutSpacing: 10;" in qss
+
+
+def test_sum_needs_one_unit(design):
+    template = design["templates"] / "style.qss.in"
+    template.write_text(
+        QSS_TEMPLATE + "QLabel { width: {{tickLong + knobSweep}}; }\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(generate.GeneratorError, match="mixed units"):
+        run(design)
+
+
+def test_sum_of_unknown_token_fails(design):
+    template = design["templates"] / "style.qss.in"
+    template.write_text(
+        QSS_TEMPLATE + "QLabel { width: {{tickLong + tickLonger}}; }\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(
+        generate.GeneratorError, match="unknown token tickLonger"
+    ):
+        run(design)
+
+
+def test_half_of_a_length(design):
+    template = design["templates"] / "style.qss.in"
+    template.write_text(
+        QSS_TEMPLATE + "QLabel { border-radius: {{tickLong.half}}; }\n",
+        encoding="utf-8",
+    )
+    run(design)
+    qss = (design["out"] / "style.qss").read_text(encoding="utf-8")
+    assert "border-radius: 3.5px;" in qss
+
+
+def test_tracking_times_size_is_a_length(design):
+    data = json.loads(design["tokens"].read_text(encoding="utf-8"))
+    data["tokens"]["geometry"]["trackingCaps"] = {"value": 0.14, "unit": "em"}
+    data["tokens"]["geometry"]["fontSizeLabel"] = {"value": 11, "unit": "px"}
+    design["tokens"].write_text(json.dumps(data), encoding="utf-8")
+    template = design["templates"] / "style.qss.in"
+    template.write_text(
+        QSS_TEMPLATE
+        + "QLabel { letter-spacing: {{trackingCaps * fontSizeLabel}}; }\n",
+        encoding="utf-8",
+    )
+    run(design)
+    qss = (design["out"] / "style.qss").read_text(encoding="utf-8")
+    assert "letter-spacing: 1.54px;" in qss

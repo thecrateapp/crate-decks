@@ -1,0 +1,229 @@
+/*
+  Crate Decks skin: the style of the CrateDecks skin (plan V2), with the
+  language of the Crate admin (design 14.1) and the values of the approved
+  GU1 mockups (crate-agents/decks-mockups/lib/decks.css).
+
+  Template for tools/crate-design/generate.py: the placeholders in double
+  braces come from res/crate-design/tokens.json. Do not write colours, sizes, radii or
+  fonts by hand here (AGENTS.md 5.2).
+
+  The skin loads LateNight's style first (skin.xml, root <Style>) for the
+  parts that V2 has not redone yet, and this file last, as the style of the
+  Crate scheme, so that its rules win.
+
+  Every widget whose object name starts with "Mono" is a MonoLabel. Qt's
+  QSS takes text-transform and letter-spacing, but reads letter-spacing in
+  em as a percentage of the glyph's width: the tracking is given in px,
+  tracking times font size. What QSS cannot set at all, the tabular figures
+  and optical size of the deck numbers, C++ sets on the widgets whose object
+  name starts with "DeckNumber" (crate/ui/skin/crateskin.cpp).
+*/
+
+/* ── Window ─────────────────────────────────────────────────────────── */
+
+#Mixxx,
+#SkinContainer {
+  background-color: #0a0a0f;
+}
+
+/* Body text in Roboto, as the admin */
+#Mixxx,
+WWidget,
+WLabel,
+WNumber, WNumberPos,
+WPushButton,
+WKey,
+WTime,
+WTrackProperty,
+WRecordingDuration {
+  font-family: "Roboto";
+  font-weight: 400;
+}
+
+QToolTip {
+  background-color: #111218;
+  border: 1px solid rgba(241, 245, 249, 26);
+  border-radius: 4px;
+  color: #f1f5f9;
+  font-family: "Roboto";
+  font-size: 13px;
+  padding: 4px;
+}
+
+/* ── MonoLabel (MonoLabel.tsx): mono 400, 11 px, textSubtle ──────────── */
+
+[objectName^="Mono"] {
+  font-family: "JetBrains Mono";
+  font-weight: 400;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1.54px;
+  color: #7e8084;
+}
+
+/* ── Toolbar: 64 px with a 1 px rule, as the admin top bar ───────────── */
+
+/* QSS sizes are content sizes: Qt adds padding and border to them.
+   WWidgetGroup applies qproperty-layoutContentsMargins twice, to the widget
+   and to its layout, so the margins below are half the gutter. */
+#CrateToolbar {
+  background-color: #0a0a0f;
+  border: 0;
+  border-bottom: 1px solid rgba(241, 245, 249, 26);
+  padding: 0;
+  min-height: 63px;
+  max-height: 63px;
+  qproperty-layoutSpacing: 0;
+  qproperty-layoutContentsMargins: rect(10 0 10 0);
+}
+/* Narrower than the 1366 layout breakpoint */
+#CrateToolbar[highlight="1"] {
+  qproperty-layoutContentsMargins: rect(7 0 7 0);
+}
+/* The row of controls, centred in the bar. Its explicit minimum width lets
+   the window shrink below the wide row, so that the skin can reach the
+   1366 layout breakpoint and switch to the narrow row. */
+#CrateToolbarRow {
+  min-width: 1px;
+  padding: 0;
+  qproperty-layoutContentsMargins: rect(0 0 0 0);
+  min-height: 32px;
+  max-height: 32px;
+  qproperty-layoutSpacing: 22;
+}
+#CrateToolbarRow[highlight="1"] {
+  qproperty-layoutSpacing: 12;
+}
+
+#CrateToolbarBrand {
+  qproperty-layoutSpacing: 10;
+}
+#CrateToolbarLogo {
+  image: url(skins:CrateDecks/generated/crate-logo.svg);
+  margin: 1px 0;
+  min-width: 28px;
+  max-width: 28px;
+  min-height: 30px;
+  max-height: 30px;
+}
+#CrateToolbarBrandName {
+  font-family: "Roboto";
+  font-size: 14px;
+  font-weight: 700;
+  color: #f1f5f9;
+}
+
+#CrateToolbarSeparator {
+  background-color: rgba(241, 245, 249, 26);
+  margin: 4px 0;
+  min-width: 1px;
+  max-width: 1px;
+  min-height: 24px;
+  max-height: 24px;
+}
+
+#CrateToolbarGroup {
+  qproperty-layoutSpacing: 4;
+}
+
+/* Toolbar buttons: a MonoLabel text under a transparent button that draws
+   the icon, the border and the active fill (controls/tb_button*.xml). The
+   text leaves room for the icon with a transparent border. */
+#MonoTbButtonText {
+  color: #999ca0;
+  margin-left: 10px;
+  border-left: 18px solid transparent;
+  padding-left: 8px;
+  padding-right: 10px;
+  min-height: 32px;
+  max-height: 32px;
+}
+#MonoTbButtonText[highlight="1"] {
+  color: #67e8f9;
+}
+
+/* QSS sizes are content sizes: Qt adds the padding and the border, so the
+   button is 32 x 32 with an 18 px icon 7 px from its left edge. */
+[objectName^="TbIcon"] {
+  background-color: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  image-position: left;
+  padding-left: 6px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  min-width: 24px;
+  min-height: 18px;
+  max-height: 18px;
+}
+/* With text, the icon keeps the text button's own padding */
+#TbButton [objectName^="TbIcon"] {
+  padding-left: 9px;
+}
+[objectName^="TbIcon"][displayValue="1"] {
+  border-color: rgba(103, 232, 249, 102);
+  background-color: rgba(6, 182, 212, 26);
+}
+
+#TbIconDecks2, #TbIconDecks4 { image: url(skins:CrateDecks/generated/icons/widget_idle.svg); }
+#TbIconDecks2[displayValue="1"], #TbIconDecks4[displayValue="1"] { image: url(skins:CrateDecks/generated/icons/widget_active.svg); }
+#TbIconFx { image: url(skins:CrateDecks/generated/icons/tuning_idle.svg); }
+#TbIconFx[displayValue="1"] { image: url(skins:CrateDecks/generated/icons/tuning_active.svg); }
+#TbIconSamplers { image: url(skins:CrateDecks/generated/icons/cassette-2_idle.svg); }
+#TbIconSamplers[displayValue="1"] { image: url(skins:CrateDecks/generated/icons/cassette-2_active.svg); }
+#TbIconMicAux { image: url(skins:CrateDecks/generated/icons/microphone_idle.svg); }
+#TbIconMicAux[displayValue="1"] { image: url(skins:CrateDecks/generated/icons/microphone_active.svg); }
+#TbIconSmartMix { image: url(skins:CrateDecks/generated/icons/stars_idle.svg); }
+#TbIconSmartMix[displayValue="1"] { image: url(skins:CrateDecks/generated/icons/stars_active.svg); }
+#TbIconAutoDj { image: url(skins:CrateDecks/generated/icons/shuffle_idle.svg); }
+#TbIconAutoDj[displayValue="1"] { image: url(skins:CrateDecks/generated/icons/shuffle_active.svg); }
+#TbIconRecord { image: url(skins:CrateDecks/generated/icons/record-circle_idle.svg); }
+#TbIconRecord[displayValue="1"], #TbIconRecord[displayValue="2"] { image: url(skins:CrateDecks/generated/icons/record-circle_active.svg); }
+#TbIconBroadcast { image: url(skins:CrateDecks/generated/icons/station_idle.svg); }
+#TbIconBroadcast[displayValue="1"], #TbIconBroadcast[displayValue="2"] { image: url(skins:CrateDecks/generated/icons/station_active.svg); }
+#TbIconSettings { image: url(skins:CrateDecks/generated/icons/settings_idle.svg); }
+#TbIconSettings[displayValue="1"] { image: url(skins:CrateDecks/generated/icons/settings_active.svg); }
+/* The icon-only buttons of the admin have no border or fill when active */
+#TbIconRecord[displayValue="1"], #TbIconRecord[displayValue="2"],
+#TbIconBroadcast[displayValue="1"], #TbIconBroadcast[displayValue="2"],
+#TbIconSettings[displayValue="1"] {
+  border-color: transparent;
+  background-color: transparent;
+}
+
+/* Crate status (StatusDot.tsx): server and connection. C++ sets the
+   crateState property: connected, connecting, signedOut or none. */
+#CrateStatus {
+  qproperty-layoutSpacing: 8;
+}
+#CrateStatusDot {
+  background-color: #7e8084;
+  border-radius: 3px;
+  margin: 13px 0;
+  min-width: 6px;
+  max-width: 6px;
+  min-height: 6px;
+  max-height: 6px;
+}
+#CrateStatusDot[crateState="connected"] { background-color: #67e8f9; }
+#CrateStatusDot[crateState="connecting"] { background-color: #999ca0; }
+#CrateStatusDot[crateState="signedOut"] { background-color: #fbbf24; }
+#MonoCrateStatus[crateState="connected"] { color: #67e8f9; }
+#MonoCrateStatus[crateState="connecting"] { color: #999ca0; }
+#MonoCrateStatus[crateState="signedOut"] { color: #f9c94a; }
+
+/* Readings: MonoLabel over a 1 px lane */
+#CrateToolbarReading {
+  qproperty-layoutSpacing: 5;
+  min-width: 64px;
+}
+#CrateToolbarReadingRow {
+  qproperty-layoutSpacing: 0;
+}
+
+#CrateToolbarClock {
+  font-family: "JetBrains Mono";
+  font-weight: 400;
+  font-size: 15px;
+  color: #f1f5f9;
+}

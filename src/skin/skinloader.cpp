@@ -6,6 +6,9 @@
 
 #include "control/controlproxy.h"
 #include "control/controlpushbutton.h"
+#ifdef __CRATE__
+#include "crate/ui/skin/crateskin.h"
+#endif
 #include "mixer/playermanager.h"
 #include "moc_skinloader.cpp"
 #include "skin/legacy/launchimage.h"
@@ -159,7 +162,12 @@ SkinPointer SkinLoader::getConfiguredSkin() const {
 }
 
 QString SkinLoader::getDefaultSkinName() const {
+#ifdef __CRATE__
+    // Crate Decks: its own skin is the default (design 5.2, plan V2.PR1)
+    return crate::kSkinName;
+#else
     return "LateNight";
+#endif
 }
 
 QWidget* SkinLoader::loadConfiguredSkin(QWidget* pParent,
@@ -214,6 +222,12 @@ QWidget* SkinLoader::loadConfiguredSkin(QWidget* pParent,
     VERIFY_OR_DEBUG_ASSERT(pLoadedSkin != nullptr) {
         qCritical() << "No skin can be loaded, please check your installation.";
     }
+#ifdef __CRATE__
+    // Crate Decks: what the CrateDecks skin's QSS cannot do (MonoLabel
+    // tracking and capitals, layout classes, Crate status). Other skins are
+    // left as they are.
+    crate::prepareLoadedSkin(pLoadedSkin, pSkin->path().absoluteFilePath());
+#endif
     qInfo() << "Loaded skin" << pSkin->name() << "from" << pSkin->path().filePath();
     return pLoadedSkin;
 }

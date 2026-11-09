@@ -41,6 +41,7 @@ QtObject {
     readonly property color logoStart: "#67e8f9"
     readonly property color logoEnd: "#0e7490"
     readonly property color logoShade: "#0e4f5c"
+    readonly property color accentHiBorder: "#6667e8f9"
 
     // iconState
     readonly property color iconIdle: "#999ca0"
@@ -110,6 +111,7 @@ QtObject {
     readonly property real fontSizeTable: 11
     readonly property real fontSizeDeckNumber: 34
     readonly property real fontSizeDeckNumberCompact: 26
+    readonly property real fontSizeBrand: 14
 
     // tracking
     readonly property real trackingCaps: 0.14
@@ -136,6 +138,24 @@ QtObject {
     readonly property real topbarHeight: 64
     readonly property real activeBarWidth: 2
     readonly property real focusRingWidth: 2
+    readonly property real gutter: 20
+    readonly property real gutterNarrow: 14
+    readonly property real layoutNarrowBelow: 1500
+    readonly property real layoutShortBelow: 800
+    readonly property real toolbarGap: 22
+    readonly property real toolbarGapNarrow: 12
+    readonly property real toolbarGroupGap: 4
+    readonly property real toolbarSeparatorHeight: 24
+    readonly property real toolbarButtonPadding: 10
+    readonly property real toolbarButtonPaddingNarrow: 7
+    readonly property real iconTextGap: 8
+    readonly property real brandGap: 10
+    readonly property real brandLogoWidth: 28
+    readonly property real brandLogoHeight: 30
+    readonly property real readingMinWidth: 64
+    readonly property real readingGap: 5
+    readonly property real statusDot: 6
+    readonly property real monoSeparatorPadding: 4
 
     // lane
     readonly property real laneMeter: 1

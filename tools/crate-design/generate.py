@@ -23,7 +23,7 @@ import re
 import shutil
 import sys
 import tempfile
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from xml.sax.saxutils import escape
 
@@ -41,10 +41,12 @@ MARKER_TEXT = (
 )
 NAME_RE = re.compile(r"^[a-z][A-Za-z0-9]*$")
 HEX_RE = re.compile(r"^#[0-9a-f]{6}$")
-PLACEHOLDER_RE = re.compile(r"\{\{\s*([A-Za-z0-9_.]+)\s*\}\}")
+PLACEHOLDER_RE = re.compile(r"\{\{\s*([A-Za-z0-9_.+*\- ]+?)\s*\}\}")
+TERM_RE = re.compile(r"\s*([+-])\s*")
+EXPRESSION_RE = re.compile(r"[+*-]")
 SELECTOR_RE = re.compile(r"\{([A-Za-z0-9]+)\}")
 FORMATS = ("qss", "xml", "qml", "svg")
-FILTERS = ("hex", "alpha", "argb", "rgba", "number", "list", "unit")
+FILTERS = ("hex", "alpha", "argb", "rgba", "number", "list", "unit", "half")
 
 # Icon states, in output order, and the token that colours each one.
 STATES = {
@@ -243,6 +245,60 @@ def format_token(token, fmt):
     return escape(text) if fmt in ("xml", "svg") else text
 
 
+def product_term(term, tokens, where):
+    """(value, unit, names) of "a * b": a tracking in em times a size in px
+    is a length in px, as QSS letter-spacing needs it."""
+    names = [name.strip() for name in term.split("*")]
+    unknown = [name for name in names if name not in tokens]
+    if unknown:
+        raise GeneratorError([f"{where}: unknown token {n}" for n in unknown])
+    factors = [tokens[name] for name in names]
+    if any(
+        isinstance(factor.value, bool)
+        or not isinstance(factor.value, (int, float))
+        for factor in factors
+    ):
+        raise GeneratorError([f"{where}: only numbers compute: {term}"])
+    units = [factor.unit for factor in factors if factor.unit]
+    if len(factors) > 1 and units.count("px") > 1:
+        raise GeneratorError([f"{where}: px times px in {term}"])
+    unit = "px" if "px" in units else (units[0] if units else "")
+    value = 1
+    for factor in factors:
+        value *= factor.value
+    return value, unit, names
+
+
+def sum_token(expression, tokens, where):
+    """A token computed from others: "gutter + iconMd - strokeHairline" or
+    "trackingCaps * fontSizeLabel".
+
+    QSS has no calc(), so a template adds, subtracts and multiplies tokens
+    instead of keeping derived values in tokens.json.
+    """
+    parts = TERM_RE.split(expression.strip())
+    signs = ["+"] + parts[1::2]
+    terms = [product_term(term, tokens, where) for term in parts[0::2]]
+    if len({unit for _, unit, _ in terms}) > 1:
+        raise GeneratorError([f"{where}: mixed units in {expression}"])
+    value = sum(
+        term_value if sign == "+" else -term_value
+        for sign, (term_value, _, _) in zip(signs, terms)
+    )
+    value = round(value, 4)
+    names = [name for _, _, term_names in terms for name in term_names]
+    return Token(expression, "sum", value, terms[0][1]), names
+
+
+def half(token, where):
+    """Half a length, such as the radius that makes a square a circle."""
+    if isinstance(token.value, bool) or not isinstance(
+        token.value, (int, float)
+    ):
+        raise GeneratorError([f"{where}: {token.name} is not a number"])
+    return replace(token, value=token.value / 2)
+
+
 def render(text, fmt, tokens, used, origin):
     """Replace the placeholders of one template; record the tokens used."""
     problems = []
@@ -250,17 +306,29 @@ def render(text, fmt, tokens, used, origin):
     def substitute(match, line_number):
         name, _, flt = match.group(1).partition(".")
         where = f"{origin}:{line_number}"
-        token = tokens.get(name)
-        if token is None:
-            problems.append(f"{where}: unknown token {name}")
-            return match.group(0)
-        used.add(name)
         try:
-            if flt:
-                return apply_filter(token, flt, where)
+            if EXPRESSION_RE.search(name):
+                token, names = sum_token(name, tokens, where)
+            elif name in tokens:
+                token, names = tokens[name], [name]
+            else:
+                raise GeneratorError([f"{where}: unknown token {name}"])
+            used.update(names)
+            # Filters chain from left to right: {{gutter.half.number}}
+            filters = flt.split(".") if flt else []
+            while filters and filters[0] == "half":
+                token = half(token, where)
+                filters.pop(0)
+            if len(filters) > 1:
+                raise GeneratorError([f"{where}: only .half chains: {flt}"])
+            if filters:
+                return apply_filter(token, filters[0], where)
             return format_token(token, fmt)
         except GeneratorError as error:
-            problems.extend(f"{where}: {p}" for p in error.problems)
+            problems.extend(
+                p if p.startswith(where) else f"{where}: {p}"
+                for p in error.problems
+            )
             return match.group(0)
 
     lines = []

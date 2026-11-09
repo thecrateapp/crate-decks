@@ -87,12 +87,15 @@ Python 3 estándar, sin dependencias. Las salidas se commitean, y el job `design
 | Salida | Desde | Contenido |
 | --- | --- | --- |
 | `Theme.qml` | `tools/crate-design/templates/Theme.qml.in` | Singleton QML con una propiedad por token, para la etapa 2 (§14.4) |
-| `vars.xml` | `tools/crate-design/templates/vars.xml.in` | `<Template>` con los `<SetVariable>` de la skin: superficies, fuentes, color por deck, onda, VU, knobs y faders |
+| `vars.xml` | `tools/crate-design/templates/vars.xml.in` | `<Template>` con los `<SetVariable>` de la skin: superficies, fuentes, color por deck, onda, VU, knobs, faders y los cortes de la distribución de 1366 × 768. Un `<Template>` se guarda sus variables, así que `skin.xml` instancia `vars.xml` y `vars.xml` instancia al final `main.xml`, la distribución de la skin |
+| `style.qss` | `tools/crate-design/templates/style.qss.in` | El estilo de la skin `CrateDecks`, que carga después del de LateNight y gana sobre él |
+| `crate-logo.svg` | `tools/crate-design/templates/crate-logo.svg.in` | El logo de Crate (`app/ui/public/assets/logo.svg`) con sus colores como tokens |
+| `controls/lane-track.svg`, `controls/lane-fill.svg` | `tools/crate-design/templates/controls/` | Carril de 1 px de las lecturas de la barra, apagado y encendido |
 | `icons/<icono>_<estado>.svg` | `tools/crate-design/svg/solar/` | Cada icono Solar, una vez por estado |
 | `controls/<control>_<estado>.svg` | `tools/crate-design/svg/controls/*.svg.in` | Controles base (checkbox, radio, punto de slider, nodo), una vez por estado |
 | `controls/knob-scale.svg`, `controls/fader-scale-{v,h}.svg`, `controls/fader-handle-{v,h}_<estado>.svg` | Tokens de `knob`, `fader` y `geometry` | Anillo y marcas del knob, carril y marcas del fader, y tirador de contorno (relleno en `active`) |
 
-**Plantillas:** cualquier `<nombre>.<qss|xml|qml|svg>.in` en `tools/crate-design/templates/` produce `generated/<nombre>.<ext>`. V2 añade aquí `style.qss.in` y `default.qss.in`. Los marcadores son `{{token}}` o `{{token.filtro}}`.
+**Plantillas:** cualquier `<nombre>.<qss|xml|qml|svg>.in` en `tools/crate-design/templates/` produce `generated/<nombre>.<ext>`, también en subcarpetas. Las plantillas SVG dibujan el logo y formas simples desde los tokens; no son iconos (los iconos son solo Solar). Los marcadores son `{{token}}`, `{{token.filtro}}` o una expresión.
 
 | Marcador | QSS | XML y QML | SVG |
 | --- | --- | --- | --- |
@@ -101,7 +104,9 @@ Python 3 estándar, sin dependencias. Las salidas se commitean, y el job `design
 | Número con `px` o `em` | `11px` | `11` | `11` |
 | Otro número o texto | Tal cual | Tal cual (escapado en XML) | Tal cual (escapado) |
 
-Filtros: `.hex`, `.alpha` (0–1), `.argb`, `.rgba`, `.number`, `.unit` y `.list` (un patrón de trazo `"9 4"` como `9, 4`).
+Filtros: `.hex`, `.alpha` (0–1), `.argb`, `.rgba`, `.number`, `.unit`, `.list` (un patrón de trazo `"9 4"` como `9, 4`) y `.half` (la mitad de una longitud, que se puede encadenar: `{{gutter.half.number}}`).
+
+**Expresiones:** QSS no tiene `calc()`, así que una plantilla suma, resta y multiplica tokens numéricos en vez de guardar valores derivados en `tokens.json`: `{{heightControlSm - iconMd - strokeHairline}}` da `12px` y `{{trackingCaps * fontSizeLabel}}` da `1.54px` (em por px es px). Los términos de una suma tienen que tener la misma unidad.
 
 **Estados** de iconos y controles: `idle` (`iconIdle`), `hover` (`iconHover`), `active` (`iconActive`), `disabled` (`iconDisabled`) y `onaccent` (`iconOnAccent`, para el icono sobre un botón activo relleno). El generador cambia `currentColor` por el color del estado.
 
@@ -109,7 +114,9 @@ Filtros: `.hex`, `.alpha` (0–1), `.argb`, `.rgba`, `.number`, `.unit` y `.list
 
 **A tener en cuenta en V2:**
 
-- QSS no tiene `letter-spacing` ni `text-transform`. El tracking y las mayúsculas de MonoLabel se aplican con `QFont::setLetterSpacing` y `QFont::setCapitalization` desde C++.
+- El QSS de Qt 6.12 sí tiene `text-transform` y `letter-spacing` (comprobado en V2.PR1), pero lee `letter-spacing` en `em` como un porcentaje del ancho del glifo (`0.14em` da un 114 %). MonoLabel lleva `text-transform: uppercase` y el tracking en px, tracking por tamaño de letra. Lo que QSS no tiene es `font-feature-settings` ni `font-variation-settings`: las cifras tabulares (`tnum`), el `opsz` y el eje de peso de los números del deck se ponen desde C++ (`src/crate/ui/skin/crateskin.cpp`).
+- `WWidgetGroup` aplica `qproperty-layoutContentsMargins` dos veces (al widget y a su layout): la plantilla pone la mitad del margen.
+- Los tamaños de QSS (`min-height`, `min-width`) son del contenido: Qt les suma el padding y el borde.
 - `QFont` toma tamaños de píxel enteros: 10,5 y 11,5 px necesitan tamaño en puntos o `setPixelSize` redondeado.
 
 ## Iconos Solar

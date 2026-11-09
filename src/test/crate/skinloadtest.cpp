@@ -1,0 +1,670 @@
+#include <gtest/gtest.h>
+
+#include <QAbstractButton>
+#include <QAbstractItemView>
+#include <QDialog>
+#include <QDir>
+#include <QElapsedTimer>
+#include <QFile>
+#include <QFileInfo>
+#include <QFont>
+#include <QFontMetricsF>
+#include <QImage>
+#include <QLabel>
+#include <QMenuBar>
+#include <QMessageBox>
+#include <QScrollBar>
+#include <QSqlDatabase>
+#include <QSqlError>
+#include <QSqlQuery>
+#include <QTemporaryDir>
+#include <QTimer>
+#include <QWidget>
+#include <algorithm>
+#include <functional>
+#include <iostream>
+#include <memory>
+#include <vector>
+
+#include "control/controlobject.h"
+#include "coreservices.h"
+#include "crate/ui/skin/crateserverstatus.h"
+#include "crate/ui/skin/crateskin.h"
+#include "mixer/basetrackplayer.h"
+#include "mixer/playermanager.h"
+#include "mixxxmainwindow.h"
+#include "preferences/configobject.h"
+#include "skin/skinloader.h"
+#include "test/mixxxtest.h"
+#include "track/cue.h"
+#include "track/track.h"
+#include "util/cmdlineargs.h"
+#include "util/font.h"
+#include "util/versionstore.h"
+#include "waveform/waveform.h"
+#include "widget/wtracktableview.h"
+
+namespace {
+
+const QString kCrateDecks = QStringLiteral("CrateDecks");
+const QString kLateNight = QStringLiteral("LateNight");
+
+QString skinPath(const QString& skin) {
+    return QDir(ConfigObject<ConfigValue>::computeResourcePath())
+            .filePath(QStringLiteral("skins/") + skin);
+}
+
+/// Keeps the warnings that Qt and Mixxx log while it is alive, and passes
+/// every message on to the handler that was installed before.
+class WarningCollector {
+  public:
+    WarningCollector() {
+        s_pWarnings = &m_warnings;
+        s_previous = qInstallMessageHandler(&WarningCollector::handle);
+    }
+    ~WarningCollector() {
+        qInstallMessageHandler(s_previous);
+        s_pWarnings = nullptr;
+    }
+
+    /// The warnings of skin parsing and styling: LegacySkinParser and
+    /// SkinContext (SKIN_WARNING), templates, QSS and property connections.
+    QStringList skinWarnings() const {
+        QStringList result;
+        for (const QString& warning : m_warnings) {
+            if (warning.contains(QLatin1String("Skin parsing failed")) ||
+                    warning.contains(QLatin1String("LegacySkinParser")) ||
+                    warning.contains(QLatin1String("Could not open template")) ||
+                    warning.contains(QLatin1String("Could not parse")) ||
+                    warning.contains(QLatin1String("does not have a property named")) ||
+                    warning.contains(QLatin1String("was not defined for widget")) ||
+                    warning.contains(QLatin1String("Cannot read the skin variables"))) {
+                result.append(warning);
+            }
+        }
+        return result;
+    }
+
+  private:
+    static void handle(QtMsgType type, const QMessageLogContext& context, const QString& message) {
+        if (s_pWarnings && type >= QtWarningMsg) {
+            s_pWarnings->append(message);
+        }
+        if (s_previous) {
+            s_previous(type, context, message);
+        }
+    }
+
+    static inline QStringList* s_pWarnings = nullptr;
+    static inline QtMessageHandler s_previous = nullptr;
+    QStringList m_warnings;
+};
+
+/// Times the skin load from the log: from LegacySkinParser's "loading skin"
+/// to SkinLoader's "Loaded skin", that is, parsing and building the skin.
+class SkinLoadClock {
+  public:
+    SkinLoadClock() {
+        s_pClock = this;
+        s_previous = qInstallMessageHandler(&SkinLoadClock::handle);
+        m_timer.start();
+    }
+    ~SkinLoadClock() {
+        qInstallMessageHandler(s_previous);
+        s_pClock = nullptr;
+    }
+    qint64 elapsedMs() const {
+        return (m_startNs >= 0 && m_endNs >= m_startNs) ? (m_endNs - m_startNs) / 1000000 : -1;
+    }
+
+  private:
+    static void handle(QtMsgType type, const QMessageLogContext& context, const QString& message) {
+        if (s_pClock) {
+            if (message.startsWith(QLatin1String("LegacySkinParser loading skin"))) {
+                s_pClock->m_startNs = s_pClock->m_timer.nsecsElapsed();
+            } else if (message.startsWith(QLatin1String("Loaded skin"))) {
+                s_pClock->m_endNs = s_pClock->m_timer.nsecsElapsed();
+            }
+        }
+        if (s_previous) {
+            s_previous(type, context, message);
+        }
+    }
+
+    static inline SkinLoadClock* s_pClock = nullptr;
+    static inline QtMessageHandler s_previous = nullptr;
+    QElapsedTimer m_timer;
+    qint64 m_startNs = -1;
+    qint64 m_endNs = -1;
+};
+
+/// Answers every modal dialog as it shows, so that nothing waits offscreen:
+/// "Continue" where there is one (no output devices, which has no sound
+/// card on purpose), otherwise reject.
+class DialogRejecter : public QObject {
+  protected:
+    bool eventFilter(QObject* pWatched, QEvent* pEvent) override {
+        if (pEvent->type() == QEvent::Show) {
+            if (auto* pDialog = qobject_cast<QDialog*>(pWatched); pDialog && pDialog->isModal()) {
+                if (auto* pBox = qobject_cast<QMessageBox*>(pDialog)) {
+                    const QList<QAbstractButton*> buttons = pBox->buttons();
+                    for (QAbstractButton* pButton : buttons) {
+                        if (pButton->text() == QLatin1String("Continue")) {
+                            QTimer::singleShot(0, pButton, &QAbstractButton::click);
+                            return QObject::eventFilter(pWatched, pEvent);
+                        }
+                    }
+                }
+                QTimer::singleShot(0, pDialog, &QDialog::reject);
+            }
+        }
+        return QObject::eventFilter(pWatched, pEvent);
+    }
+};
+
+/// Processes events until `done` or `timeoutMs`.
+bool waitFor(const std::function<bool()>& done, int timeoutMs) {
+    QElapsedTimer timer;
+    timer.start();
+    while (!done()) {
+        if (timer.elapsed() > timeoutMs) {
+            return false;
+        }
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
+    }
+    return true;
+}
+
+/// Crate Decks started offscreen on a disposable profile, with no sound
+/// devices: the real main window and skin, as main.cpp builds them.
+class OffscreenDecks {
+  public:
+    using Settings = QList<std::pair<ConfigKey, QString>>;
+
+    explicit OffscreenDecks(const QString& settingsPath)
+            : m_settingsPath(settingsPath),
+              m_previousArgs(CmdlineArgs::Instance()) {
+    }
+
+    ~OffscreenDecks() {
+        stop();
+        QCoreApplication::instance()->removeEventFilter(&m_dialogRejecter);
+        CmdlineArgs::Instance() = m_previousArgs;
+    }
+
+    /// Writes the profile: the skin, no sound API and `settings`.
+    void writeProfile(const QString& skin, const Settings& settings = {}) {
+        auto config = UserSettingsPointer(new UserSettings(m_settingsPath + "mixxx.cfg"));
+        config->setValue(ConfigKey("[Config]", "Version"), VersionStore::version());
+        config->setValue(ConfigKey("[Config]", "ResizableSkin"), skin);
+        // Offscreen there is no OpenGL: do not warn about it
+        config->setValue(ConfigKey("[Direct Rendering]", "Warned"), QStringLiteral("yes"));
+        for (const auto& [key, value] : settings) {
+            config->setValue(key, value);
+        }
+        config->save();
+        QFile soundConfig(m_settingsPath + "soundconfig.xml");
+        if (soundConfig.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+            soundConfig.write("<SoundManagerConfig api=\"None\"/>\n");
+        }
+    }
+
+    /// Starts the core services and the main window. Returns how long the
+    /// main window took to initialize, skin included, in milliseconds.
+    qint64 start(QApplication* pApp) {
+        pApp->installEventFilter(&m_dialogRejecter);
+        CmdlineArgs::Instance().setSettingsPath(m_settingsPath);
+        CmdlineArgs args;
+        args.setSettingsPath(m_settingsPath);
+        m_pCoreServices = std::make_shared<mixxx::CoreServices>(args, pApp);
+        m_pMainWindow = std::make_unique<MixxxMainWindow>(m_pCoreServices);
+        m_pCoreServices->initialize();
+        QElapsedTimer timer;
+        timer.start();
+        m_pMainWindow->initialize();
+        const qint64 elapsed = timer.elapsed();
+        QCoreApplication::processEvents();
+        return elapsed;
+    }
+
+    void stop() {
+        m_pMainWindow.reset();
+        m_pCoreServices.reset();
+    }
+
+    MixxxMainWindow* mainWindow() const {
+        return m_pMainWindow.get();
+    }
+    QWidget* skin() const {
+        return m_pMainWindow ? m_pMainWindow->centralWidget() : nullptr;
+    }
+    mixxx::CoreServices* coreServices() const {
+        return m_pCoreServices.get();
+    }
+
+  private:
+    const QString m_settingsPath;
+    const CmdlineArgs m_previousArgs;
+    DialogRejecter m_dialogRejecter;
+    std::shared_ptr<mixxx::CoreServices> m_pCoreServices;
+    std::unique_ptr<MixxxMainWindow> m_pMainWindow;
+};
+
+class CrateSkinLoadTest : public MixxxTest {
+  protected:
+    /// Loads `skin` and returns its skin warnings.
+    QStringList loadSkin(const QString& skin, QString* pLoadedRootName = nullptr) {
+        QTemporaryDir profile;
+        EXPECT_TRUE(profile.isValid());
+        OffscreenDecks decks(profile.path() + QLatin1Char('/'));
+        decks.writeProfile(skin);
+        WarningCollector warnings;
+        decks.start(application());
+        if (pLoadedRootName && decks.skin()) {
+            *pLoadedRootName = decks.skin()->objectName();
+        }
+        EXPECT_NE(nullptr, decks.skin());
+        return warnings.skinWarnings();
+    }
+};
+
+TEST_F(CrateSkinLoadTest, CrateDecksSkinLoadsWithoutParserWarnings) {
+    const QStringList warnings = loadSkin(kCrateDecks);
+    EXPECT_TRUE(warnings.isEmpty()) << warnings.join(QLatin1Char('\n')).toStdString();
+}
+
+TEST_F(CrateSkinLoadTest, IsDefaultSkin) {
+    mixxx::skin::SkinLoader loader(config());
+    EXPECT_QSTRING_EQ(kCrateDecks, loader.getDefaultSkinName());
+    const auto pSkin = loader.getSkin(kCrateDecks);
+    ASSERT_TRUE(pSkin);
+    EXPECT_TRUE(pSkin->isValid());
+    // A single scheme (plan V2.PR1)
+    EXPECT_EQ(QStringList{QStringLiteral("Crate")}, pSkin->colorschemes());
+}
+
+TEST_F(CrateSkinLoadTest, LateNightStillLoads) {
+    const QStringList warnings = loadSkin(kLateNight);
+    EXPECT_TRUE(warnings.isEmpty()) << warnings.join(QLatin1Char('\n')).toStdString();
+}
+
+class CrateSkinTest : public MixxxTest {
+  protected:
+    static void SetUpTestSuite() {
+        // The same call as CoreServices at startup: the admin's fonts
+        FontUtils::initializeFonts(ConfigObject<ConfigValue>::computeResourcePath());
+    }
+};
+
+TEST_F(CrateSkinTest, ReadsTheGeneratedVariables) {
+    const crate::SkinVariables variables = crate::readSkinVariables(
+            QDir(skinPath(kCrateDecks)).filePath(QStringLiteral("generated/vars.xml")));
+    const crate::SkinBreakpoints breakpoints = crate::SkinBreakpoints::fromVariables(variables);
+    // The 1366 x 768 layout of the GU1 mockups
+    EXPECT_TRUE(breakpoints.isValid());
+    EXPECT_GT(breakpoints.narrowBelow, 1366);
+    EXPECT_LT(breakpoints.narrowBelow, 1920);
+    EXPECT_GT(breakpoints.shortBelow, 768);
+    EXPECT_LT(breakpoints.shortBelow, 1080);
+    // Another skin has no generated variables
+    EXPECT_TRUE(crate::readSkinVariables(
+            QDir(skinPath(kLateNight)).filePath(QStringLiteral("generated/vars.xml")))
+                    .isEmpty());
+}
+
+TEST_F(CrateSkinTest, LayoutClassFollowsTheBreakpoints) {
+    const crate::SkinBreakpoints breakpoints{1500, 800};
+    EXPECT_EQ((crate::SkinLayoutClass{false, false}),
+            crate::skinLayoutClassFor(QSize(1920, 1080), breakpoints));
+    EXPECT_EQ((crate::SkinLayoutClass{true, true}),
+            crate::skinLayoutClassFor(QSize(1366, 768), breakpoints));
+    EXPECT_EQ((crate::SkinLayoutClass{true, false}),
+            crate::skinLayoutClassFor(QSize(1440, 900), breakpoints));
+    EXPECT_EQ((crate::SkinLayoutClass{false, true}),
+            crate::skinLayoutClassFor(QSize(1920, 720), breakpoints));
+    // Without breakpoints there is a single layout
+    EXPECT_EQ((crate::SkinLayoutClass{false, false}),
+            crate::skinLayoutClassFor(QSize(800, 600), crate::SkinBreakpoints{}));
+}
+
+TEST_F(CrateSkinTest, MonoLabelStyleHasCapitalsAndTracking) {
+    // The generated style of the skin, as the skin loads it
+    QFile style(QDir(skinPath(kCrateDecks)).filePath(QStringLiteral("generated/style.qss")));
+    ASSERT_TRUE(style.open(QIODevice::ReadOnly));
+    QWidget skin;
+    skin.setStyleSheet(QString::fromUtf8(style.readAll()));
+    auto* pLabel = new QLabel(QStringLiteral("Deck A"), &skin);
+    pLabel->setObjectName(QStringLiteral("MonoDeckHead"));
+    pLabel->ensurePolished();
+    const QFont font = pLabel->font();
+    EXPECT_QSTRING_EQ(QStringLiteral("JetBrains Mono"), font.family());
+    EXPECT_EQ(11, font.pixelSize());
+    // MonoLabel.tsx: uppercase with 0.14 em of tracking, 1.54 px at 11 px
+    EXPECT_EQ(QFont::AllUppercase, font.capitalization());
+    EXPECT_EQ(QFont::AbsoluteSpacing, font.letterSpacingType());
+    EXPECT_NEAR(0.14 * 11, font.letterSpacing(), 0.02);
+}
+
+TEST_F(CrateSkinTest, DeckNumberHasTabularFigures) {
+    QFont display(QStringLiteral("Bricolage Grotesque"));
+    display.setPixelSize(34);
+    display.setWeight(QFont::Bold);
+    const QFont number = crate::deckNumberFont(display);
+    const QFontMetricsF metrics(number);
+    // Every digit has the same advance, so the BPM does not jitter
+    const qreal one = metrics.horizontalAdvance(QStringLiteral("111.11"));
+    const qreal eight = metrics.horizontalAdvance(QStringLiteral("888.88"));
+    EXPECT_NEAR(one, eight, 0.01);
+    EXPECT_FALSE(QFontMetricsF(display).horizontalAdvance(QStringLiteral("111.11")) ==
+            QFontMetricsF(display).horizontalAdvance(QStringLiteral("888.88")));
+}
+
+TEST_F(CrateSkinTest, ServerStatusWithoutServers) {
+    crate::ServerStatus status(nullptr);
+    EXPECT_EQ(crate::ServerStatus::State::None, status.state());
+    EXPECT_QSTRING_EQ(QStringLiteral("none"), status.stateName());
+
+    QWidget skin;
+    auto* pLabel = new QLabel(&skin);
+    pLabel->setObjectName(QStringLiteral("MonoCrateStatus"));
+    auto* pDot = new QLabel(&skin);
+    pDot->setObjectName(QStringLiteral("CrateStatusDot"));
+    crate::bindServerStatus(&status, &skin);
+    EXPECT_QSTRING_EQ(status.text(), pLabel->text());
+
+    status.showStatus(QStringLiteral("dev.crate.local"), crate::ServerStatus::State::Connected);
+    EXPECT_TRUE(pLabel->text().contains(QLatin1String("dev.crate.local")));
+    EXPECT_QSTRING_EQ(QStringLiteral("connected"), pLabel->property("crateState").toString());
+    EXPECT_QSTRING_EQ(QStringLiteral("connected"), pDot->property("crateState").toString());
+}
+
+TEST_F(CrateSkinTest, PreparedSkinSetsTheLayoutClass) {
+    const ConfigKey narrowKey(QStringLiteral("[CrateDecks]"), QStringLiteral("layout_narrow"));
+    const ConfigKey shortKey(QStringLiteral("[CrateDecks]"), QStringLiteral("layout_short"));
+    ControlObject narrow(narrowKey);
+    ControlObject isShort(shortKey);
+    QWidget skin;
+    skin.resize(1920, 1080);
+    skin.show();
+    crate::prepareLoadedSkin(&skin, skinPath(kCrateDecks));
+    EXPECT_EQ(0.0, narrow.get());
+    EXPECT_EQ(0.0, isShort.get());
+    skin.resize(1366, 768);
+    QCoreApplication::processEvents();
+    EXPECT_EQ(1.0, narrow.get());
+    EXPECT_EQ(1.0, isShort.get());
+}
+
+// TEST_GAP: whether the skin looks like the approved GU1 mockups is checked
+// by eye. CrateSkinScreenshots renders it offscreen for that comparison.
+
+/// Dev-only harness: renders the real main window offscreen to PNG at
+/// 1920 x 1080 and 1366 x 768, with 2 and 4 decks, for the side-by-side
+/// comparison with the GU1 mockups. Runs only with
+/// CRATE_SKIN_SCREENSHOTS=<output dir>; CRATE_SKIN_TRACKS=<dir> loads the
+/// first audio files of that directory into decks A, B and C. Never point it
+/// at audio that belongs in the repository.
+class CrateSkinScreenshots : public MixxxTest {};
+
+TEST_F(CrateSkinScreenshots, Capture) {
+    const QString outDir = qEnvironmentVariable("CRATE_SKIN_SCREENSHOTS");
+    if (outDir.isEmpty()) {
+        GTEST_SKIP() << "Set CRATE_SKIN_SCREENSHOTS=<dir> to render the skin";
+    }
+    QDir().mkpath(outDir);
+    const QString skin = qEnvironmentVariable("CRATE_SKIN_NAME", kCrateDecks);
+    QStringList tracks;
+    const QString tracksDir = qEnvironmentVariable("CRATE_SKIN_TRACKS");
+    if (!tracksDir.isEmpty()) {
+        const QFileInfoList files = QDir(tracksDir).entryInfoList(
+                {QStringLiteral("*.flac"),
+                        QStringLiteral("*.mp3"),
+                        QStringLiteral("*.mp4"),
+                        QStringLiteral("*.m4a"),
+                        QStringLiteral("*.wav")},
+                QDir::Files,
+                QDir::Name);
+        for (const QFileInfo& file : files) {
+            tracks.append(file.absoluteFilePath());
+        }
+    }
+
+    QTemporaryDir profile;
+    ASSERT_TRUE(profile.isValid());
+    OffscreenDecks decks(profile.path() + QLatin1Char('/'));
+    decks.writeProfile(skin,
+            {
+                    // The software "filtered" waveform and overview: offscreen
+                    // there is no OpenGL
+                    {ConfigKey("[Waveform]", "WaveformType"), QStringLiteral("7")},
+                    {ConfigKey("[Waveform]", "WaveformOverviewType"), QStringLiteral("0")},
+                    {ConfigKey("[Waveform]", "beatGridAlpha"), QStringLiteral("20")},
+                    // Time remaining, as in the mockups
+                    {ConfigKey("[Controls]", "PositionDisplay"), QStringLiteral("1")},
+                    {ConfigKey("[Config]", "hide_menubar"), QStringLiteral("1")},
+                    // Folded, as in the mockups (the default is V2.PR3's)
+                    {ConfigKey("[Skin]", "show_effectrack"), QStringLiteral("0")},
+                    {ConfigKey("[Skin]", "show_samplers"), QStringLiteral("0")},
+                    {ConfigKey("[Skin]", "show_microphones"), QStringLiteral("0")},
+            });
+    decks.start(application());
+    ASSERT_NE(nullptr, decks.skin());
+    // The skin alone fills the window, as with the menu bar hidden
+    decks.mainWindow()->menuBar()->hide();
+
+    if (auto* pStatus = decks.skin()->findChild<crate::ServerStatus*>()) {
+        pStatus->showStatus(QStringLiteral("dev.crate.local"),
+                crate::ServerStatus::State::Connected);
+    }
+
+    // A playing and leading, B cued near its start, C in the middle, D empty
+    const QList<std::pair<QString, double>> positions = {
+            {QStringLiteral("[Channel1]"), 0.41},
+            {QStringLiteral("[Channel2]"), 0.06},
+            {QStringLiteral("[Channel3]"), 0.18},
+    };
+    auto pPlayerManager = decks.coreServices()->getPlayerManager();
+    for (int i = 0; i < positions.size() && i < tracks.size(); ++i) {
+        pPlayerManager->slotLoadLocationToPlayer(tracks[i], positions[i].first, false);
+    }
+    for (int i = 0; i < positions.size() && i < tracks.size(); ++i) {
+        const QString group = positions[i].first;
+        EXPECT_TRUE(waitFor(
+                [&group] {
+                    return ControlObject::get(ConfigKey(group, "track_loaded")) > 0;
+                },
+                30000))
+                << group.toStdString();
+        BaseTrackPlayer* pPlayer = pPlayerManager->getPlayer(group);
+        // The waveform of the overview comes from the analysis on load
+        waitFor(
+                [pPlayer] {
+                    TrackPointer pTrack = pPlayer->getLoadedTrack();
+                    if (!pTrack) {
+                        return true;
+                    }
+                    ConstWaveformPointer pWaveform = pTrack->getWaveformSummary();
+                    return pWaveform && pWaveform->getCompletion() >= pWaveform->getDataSize();
+                },
+                60000);
+        // A few hotcues, as in the mockups; without an audio device the
+        // engine does not run, so they go straight to the track
+        if (TrackPointer pTrack = pPlayer->getLoadedTrack()) {
+            const double samples = pTrack->getDuration() * pTrack->getSampleRate().value() * 2;
+            for (int hotcue = 0; hotcue < 4; hotcue += (i == 1 ? 2 : 1)) {
+                pTrack->createAndAddCue(mixxx::CueType::HotCue,
+                        hotcue,
+                        samples * (0.02 + 0.16 * hotcue),
+                        -1.0);
+            }
+        }
+        ControlObject::set(ConfigKey(group, "playposition"), positions[i].second);
+    }
+    ControlObject::set(ConfigKey("[Channel1]", "sync_enabled"), 1);
+    ControlObject::set(ConfigKey("[Channel2]", "sync_enabled"), 1);
+    ControlObject::set(ConfigKey("[Channel1]", "play"), 1);
+    ControlObject::set(ConfigKey("[Channel1]", "beatloop_size"), 4);
+    ControlObject::set(ConfigKey("[Channel2]", "beatloop_size"), 8);
+    ControlObject::set(ConfigKey("[Channel3]", "beatloop_size"), 16);
+
+    const QList<QSize> sizes = {QSize(1920, 1080), QSize(1366, 768)};
+    for (const int deckCount : {2, 4}) {
+        ControlObject::set(ConfigKey("[Skin]", "show_4decks"), deckCount == 4 ? 1 : 0);
+        for (const QSize& size : sizes) {
+            decks.mainWindow()->resize(size);
+            // Layouts, deferred restyles and the waveforms' timers
+            waitFor([] { return false; }, 1500);
+            const QImage image = decks.skin()->grab().toImage();
+            const QString file = QDir(outDir).filePath(
+                    QStringLiteral("%1-%2deck-%3.png")
+                            .arg(skin.toLower(), QString::number(deckCount))
+                            .arg(size.width()));
+            EXPECT_TRUE(image.save(file)) << file.toStdString();
+        }
+    }
+}
+
+/// Dev-only harness for Q14 (plan V2, performance): skin load time and
+/// scrolling 10,000 library rows, for CrateDecks and LateNight. Runs only
+/// with CRATE_SKIN_Q14=1 and prints its numbers.
+class CrateSkinPerformance : public MixxxTest {
+  protected:
+    struct Numbers {
+        qint64 loadMs = 0;
+        qint64 skinMs = 0;
+        double meanFrameMs = 0;
+        double p95FrameMs = 0;
+        int rows = 0;
+    };
+
+    static bool addLibraryRows(const QString& settingsPath, int count) {
+        const QString name = QStringLiteral("crate-q14");
+        bool ok = true;
+        {
+            QSqlDatabase db = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), name);
+            db.setDatabaseName(settingsPath + QStringLiteral("mixxxdb.sqlite"));
+            ok = db.open();
+            ok = ok && db.transaction();
+            QSqlQuery location(db);
+            location.prepare(QStringLiteral(
+                    "INSERT INTO track_locations (location, filename, directory, "
+                    "filesize, fs_deleted, needs_verification) "
+                    "VALUES (?, ?, ?, 1000000, 0, 0)"));
+            QSqlQuery track(db);
+            track.prepare(QStringLiteral(
+                    "INSERT INTO library (artist, title, album, genre, bpm, "
+                    "duration, location, mixxx_deleted, filetype) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, 0, 'flac')"));
+            for (int i = 0; ok && i < count; ++i) {
+                const QString file = QStringLiteral("track-%1.flac").arg(i);
+                location.addBindValue(QString(QStringLiteral("/nonexistent/q14/") + file));
+                location.addBindValue(file);
+                location.addBindValue(QStringLiteral("/nonexistent/q14"));
+                ok = location.exec();
+                track.addBindValue(QStringLiteral("Artist %1").arg(i % 97));
+                track.addBindValue(QStringLiteral("Title of track %1").arg(i));
+                track.addBindValue(QStringLiteral("Album %1").arg(i % 31));
+                track.addBindValue(QStringLiteral("Genre %1").arg(i % 12));
+                track.addBindValue(118.0 + (i % 140) / 10.0);
+                track.addBindValue(300.0 + i % 200);
+                track.addBindValue(location.lastInsertId());
+                ok = ok && track.exec();
+            }
+            ok = ok && db.commit();
+            if (!ok) {
+                qWarning() << "Q14 rows:" << db.lastError().text() << track.lastError().text();
+            }
+        }
+        QSqlDatabase::removeDatabase(name);
+        return ok;
+    }
+
+    Numbers measure(const QString& skin, int rows) {
+        Numbers numbers;
+        QTemporaryDir profile;
+        EXPECT_TRUE(profile.isValid());
+        const QString settingsPath = profile.path() + QLatin1Char('/');
+        {
+            // A first start creates the library schema
+            OffscreenDecks decks(settingsPath);
+            decks.writeProfile(skin);
+            decks.start(application());
+        }
+        EXPECT_TRUE(addLibraryRows(settingsPath, rows));
+        OffscreenDecks decks(settingsPath);
+        {
+            SkinLoadClock clock;
+            numbers.loadMs = decks.start(application());
+            numbers.skinMs = clock.elapsedMs();
+        }
+        decks.mainWindow()->resize(1920, 1080);
+        waitFor([] { return false; }, 1000);
+        WTrackTableView* pView = nullptr;
+        waitFor(
+                [&decks, &pView] {
+                    const auto views = decks.skin()->findChildren<WTrackTableView*>();
+                    for (WTrackTableView* pCandidate : views) {
+                        if (pCandidate->isVisible() && pCandidate->model() &&
+                                pCandidate->model()->rowCount() > 0) {
+                            pView = pCandidate;
+                            return true;
+                        }
+                    }
+                    return false;
+                },
+                30000);
+        if (!pView) {
+            ADD_FAILURE() << "No library view with rows";
+            return numbers;
+        }
+        while (pView->model()->canFetchMore(QModelIndex())) {
+            pView->model()->fetchMore(QModelIndex());
+        }
+        numbers.rows = pView->model()->rowCount();
+        QScrollBar* pBar = pView->verticalScrollBar();
+        std::vector<double> frames;
+        QElapsedTimer timer;
+        // Scroll the whole list by small steps, as a wheel does, painting
+        // every step as the screen would
+        for (int value = 0; value <= pBar->maximum(); value += 3 * pBar->singleStep()) {
+            timer.start();
+            pBar->setValue(value);
+            pView->viewport()->repaint();
+            frames.push_back(timer.nsecsElapsed() / 1e6);
+        }
+        if (!frames.empty()) {
+            double sum = 0;
+            for (double frame : frames) {
+                sum += frame;
+            }
+            numbers.meanFrameMs = sum / frames.size();
+            std::sort(frames.begin(), frames.end());
+            numbers.p95FrameMs = frames[static_cast<size_t>(frames.size() * 0.95)];
+        }
+        return numbers;
+    }
+};
+
+TEST_F(CrateSkinPerformance, Q14) {
+    if (qEnvironmentVariable("CRATE_SKIN_Q14") != QLatin1String("1")) {
+        GTEST_SKIP() << "Set CRATE_SKIN_Q14=1 to measure skin load and library scrolling";
+    }
+    constexpr int kRows = 10000;
+    for (const QString& skin : {kLateNight, kCrateDecks}) {
+        const Numbers numbers = measure(skin, kRows);
+        // Printed, not logged: the test log level hides info messages
+        std::cout << qPrintable(QStringLiteral(
+                             "Q14 %1: skin %2 ms (main window with skin %3 ms); "
+                             "scrolling %4 rows: %5 ms per frame on average, %6 ms at p95")
+                                     .arg(skin)
+                                     .arg(numbers.skinMs)
+                                     .arg(numbers.loadMs)
+                                     .arg(numbers.rows)
+                                     .arg(numbers.meanFrameMs, 0, 'f', 2)
+                                     .arg(numbers.p95FrameMs, 0, 'f', 2))
+                  << std::endl;
+        EXPECT_EQ(kRows, numbers.rows);
+    }
+}
+
+} // namespace
