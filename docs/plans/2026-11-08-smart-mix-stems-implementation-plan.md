@@ -248,6 +248,7 @@ flowchart TD
   - stem lanes as a crest with fill and glow, in the language of the approved sound spectrum; lanes full width with the source and files panels below;
   - a stale analysis dimmed with a Stale badge and no layer; the YAMNet voice row kept as a contrast until ST3; `other` in a neutral tone; per-phrase means in white with a cyan glow; Failed and Stale in the warning tone (the admin keeps red for `ConfirmDialog`);
   - Listen: a chip with `ready/total`, icon only on phones once the playlist is ready; the menu toggle in the grammar of "offline" ("Turn on Smart Mix" / "Turn off Smart Mix" with a status dot), progress in the menu header; a 409 as an error toast for now;
+  - on touch devices, menu rows follow the shared `pointer: coarse` rule (44 px) rather than the mockup's 36 px; accepted by Diego on 2026-11-09;
   - Admin: a Smart Mix playlists `OpsPanel` in Analysis, right under "Smart Mix", with the stem quota, both limits and the `stem_uploads_enabled` switch.
 - **API gaps the mockups found, built in this PR:**
   - `GET /api/smart-mix/tracks/{trackId}/stems` returns the analyses per producer (stale included) with the 250 ms levels, drum beats, `current`, `chosen`, dates and `contributedBy` with its username, plus the phrase spans, so users without `library.analysis.manage` also get the phrase grid;
