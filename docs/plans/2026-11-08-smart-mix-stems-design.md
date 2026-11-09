@@ -4,6 +4,8 @@
 
 **Gate STEM-G0 passed (2026-11-08)** with the [ST0 spike report](2026-11-08-smart-mix-stems-spike-report.md): `htdemucs` and its weights accepted; ONNX Runtime in Decks and on the server; server separation goes ahead; stems play from a lossless sidecar (STEM-D9). STEM-D3, D6, D7, D8 and D9 below carry those decisions.
 
+**Gate STEM-G1 passed (2026-11-09)** with the [ST3 evaluation report](2026-11-09-smart-mix-stems-evaluation.md): the planner keeps the stems layer on, but only for the beatmatch family and with voice from the vocal stem or YAMNet (rules revision 3). STEM-D5 below carries the decision.
+
 **Repositories:**
 - Server work: the Crate monorepo (`thecrateapp/crate`).
 - Client work: Crate Decks (this repository).
@@ -127,6 +129,12 @@ Use source separation (stems) where it pays for itself, without separating the w
 - The safety limits (tempo, gain, true peak, durations) do not change.
 - Plans say `stemsUsed: true`.
 - **Evaluation:** with the SM5 harness and automatic listening metrics. Gate STEM-G1 decides whether the layer is on by default. Diego's position is to keep it unless it measures worse.
+- **STEM-G1 decision (Diego, 2026-11-09): on by mix type, with the vocal fix** (`smart-mix-v3` rules revision 3):
+  - the layer applies to an edge only when both tracks belong to the beatmatch family: their genre beatmatch priors (from their album genres) are known and at least 0.5. Rock, metal, punk and their variants stay off, and so do tracks without a known genre; those edges plan exactly as rules revision 1;
+  - a phrase has voice for the planner when the vocal stem or YAMNet's stored byte says so. The profile's `vocalPresent` stays the stem's (STEM-D4);
+  - the presence cuts stay as calibrated in ST3: vocals −45 dBFS and 17.9 dB, bass and drums as measured;
+  - the two bonuses and the bass term stay as built.
+- **Open question:** drums plus bass as the energy proxy around the cue (fourth item above) is not in the ST3 plan nor in the code. Implement it in a later rules revision, or drop it.
 
 **STEM-D6. Stem audio on the server, for Smart Mix playlists only.**
 - The server may keep separated audio for the tracks of Smart Mix playlists:
@@ -322,7 +330,7 @@ flowchart LR
 | Gate | When | What Diego decides |
 |---|---|---|
 | STEM-G0 | After ST0 | Separator model and weights licence; Decks inference path (ONNX Runtime providers or alternative); server feasibility from the measured times. **Passed 2026-11-08** (see the header) |
-| STEM-G1 | After ST3 | Whether the planner uses the stems layer by default, from the automatic listening metrics |
+| STEM-G1 | After ST3 | Whether the planner uses the stems layer by default, from the automatic listening metrics. **Passed 2026-11-09:** on for the beatmatch family, with voice from either detector (STEM-D5) |
 | STEM-G2 | After ST7 | Stems playback and local refinement in Decks, tested with a real DJ setup (Crate Decks AGENTS.md: changes to audio, engine, AutoDJ or Smart Mix are tested by Diego before merge) |
 
 ## 10. Out of scope

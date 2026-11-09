@@ -2,6 +2,9 @@
 
 > **Input for Diego's STEM-G1 decision: whether `smart-mix-v3` uses the stems layer by
 > default.** This report does not decide the gate.
+>
+> **STEM-G1 decided (Diego, 2026-11-09): on by mix type, with the vocal fix.** §11 describes the
+> final rule (rules revision 3) and measures it; §1–§10 are the evidence it was decided on.
 
 - **Date:** 2026-11-09
 - **Code:** monorepo branch `feat/smart-mix-stems-st3` on `feat/smart-mix-stems-st1` at
@@ -470,3 +473,118 @@ The sensitivity runs (§5.3), the held-out vocal check (§5.4) and the either va
 small scripts on top of these tools, kept with the outputs (`out/st3/tools/`), not committed. The
 variant adds `--plans either-dj=out/st3/variants/either/<set>/dj/report.json` (and `listen`) to the
 listening run; the cache measures only the plans it has not seen.
+
+## 11. STEM-G1: the final rule, measured
+
+**Decision (Diego, 2026-11-09):** keep the stems layer on, by mix type, with voice from either
+detector. Implemented as `smart-mix-v3` rules revision 3 in the monorepo branch
+`feat/smart-mix-stems-st3`: `d0912cf1` (album genre read) and `94190340` (the rule).
+
+### 11.1 The rule
+
+- **Voice:** a phrase has voice for the planner when the vocal stem or YAMNet's stored byte says
+  so (the "either" variant of §7, now planner code). The bonuses, the bass term and the cuts
+  (vocals −45 dBFS / 17.9 dB, bass 17 dB, drums 14 dB) are unchanged.
+- **Mix type:** the layer scores an edge only when **both tracks' genre beatmatch priors are known
+  and at least 0.5** (`stems_layer_min_genre_prior`). The prior is the existing
+  `transition_fit.genre_beatmatch_prior` of the track's album genres (taxonomy names with their
+  weights, the source SM4 reads its genre from). Every other edge plans exactly as rules
+  revision 1 (tests on the revision 1 golden with stems on both tracks).
+- **Why 0.5, on each track:** in the prior table 0.5 is where the smooth genres end (rock, punk
+  and metal 0.1–0.15, indie and ambient 0.2, pop and soul 0.4, trip-hop and IDM 0.45) and the
+  beatmatch ones begin (dub and R&B 0.5, hip-hop and synthwave 0.6, dance 0.75, house, techno
+  and drum and bass 0.95). The rule asks it of both tracks, not of their mean
+  (`pair_genre_prior`), because a mean lets a dance track carry a punk one over the line:
+  Carpenter Brut → Ho99o9 (0.95 and 0.39) averages 0.67.
+
+| Rule (both priors known) | Electronic edges on (of 112) | Phrase-set edges on (of 184) |
+| ------------------------ | ---------------------------: | ---------------------------: |
+| Mean ≥ 0.6               |                          112 |                            3 |
+| Mean ≥ 0.7               |                          101 |                            1 |
+| Mean ≥ 0.75              |                           92 |                            1 |
+| Mean ≥ 0.85              |                           52 |                            0 |
+| **Each ≥ 0.5 (chosen)**  |                      **112** |                        **1** |
+
+- **Unknown genres keep the layer off.** No profile signal was adopted: the electronic tracks all
+  have album genres, 27 of the 64 phrase-set tracks have none and 11 more only genres the table
+  does not know (alternative, industrial, minimal wave, new retro wave), and nothing measured on
+  the profile was shown to separate the two sets. Per-artist genres could not be checked: the
+  phrase set's artists are renamed in the development copy.
+- **Industrial is the borderline.** "Industrial" alone has no prior, so Godflesh and Author &
+  Punisher stay off; industrial metal and industrial rock read as metal and rock (0.1, 0.15),
+  off. EBM and electro-industrial tagged electronic read 0.8 and are in, like Front 242 and
+  Nitzer Ebb in the electronic set. On the phrase set that leaves one edge in: GosT → 3TEETH
+  (darksynth into electro-industrial, both tagged electronic).
+- **The cache key** carries the stem analyses only for edges the gate passes, so a genre that
+  moves an edge into or out of the family changes its key; the album genres are read (one
+  bounded query) only for edges with stems on both tracks. v2, Android and VirtualDJ plans and
+  keys are unchanged.
+
+### 11.2 Edges that get the layer
+
+| Set        | Edges | With stems on both tracks | In the family | Planned with the layer | Plans that differ from v3 (`dj` / `listen`) |
+| ---------- | ----: | ------------------------: | ------------: | ---------------------: | ------------------------------------------: |
+| Electronic |   112 |                       111 |           111 |              111 / 110 |                                     41 / 36 |
+| Phrase set |   184 |                       184 |             1 |                  1 / 1 |                                       1 / 1 |
+
+As expected, the electronic plans are exactly the either variant's (0 differences in either
+context), and the phrase set equals v3 except GosT → 3TEETH.
+
+### 11.3 Profile metrics, v3 against the final rule
+
+| Metric (mean)                      | Electronic dj: v3 |   final | Electronic listen: v3 |   final | Phrase dj: v3 |  final | Phrase listen: v3 |  final |
+| ---------------------------------- | ----------------: | ------: | --------------------: | ------: | ------------: | -----: | ----------------: | -----: |
+| Policy violations                  |                 0 |       0 |                     0 |       0 |             0 |      0 |                 0 |      0 |
+| Start and end on a phrase boundary |             7.1 % |   7.1 % |                 0.0 % |   0.0 % |        15.8 % | 15.8 % |             0.0 % |  0.0 % |
+| Boundaries aligned (of 4)          |            52.2 % |  50.7 % |                46.4 % |  45.5 % |        52.4 % | 52.4 % |            38.9 % | 38.9 % |
+| Stem bass clash, ms                |             1,065 | **623** |                   595 | **396** |         1,376 |  1,376 |             1,185 |  1,185 |
+| Bass overlap by gain (SM5), ms     |             2,606 |   2,606 |                 2,000 |   2,000 |         2,152 |  2,152 |             2,000 |  2,000 |
+| Stem vocal clash, ms               |               356 |      48 |                   167 |       5 |         1,627 |  1,627 |               457 |    457 |
+| YAMNet vocal clash (SM5), ms       |                36 |  **36** |                     4 |   **4** |            70 |     70 |                 0 |      0 |
+| Harmonic clash, ms                 |             2,127 |   2,127 |                 1,000 |   1,000 |         4,470 |  4,470 |             1,424 |  1,424 |
+| Energy step (0–1)                  |            0.0373 |  0.0479 |                0.0413 |  0.0464 |        0.0476 | 0.0478 |            0.0441 | 0.0443 |
+
+### 11.4 Listening metrics, v3 against the final rule
+
+Electronic, means over all 112 edges (phase error and locked share over beatmatch edges):
+
+| Metric                                    | dj: v3 | dj: final | listen: v3 | listen: final |
+| ----------------------------------------- | -----: | --------: | ---------: | ------------: |
+| Beat clash at full level, ms              |  2,478 |     2,438 |      1,121 |         1,118 |
+| Beat phase error, median ms               |     39 |        34 |         47 |            39 |
+| Beats within 25 ms                        |   0.77 |      0.80 |       0.73 |          0.79 |
+| Voice on voice at full level (YAMNet), ms |    274 |       253 |        138 |           165 |
+| Bass on bass at full level, ms            |  1,121 |   **995** |        838 |           808 |
+| Loudness step across the mix, \|LU\|      |   2.79 |      2.93 |       3.12 |          3.33 |
+| Loudness bump, LU                         |   1.13 |      1.02 |       0.83 |          0.78 |
+| Loudness dip, LU                          |   7.81 |      7.85 |       5.80 |          5.81 |
+| Steepest short-term change, LU/s          |   2.46 |      2.56 |       2.77 |          2.80 |
+| Mix beat interval CV                      |  0.044 |     0.047 |      0.036 |         0.036 |
+
+Paired, changed edges only (better / worse beyond the noise floor):
+
+| Comparison        | Changed | Beat clash | Voice on voice |        Bass on bass | Loudness step | Loudness dip |  Net, SM5's four |   Net, with bass | Clearly worse / better |
+| ----------------- | ------: | ---------: | -------------: | ------------------: | ------------: | -----------: | ---------------: | ---------------: | ---------------------: |
+| Electronic dj     |      41 |    10 / 13 |          9 / 5 | **14 / 4 (p 0.03)** |       12 / 16 |      15 / 16 |          14 / 14 | 17 / 13 (p 0.58) |                17 / 16 |
+| Electronic listen |      36 |      5 / 7 |          3 / 5 |              11 / 6 |       13 / 16 |      11 / 15 | 11 / 14 (p 0.69) |          11 / 12 |                 11 / 6 |
+| Phrase dj         |       1 |      1 / 0 |          0 / 0 |               0 / 0 |         1 / 0 |        0 / 1 |            1 / 0 |            1 / 0 |                  1 / 1 |
+| Phrase listen     |       1 |      0 / 0 |          0 / 0 |               0 / 0 |         1 / 0 |        0 / 1 |            0 / 0 |            0 / 0 |                  1 / 1 |
+
+- **Electronic:** the final rule keeps bass on bass lower (significant in `dj`) and voice on voice
+  where v3 had it, and is within noise on net in both contexts. Energy continuity and boundary
+  alignment cost a little more than with the committed layer (energy step +0.011 in `dj`).
+- **Phrase set:** only GosT → 3TEETH changes. Its loudness step improves by 6.5 LU and its beat
+  clash by 0.96 s in `dj`, but **its loudness dip grows by 17.6 LU in `dj` and 13.1 LU in
+  `listen`**: the layer moves the outgoing cue from 2:38 into GosT's outro at 3:07. It heads the
+  list prepared for Diego's listening
+  (`~/Code/Ninja/crate-agents/handoffs/2026-11-09/stem-g1-listen-dips.md`), with the 14 rock
+  and post-punk edges whose dip grew most under the committed layer, input for a future
+  revision.
+
+### 11.5 Open
+
+- STEM-D5's energy proxy (drums plus bass around the cue) stays an open question.
+- The loudness dips (§7, §11.4): whether a deeper dip is an intro over an outro or a hole, which
+  Diego's listening of the prepared edges can tell.
+- The gate's genre source is the album taxonomy. Per-artist genres, which radio uses, could not
+  be measured on the phrase set; tracks without album genres stay off.

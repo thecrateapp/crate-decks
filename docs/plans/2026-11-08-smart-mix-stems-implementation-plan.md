@@ -296,7 +296,21 @@ flowchart TD
 - Compare v3 with v3 plus the stems layer using the automatic listening metrics.
 - Report in `docs/plans/`.
 
-**Gate STEM-G1 (Diego):** whether the stems layer is on by default.
+**Gate STEM-G1 (Diego):** whether the stems layer is on by default. **Passed 2026-11-09:** on by mix type, with the vocal fix (STEM-D5). The [ST3 evaluation report](2026-11-09-smart-mix-stems-evaluation.md) has the measurements, §11 those of the final rule.
+
+### ST3.PR4 · Rules revision 3 (STEM-G1)
+
+- `PLANNER_POLICY_V3`: `rules_revision` 3, `stems_layer` on, `stems_layer_min_genre_prior` 0.5.
+- `candidates.stems_layer_applies`: the layer scores an edge only when both tracks' genre beatmatch priors are known and at least 0.5; elsewhere the menu is rules revision 1's, byte for byte.
+- The planner's voice per phrase: the vocal stem or YAMNet's stored byte.
+- The plan batch reads the album genres of the tracks of edges with stems on both (one bounded query) and keys a plan on its stem analyses only when the gate passes.
+- `run_eval.py` reads the same genres.
+- **Tests:**
+  - `test_candidates_stems.py`: `the layer applies only to the beatmatch family`; `outside the family the menu is revision 1's`; `yamnet voice still counts where the stem misses it`; the golden `candidates_v3_rules3.json`;
+  - `test_smart_mix_api_stems.py`: `outside the beatmatch family the plan ignores stems`; `genres are read only for edges with stems on both tracks`; `the cache key follows the gate`;
+  - `test_smart_mix_genres.py`.
+- **Done** in the monorepo branch `feat/smart-mix-stems-st3`: `d0912cf1` (genre read) and `94190340` (rules revision 3).
+- **Open:** STEM-D5's energy proxy (drums plus bass around the cue) is not implemented.
 
 ---
 
