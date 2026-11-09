@@ -18,6 +18,7 @@
 #include <cmath>
 
 #include "crate/appidentity.h"
+#include "crate/ui/dialogs/dialogscrim.h"
 #include "preferences/configobject.h"
 #include "util/logger.h"
 
@@ -164,6 +165,8 @@ void applyStyles(QWidget* pMainWindow, const QString& styleSheet, const QString&
     if (pMainWindow && pMainWindow->styleSheet() != styleSheet) {
         pMainWindow->setStyleSheet(styleSheet);
     }
+    // Blocking dialogs dim the main window behind them (design 14.3)
+    watchBlockingDialogs(dialogStyleSheet.isEmpty() ? nullptr : pMainWindow);
 }
 
 bool applyApplicationStyle(QWidget* pMainWindow, const QString& resourcePath) {

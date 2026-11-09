@@ -5356,11 +5356,13 @@ if(CRATE)
       src/crate/ui/delegates/statedelegates.cpp
       src/crate/ui/dialogs/aboutstyle.cpp
       src/crate/ui/dialogs/dialogchrome.cpp
+      src/crate/ui/dialogs/dialogscrim.cpp
       src/crate/ui/dialogs/dialogstyle.cpp
       src/crate/ui/dialogs/levelgauge.cpp
       src/crate/ui/dialogs/preferenceschrome.cpp
       src/crate/ui/skin/crateserverstatus.cpp
       src/crate/ui/skin/crateskin.cpp
+      src/crate/ui/skin/decktrackfields.cpp
       src/crate/ui/skin/librarystyle.cpp
       src/crate/ui/skin/mixerstyle.cpp
       src/crate/ui/skin/preferencescontrol.cpp
@@ -5387,6 +5389,7 @@ if(CRATE)
         src/test/crate/mixerstyletest.cpp
         src/test/crate/delegatestest.cpp
         src/test/crate/dialogstest.cpp
+        src/test/crate/decktrackfieldstest.cpp
     )
   endif()
 endif()

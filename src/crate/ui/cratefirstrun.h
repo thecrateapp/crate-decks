@@ -22,9 +22,17 @@ void markFirstRunOffered(const UserSettingsPointer& pConfig);
 /// accepts once a server is added and rejects on "Not now".
 QDialog* createFirstRunDialog(CrateServers* pServers, QWidget* pParent);
 
+/// Whether the first-start dialog can show over `pMainWindow`: the main
+/// window has its skin, no longer Mixxx's launch image, and no other modal
+/// dialog is open, such as Mixxx's "No Output Devices".
+bool firstRunCanShow(const QWidget* pMainWindow);
+
 /// Offers connecting a Crate server in a dialog over `pParent`, once per
-/// installation. Call it once the main window is shown. Does nothing on the
-/// offscreen platform, where nobody could answer it (tests).
+/// installation. Call it once the main window is shown: it waits until
+/// firstRunCanShow(), since with OpenGL Mixxx loads the skin and the dialog
+/// styles, and shows its own startup dialogs, only after the event loop
+/// starts. Does nothing on the offscreen platform, where nobody could answer
+/// it (tests).
 void offerFirstRun(const UserSettingsPointer& pConfig, CrateServers* pServers, QWidget* pParent);
 
 } // namespace crate

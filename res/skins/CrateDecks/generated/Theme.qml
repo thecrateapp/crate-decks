@@ -47,6 +47,7 @@ QtObject {
     readonly property color warningBorder: "#40fbbf24"
     readonly property color badgeOffText: "#4ff1f5f9"
     readonly property color badgeOffBorder: "#0af1f5f9"
+    readonly property color scrim: "#b80a0a0f"
     readonly property color accentHiBorder: "#6667e8f9"
     readonly property color textPrimaryBorder: "#66f1f5f9"
 

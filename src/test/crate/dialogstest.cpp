@@ -8,13 +8,21 @@
 #include <QImage>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMessageBox>
+#include <QPixmap>
 #include <QPushButton>
 #include <QRegularExpression>
+#include <QScreen>
 #include <QSet>
 #include <QSpinBox>
 #include <QString>
+#include <QTimer>
+#include <QWindow>
+#include <functional>
+#include <initializer_list>
 
 #include "crate/ui/crateaddserverwidget.h"
+#include "crate/ui/dialogs/dialogscrim.h"
 #include "crate/ui/dialogs/dialogstyle.h"
 #include "crate/ui/dialogs/levelgauge.h"
 #include "preferences/configobject.h"
@@ -244,6 +252,229 @@ TEST_F(CrateDialogsTest, SpinBoxesInDialogsShowTheirValue) {
     EXPECT_EQ(metrics.px("fieldPaddingX") - metrics.px("strokeHairline"),
             pEdit->textMargins().left());
     EXPECT_QSTRING_EQ(QStringLiteral("10"), pEdit->text());
+}
+
+// TEST_GAP: that the scrim covers the OpenGL waveforms and stays under the
+// dialog is the compositor's or the window manager's doing: offscreen there
+// is neither. It was checked by recording the headless Mutter of
+// tools/crate-design/skin-screenshots.sh through its ScreenCast API, with the
+// app on Wayland (child window) and on X11 through Xwayland (top-level);
+// Windows and macOS are not checked.
+
+/// The scrim's window while one dims the main window, nullptr otherwise.
+QWindow* scrimWindow() {
+    const crate::DialogScrim* pScrim = crate::blockingDialogScrim();
+    return pScrim && pScrim->window() && pScrim->window()->isVisible() ? pScrim->window()
+                                                                       : nullptr;
+}
+
+/// A main window on screen with Crate's styles, as MixxxMainWindow sets them.
+class ScrimMainWindow {
+  public:
+    ScrimMainWindow() {
+        window.setGeometry(120, 80, 1280, 720);
+        EXPECT_TRUE(crate::applyApplicationStyle(&window, resourcePath()));
+        window.show();
+        QCoreApplication::processEvents();
+    }
+    QWidget window;
+};
+
+TEST_F(CrateDialogsTest, BlockingDialogsDimTheMainWindow) {
+    ScrimMainWindow main;
+    EXPECT_EQ(nullptr, scrimWindow());
+
+    // A confirmation as Mixxx opens one: open() makes it modal to the main
+    // window. The scrim covers the whole main window, below the dialog
+    QMessageBox confirm(QMessageBox::Question,
+            QStringLiteral("Confirm Exit"),
+            QStringLiteral("A deck is currently playing. Exit Mixxx?"),
+            QMessageBox::Yes | QMessageBox::No,
+            &main.window);
+    confirm.open();
+    QWindow* pScrim = scrimWindow();
+    ASSERT_NE(nullptr, pScrim);
+    EXPECT_EQ(main.window.frameGeometry(), pScrim->geometry());
+    EXPECT_QSTRING_EQ(QStringLiteral("CrateDialogScrim"), pScrim->objectName());
+    EXPECT_TRUE(pScrim->flags().testFlag(Qt::WindowTransparentForInput));
+    EXPECT_TRUE(pScrim->flags().testFlag(Qt::WindowDoesNotAcceptFocus));
+    // The mockup's: the app's background, translucent (the scrim token)
+    const QColor colour = crate::blockingDialogScrim()->colour();
+    EXPECT_EQ(crate::DialogMetrics::installed().colour("CrateScrim"), colour);
+    EXPECT_EQ(crate::DialogMetrics::installed().colour("CrateBgApp").rgb(),
+            QColor(colour.rgb()).rgb());
+    EXPECT_GT(colour.alpha(), 0);
+    EXPECT_LT(colour.alpha(), 255);
+    // Painted all over with it
+    QCoreApplication::processEvents();
+    ASSERT_NE(nullptr, pScrim->screen());
+    const QImage painted = pScrim->screen()->grabWindow(pScrim->winId()).toImage();
+    ASSERT_FALSE(painted.isNull());
+    for (const QPoint at : {QPoint(1, 1),
+                 QPoint(painted.width() / 2, painted.height() / 2),
+                 QPoint(painted.width() - 2, painted.height() - 2)}) {
+        const QColor pixel = painted.pixelColor(at);
+        EXPECT_NEAR(colour.alpha(), pixel.alpha(), 1);
+        EXPECT_NEAR(colour.red(), pixel.red(), 2);
+        EXPECT_NEAR(colour.blue(), pixel.blue(), 2);
+    }
+
+    // It follows the main window
+    main.window.move(200, 140);
+    main.window.resize(1000, 600);
+    QCoreApplication::processEvents();
+    EXPECT_EQ(main.window.frameGeometry(), pScrim->geometry());
+
+    confirm.done(QMessageBox::No);
+    EXPECT_EQ(nullptr, scrimWindow());
+
+    // Modal to the application, as exec() makes it; gone on accept, reject
+    // and close
+    QDialog dialog(&main.window);
+    dialog.setModal(true);
+    for (const auto& close : std::initializer_list<std::function<void()>>{
+                 [&dialog] { dialog.accept(); },
+                 [&dialog] { dialog.reject(); },
+                 [&dialog] { dialog.close(); }}) {
+        dialog.show();
+        EXPECT_NE(nullptr, scrimWindow());
+        close();
+        EXPECT_EQ(nullptr, scrimWindow());
+    }
+    bool dimmed = false;
+    QTimer::singleShot(0, &dialog, [&dialog, &dimmed] {
+        dimmed = scrimWindow() != nullptr;
+        dialog.reject();
+    });
+    dialog.exec();
+    EXPECT_TRUE(dimmed);
+    EXPECT_EQ(nullptr, scrimWindow());
+
+    // Deleted while it shows
+    auto* pDeleted = new QDialog(&main.window);
+    pDeleted->open();
+    EXPECT_NE(nullptr, scrimWindow());
+    delete pDeleted;
+    EXPECT_EQ(nullptr, scrimWindow());
+}
+
+TEST_F(CrateDialogsTest, DialogsThatDoNotBlockLeaveTheMainWindow) {
+    ScrimMainWindow main;
+    // Not modal
+    QDialog modeless(&main.window);
+    modeless.show();
+    EXPECT_EQ(nullptr, scrimWindow());
+    modeless.hide();
+    // Modal to another window
+    QWidget other;
+    other.show();
+    QDialog overOther(&other);
+    overOther.open();
+    EXPECT_EQ(nullptr, scrimWindow());
+    overOther.reject();
+    // A native dialog: nothing of it shows, and it is not Crate's
+    QDialog native(&main.window);
+    native.setAttribute(Qt::WA_DontShowOnScreen);
+    native.open();
+    EXPECT_EQ(nullptr, scrimWindow());
+    native.reject();
+}
+
+TEST_F(CrateDialogsTest, ScrimShowsOnlyWithTheMainWindow) {
+    ScrimMainWindow main;
+    QDialog dialog(&main.window);
+    dialog.setWindowModality(Qt::ApplicationModal);
+    main.window.hide();
+    dialog.show();
+    EXPECT_EQ(nullptr, scrimWindow());
+    // The main window comes back under the open dialog
+    main.window.show();
+    QCoreApplication::processEvents();
+    EXPECT_NE(nullptr, scrimWindow());
+    main.window.showMinimized();
+    QCoreApplication::processEvents();
+    EXPECT_EQ(nullptr, scrimWindow());
+    main.window.showNormal();
+    QCoreApplication::processEvents();
+    EXPECT_NE(nullptr, scrimWindow());
+    dialog.hide();
+    EXPECT_EQ(nullptr, scrimWindow());
+
+    // Without Crate's dialog style nothing is watched
+    crate::applyStyles(nullptr, QString(), QString());
+    EXPECT_EQ(nullptr, crate::blockingDialogScrim());
+    dialog.show();
+    EXPECT_EQ(nullptr, scrimWindow());
+    dialog.hide();
+}
+
+TEST_F(CrateDialogsTest, ScrimIsAChildWindowOnWayland) {
+    using Kind = crate::DialogScrim::Kind;
+    EXPECT_EQ(Kind::ChildWindow, crate::DialogScrim::kindForPlatform(QStringLiteral("wayland")));
+    EXPECT_EQ(Kind::ChildWindow,
+            crate::DialogScrim::kindForPlatform(QStringLiteral("wayland-egl")));
+    for (const char* platform : {"xcb", "windows", "cocoa", "offscreen"}) {
+        EXPECT_EQ(Kind::TopLevel, crate::DialogScrim::kindForPlatform(QLatin1String(platform)))
+                << platform;
+    }
+
+    QWidget mainWindow;
+    mainWindow.setGeometry(120, 80, 1280, 720);
+    mainWindow.show();
+    QCoreApplication::processEvents();
+    QWindow* pMainHandle = mainWindow.windowHandle();
+    ASSERT_NE(nullptr, pMainHandle);
+    crate::DialogScrim scrim(&mainWindow, Kind::ChildWindow);
+    EXPECT_FALSE(scrim.isActive());
+    scrim.setActive(true);
+    ASSERT_NE(nullptr, scrim.window());
+    EXPECT_EQ(pMainHandle, scrim.window()->parent());
+    EXPECT_TRUE(scrim.window()->isVisible());
+    EXPECT_EQ(QRect(QPoint(0, 0), mainWindow.size()), scrim.window()->geometry());
+    mainWindow.resize(1000, 600);
+    QCoreApplication::processEvents();
+    EXPECT_EQ(QRect(QPoint(0, 0), mainWindow.size()), scrim.window()->geometry());
+
+    // A native child created after it, as a waveform of a reloaded skin:
+    // the next scrim is a new window, stacked above it
+    scrim.setActive(false);
+    EXPECT_EQ(nullptr, scrim.window());
+    QWindow waveform(pMainHandle);
+    waveform.show();
+    scrim.setActive(true);
+    ASSERT_NE(nullptr, scrim.window());
+    QList<QWindow*> children;
+    for (QObject* pChild : pMainHandle->children()) {
+        if (auto* pWindow = qobject_cast<QWindow*>(pChild)) {
+            children.append(pWindow);
+        }
+    }
+    ASSERT_FALSE(children.isEmpty());
+    EXPECT_EQ(scrim.window(), children.last());
+    EXPECT_GT(children.indexOf(scrim.window()), children.indexOf(&waveform));
+
+    // A native child that shows while the scrim is up, as a waveform when a
+    // controller switches to four decks under a dialog: on Wayland it gets a
+    // new subsurface above the scrim, so the scrim goes above it again
+    const auto lastChild = [pMainHandle] {
+        QWindow* pLast = nullptr;
+        for (QObject* pChild : pMainHandle->children()) {
+            if (auto* pWindow = qobject_cast<QWindow*>(pChild)) {
+                pLast = pWindow;
+            }
+        }
+        return pLast;
+    };
+    waveform.hide();
+    QCoreApplication::processEvents();
+    EXPECT_EQ(scrim.window(), lastChild());
+    QWindow later(pMainHandle);
+    later.show();
+    waveform.show();
+    QCoreApplication::processEvents();
+    ASSERT_TRUE(scrim.isActive());
+    EXPECT_EQ(scrim.window(), lastChild());
+    scrim.setActive(false);
 }
 
 TEST(CrateAddServerWidgetTest, StepsAreNumberedAsTheMockup) {

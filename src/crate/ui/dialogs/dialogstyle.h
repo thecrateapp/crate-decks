@@ -71,9 +71,10 @@ QString dialogStyleSheet(const QString& resourcePath);
 /// every widget go through QSS, Preferences' hundreds of widgets included,
 /// which made the start a quarter of a second slower; a dialog is styled
 /// when it first shows. Menus, which are popups, get rounded corners, and
-/// the spin boxes of dialogs their padding (what QSS cannot do). Setting the
-/// same styles again does nothing, so that a skin reload does not repolish
-/// every widget. Empty styles undo it, for tests.
+/// the spin boxes of dialogs their padding (what QSS cannot do). Blocking
+/// dialogs dim `pMainWindow` behind them (watchBlockingDialogs()). Setting
+/// the same styles again does nothing, so that a skin reload does not
+/// repolish every widget. Empty styles undo it, for tests.
 void applyStyles(QWidget* pMainWindow, const QString& styleSheet, const QString& dialogStyleSheet);
 
 /// applyStyles() with the generated styles under `resourcePath`. False if

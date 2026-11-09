@@ -47,6 +47,7 @@
 #include "crate/ui/crateaddserverwidget.h"
 #include "crate/ui/cratefirstrun.h"
 #include "crate/ui/crateprefsections.h"
+#include "crate/ui/dialogs/dialogscrim.h"
 #include "crate/ui/dialogs/preferenceschrome.h"
 #include "crate/ui/dlgprefcrate.h"
 #include "crate/ui/skin/crateserverstatus.h"
@@ -56,10 +57,13 @@
 #include "database/mixxxdb.h"
 #include "dialog/dlgabout.h"
 #include "library/library.h"
+#include "library/trackcollectionmanager.h"
 #include "library/trackmodel.h"
 #include "mixer/basetrackplayer.h"
+#include "mixer/playerinfo.h"
 #include "mixer/playermanager.h"
 #include "mixxxmainwindow.h"
+#include "preferences/colorpalettesettings.h"
 #include "preferences/configobject.h"
 #include "skin/legacy/launchimage.h"
 #include "skin/skinloader.h"
@@ -68,6 +72,7 @@
 #include "track/cue.h"
 #include "track/keyutils.h"
 #include "track/track.h"
+#include "track/trackref.h"
 #include "util/cmdlineargs.h"
 #include "util/font.h"
 #include "util/versionstore.h"
@@ -383,6 +388,16 @@ class OffscreenDecks {
         m_pCoreServices.reset();
     }
 
+    /// Whether modal dialogs are answered as they show (from start()), so
+    /// that nothing waits offscreen. The screenshots keep them open.
+    void answerModalDialogs(bool answer) {
+        if (answer) {
+            QCoreApplication::instance()->installEventFilter(&m_dialogRejecter);
+        } else {
+            QCoreApplication::instance()->removeEventFilter(&m_dialogRejecter);
+        }
+    }
+
     MixxxMainWindow* mainWindow() const {
         return m_pMainWindow.get();
     }
@@ -533,6 +548,53 @@ TEST_F(CrateSkinLoadTest, PreferencesHaveTheMockupsDialog) {
     EXPECT_TRUE(pPreferences->isVisible());
     pOk->click();
     EXPECT_FALSE(pPreferences->isVisible());
+}
+
+TEST_F(CrateSkinLoadTest, OnlyBlockingDialogsDimTheMainWindow) {
+    QTemporaryDir profile;
+    ASSERT_TRUE(profile.isValid());
+    OffscreenDecks decks(profile.path() + QLatin1Char('/'));
+    decks.writeProfile(kCrateDecks);
+    decks.start(application());
+    ASSERT_NE(nullptr, decks.skin());
+    decks.mainWindow()->show();
+    QCoreApplication::processEvents();
+    const auto dimmed = [] {
+        const crate::DialogScrim* pScrim = crate::blockingDialogScrim();
+        return pScrim && pScrim->isActive();
+    };
+    QWidget* pPreferences = nullptr;
+    for (QWidget* pWindow : QApplication::topLevelWidgets()) {
+        if (pWindow->inherits("DlgPreferences")) {
+            pPreferences = pWindow;
+        }
+    }
+    ASSERT_NE(nullptr, pPreferences);
+
+    // Preferences from the toolbar: the DJ adjusts something mid-set,
+    // watching the decks (design 14.3)
+    ControlObject::set(crate::showPreferencesKey(), 1);
+    ASSERT_TRUE(pPreferences->isVisible());
+    EXPECT_FALSE(dimmed());
+    pPreferences->hide();
+    // Nor when Mixxx opens it modal, after a sound device fails. Checked
+    // before events run: the DialogRejecter closes modal dialogs then
+    pPreferences->setWindowModality(Qt::ApplicationModal);
+    pPreferences->show();
+    EXPECT_FALSE(dimmed());
+    pPreferences->hide();
+    pPreferences->setWindowModality(Qt::NonModal);
+
+    // A confirmation as Mixxx's on exit dims the main window until it closes
+    QMessageBox confirm(QMessageBox::Question,
+            QStringLiteral("Confirm Exit"),
+            QStringLiteral("A deck is currently playing. Exit Mixxx?"),
+            QMessageBox::Yes | QMessageBox::No,
+            decks.mainWindow());
+    confirm.open();
+    EXPECT_TRUE(dimmed());
+    EXPECT_TRUE(waitFor([&confirm] { return !confirm.isVisible(); }, 5000));
+    EXPECT_FALSE(dimmed());
 }
 
 /// The settings and controls of the racks that the skin folds (design 14.3)
@@ -713,6 +775,243 @@ TEST_F(CrateSkinLoadTest, MetersIgnoreTheMouse) {
     // Two channels and main with two decks, four and main with four, and
     // the two toolbar lanes
     EXPECT_EQ(2 + 2 + 4 + 2 + 2, meters);
+}
+
+/// The texts that `pLayout` shows, in its order, without blanks.
+void appendShownTexts(QLayout* pLayout, const QWidget* pTop, QStringList* pTexts) {
+    for (int i = 0; i < pLayout->count(); ++i) {
+        QLayoutItem* pItem = pLayout->itemAt(i);
+        QWidget* pWidget = pItem->widget();
+        if (!pWidget) {
+            if (pItem->layout()) {
+                appendShownTexts(pItem->layout(), pTop, pTexts);
+            }
+            continue;
+        }
+        if (!pWidget->isVisibleTo(pTop)) {
+            continue;
+        }
+        if (auto* pLabel = qobject_cast<QLabel*>(pWidget)) {
+            const QString text = pLabel->text().trimmed();
+            if (!text.isEmpty()) {
+                pTexts->append(text);
+            }
+        } else if (pWidget->layout()) {
+            appendShownTexts(pWidget->layout(), pTop, pTexts);
+        }
+    }
+}
+
+/// The MonoLabel of the header of deck `letter`, while it shows.
+QWidget* deckHeadMeta(QWidget* pSkin, const QString& letter) {
+    const QList<QWidget*> heads = pSkin->findChildren<QWidget*>(QStringLiteral("CrateDeckHead"));
+    for (QWidget* pHead : heads) {
+        const QList<QLabel*> labels = pHead->findChildren<QLabel*>();
+        const bool isDeck = std::any_of(labels.begin(), labels.end(), [&letter](QLabel* pLabel) {
+            return pLabel->objectName().startsWith(QLatin1String("CrateDeckLetter")) &&
+                    pLabel->text() == letter;
+        });
+        auto* pMeta = pHead->findChild<QWidget*>(QStringLiteral("CrateDeckHeadMeta"));
+        if (isDeck && pHead->isVisible() && pMeta && pMeta->layout()) {
+            return pMeta;
+        }
+    }
+    return nullptr;
+}
+
+/// What the MonoLabel of the header of deck `letter` reads, one text per
+/// label ("Deck A", "·", "8A", "·", "124.00", "BPM").
+QStringList deckHeadTexts(QWidget* pSkin, const QString& letter) {
+    QStringList texts;
+    if (QWidget* pMeta = deckHeadMeta(pSkin, letter)) {
+        appendShownTexts(pMeta->layout(), pMeta, &texts);
+    }
+    return texts;
+}
+
+/// How many pixels `pWidget` paints itself: no background, no parents.
+int paintedPixels(QWidget* pWidget) {
+    QImage image(pWidget->size(), QImage::Format_ARGB32);
+    image.fill(Qt::transparent);
+    pWidget->render(&image, QPoint(), QRegion(), QWidget::DrawChildren);
+    int painted = 0;
+    for (int y = 0; y < image.height(); ++y) {
+        for (int x = 0; x < image.width(); ++x) {
+            painted += qAlpha(image.pixel(x, y)) > 128 ? 1 : 0;
+        }
+    }
+    return painted;
+}
+
+TEST_F(CrateSkinLoadTest, DeckHeadHidesEmptyFields) {
+    QTemporaryDir profile;
+    ASSERT_TRUE(profile.isValid());
+    OffscreenDecks decks(profile.path() + QLatin1Char('/'));
+    decks.writeProfile(kCrateDecks);
+    decks.start(application());
+    ASSERT_NE(nullptr, decks.skin());
+    const QString group = QStringLiteral("[Channel1]");
+    // forceSet: track_loaded is read-only, and key has a request handler
+    const auto set = [&group](const char* item, double value) {
+        ControlObject* pControl = ControlObject::getControl(group, QString::fromLatin1(item));
+        ASSERT_NE(nullptr, pControl) << item;
+        pControl->forceSet(value);
+    };
+    // The texts of the header joined by "|", which reads well in a failure
+    const auto head = [&decks] {
+        waitFor([] { return false; }, 100);
+        return deckHeadTexts(decks.skin(), QStringLiteral("A")).join(u'|');
+    };
+    const double key = KeyUtils::keyToNumericValue(mixxx::track::io::key::A_MINOR);
+
+    // A loaded track whose key the header does not show: none, or not
+    // shown yet (visual_key follows key on the GUI tick, which only runs
+    // with the engine). Neither the key nor its separator remain
+    set("track_loaded", 1);
+    set("file_bpm", 151.14);
+    set("key", 0);
+    set("visual_key", 0);
+    EXPECT_QSTRING_EQ(QStringLiteral("Deck A|·|151.14|BPM"), head());
+    set("key", key);
+    EXPECT_QSTRING_EQ(QStringLiteral("Deck A|·|151.14|BPM"), head());
+
+    // With its key, between two separators
+    set("visual_key", key);
+    const QStringList withKey = head().split(u'|');
+    ASSERT_EQ(6, withKey.size()) << withKey.join(u'|').toStdString();
+    EXPECT_QSTRING_EQ(QStringLiteral("Deck A|·"), withKey.mid(0, 2).join(u'|'));
+    EXPECT_FALSE(withKey[2].isEmpty());
+    EXPECT_QSTRING_EQ(QStringLiteral("·|151.14|BPM"), withKey.mid(3).join(u'|'));
+    // And painted as the MonoLabel it is in the mockups, whether Mixxx's key
+    // colours are on (its default: WKey adds a bar of the key's colour) or
+    // off
+    QWidget* pMeta = deckHeadMeta(decks.skin(), QStringLiteral("A"));
+    ASSERT_NE(nullptr, pMeta);
+    auto* pKey = pMeta->findChild<QLabel*>(QStringLiteral("MonoDeckHeadKey"));
+    ASSERT_NE(nullptr, pKey);
+    ColorPaletteSettings colours(decks.coreServices()->getSettings());
+    colours.setKeyColorsEnabled(false);
+    const int painted = paintedPixels(pKey);
+    EXPECT_GT(painted, 10);
+    colours.setKeyColorsEnabled(true);
+    EXPECT_EQ(painted, paintedPixels(pKey));
+    // In its own case: "Am" is A minor, "AM" would read as A major
+    EXPECT_EQ(QFont::MixedCase, pKey->font().capitalization());
+
+    // Without a BPM the same rule: no "0.00 BPM", no separator
+    set("file_bpm", 0);
+    EXPECT_QSTRING_EQ(QStringLiteral("Deck A|·|") + withKey[2], head());
+    set("key", 0);
+    set("visual_key", 0);
+    EXPECT_QSTRING_EQ(QStringLiteral("Deck A"), head());
+
+    // An empty deck
+    set("track_loaded", 0);
+    EXPECT_QSTRING_EQ(QStringLiteral("Deck A|·|No track"), head());
+}
+
+/// The "Artist · Genre" row under the title of deck `letter`, while it shows.
+QWidget* deckArtistRow(QWidget* pSkin, const QString& letter) {
+    const QList<QWidget*> rows =
+            pSkin->findChildren<QWidget*>(QStringLiteral("CrateDeckArtistRow"));
+    for (QWidget* pRow : rows) {
+        if (!pRow->isVisible() || !pRow->layout()) {
+            continue;
+        }
+        // The first parent with a deck letter is the row's deck
+        for (QWidget* pParent = pRow->parentWidget(); pParent; pParent = pParent->parentWidget()) {
+            const QList<QLabel*> labels = pParent->findChildren<QLabel*>();
+            const auto letterLabel = std::find_if(labels.begin(), labels.end(), [](QLabel* pLabel) {
+                return pLabel->objectName().startsWith(QLatin1String("CrateDeckLetter"));
+            });
+            if (letterLabel != labels.end()) {
+                if ((*letterLabel)->text() == letter) {
+                    return pRow;
+                }
+                break;
+            }
+        }
+    }
+    return nullptr;
+}
+
+TEST_F(CrateSkinLoadTest, DeckArtistRowHidesEmptyFields) {
+    QTemporaryDir profile;
+    ASSERT_TRUE(profile.isValid());
+    OffscreenDecks decks(profile.path() + QLatin1Char('/'));
+    decks.writeProfile(kCrateDecks);
+    decks.start(application());
+    ASSERT_NE(nullptr, decks.skin());
+    // As the mockups: a narrow window squeezes the title column instead
+    decks.mainWindow()->resize(1920, 1080);
+    const QString group = QStringLiteral("[Channel1]");
+    BaseTrackPlayer* pPlayer = decks.coreServices()->getPlayerManager()->getPlayer(group);
+    ASSERT_NE(nullptr, pPlayer);
+    ControlObject* pTrackLoaded = ControlObject::getControl(group, QStringLiteral("track_loaded"));
+    ASSERT_NE(nullptr, pTrackLoaded);
+    // Loads `pTrack` as the end of a load does, without its audio: the
+    // labels follow the player, Crate follows PlayerInfo
+    const auto load = [&](const TrackPointer& pTrack) {
+        pTrackLoaded->forceSet(1);
+        emit pPlayer->newTrackLoaded(pTrack);
+        PlayerInfo::instance().setTrackInfo(group, pTrack);
+    };
+    // The texts of the row joined by "|", which reads well in a failure
+    const auto row = [&decks] {
+        waitFor([] { return false; }, 100);
+        QStringList texts;
+        if (QWidget* pRow = deckArtistRow(decks.skin(), QStringLiteral("A"))) {
+            appendShownTexts(pRow->layout(), pRow, &texts);
+        }
+        return texts.join(u'|');
+    };
+    const auto rowHeight = [&decks] {
+        QWidget* pRow = deckArtistRow(decks.skin(), QStringLiteral("A"));
+        return pRow ? pRow->height() : -1;
+    };
+    const auto trackWith = [](const QString& artist, const QString& genre) {
+        TrackPointer pTrack = Track::newTemporary();
+        pTrack->setTitle(QStringLiteral("Strut"));
+        pTrack->setArtist(artist);
+        pTrack->updateGenre(genre);
+        return pTrack;
+    };
+
+    load(trackWith(QStringLiteral("SNAYX"), QStringLiteral("Alternative")));
+    EXPECT_QSTRING_EQ(QStringLiteral("SNAYX|·|Alternative"), row());
+    const int height = rowHeight();
+    EXPECT_GT(height, 0);
+
+    // A missing field hides with the separator: never "SNAYX ·"
+    load(trackWith(QStringLiteral("SNAYX"), QString()));
+    EXPECT_QSTRING_EQ(QStringLiteral("SNAYX"), row());
+    load(trackWith(QString(), QStringLiteral("Alternative")));
+    EXPECT_QSTRING_EQ(QStringLiteral("Alternative"), row());
+    load(trackWith(QStringLiteral(" "), QStringLiteral(" ")));
+    EXPECT_QSTRING_EQ(QString(), row());
+    // The row keeps its line, so that the title above does not move: Qt
+    // measures an empty line 1 px shorter than one with glyphs
+    EXPECT_NEAR(height, rowHeight(), 1);
+
+    // An edit of the loaded track shows at once. A track of the library:
+    // only a track with an id tells the labels that it changed
+    const QString file = profile.filePath(QStringLiteral("edited.flac"));
+    ASSERT_TRUE(QFile::copy(getTestFile(u".flac"), file));
+    const TrackPointer pTrack =
+            decks.coreServices()->getTrackCollectionManager()->getOrAddTrack(
+                    TrackRef::fromFilePath(file));
+    ASSERT_NE(nullptr, pTrack);
+    ASSERT_TRUE(pTrack->getId().isValid());
+    pTrack->setArtist(QStringLiteral("SNAYX"));
+    pTrack->updateGenre(QString());
+    load(pTrack);
+    EXPECT_QSTRING_EQ(QStringLiteral("SNAYX"), row());
+    pTrack->updateGenre(QStringLiteral("Alternative"));
+    EXPECT_QSTRING_EQ(QStringLiteral("SNAYX|·|Alternative"), row());
+    pTrack->setArtist(QString());
+    EXPECT_QSTRING_EQ(QStringLiteral("Alternative"), row());
+
+    PlayerInfo::instance().setTrackInfo(group, TrackPointer());
 }
 
 class CrateSkinTest : public MixxxTest {
@@ -950,9 +1249,41 @@ void paintOpenGlWindows(QWidget* pRoot, QImage* pImage) {
 #endif
 }
 
+/// The top-level widget that inherits `className`, or nullptr.
+QWidget* topLevelOf(const char* className) {
+    const QList<QWidget*> windows = QApplication::topLevelWidgets();
+    for (QWidget* pWindow : windows) {
+        if (pWindow->inherits(className)) {
+            return pWindow;
+        }
+    }
+    return nullptr;
+}
+
+/// `pWidget` over `background`, the main window as grabbed, at `at` or
+/// centred, as the screen shows it where it opens: with the scrim between
+/// them while a blocking dialog dims the main window. grab() sees one
+/// window only, so the harness composes the three.
+QImage overMainWindow(const QImage& background, QWidget* pWidget, QPoint at = QPoint(-1, -1)) {
+    QImage over = background.convertToFormat(QImage::Format_ARGB32_Premultiplied);
+    QPainter painter(&over);
+    const crate::DialogScrim* pScrim = crate::blockingDialogScrim();
+    if (pScrim && pScrim->isActive()) {
+        painter.fillRect(over.rect(), pScrim->colour());
+    }
+    const QImage widget = pWidget->grab().toImage();
+    if (at.x() < 0) {
+        at = QPoint((over.width() - widget.width()) / 2, (over.height() - widget.height()) / 2);
+    }
+    painter.drawImage(at, widget);
+    return over;
+}
+
 /// Dev-only harness: renders the real main window to PNG at 1920 x 1080 and
 /// 1366 x 768, with 2 and 4 decks, for the side-by-side comparison with the
-/// GU1 mockups. Runs only with CRATE_SKIN_SCREENSHOTS=<output dir>;
+/// GU1 mockups; then deck A with a track without a key, and over the decks
+/// the first start and a confirmation with the scrim and Preferences
+/// without it. Runs only with CRATE_SKIN_SCREENSHOTS=<output dir>;
 /// CRATE_SKIN_TRACKS=<dir> loads the first audio files of that directory into
 /// decks A, B and C, and CRATE_SKIN_LIBRARY_ROWS=<file> fills the library
 /// with the tracks of a tab-separated file (readLibraryRows()). Never point
@@ -1004,8 +1335,10 @@ TEST_F(CrateSkinScreenshots, Capture) {
                             openGl ? QStringLiteral("3") : QStringLiteral("0")},
                     {ConfigKey("[Waveform]", "WaveformOverviewType"), QStringLiteral("0")},
                     {ConfigKey("[Waveform]", "beatGridAlpha"), QStringLiteral("20")},
-                    // Time remaining, as in the mockups
+                    // Time remaining and Lancelot keys ("8A"), as in the
+                    // mockups
                     {ConfigKey("[Controls]", "PositionDisplay"), QStringLiteral("1")},
+                    {ConfigKey("[Key]", "KeyNotation"), QStringLiteral("Lancelot")},
                     {ConfigKey("[Config]", "hide_menubar"), QStringLiteral("1")},
             });
     const QString libraryRows = qEnvironmentVariable("CRATE_SKIN_LIBRARY_ROWS");
@@ -1148,6 +1481,14 @@ TEST_F(CrateSkinScreenshots, Capture) {
     // widgets next to each PNG, to measure them against the mockups
     const bool geometry = !qEnvironmentVariableIsEmpty("CRATE_SKIN_GEOMETRY");
     const auto capture = [&](const QString& name) {
+        // The key the decks show follows the track's on each waveform tick
+        // with the engine running (DeckVisuals::process); without an audio
+        // device the harness does it
+        for (int deck = 1; deck <= 4; ++deck) {
+            const QString group = QStringLiteral("[Channel%1]").arg(deck);
+            ControlObject::set(ConfigKey(group, QStringLiteral("visual_key")),
+                    ControlObject::get(ConfigKey(group, QStringLiteral("key"))));
+        }
         // Layouts, deferred restyles and the waveforms' timers
         waitFor([] { return false; }, 1500);
         QImage image = decks.skin()->grab().toImage();
@@ -1157,11 +1498,11 @@ TEST_F(CrateSkinScreenshots, Capture) {
         const QString file = QDir(outDir).filePath(name + QStringLiteral(".png"));
         EXPECT_TRUE(image.save(file)) << file.toStdString();
         if (!geometry) {
-            return;
+            return image;
         }
         QFile rects(QDir(outDir).filePath(name + QStringLiteral(".geometry.txt")));
         if (!rects.open(QIODevice::WriteOnly)) {
-            return;
+            return image;
         }
         const QList<QWidget*> widgets = decks.skin()->findChildren<QWidget*>();
         for (QWidget* pWidget : widgets) {
@@ -1183,6 +1524,7 @@ TEST_F(CrateSkinScreenshots, Capture) {
                                 .toUtf8());
             }
         }
+        return image;
     };
     // The rows that wait for their data (phrase rule, Smart Mix line,
     // Crate's track state) are hidden: the "-preview" shots show them laid
@@ -1226,6 +1568,60 @@ TEST_F(CrateSkinScreenshots, Capture) {
     ControlObject::set(ConfigKey("[CrateDecks]", "deck1_menu"), 1);
     decks.mainWindow()->resize(QSize(1920, 1080));
     capture(skin.toLower() + QStringLiteral("-2deck-1920-menu"));
+    ControlObject::set(ConfigKey("[CrateDecks]", "deck1_menu"), 0);
+
+    // Deck A with a track without a key: its header drops the key and its
+    // separator ("DECK A · 151.14 BPM")
+    if (TrackPointer pTrack =
+                    pPlayerManager->getPlayer(QStringLiteral("[Channel1]"))->getLoadedTrack()) {
+        pTrack->resetKeys();
+    }
+    const QImage decksImage = capture(skin.toLower() + QStringLiteral("-2deck-1920-nokey"));
+
+    // Over the decks, waveforms included: the blocking dialogs dim them,
+    // Preferences does not (design 14.3)
+    decks.answerModalDialogs(false);
+    const auto saveOver = [&](QWidget* pWidget, const QString& name) {
+        waitFor([] { return false; }, 1200);
+        const QString file = QDir(outDir).filePath(name + QStringLiteral(".png"));
+        EXPECT_TRUE(overMainWindow(decksImage, pWidget).save(file)) << file.toStdString();
+    };
+    const auto dimmed = [] {
+        const crate::DialogScrim* pScrim = crate::blockingDialogScrim();
+        return pScrim && pScrim->isActive();
+    };
+    if (auto* pStatus = decks.skin()->findChild<crate::ServerStatus*>()) {
+        pStatus->showStatus(QString(), crate::ServerStatus::State::None);
+    }
+    std::unique_ptr<QDialog> pFirstRun(
+            crate::createFirstRunDialog(crate::CrateServers::instance(), decks.mainWindow()));
+    pFirstRun->open();
+    EXPECT_TRUE(dimmed());
+    if (auto* pAddress = pFirstRun->findChild<QLineEdit*>(QStringLiteral("crateServerAddress"))) {
+        pAddress->setText(QStringLiteral("dev.crate.local"));
+        pAddress->setFocus();
+    }
+    saveOver(pFirstRun.get(), QStringLiteral("crate-scrim-firstrun-over"));
+    pFirstRun->reject();
+    EXPECT_FALSE(dimmed());
+    // As Mixxx confirms the exit while a deck plays
+    QMessageBox confirm(QMessageBox::Question,
+            QStringLiteral("Confirm Exit"),
+            QStringLiteral("A deck is currently playing. Exit Mixxx?"),
+            QMessageBox::Yes | QMessageBox::No,
+            decks.mainWindow());
+    confirm.open();
+    EXPECT_TRUE(dimmed());
+    saveOver(&confirm, QStringLiteral("crate-scrim-confirm-over"));
+    confirm.done(QMessageBox::No);
+    ControlObject::set(crate::showPreferencesKey(), 1);
+    if (QWidget* pPreferences = topLevelOf("DlgPreferences")) {
+        pPreferences->resize(QSize(1180, 940));
+        EXPECT_FALSE(dimmed());
+        saveOver(pPreferences, QStringLiteral("crate-noscrim-prefs-over"));
+        pPreferences->hide();
+    }
+    decks.answerModalDialogs(true);
 }
 
 /// The last menu that showed. In a Wayland compositor a popup opened
@@ -1245,17 +1641,6 @@ class LastMenu : public QObject {
         return QObject::eventFilter(pWatched, pEvent);
     }
 };
-
-/// The top-level widget that inherits `className`, or nullptr.
-QWidget* topLevelOf(const char* className) {
-    const QList<QWidget*> windows = QApplication::topLevelWidgets();
-    for (QWidget* pWindow : windows) {
-        if (pWindow->inherits(className)) {
-            return pWindow;
-        }
-    }
-    return nullptr;
-}
 
 /// Dev-only harness: renders the dialogs of plan V2.PR5 to PNG for the side
 /// by side with the GU1 mockups (preferences-crate, first-run): Preferences
@@ -1317,16 +1702,8 @@ TEST_F(CrateSkinScreenshots, Dialogs) {
                                   const QString& name,
                                   QPoint at = QPoint(-1, -1)) {
         settle();
-        const QImage dialog = pWidget->grab().toImage();
-        save(dialog, name);
-        QImage over = background.convertToFormat(QImage::Format_ARGB32_Premultiplied);
-        QPainter painter(&over);
-        if (at.x() < 0) {
-            at = QPoint((over.width() - dialog.width()) / 2, (over.height() - dialog.height()) / 2);
-        }
-        painter.drawImage(at, dialog);
-        painter.end();
-        save(over, name + QStringLiteral("-over"));
+        save(pWidget->grab().toImage(), name);
+        save(overMainWindow(background, pWidget, at), name + QStringLiteral("-over"));
     };
 
     // Preferences, from the toolbar's button, at the mockup's size
@@ -1400,15 +1777,18 @@ TEST_F(CrateSkinScreenshots, Dialogs) {
         pStatus->showStatus(QString(), crate::ServerStatus::State::None);
     }
     const QImage withoutServer = mainWindow();
+    // Modal, as main.cpp opens it: it dims the main window
     std::unique_ptr<QDialog> pFirstRun(
             crate::createFirstRunDialog(crate::CrateServers::instance(), decks.mainWindow()));
-    pFirstRun->show();
+    decks.answerModalDialogs(false);
+    pFirstRun->open();
     if (auto* pAddress = pFirstRun->findChild<QLineEdit*>(QStringLiteral("crateServerAddress"))) {
         pAddress->setText(QStringLiteral("dev.crate.local"));
         pAddress->setFocus();
     }
     saveOver(pFirstRun.get(), withoutServer, QStringLiteral("crate-firstrun"));
-    pFirstRun->hide();
+    pFirstRun->reject();
+    decks.answerModalDialogs(true);
 
     // The splash screen, as the main window shows it while it starts
     {
