@@ -4,7 +4,7 @@
 
 **Goal:** stop fast 4/4 tracks (d-beat, thrash, death, metalcore) from losing their bars and phrases because Beat This!'s DBN hears them in three, while tracks really in three keep `time_signature = 3`.
 
-**Status:** plan only, nothing implemented. Gate MG1 (below) needs Diego before Task 2.
+**Status:** MG1 approved by Diego on 2026-11-09 (option D, madmom in production). Implementation on `feat/smart-mix-meter-arbiter`; it stops at MG2.
 
 **Spec:** SM3-D14 (Beat This! with madmom's DBN) and SM3-D16 (a track the DBN hears in three gets that meter, no downbeat and no phrases) in `docs/plans/2026-11-02-smart-mix-3-design.md`. Analyzer v9 (`smart-mix-audio-v9`, PR #406, deployed 2026-11-09) is the baseline.
 
@@ -74,10 +74,11 @@ Readings:
 - **Library:** about 2.5 % of about 140,000 tracks is about 3,500 tracks. That is 50-60 hours of CPU once, spread over a backfill with its night window, plus a few minutes per day of imports.
 - **Re-analysis:** after Task 3 only the stored three-beat signals are recomputed, not the whole library (§4).
 
-### Gate MG1 (Diego)
+### Gate MG1 (Diego): approved 2026-11-09
 
-- **Licence:** madmom's network weights are CC BY-NC-SA 4.0. Today the analysis image ships them unused, and the evaluation uses them only offline (`tools/smart-mix-eval/structure/README.md`). D would run them in production. Crate is free, open source and non-commercial, so the licence allows it, but it changes what the operations doc says. Diego decides.
-- **Rule:** accept D (or ask for E) before Task 2.
+- **Licence:** madmom's network weights are CC BY-NC-SA 4.0. Until now the analysis image shipped them unused, and the evaluation used them only offline (`tools/smart-mix-eval/structure/README.md`). D runs them in production.
+- **Decision:** Diego approved D and running madmom's CC BY-NC-SA networks in production ("sí a madmom"). Crate is free and open source, not commercial, so a non-commercial licence does not block it. The operations doc records the change with the attribution.
+- Option E (phrases in three-beat bars) stays a later, separate decision.
 
 ## 4. Design of D
 
