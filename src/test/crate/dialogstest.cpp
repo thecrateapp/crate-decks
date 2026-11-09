@@ -254,6 +254,13 @@ TEST_F(CrateDialogsTest, SpinBoxesInDialogsShowTheirValue) {
     EXPECT_QSTRING_EQ(QStringLiteral("10"), pEdit->text());
 }
 
+// TEST_GAP: that the scrim covers the OpenGL waveforms and stays under the
+// dialog is the compositor's or the window manager's doing: offscreen there
+// is neither. It was checked by recording the headless Mutter of
+// tools/crate-design/skin-screenshots.sh through its ScreenCast API, with the
+// app on Wayland (child window) and on X11 through Xwayland (top-level);
+// Windows and macOS are not checked.
+
 /// The scrim's window while one dims the main window, nullptr otherwise.
 QWindow* scrimWindow() {
     const crate::DialogScrim* pScrim = crate::blockingDialogScrim();
