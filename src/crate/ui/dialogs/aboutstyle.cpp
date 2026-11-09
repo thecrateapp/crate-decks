@@ -89,7 +89,8 @@ void styleAbout(QDialog* pAbout) {
         pInfo->layout()->setSpacing(metrics.px("aboutMetaGap"));
     }
     pInfo->setFixedWidth(contentWidth);
-    for (QLabel* pValue : pInfo->findChildren<QLabel*>()) {
+    const QList<QLabel*> values = pInfo->findChildren<QLabel*>();
+    for (QLabel* pValue : values) {
         pValue->setWordWrap(true);
     }
     if (auto* pTabs = pAbout->findChild<QTabWidget*>(QStringLiteral("tabs"))) {

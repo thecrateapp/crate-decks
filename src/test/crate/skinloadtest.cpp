@@ -504,7 +504,8 @@ TEST_F(CrateSkinLoadTest, PreferencesHaveTheMockupsDialog) {
     decks.writeProfile(kCrateDecks);
     decks.start(application());
     QWidget* pPreferences = nullptr;
-    for (QWidget* pWindow : QApplication::topLevelWidgets()) {
+    const QWidgetList windows = QApplication::topLevelWidgets();
+    for (QWidget* pWindow : windows) {
         if (pWindow->inherits("DlgPreferences")) {
             pPreferences = pWindow;
         }
@@ -530,8 +531,9 @@ TEST_F(CrateSkinLoadTest, PreferencesHaveTheMockupsDialog) {
     EXPECT_TRUE(pButtons->isHidden());
     QStringList foot;
     QPushButton* pOk = nullptr;
-    for (QPushButton* pButton :
-            pPreferences->findChildren<QPushButton*>(QStringLiteral("CratePrefsButton"))) {
+    const QList<QPushButton*> buttons =
+            pPreferences->findChildren<QPushButton*>(QStringLiteral("CratePrefsButton"));
+    for (QPushButton* pButton : buttons) {
         foot.append(pButton->text());
         if (pButton->isDefault()) {
             pOk = pButton;
@@ -564,7 +566,8 @@ TEST_F(CrateSkinLoadTest, OnlyBlockingDialogsDimTheMainWindow) {
         return pScrim && pScrim->isActive();
     };
     QWidget* pPreferences = nullptr;
-    for (QWidget* pWindow : QApplication::topLevelWidgets()) {
+    const QWidgetList windows = QApplication::topLevelWidgets();
+    for (QWidget* pWindow : windows) {
         if (pWindow->inherits("DlgPreferences")) {
             pPreferences = pWindow;
         }
@@ -1137,7 +1140,7 @@ TEST_F(CrateSkinTest, ToolbarButtonOpensPreferences) {
     auto* pPreferences = new QAction(QStringLiteral("Preferences"), pMenuBar);
     pPreferences->setMenuRole(QAction::PreferencesRole);
     int opened = 0;
-    QObject::connect(pPreferences, &QAction::triggered, [&opened] { ++opened; });
+    QObject::connect(pPreferences, &QAction::triggered, [pOpened = &opened] { ++*pOpened; });
     ControlPushButton control(crate::showPreferencesKey());
     auto* pSkin = new QWidget(&window);
     EXPECT_EQ(pPreferences, crate::findPreferencesAction(&window));
@@ -1456,7 +1459,8 @@ TEST_F(CrateSkinScreenshots, Capture) {
     // The library as the mockups show it: sorted by BPM, the third row
     // selected and the seventh under the mouse
     waitFor([] { return false; }, 500);
-    for (WTrackTableView* pView : decks.skin()->findChildren<WTrackTableView*>()) {
+    const QList<WTrackTableView*> views = decks.skin()->findChildren<WTrackTableView*>();
+    for (WTrackTableView* pView : views) {
         if (!pView->isVisible() || !pView->model() || pView->model()->rowCount() == 0) {
             continue;
         }
@@ -1813,7 +1817,8 @@ TEST_F(CrateSkinScreenshots, Dialogs) {
     const QImage library = mainWindow();
     LastMenu lastMenu;
     application()->installEventFilter(&lastMenu);
-    for (WTrackTableView* pView : decks.skin()->findChildren<WTrackTableView*>()) {
+    const QList<WTrackTableView*> views = decks.skin()->findChildren<WTrackTableView*>();
+    for (WTrackTableView* pView : views) {
         if (!pView->isVisible() || !pView->model() || pView->model()->rowCount() == 0) {
             continue;
         }
