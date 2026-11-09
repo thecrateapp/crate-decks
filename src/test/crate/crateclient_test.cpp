@@ -562,11 +562,14 @@ TEST_F(CrateClientTest, NotModifiedFinishesWithStatusAndHeaders) {
     Reply* pReply = pClient->get(QStringLiteral("/api/decks/containers"));
     std::optional<int> status;
     QByteArray etag;
-    QObject::connect(pReply, &Reply::finished, pReply, [&](const JsonResult& result) {
-        EXPECT_TRUE(result.ok());
-        status = pReply->httpStatus();
-        etag = pReply->rawHeader(QByteArrayLiteral("ETag"));
-    });
+    QObject::connect(pReply,
+            &Reply::finished,
+            pReply,
+            [pReply, pStatus = &status, pEtag = &etag](const JsonResult& result) {
+                EXPECT_TRUE(result.ok());
+                *pStatus = pReply->httpStatus();
+                *pEtag = pReply->rawHeader(QByteArrayLiteral("ETag"));
+            });
 
     lastReply()->respond(304,
             QByteArray(),
@@ -587,11 +590,14 @@ TEST_F(CrateClientTest, RawBodyIsLeftUnparsed) {
     Outcome parsed(pParsed);
     QByteArray body;
     bool documentIsNull = false;
-    QObject::connect(pReply, &Reply::finished, pReply, [&](const JsonResult& result) {
-        ASSERT_TRUE(result.ok());
-        documentIsNull = result.value().isNull();
-        body = pReply->body();
-    });
+    QObject::connect(pReply,
+            &Reply::finished,
+            pReply,
+            [pReply, pBody = &body, pDocumentIsNull = &documentIsNull](const JsonResult& result) {
+                ASSERT_TRUE(result.ok());
+                *pDocumentIsNull = result.value().isNull();
+                *pBody = pReply->body();
+            });
 
     ASSERT_EQ(2, m_network.sent.size());
     m_network.sent[0].pReply->respond(200, kOkBody);

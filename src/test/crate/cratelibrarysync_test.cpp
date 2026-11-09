@@ -429,7 +429,7 @@ TEST_F(CrateLibrarySyncTest, ReplacesContainerTracksAtomically) {
 
     pSync->syncContainerTracks(warmUp);
     ASSERT_TRUE(QTest::qWaitFor([&] { return !m_network.openReplies().isEmpty(); }, 5000));
-    m_network.openReplies().first()->respond(200,
+    m_network.openReplies().constFirst()->respond(200,
             page({track(QStringLiteral("x"), QStringLiteral("X")),
                     track(QStringLiteral("y"), QStringLiteral("Y")),
                     track(QStringLiteral("z"), QStringLiteral("Z"))}));

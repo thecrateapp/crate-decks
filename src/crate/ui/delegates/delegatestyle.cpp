@@ -235,23 +235,25 @@ void paintIcon(QPainter* pPainter,
                                 .arg(rect.height())
                                 .arg(colour.name(QColor::HexArgb))
                                 .arg(ratio);
-    auto cached = s_cache.constFind(key);
-    if (cached == s_cache.constEnd()) {
-        QSvgRenderer renderer(svgPath);
-        QPixmap pixmap(rect.size() * ratio);
-        pixmap.setDevicePixelRatio(ratio);
-        pixmap.fill(Qt::transparent);
-        if (renderer.isValid()) {
-            QPainter iconPainter(&pixmap);
-            iconPainter.setRenderHint(QPainter::Antialiasing);
-            renderer.render(&iconPainter, QRectF(QPointF(0, 0), QSizeF(rect.size())));
-            // The icon's own colour becomes `colour`, its alpha stays
-            iconPainter.setCompositionMode(QPainter::CompositionMode_SourceIn);
-            iconPainter.fillRect(QRectF(QPointF(0, 0), QSizeF(rect.size())), colour);
-        }
-        cached = s_cache.insert(key, pixmap);
+    const auto cached = s_cache.constFind(key);
+    if (cached != s_cache.constEnd()) {
+        pPainter->drawPixmap(rect.topLeft(), *cached);
+        return;
     }
-    pPainter->drawPixmap(rect.topLeft(), *cached);
+    QSvgRenderer renderer(svgPath);
+    QPixmap pixmap(rect.size() * ratio);
+    pixmap.setDevicePixelRatio(ratio);
+    pixmap.fill(Qt::transparent);
+    if (renderer.isValid()) {
+        QPainter iconPainter(&pixmap);
+        iconPainter.setRenderHint(QPainter::Antialiasing);
+        renderer.render(&iconPainter, QRectF(QPointF(0, 0), QSizeF(rect.size())));
+        // The icon's own colour becomes `colour`, its alpha stays
+        iconPainter.setCompositionMode(QPainter::CompositionMode_SourceIn);
+        iconPainter.fillRect(QRectF(QPointF(0, 0), QSizeF(rect.size())), colour);
+    }
+    s_cache.insert(key, pixmap);
+    pPainter->drawPixmap(rect.topLeft(), pixmap);
 }
 
 } // namespace crate::delegates

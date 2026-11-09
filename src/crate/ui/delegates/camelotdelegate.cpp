@@ -22,15 +22,16 @@ QString CamelotDelegate::camelotKey(const QModelIndex& index) const {
     if (text.isEmpty()) {
         return QString();
     }
-    auto found = m_camelotOfText.constFind(text);
-    if (found == m_camelotOfText.constEnd()) {
-        const auto key = KeyUtils::guessKeyFromText(text);
-        found = m_camelotOfText.insert(text,
-                key == mixxx::track::io::key::INVALID
-                        ? text
-                        : KeyUtils::keyToString(key, KeyUtils::KeyNotation::Lancelot));
+    const auto found = m_camelotOfText.constFind(text);
+    if (found != m_camelotOfText.constEnd()) {
+        return *found;
     }
-    return *found;
+    const auto key = KeyUtils::guessKeyFromText(text);
+    const QString guessed = key == mixxx::track::io::key::INVALID
+            ? text
+            : KeyUtils::keyToString(key, KeyUtils::KeyNotation::Lancelot);
+    m_camelotOfText.insert(text, guessed);
+    return guessed;
 }
 
 void CamelotDelegate::paint(QPainter* pPainter,

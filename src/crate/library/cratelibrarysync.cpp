@@ -3,7 +3,7 @@
 #include <QDateTime>
 #include <QFutureWatcher>
 #include <QThread>
-#include <QtConcurrent>
+#include <QtConcurrentRun>
 #include <algorithm>
 #include <utility>
 
