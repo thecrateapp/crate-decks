@@ -24,6 +24,8 @@ struct Error {
         Decode,
         /// The request was cancelled before it finished.
         Cancelled,
+        /// The answer could not be stored in the local database.
+        Storage,
     };
 
     Kind kind = Kind::Network;
@@ -48,6 +50,9 @@ struct Error {
     }
     static Error cancelled() {
         return Error{Kind::Cancelled, 0, QString(), QStringLiteral("Cancelled")};
+    }
+    static Error storage(const QString& message) {
+        return Error{Kind::Storage, 0, QString(), message};
     }
 };
 
