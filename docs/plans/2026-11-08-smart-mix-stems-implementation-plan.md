@@ -233,7 +233,7 @@ flowchart TD
 
 ### ST2.PR4 · Interfaces
 
-- **Listen and the web app:**
+- **Listen (phone, desktop and browser):**
   - all playlists stay listed; Smart Mix playlists carry a chip or icon from the design tokens, with their analysis state (`ready` of `total`);
   - a "Smart Mix" toggle in the playlist menu.
   - Listen is a client change shipped with a tagged release.
