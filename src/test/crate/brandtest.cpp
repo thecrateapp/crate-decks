@@ -204,6 +204,37 @@ TEST(CrateBrandTextTest, EveryShippedTranslationIsBranded) {
     EXPECT_GT(checked, 1000);
 }
 
+// Plan "Own brand", BR.PR2: Preferences › Controllers shows each mapping's
+// name, author and description through crate::brandText() ("…preset for
+// Mixxx 2.1" reads "…for Crate Decks").
+TEST(CrateBrandTextTest, ControllerMappingInfoIsBranded) {
+    const QDir controllers(ConfigObject<ConfigValue>::computeResourcePath() +
+            QStringLiteral("controllers"));
+    const QStringList files = controllers.entryList({QStringLiteral("*.xml")}, QDir::Files);
+    ASSERT_GT(files.size(), 100);
+    int named = 0;
+    for (const QString& file : files) {
+        QFile xml(controllers.filePath(file));
+        ASSERT_TRUE(xml.open(QIODevice::ReadOnly));
+        QDomDocument document;
+        if (!document.setContent(&xml)) {
+            continue;
+        }
+        const QDomElement info = document.documentElement().firstChildElement(
+                QStringLiteral("info"));
+        for (const QString& tag :
+                {QStringLiteral("name"), QStringLiteral("author"), QStringLiteral("description")}) {
+            const QString text = info.firstChildElement(tag).text();
+            if (crate::showsMixxx(text)) {
+                ++named;
+            }
+            EXPECT_FALSE(crate::showsMixxx(crate::brandText(text)))
+                    << qPrintable(file) << ": " << qPrintable(crate::brandText(text));
+        }
+    }
+    EXPECT_GT(named, 15) << "The mappings that name Mixxx";
+}
+
 /// Installs the brand translator for one test and restores the default
 /// locale and the translators afterwards.
 class CrateBrandTranslatorTest : public MixxxTest {

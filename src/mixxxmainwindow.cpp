@@ -331,8 +331,10 @@ void MixxxMainWindow::initialize() {
     tryParseAndSetDefaultStyleSheet();
 
     if (!loadConfiguredSkin()) {
+        // Crate Decks: translatable, so that the brand layer names no Mixxx
         reportCriticalErrorAndQuit(
-                "default skin cannot be loaded - see <b>mixxx</b> trace for more information");
+                tr("default skin cannot be loaded - see <b>mixxx</b> trace for more "
+                   "information"));
         m_pCentralWidget = oldWidget;
         //TODO (XXX) add dialog to warn user and launch skin choice page
     } else {

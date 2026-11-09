@@ -25,6 +25,7 @@
 #include "controllers/midi/legacymidicontrollermapping.h"
 #include "controllers/midi/midicontroller.h"
 #include "controllers/scripting/legacy/controllerscriptenginelegacy.h"
+#include "crate/brand/brandtext.h"
 #include "defs_urls.h"
 #include "moc_dlgprefcontroller.cpp"
 #include "preferences/usersettings.h"
@@ -475,10 +476,11 @@ QString DlgPrefController::mappingShortName(
         const std::shared_ptr<LegacyControllerMapping> pMapping) const {
     QString mappingName = tr("None");
     if (pMapping) {
-        QString name = pMapping->name();
-        QString author = pMapping->author();
+        // Crate Decks: mapping data that names Mixxx is branded (design D2)
+        QString name = crate::brandText(pMapping->name());
+        QString author = crate::brandText(pMapping->author());
         if (name.length() > 0 && author.length() > 0) {
-            mappingName = tr("%1 by %2").arg(pMapping->name(), pMapping->author());
+            mappingName = tr("%1 by %2").arg(name, author);
         } else if (name.length() > 0) {
             mappingName = name;
         } else if (pMapping->filePath().length() > 0) {
@@ -502,7 +504,7 @@ QString DlgPrefController::mappingSupportLinks(
     if (!forumLink.isEmpty()) {
         linkList << coloredLinkString(
                 m_pLinkColor,
-                "Mixxx&nbsp;Forums",
+                tr("Mixxx&nbsp;Forums"),
                 forumLink);
     }
 
@@ -510,7 +512,7 @@ QString DlgPrefController::mappingSupportLinks(
     if (!wikiLink.isEmpty()) {
         linkList << coloredLinkString(
                 m_pLinkColor,
-                "Mixxx&nbsp;Wiki",
+                tr("Mixxx&nbsp;Wiki"),
                 wikiLink);
     }
 
@@ -518,7 +520,7 @@ QString DlgPrefController::mappingSupportLinks(
     if (!manualLink.isEmpty()) {
         linkList << coloredLinkString(
                 m_pLinkColor,
-                "Mixxx&nbsp;Manual",
+                tr("Mixxx&nbsp;Manual"),
                 manualLink);
     }
 
@@ -1084,9 +1086,10 @@ void DlgPrefController::showMapping(std::shared_ptr<LegacyControllerMapping> pMa
     QString name, description, author, supportLinks, scriptFileLinks;
 
     if (pMapping) {
-        name = pMapping->name();
-        description = pMapping->description();
-        author = pMapping->author();
+        // Crate Decks: mapping data that names Mixxx is branded (design D2)
+        name = crate::brandText(pMapping->name());
+        description = crate::brandText(pMapping->description());
+        author = crate::brandText(pMapping->author());
         supportLinks = mappingSupportLinks(pMapping);
         scriptFileLinks = mappingFileLinks(pMapping);
     }

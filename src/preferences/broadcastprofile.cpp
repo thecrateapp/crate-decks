@@ -78,7 +78,9 @@ constexpr bool kDefaultNoDelayFirstReconnect = true;
 constexpr bool kDefaultOggDynamicupdate = false;
 constexpr double kDefaultReconnectFirstDelay = 0.0;
 constexpr double kDefaultReconnectPeriod = 5.0;
-const QString kDefaultStreamName = QStringLiteral("Mixxx");
+// Crate Decks: the stream is named after the application, and its website
+// is Crate's (design D2)
+const QString kDefaultStreamName = QString::fromLatin1(crate::kApplicationName);
 const QString kDefaultStreamDesc =
         QObject::tr("This stream is online for testing purposes!");
 const QString kDefaultStreamGenre = QObject::tr("Live Mix");
@@ -291,7 +293,7 @@ void BroadcastProfile::adoptDefaultValues() {
     m_streamGenre = kDefaultStreamGenre;
     m_streamName = kDefaultStreamName;
     m_streamPublic = kDefaultStreamPublic;
-    m_streamWebsite = MIXXX_WEBSITE_URL;
+    m_streamWebsite = QString::fromLatin1(crate::kHomepageUrl);
     m_streamIRC.clear();
     m_streamAIM.clear();
     m_streamICQ.clear();

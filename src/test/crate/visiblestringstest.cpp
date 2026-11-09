@@ -25,10 +25,12 @@ namespace {
 
 /// "Mixxx" where it refers to Mixxx the project, which stays: Mixxx versions,
 /// the "Mixxx" cue modes, the Controller Engine of Mixxx mappings, Mixxx's
-/// hardware guide and manual, and the credits in About.
+/// hardware guide, manual, wiki and forums, and the credits in About. Since
+/// the own brand (BR.PR1), the brand layer rewrites them where they show.
 const QRegularExpression kMixxxProjectReference(QStringLiteral(
         "Mixxx(?= versions| [0-9]| %[0-9]| mode| Controller Engine"
-        "| DJ Hardware Guide| (?i:user manual)| Development Team|</a>)"
+        "| DJ Hardware Guide| (?i:user manual)| Development Team|</a>"
+        "|&nbsp;| Wiki| Controller Forums)"
         "|Donate to Mixxx"));
 
 const QRegularExpression kTrCall(QStringLiteral(

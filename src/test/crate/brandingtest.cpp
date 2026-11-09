@@ -18,6 +18,11 @@
 #include "crate/appidentity.h"
 #include "defs_urls.h"
 #include "dialog/dlgabout.h"
+#ifdef __BROADCAST__
+#include "preferences/broadcastprofile.h"
+#endif
+#include "preferences/dialog/dlgprefrecord.h"
+#include "recording/defs_recording.h"
 #include "preferences/configobject.h"
 #include "test/mixxxtest.h"
 #include "util/cmdlineargs.h"
@@ -206,6 +211,31 @@ TEST_F(CrateBrandingTest, SettingsPathOptionOverridesDefault) {
 
 TEST_F(CrateBrandingTest, BroadcastKeychainPrefixIsNotMixxxs) {
     EXPECT_STREQ("Crate - ", crate::kBroadcastKeychainPrefix);
+}
+
+// Plan "Own brand", BR.PR2: what leaves the window names Crate Decks. A new
+// broadcast profile streams as the application, with Crate's website, which
+// listeners and Preferences see.
+TEST_F(CrateBrandingTest, DefaultStreamNameIsTheApplication) {
+#ifdef __BROADCAST__
+    const BroadcastProfile profile(QStringLiteral("Test"));
+    EXPECT_QSTRING_EQ(QStringLiteral("Crate Decks"), profile.getStreamName());
+    EXPECT_QSTRING_EQ(QStringLiteral("https://cratemusic.app"), profile.getStreamWebsite());
+#else
+    GTEST_SKIP() << "Built without broadcasting";
+#endif
+}
+
+// Plan "Own brand", BR.PR2: the default recordings folder, which Preferences
+// shows and the file manager too, is named after the application
+TEST_F(CrateBrandingTest, RecordingsFolderIsNamedAfterTheApplication) {
+    QTemporaryDir settings;
+    ASSERT_TRUE(settings.isValid());
+    auto pConfig = UserSettingsPointer(new UserSettings(settings.filePath(QStringLiteral("mixxx.cfg"))));
+    const DlgPrefRecord page(nullptr, pConfig);
+    const QString folder = pConfig->getValueString(ConfigKey(RECORDING_PREF_KEY, "Directory"));
+    EXPECT_TRUE(folder.endsWith(QStringLiteral("/Crate Decks/Recordings"))) << qPrintable(folder);
+    EXPECT_FALSE(folder.contains(QLatin1String("Mixxx"))) << qPrintable(folder);
 }
 
 // TEST_GAP: whether the icon looks right is a human decision (gate G1).

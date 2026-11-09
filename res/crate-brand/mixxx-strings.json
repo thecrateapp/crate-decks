@@ -48,6 +48,42 @@
       "es": "<font color='#BB0000'><b>Si usas este mapeo, puede que tu controladora no funcione bien. Elige otro mapeo o desactiva la controladora.</b></font><br><br>Este mapeo se diseñó para un Controller Engine más nuevo y no se puede usar en tu instalación de Crate Decks.<br>Tu instalación de Crate Decks tiene la versión %1 del Controller Engine. Este mapeo necesita la versión %2 o posterior.<br><br>Más información en la página del wiki sobre <a href='https://mixxx.org/wiki/doku.php/controller_engine_versions'>versiones del Controller Engine</a>."
     },
     {
+      "source": "Mixxx&nbsp;Forums",
+      "files": [
+        "src/controllers/dlgprefcontroller.cpp"
+      ],
+      "treatment": "text",
+      "text": "Forums",
+      "es": "Foros"
+    },
+    {
+      "source": "Mixxx&nbsp;Manual",
+      "files": [
+        "src/controllers/dlgprefcontroller.cpp"
+      ],
+      "treatment": "text",
+      "text": "Manual",
+      "es": "Manual"
+    },
+    {
+      "source": "Mixxx&nbsp;Wiki",
+      "files": [
+        "src/controllers/dlgprefcontroller.cpp"
+      ],
+      "treatment": "text",
+      "text": "Wiki",
+      "es": "Wiki"
+    },
+    {
+      "source": "Mixxx Controller Forums",
+      "files": [
+        "src/controllers/dlgprefcontrollers.cpp"
+      ],
+      "treatment": "text",
+      "text": "Controller forums",
+      "es": "Foros de controladoras"
+    },
+    {
       "source": "Mixxx DJ Hardware Guide",
       "files": [
         "src/controllers/dlgprefcontrollers.cpp",
@@ -336,6 +372,15 @@
       "treatment": "rule"
     },
     {
+      "source": "default skin cannot be loaded - see <b>mixxx</b> trace for more information",
+      "files": [
+        "src/mixxxmainwindow.cpp"
+      ],
+      "treatment": "text",
+      "text": "The default skin cannot be loaded. See the log for more information.",
+      "es": "No se puede cargar la skin por defecto. Más información en el registro."
+    },
+    {
       "source": "e.g. from 3rd-party programs or Mixxx versions before 1.11.\n(Not checked: Analyze only, if no beats exist.)",
       "files": [
         "src/preferences/dialog/dlgprefbeatsdlg.ui"
@@ -397,6 +442,15 @@
       "treatment": "text",
       "text": "Find details in the user manual",
       "es": "Más detalles en el manual de usuario"
+    },
+    {
+      "source": "Mixxx Wiki",
+      "files": [
+        "src/preferences/dialog/dlgprefsound.cpp"
+      ],
+      "treatment": "text",
+      "text": "Wiki",
+      "es": "Wiki"
     },
     {
       "source": "Refer to the Mixxx User Manual for details.",
@@ -762,26 +816,6 @@
       "why": "log"
     },
     {
-      "file": "src/controllers/dlgprefcontroller.cpp",
-      "text": "Mixxx&nbsp;Forums",
-      "why": "visible: BR.PR2 patches it"
-    },
-    {
-      "file": "src/controllers/dlgprefcontroller.cpp",
-      "text": "Mixxx&nbsp;Manual",
-      "why": "visible: BR.PR2 patches it"
-    },
-    {
-      "file": "src/controllers/dlgprefcontroller.cpp",
-      "text": "Mixxx&nbsp;Wiki",
-      "why": "visible: BR.PR2 patches it"
-    },
-    {
-      "file": "src/controllers/dlgprefcontrollers.cpp",
-      "text": "Mixxx Controller Forums",
-      "why": "visible: BR.PR2 patches it"
-    },
-    {
       "file": "src/controllers/hid/hidenumerator.cpp",
       "text": "mixxx",
       "why": "logger name"
@@ -1000,16 +1034,6 @@
       "why": "log"
     },
     {
-      "file": "src/library/export/engineprimeexportjob.cpp",
-      "text": "Mixxx Crates",
-      "why": "visible: BR.PR2 patches it"
-    },
-    {
-      "file": "src/library/export/engineprimeexportjob.cpp",
-      "text": "Mixxx Playlists",
-      "why": "visible: BR.PR2 patches it"
-    },
-    {
       "file": "src/library/itunes/itunesiosimporter.mm",
       "text": "iOS media library access is denied, Mixxx will not be able to access any tracks",
       "why": "log (iOS)"
@@ -1040,21 +1064,6 @@
       "why": "log"
     },
     {
-      "file": "src/mixxxmainwindow.cpp",
-      "text": "default skin cannot be loaded - see <b>mixxx</b> trace for more information",
-      "why": "visible: BR.PR2 patches it"
-    },
-    {
-      "file": "src/preferences/broadcastprofile.cpp",
-      "text": "Mixxx",
-      "why": "visible: BR.PR2 patches it"
-    },
-    {
-      "file": "src/preferences/dialog/dlgprefsound.cpp",
-      "text": "Mixxx Wiki",
-      "why": "visible: BR.PR2 patches it"
-    },
-    {
       "file": "src/preferences/upgrade.cpp",
       "text": "The MIDI mapping file format has changed in this version of Mixxx. You will need to reconfigure your MIDI controller. See the Wiki for full details on the new format.",
       "why": "log"
@@ -1073,11 +1082,6 @@
       "file": "src/qml/qmlapplication.cpp",
       "text": "mixxx",
       "why": "QML module URI or Android log tag (QML interface, developer only)"
-    },
-    {
-      "file": "src/soundio/pipewireenumerator.cpp",
-      "text": "Mixxx",
-      "why": "visible: BR.PR2 patches it"
     },
     {
       "file": "src/soundio/pipewireenumerator.cpp",
@@ -1105,39 +1109,9 @@
       "why": "log"
     },
     {
-      "file": "src/util/cmdlineargs.cpp",
-      "text": "\nlog-flush-level wasn't 'trace', 'debug', 'info', 'warning', or 'critical'!\nMixxx will only flush output after a critical message.\n",
-      "why": "visible: BR.PR2 patches it"
-    },
-    {
-      "file": "src/util/cmdlineargs.cpp",
-      "text": "\nlog-level wasn't 'trace', 'debug', 'info', 'warning', or 'critical'!\nMixxx will only print warnings and critical messages to the console.\n",
-      "why": "visible: BR.PR2 patches it"
-    },
-    {
-      "file": "src/util/cmdlineargs.cpp",
-      "text": "\nlogFlushLevel wasn't 'trace', 'debug', 'info', 'warning', or 'critical'!\nMixxx will only flush output after a critical message.\n",
-      "why": "visible: BR.PR2 patches it"
-    },
-    {
-      "file": "src/util/cmdlineargs.cpp",
-      "text": "\nlogLevel wasn't 'trace', 'debug', 'info', 'warning', or 'critical'!\nMixxx will only print warnings and critical messages to the console.\n",
-      "why": "visible: BR.PR2 patches it"
-    },
-    {
       "file": "src/util/screensaver.cpp",
       "text": "Mixxx",
       "why": "visible: patched in BR.PR2"
-    },
-    {
-      "file": "src/util/screensaver.cpp",
-      "text": "Mixxx active",
-      "why": "visible: BR.PR2 patches it"
-    },
-    {
-      "file": "src/util/screensaver.cpp",
-      "text": "Mixxx digital DJ software",
-      "why": "visible: BR.PR2 patches it"
     },
     {
       "file": "src/util/screensaver.cpp",
