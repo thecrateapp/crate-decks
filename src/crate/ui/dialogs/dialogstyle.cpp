@@ -291,12 +291,16 @@ void setDisplayAxes(QLabel* pLabel) {
         return;
     }
     pLabel->ensurePolished();
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+    // Variable axes came with Qt 6.7; older Qt keeps the font's default
+    // instance.
     QFont font = pLabel->font();
     const qreal pixelSize =
             font.pixelSize() > 0 ? font.pixelSize() : QFontInfo(font).pixelSize();
     font.setVariableAxis(QFont::Tag("wght"), static_cast<float>(font.weight()));
     font.setVariableAxis(QFont::Tag("opsz"), static_cast<float>(pixelSize));
     pLabel->setFont(font);
+#endif
 }
 
 void setButtonVariant(QPushButton* pButton, const char* variant, bool full) {
