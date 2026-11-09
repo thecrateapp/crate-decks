@@ -51,7 +51,8 @@ void DeckTrackFields::slotTrackChanged(const QString& group,
 }
 
 void DeckTrackFields::follow(int deck, const TrackPointer& pTrack) {
-    for (const QMetaObject::Connection& connection : m_trackConnections.take(deck)) {
+    const QList<QMetaObject::Connection> connections = m_trackConnections.take(deck);
+    for (const QMetaObject::Connection& connection : connections) {
         disconnect(connection);
     }
     const ConfigKey artistKey = hasArtistKey(deck);

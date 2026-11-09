@@ -119,13 +119,15 @@ TEST_F(CrateDialogsTest, DefaultStyleKeepsMixxxDefaultRules) {
     ASSERT_FALSE(mixxx.isEmpty());
     ASSERT_FALSE(crate.isEmpty());
     QSet<QString> crateSelectors;
-    for (const auto& [selectors, body] : qssRules(crate)) {
+    const auto crateRules = qssRules(crate);
+    for (const auto& [selectors, body] : crateRules) {
         for (const QString& selector : selectors) {
             crateSelectors.insert(selector);
         }
     }
     int checked = 0;
-    for (const auto& [selectors, body] : qssRules(mixxx)) {
+    const auto mixxxRules = qssRules(mixxx);
+    for (const auto& [selectors, body] : mixxxRules) {
         if (!body.contains(QLatin1String("image")) && !body.contains(QLatin1String("icon")) &&
                 !body.contains(QLatin1String("background"))) {
             continue;

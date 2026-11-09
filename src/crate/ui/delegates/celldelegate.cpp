@@ -141,7 +141,7 @@ void BpmDelegate::paint(QPainter* pPainter,
         const QStyleOptionViewItem& option,
         const QModelIndex& index) const {
     if (!m_style.isValid()) {
-        QStyledItemDelegate::paint(pPainter, option, index);
+        TrackTextDelegate::paint(pPainter, option, index);
         return;
     }
     // Mixxx writes the BPM with the locale's decimal point; the decks and

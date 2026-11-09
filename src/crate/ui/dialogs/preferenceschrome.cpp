@@ -160,8 +160,8 @@ void stylePreferences(QDialog* pDialog) {
         padPage(pPages->widget(i), metrics);
     }
     // Controllers add their pages later
-    QObject::connect(pPages, &QStackedWidget::currentChanged, pPages, [pPages, &metrics](int) {
-        padPage(pPages->currentWidget(), metrics);
+    QObject::connect(pPages, &QStackedWidget::currentChanged, pPages, [pPages](int) {
+        padPage(pPages->currentWidget(), DialogMetrics::installed());
     });
 
     // The foot: Mixxx's buttons stay in their box, hidden, and the foot
