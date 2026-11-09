@@ -10,6 +10,9 @@
 #include "library/autodj/autodjfeature.h"
 #include "library/banshee/bansheefeature.h"
 #include "library/browse/browsefeature.h"
+#ifdef __CRATE__
+#include "library/crateserver/crateserverfeature.h"
+#endif
 #include "library/dateformatbroadcaster.h"
 #ifdef __ENGINEPRIME__
 #include "library/export/libraryexporter.h"
@@ -83,6 +86,13 @@ Library::Library(
             &TrackCollectionManager::libraryScanFinished,
             this,
             &Library::slotRefreshLibraryModels);
+
+#ifdef __CRATE__
+    // Crate Decks: the Crate section, above Mixxx's own (plan F3.C-PR2)
+    if (m_pConfig->getValue(ConfigKey(kConfigGroup, "ShowCrateServer"), true)) {
+        addFeature(new crate::library::CrateServerFeature(this, m_pConfig));
+    }
+#endif
 
     // TODO(rryan) -- turn this construction / adding of features into a static
     // method or something -- CreateDefaultLibrary

@@ -5366,6 +5366,8 @@ if(CRATE)
       src/crate/ui/skin/librarystyle.cpp
       src/crate/ui/skin/mixerstyle.cpp
       src/crate/ui/skin/preferencescontrol.cpp
+      src/library/crateserver/crateserverfeature.cpp
+      src/library/crateserver/crateservertrackmodel.cpp
   )
   # The tests of the Crate integration are added here and not in the list of
   # mixxx-test sources, which comes before this option.
@@ -5381,6 +5383,7 @@ if(CRATE)
         src/test/crate/crateloopbackserver_test.cpp
         src/test/crate/cratesecretstore_test.cpp
         src/test/crate/crateserverprofiles_test.cpp
+        src/test/crate/crateserverfeature_test.cpp
         src/test/crate/crateserverschema_test.cpp
         src/test/crate/crateservers_test.cpp
         src/test/crate/dlgprefcrate_test.cpp
