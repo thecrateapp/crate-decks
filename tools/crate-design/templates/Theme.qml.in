@@ -47,6 +47,7 @@ QtObject {
     readonly property color warningBorder: "{{warningBorder}}"
     readonly property color badgeOffText: "{{badgeOffText}}"
     readonly property color badgeOffBorder: "{{badgeOffBorder}}"
+    readonly property color scrim: "{{scrim}}"
     readonly property color accentHiBorder: "{{accentHiBorder}}"
     readonly property color textPrimaryBorder: "{{textPrimaryBorder}}"
 

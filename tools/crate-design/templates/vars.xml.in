@@ -181,6 +181,8 @@
 
   <!-- Dialogs, Preferences, first start and About (crate/ui/dialogs/):
        the sizes C++ lays out with; QSS (generated/default.qss) has the rest -->
+  <!-- What dims the main window behind a blocking dialog (DialogScrim) -->
+  <SetVariable name="CrateScrim">{{scrim}}</SetVariable>
   <SetVariable name="CrateDlgDialogTitleHeight">{{dialogTitleHeight}}</SetVariable>
   <SetVariable name="CrateDlgDialogPaddingX">{{dialogPaddingX}}</SetVariable>
   <SetVariable name="CrateDlgDialogFootPaddingY">{{dialogFootPaddingY}}</SetVariable>

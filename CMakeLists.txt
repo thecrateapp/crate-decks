@@ -5352,6 +5352,7 @@ if(CRATE)
       src/crate/ui/delegates/statedelegates.cpp
       src/crate/ui/dialogs/aboutstyle.cpp
       src/crate/ui/dialogs/dialogchrome.cpp
+      src/crate/ui/dialogs/dialogscrim.cpp
       src/crate/ui/dialogs/dialogstyle.cpp
       src/crate/ui/dialogs/levelgauge.cpp
       src/crate/ui/dialogs/preferenceschrome.cpp

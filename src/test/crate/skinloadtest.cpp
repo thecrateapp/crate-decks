@@ -47,6 +47,7 @@
 #include "crate/ui/crateaddserverwidget.h"
 #include "crate/ui/cratefirstrun.h"
 #include "crate/ui/crateprefsections.h"
+#include "crate/ui/dialogs/dialogscrim.h"
 #include "crate/ui/dialogs/preferenceschrome.h"
 #include "crate/ui/dlgprefcrate.h"
 #include "crate/ui/skin/crateserverstatus.h"
@@ -533,6 +534,53 @@ TEST_F(CrateSkinLoadTest, PreferencesHaveTheMockupsDialog) {
     EXPECT_TRUE(pPreferences->isVisible());
     pOk->click();
     EXPECT_FALSE(pPreferences->isVisible());
+}
+
+TEST_F(CrateSkinLoadTest, OnlyBlockingDialogsDimTheMainWindow) {
+    QTemporaryDir profile;
+    ASSERT_TRUE(profile.isValid());
+    OffscreenDecks decks(profile.path() + QLatin1Char('/'));
+    decks.writeProfile(kCrateDecks);
+    decks.start(application());
+    ASSERT_NE(nullptr, decks.skin());
+    decks.mainWindow()->show();
+    QCoreApplication::processEvents();
+    const auto dimmed = [] {
+        const crate::DialogScrim* pScrim = crate::blockingDialogScrim();
+        return pScrim && pScrim->isActive();
+    };
+    QWidget* pPreferences = nullptr;
+    for (QWidget* pWindow : QApplication::topLevelWidgets()) {
+        if (pWindow->inherits("DlgPreferences")) {
+            pPreferences = pWindow;
+        }
+    }
+    ASSERT_NE(nullptr, pPreferences);
+
+    // Preferences from the toolbar: the DJ adjusts something mid-set,
+    // watching the decks (design 14.3)
+    ControlObject::set(crate::showPreferencesKey(), 1);
+    ASSERT_TRUE(pPreferences->isVisible());
+    EXPECT_FALSE(dimmed());
+    pPreferences->hide();
+    // Nor when Mixxx opens it modal, after a sound device fails. Checked
+    // before events run: the DialogRejecter closes modal dialogs then
+    pPreferences->setWindowModality(Qt::ApplicationModal);
+    pPreferences->show();
+    EXPECT_FALSE(dimmed());
+    pPreferences->hide();
+    pPreferences->setWindowModality(Qt::NonModal);
+
+    // A confirmation as Mixxx's on exit dims the main window until it closes
+    QMessageBox confirm(QMessageBox::Question,
+            QStringLiteral("Confirm Exit"),
+            QStringLiteral("A deck is currently playing. Exit Mixxx?"),
+            QMessageBox::Yes | QMessageBox::No,
+            decks.mainWindow());
+    confirm.open();
+    EXPECT_TRUE(dimmed());
+    EXPECT_TRUE(waitFor([&confirm] { return !confirm.isVisible(); }, 5000));
+    EXPECT_FALSE(dimmed());
 }
 
 /// The settings and controls of the racks that the skin folds (design 14.3)

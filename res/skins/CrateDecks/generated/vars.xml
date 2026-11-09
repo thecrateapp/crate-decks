@@ -181,6 +181,8 @@
 
   <!-- Dialogs, Preferences, first start and About (crate/ui/dialogs/):
        the sizes C++ lays out with; QSS (generated/default.qss) has the rest -->
+  <!-- What dims the main window behind a blocking dialog (DialogScrim) -->
+  <SetVariable name="CrateScrim">#b80a0a0f</SetVariable>
   <SetVariable name="CrateDlgDialogTitleHeight">44</SetVariable>
   <SetVariable name="CrateDlgDialogPaddingX">16</SetVariable>
   <SetVariable name="CrateDlgDialogFootPaddingY">12</SetVariable>

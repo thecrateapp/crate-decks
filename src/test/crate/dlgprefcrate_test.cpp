@@ -9,9 +9,11 @@
 #include <QLineEdit>
 #include <QListWidget>
 #include <QPushButton>
+#include <QScopeGuard>
 #include <QSignalSpy>
 #include <QSqlQuery>
 #include <QString>
+#include <QTimer>
 #include <QUrl>
 #include <memory>
 
@@ -21,6 +23,8 @@
 #include "crate/crateservers.h"
 #include "crate/db/crateserverprofiles.h"
 #include "crate/ui/cratefirstrun.h"
+#include "crate/ui/dialogs/dialogscrim.h"
+#include "crate/ui/dialogs/dialogstyle.h"
 #include "test/crate/fakecratenetwork.h"
 #include "test/mixxxdbtest.h"
 
@@ -316,6 +320,30 @@ TEST_F(CrateAddServerFlowTest, FirstRunDialogFollowsTheSteps) {
     QSignalSpy rejected(pDialog.get(), &QDialog::rejected);
     pCancel->click();
     EXPECT_EQ(1, rejected.count());
+}
+
+TEST_F(CrateAddServerFlowTest, FirstRunDimsTheMainWindowUntilItCloses) {
+    // Crate's styles on a main window, as MixxxMainWindow sets them, undone
+    // for the next tests
+    const auto restore = qScopeGuard([] { crate::applyStyles(nullptr, QString(), QString()); });
+    QWidget mainWindow;
+    mainWindow.resize(1280, 720);
+    ASSERT_TRUE(crate::applyApplicationStyle(
+            &mainWindow, ConfigObject<ConfigValue>::computeResourcePath()));
+    mainWindow.show();
+    QCoreApplication::processEvents();
+    std::unique_ptr<QDialog> pDialog(crate::createFirstRunDialog(m_pServers.get(), &mainWindow));
+    // As offerFirstRun() opens it, until "Not now"
+    bool dimmed = false;
+    QTimer::singleShot(0, pDialog.get(), [&pDialog, &dimmed] {
+        const crate::DialogScrim* pScrim = crate::blockingDialogScrim();
+        dimmed = pScrim && pScrim->isActive();
+        pDialog->findChild<QPushButton*>(QStringLiteral("crateCancel"))->click();
+    });
+    EXPECT_EQ(QDialog::Rejected, pDialog->exec());
+    EXPECT_TRUE(dimmed);
+    ASSERT_NE(nullptr, crate::blockingDialogScrim());
+    EXPECT_FALSE(crate::blockingDialogScrim()->isActive());
 }
 
 // TEST_GAP: offerFirstRun() shows a modal dialog, so it is checked by hand;
