@@ -249,7 +249,8 @@ void CrateServerFeature::watchServers(CrateServers* pServers) {
 void CrateServerFeature::updateServers() {
     QStringList ids;
     if (m_pServers) {
-        for (const Session* pSession : m_pServers->sessions()) {
+        const QList<Session*> sessions = m_pServers->sessions();
+        for (const Session* pSession : sessions) {
             const QString& id = pSession->profile().id;
             if (m_pServers->isSaved(id)) {
                 ids.append(id);
@@ -497,6 +498,7 @@ void CrateServerFeature::applySidebar(const QString& serverId, const SidebarData
         expandOwnItems();
         return;
     }
+    QStringList wantedChildren;
     for (int row = 0; row < items.size(); ++row) {
         TreeItem* pItem = pParent->child(row);
         const Item& item = items[row];
@@ -504,7 +506,7 @@ void CrateServerFeature::applySidebar(const QString& serverId, const SidebarData
             pItem->setLabel(item.label);
             m_pSidebarModel->triggerRepaint(indexOf(pItem));
         }
-        QStringList wantedChildren;
+        wantedChildren.clear();
         for (const auto& child : item.children) {
             wantedChildren.append(child.second);
         }
