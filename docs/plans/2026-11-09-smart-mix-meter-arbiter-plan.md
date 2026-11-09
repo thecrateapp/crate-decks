@@ -4,7 +4,7 @@
 
 **Goal:** stop fast 4/4 tracks (d-beat, thrash, death, metalcore) from losing their bars and phrases because Beat This!'s DBN hears them in three, while tracks really in three keep `time_signature = 3`.
 
-**Status:** MG1 approved by Diego on 2026-11-09 (option D, madmom in production). Implementation on `feat/smart-mix-meter-arbiter`; it stops at MG2.
+**Status:** MG1 approved by Diego on 2026-11-09 (option D, madmom in production). Tasks 2-4 implemented on `feat/smart-mix-meter-arbiter` (worktree `~/Code/Ninja/crate-agents/smart-mix-meter-arbiter`, from `origin/main` `ca620f1c1`): `f36c5b94d` arbiter, signals and migration 156, `dd9537ca4` `smart-mix-audio-v10`, `c5aed3df3` worker binary. Local, not pushed: stopped at MG2. Task 1's labelled three-beat reference set (All-In-One) is not built; the measurement below is on the evaluation sets only.
 
 **Spec:** SM3-D14 (Beat This! with madmom's DBN) and SM3-D16 (a track the DBN hears in three gets that meter, no downbeat and no phrases) in `docs/plans/2026-11-02-smart-mix-3-design.md`. Analyzer v9 (`smart-mix-audio-v9`, PR #406, deployed 2026-11-09) is the baseline.
 
@@ -177,6 +177,33 @@ Readings:
   - three-beat calls, phrases found;
   - the four-beat tracks must stay byte-identical.
 - [ ] **Step 5: commit** `feat(smart-mix): bump the analyzer to smart-mix-audio-v10` and the binary rebuild.
+
+### Measurement of the implementation (2026-11-09)
+
+The new `beat_model` (Beat This!, both bar paths, madmom arbiter) in the production analysis image, against the stored v9 signals, then `crate-cli` on the tracks whose beats change:
+
+| Tracks | Result |
+| --- | --- |
+| The 10 the DBN hears in three | 8 take four (`madmom-dbn-4`) and gain 5-19 phrases: Sepultura, Cannibal Corpse, Counterparts, Tragedy, Anti Cimex, Doom (`.m4a`), THRICE, Swans. 2 keep three (`madmom-dbn-3`): Azu Tiwaline, Movements |
+| A random sample of 30 four-beat tracks | Beats and downbeats identical to the stored ones on 30 of 30; the arbiter is never asked |
+| Tracks without phrases on the 399 | v9 30, v10 22 |
+
+- Swans "Coward" is a live-drums control: its four-beat bars may be less reliable.
+- Time per three-beat track: 86-249 s on the development machine, which was shared with other jobs.
+- The madmom DBN thresholds its activations at 0.05 before decoding, which the 2026-11-09 spike skipped. The implementation decodes exactly as madmom's processor does (a parity test checks it).
+
+### Production share and the running v9 campaign
+
+- **Share of three-beat bars:** on 2026-11-09 at 20:12 UTC, 537 of the 12,278 stored Beat This! signals in production had bars of three (4.4 %, against 2.5 % in the evaluation sets). That is about 6,100 tracks of the library's about 140,000.
+- **Cost per v9 row:**
+  - About 95.6 % keep their stored four-beat signals: `crate-cli` only, about 2 s of CPU.
+  - About 4.4 % run Beat This! again and the arbiter: about 75 s of CPU or more.
+  - That is about 5 s of CPU per row on average.
+- **Rows v9 has not reached** (v5 and v6): v10 costs what v9 would have cost, plus the arbiter on 4.4 % of them, about 9 % more.
+- **Ship v10 early:** the extra work grows with what v9 has finished.
+  - v9 does about 10,500 rows a day once its cheap v8 rows are done (expected by about 00:00 UTC on 2026-11-10).
+  - Each day of v9 adds about 15 hours of CPU of v10 redo, a few hours of wall time with the night window.
+- **Ship v10 after v9 finishes** (about 2026-11-22 to 25): about 200 hours of CPU over the whole library, about two more days.
 
 ### Gate MG2 (Diego)
 
