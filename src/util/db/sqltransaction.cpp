@@ -1,8 +1,9 @@
 #include "util/db/sqltransaction.h"
 
-#include "util/logger.h"
-#include "util/assert.h"
+#include <QSqlQuery>
 
+#include "util/assert.h"
+#include "util/logger.h"
 
 namespace {
 
@@ -17,7 +18,7 @@ bool beginTransaction(QSqlDatabase database) {
                 << database.connectionName();
         return false;
     }
-    if (database.transaction()) {
+    if (beginImmediateTransaction(database)) {
         if (kLogger.debugEnabled()) {
             kLogger.debug()
                     << "Started new SQL database transaction on"
@@ -33,6 +34,16 @@ bool beginTransaction(QSqlDatabase database) {
 }
 
 } // anonymous namespace
+
+bool beginImmediateTransaction(const QSqlDatabase& database) {
+    if (database.driverName() != QLatin1String("QSQLITE")) {
+        return QSqlDatabase(database).transaction();
+    }
+    // QSQLITE keeps no state of its own for a transaction: commit() and
+    // rollback() end this one as they end one of transaction()
+    QSqlQuery query(database);
+    return query.exec(QStringLiteral("BEGIN IMMEDIATE"));
+}
 
 SqlTransaction::SqlTransaction(
         const QSqlDatabase& database)
