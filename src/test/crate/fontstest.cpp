@@ -80,6 +80,9 @@ TEST_F(CrateFontsTest, RegistersAdminFonts) {
 TEST_F(CrateFontsTest, MonoHasTabularDigits) {
     EXPECT_TRUE(allEqual(digitAdvances(fontOf(kMono, 11))));
 
+#if QT_VERSION < QT_VERSION_CHECK(6, 7, 0)
+    GTEST_SKIP() << "QFont::setFeature() needs Qt 6.7";
+#else
     // Bricolage Grotesque has proportional digits by default and tabular
     // ones with the tnum feature, for the BPM and time of the deck
     // (design 14.3).
@@ -88,9 +91,13 @@ TEST_F(CrateFontsTest, MonoHasTabularDigits) {
     EXPECT_FALSE(allEqual(digitAdvances(display)));
     display.setFeature(QFont::Tag("tnum"), 1);
     EXPECT_TRUE(allEqual(digitAdvances(display)));
+#endif
 }
 
 TEST_F(CrateFontsTest, VariableAxesChangeTheGlyphs) {
+#if QT_VERSION < QT_VERSION_CHECK(6, 7, 0)
+    GTEST_SKIP() << "QFont::setVariableAxis() needs Qt 6.7";
+#else
     // Roboto's weight axis (100-900)
     QFont light = fontOf(kBody, 15);
     light.setVariableAxis(QFont::Tag("wght"), 100);
@@ -107,6 +114,7 @@ TEST_F(CrateFontsTest, VariableAxesChangeTheGlyphs) {
     poster.setVariableAxis(QFont::Tag("opsz"), 96);
     EXPECT_NE(QFontMetricsF(caption).horizontalAdvance(kSample),
             QFontMetricsF(poster).horizontalAdvance(kSample));
+#endif
 }
 
 } // namespace
