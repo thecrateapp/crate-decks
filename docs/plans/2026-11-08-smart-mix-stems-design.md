@@ -81,7 +81,7 @@ Use source separation (stems) where it pays for itself, without separating the w
 **STEM-D2. Smart Mix playlists (path A; named by Diego, 2026-11-08).**
 - **One concept for every client.** A Smart Mix playlist is a playlist its owner marks for Smart Mix. The same mark serves Listen (phone, desktop and browser) and Crate Decks, and it replaces Decks' offline sets (D4 of the Crate Decks design).
 - **Every client lists all of the user's playlists.** Smart Mix playlists stand out with a chip or icon from the design tokens, plus their analysis state.
-- **A track's stems show in its Audio profile dialog** (Diego, 2026-11-09). When a track has a stem analysis or stem files, the admin's track Audio profile dialog gains a **Stems** tab, next to Sound, Smart Mix, Phrases and Provenance. Like Phrases, the tab only appears when there is something to show. It holds:
+- **A track's stems show in its Audio profile dialog** (Diego, 2026-11-09). When a track has a stem analysis or stem files, the admin's track Audio profile dialog gains a **Stems** tab, next to Sound, Smart Mix, Phrases and Provenance. Like Phrases, the tab only appears when there is something to show: a stem analysis, stem files, or a stem job that is pending, running or failed. It holds:
   - the level of each stem over time (drums, bass, other, vocals) from the `stem-analysis/1` levels, with the phrase boundaries of the Smart Mix structure;
   - the per-phrase stems layer the planner reads;
   - the source: server or Crate Decks upload (and who contributed it), separator, source revision and whether it is current, date, and the drum-stem beat count;

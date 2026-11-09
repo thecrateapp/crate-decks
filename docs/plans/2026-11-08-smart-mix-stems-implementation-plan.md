@@ -239,11 +239,23 @@ flowchart TD
   - Listen is a client change shipped with a tagged release.
 - **Admin:** a Smart Mix playlists panel (states per playlist), the stem quota and both track limits.
 - **Track Audio profile dialog, Stems tab** (design §3; `app/ui/src/components/album/AudioProfileCard.tsx`, opened from `TrackTable.tsx`):
-  - shown only when the track has a stem analysis or stem files, like the Phrases tab;
+  - shown only when the track has a stem analysis, stem files or a stem job (pending, analyzing or failed), like the Phrases tab;
   - stem levels over time with phrase boundaries, in the grammar of the Phrases tab and StackMap; the per-phrase stems layer; the source; the server stem files and job state;
   - data: the mix profile with `detail=full` already carries the `stems` layer (ST1); a new read endpoint `GET /api/smart-mix/tracks/{trackId}/stems` returns files, job state and the Smart Mix playlists that hold the track, with `last_error` only for `library.analysis.manage`, in ≤ 3 bounded queries;
   - no audio playback of stems in the admin for now (Diego, 2026-11-09);
   - mocked up first with the admin components and shown to Diego; the approved mockup is the spec.
+- **Mockups approved (Diego, 2026-11-09)** with every recommendation; they live in `crate-agents/stems-mockups/` (`index.html`, `png/`) and are the pixel spec:
+  - stem lanes as a crest with fill and glow, in the language of the approved sound spectrum; lanes full width with the source and files panels below;
+  - a stale analysis dimmed with a Stale badge and no layer; the YAMNet voice row kept as a contrast until ST3; `other` in a neutral tone; per-phrase means in white with a cyan glow; Failed and Stale in the warning tone (the admin keeps red for `ConfirmDialog`);
+  - Listen: a chip with `ready/total`, icon only on phones once the playlist is ready; the menu toggle in the grammar of "offline" ("Turn on Smart Mix" / "Turn off Smart Mix" with a status dot), progress in the menu header; a 409 as an error toast for now;
+  - Admin: a Smart Mix playlists `OpsPanel` in Analysis, right under "Smart Mix", with the stem quota, both limits and the `stem_uploads_enabled` switch.
+- **API gaps the mockups found, built in this PR:**
+  - `GET /api/smart-mix/tracks/{trackId}/stems` returns the analyses per producer (stale included) with the 250 ms levels, drum beats, `current`, `chosen`, dates and `contributedBy` with its username, plus the phrase spans, so users without `library.analysis.manage` also get the phrase grid;
+  - per-track job state with `startedAt` and `finishedAt`, and `lastError` for `library.analysis.manage` only;
+  - an admin listing of every user's Smart Mix playlists: owner, counts per state, estimate, last errors and bytes;
+  - stem quota usage: bytes used, file count and the evictable part;
+  - the 409 for a limit carries `limit`, `maxTracks` and `tracks`, so Listen can translate it into its 7 languages;
+  - `@crate/ui/icons` exports `Layers` (Solar `layers-minimalistic`).
 - **Tests:** next to each component, following the existing patterns.
   - Stems tab: `the stems tab appears only with stem data`, `levels draw one lane per stem`, `the source says server or Decks upload`, `admins see the last error and other users don't`.
 
