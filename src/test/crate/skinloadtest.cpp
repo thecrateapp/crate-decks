@@ -412,7 +412,8 @@ bool insertCrateLibrary(const QString& settingsPath, const QString& rowsPath) {
         for (const auto& track : std::as_const(tracks)) {
             uids.append(track.entityUid);
         }
-        for (const auto& container : crate::library::loadContainers(db, server)) {
+        const auto containers = crate::library::loadContainers(db, server);
+        for (const auto& container : containers) {
             QStringList stored;
             if (container.kind == QLatin1String("likes")) {
                 stored = uids;
@@ -1500,7 +1501,8 @@ TEST_F(CrateSkinScreenshots, Capture) {
     // click does: a Crate playlist instead of the Crate library
     const QString crateOpen = qEnvironmentVariable("CRATE_SKIN_CRATE_OPEN");
     if (!crateOpen.isEmpty()) {
-        for (WLibrarySidebar* pSidebar : decks.skin()->findChildren<WLibrarySidebar*>()) {
+        const QList<WLibrarySidebar*> sidebars = decks.skin()->findChildren<WLibrarySidebar*>();
+        for (WLibrarySidebar* pSidebar : sidebars) {
             auto* pModel = qobject_cast<SidebarModel*>(pSidebar->model());
             if (!pModel) {
                 continue;

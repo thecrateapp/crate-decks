@@ -7,7 +7,7 @@
 #include <QPainter>
 #include <QScopeGuard>
 #include <QSet>
-#include <QtConcurrent>
+#include <QtConcurrentRun>
 
 #include "crate/client/cratecapabilities.h"
 #include "crate/client/crateclient.h"

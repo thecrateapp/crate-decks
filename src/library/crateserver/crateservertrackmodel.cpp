@@ -5,7 +5,7 @@
 #include <QSqlError>
 #include <QSqlQuery>
 #include <QThread>
-#include <QtConcurrent>
+#include <QtConcurrentRun>
 #include <cmath>
 
 #include "crate/ui/delegates/delegateroles.h"
