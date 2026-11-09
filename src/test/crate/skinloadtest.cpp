@@ -47,6 +47,7 @@
 #include "crate/ui/crateaddserverwidget.h"
 #include "crate/ui/cratefirstrun.h"
 #include "crate/ui/crateprefsections.h"
+#include "crate/ui/delegates/sidebardelegate.h"
 #include "crate/ui/dialogs/dialogscrim.h"
 #include "crate/ui/dialogs/preferenceschrome.h"
 #include "crate/ui/dlgprefcrate.h"
@@ -81,6 +82,7 @@
 #include "waveform/waveform.h"
 #include "widget/wglwidget.h"
 #include "widget/wlibrary.h"
+#include "widget/wlibrarysidebar.h"
 #include "widget/wtracktableview.h"
 
 #ifdef MIXXX_USE_QOPENGL
@@ -368,6 +370,23 @@ TEST_F(CrateSkinLoadTest, OnlyCrateDecksIsOffered) {
     }
     EXPECT_EQ(QStringList{kCrateDecks}, offered);
     EXPECT_NE(nullptr, loader.getSkin(kLateNight));
+}
+
+// Plan "Own brand", BR.PR6: the sidebar's section of Mixxx's own library is
+// "Local", next to "Crate · <server>"
+TEST_F(CrateSkinLoadTest, SidebarSectionsNameNoMixxx) {
+    QTemporaryDir profile;
+    ASSERT_TRUE(profile.isValid());
+    OffscreenDecks decks(profile.path() + QLatin1Char('/'));
+    decks.writeProfile(kCrateDecks);
+    decks.start(application());
+    ASSERT_NE(nullptr, decks.skin());
+    auto* pSidebar = decks.skin()->findChild<WLibrarySidebar*>();
+    ASSERT_NE(nullptr, pSidebar);
+    auto* pDelegate = qobject_cast<crate::delegates::SidebarDelegate*>(pSidebar->itemDelegate());
+    ASSERT_NE(nullptr, pDelegate);
+    const QModelIndex first = pSidebar->model()->index(0, 0);
+    EXPECT_QSTRING_EQ(QStringLiteral("Local"), pDelegate->sectionHeader(first));
 }
 
 TEST_F(CrateSkinLoadTest, ToolbarOpensPreferences) {

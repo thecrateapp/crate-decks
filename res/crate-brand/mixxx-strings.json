@@ -826,11 +826,6 @@
       "why": "log"
     },
     {
-      "file": "src/crate/ui/skin/librarystyle.cpp",
-      "text": "Mixxx",
-      "why": "visible: BR.PR6 renames it"
-    },
-    {
       "file": "src/database/mixxxdb.cpp",
       "text": "MIXXX",
       "why": "database connection name and credentials (identifiers)"

@@ -798,7 +798,10 @@ void styleLibrary(QWidget* pSkinRoot,
     const QList<WLibrarySidebar*> sidebars = pSkinRoot->findChildren<WLibrarySidebar*>();
     for (WLibrarySidebar* pSidebar : sidebars) {
         auto* pDelegate = new SidebarDelegate(style, pSidebar);
-        pDelegate->setDefaultSection(QStringLiteral("Mixxx"));
+        // The section of the local library, which Mixxx's features fill
+        // (plan "Own brand", BR.PR6)
+        pDelegate->setDefaultSection(
+                QCoreApplication::translate("crate::LibraryStyle", "Local"));
         pDelegate->setIcons(sidebarIcons(skinPath), SidebarModel::IconNameRole);
         pSidebar->setItemDelegate(pDelegate);
         // The delegate indents child items itself and draws no branches,
