@@ -83,7 +83,7 @@
   - `structure_v2_fixture_matches`: every case of `structure_v2.json` gives its expected phrases;
   - `harmony_change_is_a_boundary`, the same case as Task 1;
   - `mfcc_matches_orthonormal_dct`: a fixed mel-dB frame gives the 13 coefficients stored in the fixture, computed with `scipy.fft.dct(x, type=2, norm="ortho")[:13]`.
-  
+
   In `test_smart_mix_versions.py`, the five constants of the global constraints match between Python and Rust.
 - [ ] **Step 2: Run them and see them fail** (`cargo test --locked` in `rust:1.88-trixie` with the whole worktree mounted read-only; pytest in the test container).
 - [ ] **Step 3: Implement.**
@@ -140,7 +140,7 @@ Done by the plan owner after Tasks 1–3 are on `feat/sm3-beats`.
   - section F1 at ±3 s ≥ 0.52;
   - precision not below SMB.PR2c's;
   - at most 0.5 s extra per track.
-  
+
   If it fails, stop and report to Diego.
 - [ ] **Step 4: Move the evaluation scripts** to `tools/smart-mix-eval/structure/` as an offline tool (All-In-One and madmom runners, Beat This! runner, `mir_eval` evaluation, novelty prototype), with paths as arguments and a README. Not in any production path.
 - [ ] **Step 5: Docs.** `docs/technical/smart-mix-operations.md` and `smart-mix-design.md`: model, licences, cost, provenance, stored signals, novelty and the measurement. Update the SMB.PR3 entry in the Smart Mix 3 plan.
