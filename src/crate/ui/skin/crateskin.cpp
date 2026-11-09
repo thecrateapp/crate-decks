@@ -42,10 +42,12 @@ double variableNumber(const SkinVariables& variables, const QString& name) {
     return ok ? value : 0;
 }
 
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
 /// Pixel size of a font, also when it was given in points.
 qreal pixelSizeOf(const QFont& font) {
     return font.pixelSize() > 0 ? font.pixelSize() : QFontInfo(font).pixelSize();
 }
+#endif
 
 /// Gives the deck numbers of the skin the font features QSS cannot set.
 /// QSS resolves its own font properties against the widget's font, so the
@@ -191,9 +193,13 @@ SkinLayoutClass skinLayoutClassFor(QSize size, const SkinBreakpoints& breakpoint
 
 QFont deckNumberFont(const QFont& font) {
     QFont result(font);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+    // Font features and variable axes came with Qt 6.7; older Qt keeps the
+    // font's default instance and its proportional digits.
     result.setFeature(QFont::Tag("tnum"), 1);
     result.setVariableAxis(QFont::Tag("wght"), static_cast<float>(result.weight()));
     result.setVariableAxis(QFont::Tag("opsz"), static_cast<float>(pixelSizeOf(result)));
+#endif
     return result;
 }
 

@@ -137,7 +137,10 @@ QFont DelegateStyle::bodyFont(double pixelSize) const {
 QFont DelegateStyle::monoFont(double pixelSize) const {
     QFont font(fontMono);
     setPixelSize(&font, pixelSize);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+    // Font features came with Qt 6.7
     font.setFeature(QFont::Tag("tnum"), 1);
+#endif
     return font;
 }
 

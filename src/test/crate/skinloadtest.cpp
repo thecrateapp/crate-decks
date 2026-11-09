@@ -1289,6 +1289,9 @@ TEST_F(CrateSkinTest, ToolbarButtonOpensPreferences) {
 }
 
 TEST_F(CrateSkinTest, DeckNumberHasTabularFigures) {
+#if QT_VERSION < QT_VERSION_CHECK(6, 7, 0)
+    GTEST_SKIP() << "QFont::setFeature() needs Qt 6.7";
+#endif
     QFont display(QStringLiteral("Bricolage Grotesque"));
     display.setPixelSize(34);
     display.setWeight(QFont::Bold);
