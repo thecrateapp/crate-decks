@@ -616,6 +616,9 @@ void CoreServices::initialize() {
 
     bool musicDirAdded = false;
 
+#ifndef __CRATE__
+    // Crate Decks: local folders are optional next to the Crate library, and
+    // the first start offers them in its own page (crate::offerFirstRun)
     if (m_pTrackCollectionManager->internalCollection()->loadRootDirs().isEmpty()) {
 #if defined(Q_OS_IOS) || defined(Q_OS_WASM)
         // On the web and iOS, we are running in a sandbox (a virtual file
@@ -687,6 +690,7 @@ void CoreServices::initialize() {
             musicDirAdded = true;
         }
     }
+#endif // __CRATE__
 
     emit initializationProgressUpdate(60, tr("controllers"));
     // Initialize controller sub-system,

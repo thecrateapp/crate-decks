@@ -321,6 +321,43 @@ TEST_F(CrateSkinLoadTest, LateNightStillLoads) {
     EXPECT_TRUE(warnings.isEmpty()) << warnings.join(QLatin1Char('\n')).toStdString();
 }
 
+/// The titles of the dialogs that show while it is alive.
+class ShownDialogTitles : public QObject {
+  public:
+    QStringList titles;
+
+  protected:
+    bool eventFilter(QObject* pWatched, QEvent* pEvent) override {
+        if (pEvent->type() == QEvent::Show) {
+            if (auto* pDialog = qobject_cast<QDialog*>(pWatched)) {
+                titles.append(pDialog->windowTitle());
+            }
+        }
+        return QObject::eventFilter(pWatched, pEvent);
+    }
+};
+
+// Plan "Own brand", BR.PR3: on a new profile with no music folder and no
+// sound device, Mixxx asked for a music folder, warned of "No Output
+// Devices" and asked whether to hide the menu bar, all before Crate's first
+// start. The first start asks the first two in its own pages and the skin
+// decides the third.
+TEST_F(CrateSkinLoadTest, FirstStartAsksNoMixxxQuestions) {
+    QTemporaryDir profile;
+    ASSERT_TRUE(profile.isValid());
+    OffscreenDecks decks(profile.path() + QLatin1Char('/'));
+    decks.writeProfile(kCrateDecks);
+    ShownDialogTitles shown;
+    application()->installEventFilter(&shown);
+    decks.start(application());
+    application()->removeEventFilter(&shown);
+    ASSERT_NE(nullptr, decks.skin());
+    EXPECT_TRUE(shown.titles.isEmpty()) << qPrintable(shown.titles.join(QStringLiteral(", ")));
+    const UserSettingsPointer pConfig = decks.coreServices()->getSettings();
+    EXPECT_EQ(1, pConfig->getValue<int>(ConfigKey("[Config]", "hide_menubar"), 0));
+    EXPECT_EQ(0, pConfig->getValue<int>(ConfigKey("[Config]", "show_menubar_hint"), 1));
+}
+
 TEST_F(CrateSkinLoadTest, ToolbarOpensPreferences) {
     QTemporaryDir profile;
     ASSERT_TRUE(profile.isValid());
