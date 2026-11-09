@@ -882,6 +882,8 @@ TEST_F(CrateSkinLoadTest, DeckHeadHidesEmptyFields) {
     EXPECT_GT(painted, 10);
     colours.setKeyColorsEnabled(true);
     EXPECT_EQ(painted, paintedPixels(pKey));
+    // In its own case: "Am" is A minor, "AM" would read as A major
+    EXPECT_EQ(QFont::MixedCase, pKey->font().capitalization());
 
     // Without a BPM the same rule: no "0.00 BPM", no separator
     set("file_bpm", 0);

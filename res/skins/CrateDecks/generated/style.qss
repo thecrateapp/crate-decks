@@ -410,6 +410,10 @@ QToolTip {
 #MonoDeckHeadSep {
   padding: 0 4px;
 }
+/* A key keeps its case: "Am" is A minor, "AM" would read as A major */
+#MonoDeckHeadKey {
+  text-transform: none;
+}
 /* InfoBadge, accent tone */
 #CrateDeckLeader {
   font-family: "JetBrains Mono";
