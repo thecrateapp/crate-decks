@@ -745,7 +745,8 @@ píxeles de V2 y V3: cada PR visual se compara con ellas lado a lado. Viven fuer
 
 **Velo detrás de los diálogos (Diego, 2026-11-09):** Preferencias no oscurece la ventana. No es modal, para
 poder ajustar algo en pleno set sin perder de vista los decks. Los diálogos que bloquean (primer arranque y
-confirmaciones) sí llevan el velo de la maqueta.
+confirmaciones) sí llevan el velo de la maqueta. En Wayland el velo es una ventana hija y cubre el contenido, no la
+barra de título que dibuja Qt (CSD); aceptado por Diego el 2026-11-09.
 
 ### 14.4. Criterios para la etapa 2 (QML, GU2)
 
