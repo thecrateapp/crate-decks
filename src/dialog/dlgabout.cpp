@@ -550,19 +550,9 @@ DlgAbout::DlgAbout()
                                     .name(),
                             crate::kHomepageUrl, // Crate Decks
                             tr("Official Website")));
-    if (std::rand() % 6) {
-        if (!Color::isDimColor(palette().text().color())) {
-            btnDonate->setIcon(QIcon(":/images/heart_icon_light.svg"));
-        } else {
-            btnDonate->setIcon(QIcon(":/images/heart_icon_dark.svg"));
-        }
-    } else {
-        btnDonate->setIcon(QIcon(":/images/heart_icon_rainbow.svg"));
-    }
-    btnDonate->setText(tr("Donate to Mixxx")); // Crate Decks: it goes to Mixxx
-    connect(btnDonate, &QPushButton::clicked, this, [] {
-        mixxx::DesktopHelper::openUrl(QUrl(MIXXX_DONATE_URL));
-    });
+    // Crate Decks: of Mixxx, About keeps only the legal line, the credits
+    // and the licence; it asks for no donations (D2)
+    btnDonate->hide();
 
     connect(buttonBox, &QDialogButtonBox::accepted, this, &DlgAbout::accept);
     connect(buttonBox, &QDialogButtonBox::rejected, this, &DlgAbout::reject);

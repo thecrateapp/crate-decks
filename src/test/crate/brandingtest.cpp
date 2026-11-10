@@ -9,6 +9,7 @@
 #include <QHash>
 #include <QImage>
 #include <QLabel>
+#include <QPushButton>
 #include <QRegularExpression>
 #include <QString>
 #include <QTemporaryDir>
@@ -366,6 +367,23 @@ TEST_F(CrateBrandingTest, AboutCreditsMixxxAndLinksTheSourceCode) {
     const auto* pLicense = about.findChild<QTextBrowser*>(QStringLiteral("licenseText"));
     ASSERT_NE(nullptr, pLicense);
     EXPECT_TRUE(pLicense->toPlainText().contains(QStringLiteral("Mixxx Development Team")));
+}
+
+TEST_F(CrateBrandingTest, AboutOffersNoDonation) {
+    const DlgAbout about;
+
+    // Of Mixxx, About keeps only the legal line, the credits and the
+    // licence (design D2); Crate Decks asks for no donations to Mixxx
+    const auto* pDonate = about.findChild<QPushButton*>(QStringLiteral("btnDonate"));
+    if (pDonate) {
+        EXPECT_TRUE(pDonate->isHidden());
+    }
+    for (const QPushButton* pButton : about.findChildren<QPushButton*>()) {
+        if (!pButton->isHidden()) {
+            EXPECT_FALSE(pButton->text().contains(QStringLiteral("Donate"), Qt::CaseInsensitive))
+                    << qPrintable(pButton->text());
+        }
+    }
 }
 
 TEST_F(CrateBrandingTest, AboutCreditsTheSolarIcons) {

@@ -107,11 +107,7 @@ void styleAbout(QDialog* pAbout) {
         }
     }
 
-    // The actions: Donate (Solar's heart) as a ghost button, OK as the action
-    if (auto* pDonate = pAbout->findChild<QPushButton*>(QStringLiteral("btnDonate"))) {
-        pDonate->setIcon(QIcon(designPath() + QStringLiteral("icons/heart_idle.svg")));
-        setButtonVariant(pDonate, "ghost", true);
-    }
+    // The action: OK
     if (auto* pButtons = pAbout->findChild<QDialogButtonBox*>(QStringLiteral("buttonBox"))) {
         if (QPushButton* pOk = pButtons->button(QDialogButtonBox::Ok)) {
             // Without the mnemonic's underline, which the mockups do not

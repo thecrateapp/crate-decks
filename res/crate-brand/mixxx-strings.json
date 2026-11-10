@@ -187,14 +187,6 @@
       "why": "Credits in About: design D2 and the GPL's notices"
     },
     {
-      "source": "Donate to Mixxx",
-      "files": [
-        "src/dialog/dlgabout.cpp"
-      ],
-      "treatment": "keep",
-      "why": "Credits in About: design D2 and the GPL's notices"
-    },
-    {
       "source": "Mixxx %1.%2 Development Team",
       "files": [
         "src/dialog/dlgabout.cpp"

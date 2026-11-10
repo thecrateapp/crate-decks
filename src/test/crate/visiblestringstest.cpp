@@ -30,8 +30,7 @@ namespace {
 const QRegularExpression kMixxxProjectReference(QStringLiteral(
         "Mixxx(?= versions| [0-9]| %[0-9]| mode| Controller Engine"
         "| DJ Hardware Guide| (?i:user manual)| Development Team|</a>"
-        "|&nbsp;| Wiki| Controller Forums)"
-        "|Donate to Mixxx"));
+        "|&nbsp;| Wiki| Controller Forums)"));
 
 const QRegularExpression kTrCall(QStringLiteral(
         "\\btr\\(\\s*((?:\"(?:[^\"\\\\]|\\\\.)*\"\\s*)+)"));
@@ -154,7 +153,6 @@ TEST(CrateVisibleStringsTest, ProjectReferencesStay) {
                  QStringLiteral("Mixxx DJ Hardware Guide"),
                  QStringLiteral("Refer to the Mixxx User Manual for details."),
                  QStringLiteral("a newer Mixxx Controller Engine"),
-                 QStringLiteral("Donate to Mixxx"),
          }) {
         QString withoutProjectReferences = string;
         withoutProjectReferences.remove(kMixxxProjectReference);

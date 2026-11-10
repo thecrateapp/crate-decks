@@ -346,8 +346,8 @@ TEST_F(CrateBrandTranslatorTest, UsesCuratedTexts) {
 }
 
 TEST_F(CrateBrandTranslatorTest, KeepsTheAboutCredits) {
-    EXPECT_QSTRING_EQ(QStringLiteral("Donate to Mixxx"),
-            QCoreApplication::translate("DlgAbout", "Donate to Mixxx"));
+    EXPECT_QSTRING_EQ(QStringLiteral("Mixxx %1.%2 Development Team"),
+            QCoreApplication::translate("DlgAbout", "Mixxx %1.%2 Development Team"));
 }
 
 TEST_F(CrateBrandTranslatorTest, WinsOverTranslatorsInstalledLater) {
