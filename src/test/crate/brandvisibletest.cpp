@@ -284,7 +284,7 @@ TEST_F(CrateBrandVisibleTest, NoMixxxAnywhere) {
     decks.writeProfile(kCrateDecks);
     TextCollector texts;
     ShownDialogs dialogs(&texts);
-    decks.start(application(), [this, &dialogs] { application()->installEventFilter(&dialogs); });
+    decks.start(application(), [&dialogs] { application()->installEventFilter(&dialogs); });
     ASSERT_NE(nullptr, decks.skin());
     decks.mainWindow()->show();
     waitFor([] { return false; }, 300);

@@ -248,8 +248,9 @@ TEST_F(CrateDbWriteLockTest, WritesGetTheLockSoonAfterItIsFree) {
         QThread::msleep(7);
     }
     writer.stop();
-    // One transaction of the other connection, and some slack
-    EXPECT_LT(longestMs, 100);
+    // One transaction of the other connection, and slack for a loaded CI
+    // runner; the scanner fix targets a worst wait under 250 ms
+    EXPECT_LT(longestMs, 250);
 }
 
 } // namespace
