@@ -709,7 +709,8 @@ TEST_F(CrateClientTest, StreamRenewsTheTokenAndStreamsNoErrorBody) {
     lastReply()->respond(401, QByteArrayLiteral(R"({"detail": "expired"})"));
     m_tokens.finishRenewal(true, QStringLiteral("access-2"));
     ASSERT_EQ(2, m_network.sent.size());
-    EXPECT_EQ(QByteArrayLiteral("Bearer access-2"), lastReply()->request().rawHeader("Authorization"));
+    EXPECT_EQ(QByteArrayLiteral("Bearer access-2"),
+            lastReply()->request().rawHeader("Authorization"));
     lastReply()->respond(200, QByteArray());
 
     EXPECT_TRUE(received.isEmpty());
