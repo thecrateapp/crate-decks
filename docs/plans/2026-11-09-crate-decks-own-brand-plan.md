@@ -1,7 +1,7 @@
 # Crate Decks — Own brand: nothing of Mixxx reaches the user
 
-> **For agents:** run the tasks in order, each starting with its red test. Stop at the decisions in §7:
-> they are Diego's. AGENTS.md applies (no push or PR unless asked, conventional commits, refactors apart).
+> **For agents:** run the tasks in order, each starting with its red test. The decisions of §7 are Diego's;
+> he took them on 2026-11-10. AGENTS.md applies (no push or PR unless asked, conventional commits, refactors apart).
 >
 > Design: [2026-11-02-crate-decks-design.md](2026-11-02-crate-decks-design.md) (D2, D3 and §5.2).
 > Implementation plan: [2026-11-02-crate-decks-implementation-plan.md](2026-11-02-crate-decks-implementation-plan.md)
@@ -226,9 +226,13 @@ kicker, display title, paragraph, fields and Crate buttons) and only tokens and 
   "Crate · <server>" (§7.3). The GU1 mockups change the same word (`first-run.html`, `lib/decks.js`).
 - **Red test:** `CrateSkinLoadTest.SidebarSectionsNameNoMixxx`.
 
-### BR.PR7 · Help and documentation links (blocked on §7.1)
+### BR.PR7 · Help and documentation links (decided in §7.1: Crate's own docs)
 
-- One table, `crate::helpUrl(kind)`, for the 21 URL macros of `src/defs_urls.h`. Its targets are Diego's choice.
+- One table, `crate::helpUrl(kind)`, for the 21 URL macros of `src/defs_urls.h`, pointing at Crate's own
+  documentation pages (manual, community, wiki and controller mappings).
+- **Separate follow-up PR** (`feat/decks-help-links`), not part of the brand PR: the pages ship with the next
+  Crate release, through a PR to the monorepo's docs site, and the Decks PR merges only once they are live, so
+  that no link points at a page that does not exist.
 - Until then the labels are neutral ("User manual", "DJ Hardware Guide") and the targets are unchanged.
 - **Red test** (when decided): `CrateBrandTest.NoLinkLeadsToMixxx` over every `href` in the inventory, Help menu
   and Preferences.
@@ -279,20 +283,34 @@ Mixxx itself would behave the same with them.
 
 ## 7. Decisions for Diego
 
+**Decided by Diego on 2026-11-10** ("las pantallas están perfectas, vamos con ellas"); each point says what
+was decided.
+
 1. **Help and documentation links** (43 uses: Help menu, Preferences, mapping forums and wikis). Options:
    (a) hide them until Crate Decks has its own documentation; (b) point them to Crate pages that redirect to
    Mixxx's manual for now; (c) keep Mixxx's documentation with neutral labels. Recommendation: (b), one table
    (`crate::helpUrl`) so the targets can change without touching code. Until he decides, the labels are neutral
    and the targets unchanged (BR.PR7).
+   **Decided:** they go to Crate's own documentation pages. BR.PR7 is a separate follow-up PR that merges
+   once those pages are live.
 2. **About credits and the metainfo line**: keep "based on Mixxx", the Mixxx team and the GPL notice (D2, and
    the GPL requires appropriate copyright notices). Confirm whether *Donate to Mixxx* stays.
+   **Decided:** About keeps only the legal line ("based on Mixxx"), the credits and the copyright and GPL
+   notice; the *Donate to Mixxx* button goes (`40cd5412d9`). The metainfo carries no donation link.
 3. **Name of the local section** of the library sidebar, "Mixxx" in the GU1 mockups. Proposal: "Local".
+   **Decided:** "Local" (BR.PR6). The edited GU1 mockups replace the approved ones; their `.gu1.bak` copies
+   are deleted.
 4. **Mixxx's skins** (LateNight, Deere, Shade, Tango): all carry the Mixxx logo. Proposal: offer only
    `CrateDecks` (implemented in BR.PR5, a one-line filter to undo). This changes V2's "LateNight stays
    selectable".
+   **Decided:** only `CrateDecks` is offered. LateNight stays in the tree, untouched and loadable by the
+   tests, but the skin list does not show it; V2's row in the implementation plan says so.
 5. **New first-start pages** (sound and local music): approve their mockups and captures, like GU1.
+   **Decided:** approved. `decks-mockups/first-run-pages.html` (`#sound`, `#none`, `#music`) is spec, like the
+   GU1 mockups, and is listed in the mockups' index.
 6. **Local folders** stay optional next to the Crate library (assumed from the brief; BR.PR3 offers them as an
    optional last page).
+   **Decided:** optional at the first start, as built.
 
 ## 8. Status (2026-11-09)
 
@@ -325,5 +343,8 @@ Built on `feat/decks-own-brand` (local, not pushed), one commit per task, each b
   pages next to their mockups).
 - **Mockups:** `decks-mockups/first-run-pages.html` (`#sound`, `#none`, `#music`) for §7.5. The GU1 mockups say
   "Local" instead of "Mixxx" (`first-run.html`, `lib/decks.js`; the approved versions are kept as `.gu1.bak`).
-- **Still to do:** BR.PR7 (needs §7.1), BR.PR8 (with F9.PR1), BR.PR9 (optional refactor).
+- **2026-11-10:** Diego decided §7. `40cd5412d9` (feat(decks): drop the Donate to Mixxx button from About)
+  follows §7.2, test first (`CrateBrandingTest.AboutOffersNoDonation`); the inventory drops the string (104
+  strings, 2 kept).
+- **Still to do:** BR.PR7 (decided, separate follow-up PR), BR.PR8 (with F9.PR1), BR.PR9 (optional refactor).
 

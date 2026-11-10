@@ -1191,7 +1191,8 @@ ya las recoge.
 ### V2 · Skin `CrateDecks`
 
 Base: copia de `res/skins/LateNight/` en `res/skins/CrateDecks/` (el commit de la copia queda anotado en
-`CRATE_PATCHES.md`). LateNight queda intacta y seleccionable.
+`CRATE_PATCHES.md`). LateNight queda intacta. Desde la marca propia (BR.PR5, decisión de Diego del 2026-11-10)
+ya no es seleccionable: la lista de skins solo ofrece `CrateDecks`, y LateNight sigue en el árbol para los tests.
 
 | PR | Alcance | Ficheros principales |
 |---|---|---|
@@ -1241,7 +1242,7 @@ PR indicado.
 - `src/test/crate/skinloadtest.cpp`:
   - `CrateDecksSkinLoadsWithoutParserWarnings`: carga la skin con `QT_QPA_PLATFORM=offscreen` y falla si el log tiene avisos de `LegacySkinParser`.
   - `IsDefaultSkin`.
-  - `LateNightStillLoads`.
+  - `LateNightStillLoads` (carga, aunque desde BR.PR5 no se ofrezca en la lista de skins).
 - `src/test/crate/delegatestest.cpp`: `PaintsCamelotChip`, `PaintsProfileQualityTones`, `PaintsCacheState` (render a `QImage` y comprobación de píxeles de color en posiciones clave).
 - `TEST_GAP:` la fidelidad visual frente a las maquetas solo se revisa a ojo. Cada PR adjunta capturas a 1920×1080 y 1366×768 junto a la maqueta aprobada.
 
