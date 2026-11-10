@@ -626,7 +626,7 @@ class MainThreadStalls {
     MainThreadStalls() {
         m_timer.setTimerType(Qt::PreciseTimer);
         m_timer.setInterval(1);
-        QObject::connect(&m_timer, &QTimer::timeout, [this] {
+        QObject::connect(&m_timer, &QTimer::timeout, &m_timer, [this] {
             if (m_clock.isValid()) {
                 m_longestMs = std::max(m_longestMs, m_clock.restart());
             } else {
