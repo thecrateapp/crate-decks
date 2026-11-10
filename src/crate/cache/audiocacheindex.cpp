@@ -70,7 +70,7 @@ CacheEntry entryOf(const QSqlQuery& query) {
 
 /// A null QString binds as NULL: the text columns are NOT NULL.
 QString text(const QString& value) {
-    return value.isNull() ? QStringLiteral("") : value;
+    return value.isNull() ? QString(QLatin1String("")) : value;
 }
 
 const char* const kSelect =
@@ -224,7 +224,8 @@ Reconciliation AudioCacheIndex::reconcile() {
     Reconciliation reconciliation;
     const QDir directory(m_directory);
     QSet<QString> ownedPartFiles;
-    for (CacheEntry entry : entries()) {
+    const QList<CacheEntry> stored = entries();
+    for (CacheEntry entry : stored) {
         const bool hasPath = !entry.path.isEmpty();
         const QString path = hasPath ? directory.filePath(entry.path) : QString();
         const bool hasFile = hasPath && QFileInfo(path).isFile();
