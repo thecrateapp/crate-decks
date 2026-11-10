@@ -38,7 +38,7 @@ const QString kPartialFixture = QStringLiteral("partial.json");
 
 const QString kAudioFile = QStringLiteral("id3-test-data/cover-test-øé~ł€˚.flac");
 
-mixxx::audio::StreamInfo streamInfo(double sampleRate) {
+mixxx::audio::StreamInfo streamInfo(mixxx::audio::SampleRate::value_t sampleRate) {
     return mixxx::audio::StreamInfo(mixxx::audio::SignalInfo(
             mixxx::audio::ChannelCount::stereo(), mixxx::audio::SampleRate(sampleRate)));
 }
@@ -92,7 +92,7 @@ TEST_F(AnalysisImporterTest, ImportsBeatGridAtFileSampleRate) {
     ASSERT_TRUE(grid.passed) << grid.reason.toStdString();
     EXPECT_DOUBLE_EQ(124.0, grid.bpm);
 
-    for (const double sampleRate : {44100.0, 48000.0}) {
+    for (const mixxx::audio::SampleRate::value_t sampleRate : {44100u, 48000u}) {
         CrateBeatsImporter importer(grid, profile.profileRevision);
         const mixxx::BeatsPointer pBeats = importer.importBeatsAndApplyTimingOffset(
                 QString(), QString(), streamInfo(sampleRate));
@@ -101,7 +101,7 @@ TEST_F(AnalysisImporterTest, ImportsBeatGridAtFileSampleRate) {
         EXPECT_TRUE(pBeats->hasConstantTempo());
         EXPECT_NEAR(124.0,
                 pBeats->getBpmInRange(mixxx::audio::kStartFramePos,
-                              mixxx::audio::FramePos(60 * sampleRate))
+                              mixxx::audio::FramePos(60.0 * sampleRate))
                         .value(),
                 1e-6);
         EXPECT_EQ(QStringLiteral("crate-mix-profile-") + profile.profileRevision,

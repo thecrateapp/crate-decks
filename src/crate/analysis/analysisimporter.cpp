@@ -334,7 +334,7 @@ ImportOutcome AnalysisImporter::apply(const TrackPointer& pTrack,
         outcome.beatsSkipped = importBeats(pTrack, profile);
         outcome.beatsImported = outcome.beatsSkipped.isEmpty();
         if (!outcome.beatsImported) {
-            kLogger.info() << "Mixxx analyses the beats of" << profile.entityUid << ":"
+            kLogger.info() << "The local analysis gives the beats of" << profile.entityUid << ":"
                            << outcome.beatsSkipped;
         }
     }

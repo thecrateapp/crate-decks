@@ -128,7 +128,8 @@ Parsed parseBatch(const QByteArray& body, const QStringList& uids) {
         byUid.insert(uid, profile);
     }
     QSet<QString> missing;
-    for (const QJsonValue& value : missingValue.toArray()) {
+    const QJsonArray missingUids = missingValue.toArray();
+    for (const QJsonValue& value : missingUids) {
         missing.insert(value.toString().toLower());
     }
     for (const QString& uid : uids) {
