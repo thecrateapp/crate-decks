@@ -3,6 +3,7 @@
 #include <QByteArray>
 #include <QJsonDocument>
 #include <QList>
+#include <QNetworkReply>
 #include <QObject>
 #include <QPointer>
 #include <QString>
@@ -18,7 +19,7 @@
 #include "preferences/usersettings.h"
 
 class QNetworkAccessManager;
-class QNetworkReply;
+class QNetworkRequest;
 
 namespace crate {
 
@@ -79,6 +80,13 @@ struct RequestOptions {
     /// Sent instead of the TokenSource's token, and never renewed: a 401 is
     /// an Auth error. For revoking a session that is already closed locally.
     std::optional<QString> bearerToken;
+    /// More request headers, such as If-None-Match or Last-Event-ID. They
+    /// never replace Authorization or the Client's own headers.
+    QList<std::pair<QByteArray, QByteArray>> headers;
+    /// Leaves the answer unparsed: finished() carries a null document and
+    /// Reply::body() the bytes. For answers that are parsed off the main
+    /// thread (design §9).
+    bool rawBody = false;
 };
 
 /// The ID of this installation, created the first time and kept in the
@@ -98,16 +106,37 @@ class Reply : public QObject {
 
     void cancel();
 
+    /// The HTTP status of the answer, 0 if there was none. Like the two
+    /// below, it is set when finished() is emitted. A 304 Not Modified is not
+    /// an error: it finishes with a null document.
+    int httpStatus() const {
+        return m_response.status;
+    }
+    /// A header of the answer, such as ETag; empty if it has none.
+    QByteArray rawHeader(const QByteArray& name) const;
+    /// The body of a RequestOptions::rawBody request.
+    const QByteArray& body() const {
+        return m_response.body;
+    }
+
   signals:
     void finished(const crate::JsonResult& result);
     void progress(qint64 bytesReceived, qint64 bytesTotal);
 
   private:
     friend class Client;
+    struct Response {
+        int status = 0;
+        QList<QNetworkReply::RawHeaderPair> headers;
+        QByteArray body;
+    };
+
     explicit Reply(Client* pClient);
     void finish(const JsonResult& result);
+    void finish(const JsonResult& result, const Response& response);
 
     QPointer<Client> m_pClient;
+    Response m_response;
     bool m_finished = false;
 };
 
@@ -153,6 +182,13 @@ class Client : public QObject {
             const RequestOptions& options = RequestOptions());
     Reply* del(const QString& path, const RequestOptions& options = RequestOptions());
 
+    /// Opens a long-lived GET such as a server-sent event stream: the same
+    /// headers as get() plus `Accept: text/event-stream`, no transfer
+    /// timeout, and outside the limit of concurrent requests. The caller owns
+    /// the reply and reads it as it arrives; a 401 is not renewed here.
+    QNetworkReply* openStream(const QString& path,
+            const RequestOptions& options = RequestOptions());
+
   private:
     friend class Reply;
     enum class Method {
@@ -168,6 +204,11 @@ class Client : public QObject {
             const QString& path,
             const QByteArray& body,
             const RequestOptions& options);
+    QUrl urlOf(const QString& path, const QUrlQuery& query) const;
+    /// The headers every request carries, after the caller's own.
+    void setHeaders(QNetworkRequest* pRequest,
+            const QList<std::pair<QByteArray, QByteArray>>& extraHeaders,
+            const QString& token) const;
     void pump();
     void send(const CallPtr& pCall);
     void onNetworkReplyFinished(const CallPtr& pCall);
@@ -177,7 +218,9 @@ class Client : public QObject {
     /// Finishes `calls` with `result`. Their Replies get it last, once this
     /// Client is done with its own state: a slot connected to finished() may
     /// delete the Client, so callers return right after this.
-    void complete(const QList<CallPtr>& calls, const JsonResult& result);
+    void complete(const QList<CallPtr>& calls,
+            const JsonResult& result,
+            const Reply::Response& response = Reply::Response());
     void detach(Reply* pReply);
     /// Drops a call from every queue, aborting its network reply if any.
     void forget(const CallPtr& pCall);

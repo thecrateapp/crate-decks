@@ -5337,6 +5337,10 @@ if(CRATE)
       src/crate/db/crateserverprofiles.cpp
       src/crate/db/crateserverschema.cpp
       src/crate/inference/modelstore.cpp
+      src/crate/library/crateeventsubscriber.cpp
+      src/crate/library/cratelibraryjson.cpp
+      src/crate/library/cratelibrarystore.cpp
+      src/crate/library/cratelibrarysync.cpp
       src/crate/session/crateloopbackserver.cpp
       src/crate/session/cratesecretstore.cpp
       src/crate/session/cratesession.cpp
@@ -5375,7 +5379,9 @@ if(CRATE)
       PRIVATE
         src/test/crate/cratecapabilities_test.cpp
         src/test/crate/crateclient_test.cpp
+        src/test/crate/crateeventsubscriber_test.cpp
         src/test/crate/cratejson_test.cpp
+        src/test/crate/cratelibrarysync_test.cpp
         src/test/crate/crateloopbackserver_test.cpp
         src/test/crate/cratesecretstore_test.cpp
         src/test/crate/crateserverprofiles_test.cpp
