@@ -249,7 +249,9 @@ void CrateServerTrackModel::load() {
     request.source = m_source;
     request.containerId = m_containerId;
     request.serverId = m_serverId;
-    request.terms = m_search.split(QLatin1Char(' '), Qt::SkipEmptyParts);
+    if (m_filterBySearch) {
+        request.terms = m_search.split(QLatin1Char(' '), Qt::SkipEmptyParts);
+    }
     QString expression = sortExpression(m_sortColumn);
     if (expression.isEmpty() ||
             (m_source == Source::Library && m_sortColumn == kPositionColumn)) {
@@ -519,10 +521,14 @@ const QVector<int> CrateServerTrackModel::getTrackRows(TrackId trackId) const {
 }
 
 void CrateServerTrackModel::search(const QString& searchText) {
-    if (searchText == m_search) {
+    if (m_searchHandler && m_searchHandler(searchText)) {
+        return;
+    }
+    if (searchText == m_search && m_filterBySearch) {
         return;
     }
     m_search = searchText;
+    m_filterBySearch = true;
     load();
 }
 

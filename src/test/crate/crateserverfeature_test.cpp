@@ -8,6 +8,10 @@
 #include <QSignalSpy>
 #include <QSqlQuery>
 #include <QTest>
+#include <QTimer>
+#include <QUrlQuery>
+#include <algorithm>
+#include <iostream>
 #include <memory>
 
 #include "crate/crateservers.h"
@@ -541,6 +545,173 @@ TEST_F(CrateServerFeatureTest, NameDoesNotCollideWithMixxxCrates) {
     ASSERT_TRUE(crateTracks.exec(QStringLiteral("SELECT COUNT(*) FROM crate_tracks")));
     ASSERT_TRUE(crateTracks.next());
     EXPECT_EQ(0, crateTracks.value(0).toInt());
+}
+
+} // namespace
+
+namespace {
+
+// F3.C-PR3: in the Crate section the library's search box asks the server's
+// DJ search, and its results replace the tracks on screen until the search
+// is cleared.
+TEST_F(CrateServerFeatureTest, SearchInTheCrateSectionAsksTheServer) {
+    storeTree();
+    storeContainerTracks(containerId(QStringLiteral("playlist"), QStringLiteral("7")),
+            {remoteTrack(QStringLiteral("e1"),
+                    QStringLiteral("Lattice"),
+                    0.7,
+                    QStringLiteral("full"))});
+    CrateServerFeature* pFeature = makeFeature();
+    QSignalSpy shown(pFeature, &LibraryFeature::showTrackModel);
+    TreeItem* pWarmUp = childLabelled(childLabelled(root(), QStringLiteral("Playlists")),
+            QStringLiteral("Warm-up"));
+    ASSERT_NE(nullptr, pWarmUp);
+    pFeature->activateChild(indexOf(pWarmUp));
+    ASSERT_EQ(1, shown.size());
+    auto* pBrowsed = dynamic_cast<CrateServerTrackModel*>(
+            shown.last().first().value<QAbstractItemModel*>());
+    ASSERT_NE(nullptr, pBrowsed);
+    ASSERT_TRUE(QTest::qWaitFor([&] { return sentTo(QStringLiteral("/api/capabilities")) == 1; },
+            5000));
+    lastTo(QStringLiteral("/api/capabilities"))->pReply->respond(200, kCapabilities);
+
+    // What the user types goes to the server, verbatim, after the debounce
+    pBrowsed->search(QStringLiteral("bpm:120-128 key:8A"));
+    const QString search = QStringLiteral("/api/search");
+    ASSERT_TRUE(QTest::qWaitFor([&] { return sentTo(search) == 1; }, 5000));
+    const QUrlQuery query(lastTo(search)->request.url());
+    EXPECT_EQ(QStringLiteral("dj"), query.queryItemValue(QStringLiteral("fields")));
+    EXPECT_EQ(QStringLiteral("bpm:120-128 key:8A"),
+            query.queryItemValue(QStringLiteral("q"), QUrl::FullyDecoded));
+    lastTo(search)->pReply->respond(200,
+            QByteArrayLiteral(R"({"artists": [], "albums": [], "tracks": [
+                {"entity_uid": "s2", "title": "Second Light", "artist": "Mirae",
+                 "album": "Tides", "duration": 301.0, "bpm": 126.0, "camelot": "8A",
+                 "energy": 0.8, "playable": true},
+                {"entity_uid": "s1", "title": "First Light", "artist": "Mirae",
+                 "album": "Tides", "duration": 280.0, "bpm": 121.0, "camelot": "8A",
+                 "energy": 0.6, "playable": true}]})"));
+
+    // The results, in the server's order, with the query in the search box
+    ASSERT_TRUE(QTest::qWaitFor([&] { return shown.size() == 2; }, 5000));
+    auto* pResults = dynamic_cast<CrateServerTrackModel*>(
+            shown.last().first().value<QAbstractItemModel*>());
+    ASSERT_NE(nullptr, pResults);
+    ASSERT_TRUE(QTest::qWaitFor([&] { return pResults->rowCount() == 2; }, 5000));
+    const int title = pResults->fieldIndex(QStringLiteral("title"));
+    EXPECT_EQ(QStringLiteral("Second Light"), pResults->index(0, title).data().toString());
+    EXPECT_EQ(QStringLiteral("First Light"), pResults->index(1, title).data().toString());
+    EXPECT_EQ(QStringLiteral("bpm:120-128 key:8A"), pResults->currentSearch());
+    // Not a sidebar node
+    EXPECT_EQ(2, labels(childLabelled(root(), QStringLiteral("Playlists"))).size());
+    EXPECT_EQ(5, labels(root()).size());
+
+    // Clearing the search shows the playlist again, unfiltered
+    pResults->search(QString());
+    ASSERT_TRUE(QTest::qWaitFor([&] { return shown.size() == 3; }, 5000));
+    EXPECT_EQ(pBrowsed, shown.last().first().value<QAbstractItemModel*>());
+    EXPECT_TRUE(pBrowsed->currentSearch().isEmpty());
+    ASSERT_TRUE(QTest::qWaitFor([&] { return pBrowsed->rowCount() == 1; }, 5000));
+    EXPECT_EQ(1, sentTo(search));
+}
+
+} // namespace
+
+namespace {
+
+/// The longest gap between ticks of a 1 ms timer on the main thread: how long
+/// it was blocked, at most.
+class MainThreadStalls {
+  public:
+    MainThreadStalls() {
+        m_timer.setTimerType(Qt::PreciseTimer);
+        m_timer.setInterval(1);
+        QObject::connect(&m_timer, &QTimer::timeout, &m_timer, [this] {
+            if (m_clock.isValid()) {
+                m_longestMs = std::max(m_longestMs, m_clock.restart());
+            } else {
+                m_clock.start();
+            }
+        });
+        m_timer.start();
+    }
+    qint64 longestMs() const {
+        return m_longestMs;
+    }
+
+  private:
+    QTimer m_timer;
+    QElapsedTimer m_clock;
+    qint64 m_longestMs = 0;
+};
+
+// The manual check of F3.C-PR3 (a 2,000-track playlist and the DJ search,
+// against the budgets of design §9), offline: the tables and the network are
+// local fakes, so it measures the client's own work only. Opt-in, since
+// timings vary with the machine: CRATE_DECKS_MEASURE=1.
+// TEST_GAP: the dev stack's latency is not in it (G3 session).
+TEST_F(CrateServerFeatureTest, MeasureLargePlaylistAndSearch) {
+    if (qEnvironmentVariableIntValue("CRATE_DECKS_MEASURE") != 1) {
+        GTEST_SKIP() << "Measurement; run with CRATE_DECKS_MEASURE=1";
+    }
+    storeTree();
+    QList<crate::library::RemoteTrack> tracks;
+    for (int i = 0; i < 2000; ++i) {
+        tracks.append(remoteTrack(QStringLiteral("p%1").arg(i),
+                QStringLiteral("Track %1").arg(i),
+                0.5,
+                QStringLiteral("full")));
+    }
+    storeContainerTracks(containerId(QStringLiteral("playlist"), QStringLiteral("7")), tracks);
+    CrateServerFeature* pFeature = makeFeature();
+    QSignalSpy shown(pFeature, &LibraryFeature::showTrackModel);
+    TreeItem* pWarmUp = childLabelled(childLabelled(root(), QStringLiteral("Playlists")),
+            QStringLiteral("Warm-up"));
+    ASSERT_NE(nullptr, pWarmUp);
+
+    MainThreadStalls stalls;
+    QElapsedTimer clock;
+    clock.start();
+    pFeature->activateChild(indexOf(pWarmUp));
+    auto* pPlaylist = dynamic_cast<CrateServerTrackModel*>(
+            shown.last().first().value<QAbstractItemModel*>());
+    ASSERT_NE(nullptr, pPlaylist);
+    ASSERT_TRUE(QTest::qWaitFor([&] { return pPlaylist->rowCount() == 2000; }, 10000));
+    const qint64 openMs = clock.elapsed();
+    ASSERT_TRUE(QTest::qWaitFor([&] { return sentTo(QStringLiteral("/api/capabilities")) == 1; },
+            5000));
+    lastTo(QStringLiteral("/api/capabilities"))->pReply->respond(200, kCapabilities);
+
+    QByteArray body = QByteArrayLiteral(R"({"artists": [], "albums": [], "tracks": [)");
+    for (int i = 0; i < 50; ++i) {
+        if (i > 0) {
+            body += ',';
+        }
+        body += QStringLiteral(R"({"entity_uid": "s%1", "title": "Result %1", "artist": "Mirae",
+            "album": "Tides", "duration": 300.0, "bpm": 124.0, "camelot": "8A",
+            "energy": 0.7, "playable": true})")
+                        .arg(i)
+                        .toUtf8();
+    }
+    body += QByteArrayLiteral("]}");
+    pPlaylist->search(QStringLiteral("bpm:120-128 key:8A"));
+    const QString search = QStringLiteral("/api/search");
+    ASSERT_TRUE(QTest::qWaitFor([&] { return sentTo(search) == 1; }, 5000));
+    clock.restart();
+    lastTo(search)->pReply->respond(200, body);
+    ASSERT_TRUE(QTest::qWaitFor([&] { return shown.size() == 2; }, 5000));
+    auto* pResults = dynamic_cast<CrateServerTrackModel*>(
+            shown.last().first().value<QAbstractItemModel*>());
+    ASSERT_TRUE(QTest::qWaitFor([&] { return pResults->rowCount() == 50; }, 5000));
+    const qint64 resultsMs = clock.elapsed();
+
+    std::cout << "[ MEASURE  ] open 2000-track playlist: " << openMs
+              << " ms; search answer to 50 rows: " << resultsMs
+              << " ms; longest main-thread stall: " << stalls.longestMs() << " ms\n";
+    // Design §9: a synced 500-track container in under 150 ms; the main
+    // thread never blocked more than 16 ms
+    EXPECT_LT(openMs, 600);
+    EXPECT_LT(stalls.longestMs(), 16);
 }
 
 } // namespace

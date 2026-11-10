@@ -15,6 +15,7 @@
 #include "crate/library/crateeventsubscriber.h"
 #include "crate/library/cratelibraryjson.h"
 #include "crate/library/cratelibrarysync.h"
+#include "crate/library/cratesearch.h"
 #include "library/crateserver/crateservertrackmodel.h"
 #include "library/library.h"
 #include "library/library_prefs.h"
@@ -174,6 +175,7 @@ struct CrateServerFeature::Server {
     QString id;
     std::unique_ptr<LibrarySync> pSync;
     std::unique_ptr<EventSubscriber> pEvents;
+    std::unique_ptr<Search> pSearch;
     enum class Readiness {
         Unknown,
         Checking,
@@ -211,8 +213,19 @@ CrateServerFeature::CrateServerFeature(Library* pLibrary,
                   CrateServerTrackModel::Source::Library,
                   dependencies.pTrackCollectionManager->internalCollection()->database(),
                   dependencies.pDbConnectionPool,
+                  this)),
+          m_pSearchModel(make_parented<CrateServerTrackModel>(
+                  CrateServerTrackModel::Source::Container,
+                  dependencies.pTrackCollectionManager->internalCollection()->database(),
+                  dependencies.pDbConnectionPool,
                   this)) {
     m_pool.setMaxThreadCount(1);
+    for (CrateServerTrackModel* pModel :
+            {m_pContainerModel.get(), m_pLibraryModel.get(), m_pSearchModel.get()}) {
+        pModel->setSearchHandler([this, pModel](const QString& text) {
+            return onSearch(pModel, text);
+        });
+    }
     m_pSidebarModel->setRootItem(TreeItem::newRoot(this));
     if (m_dependencies.pServers) {
         watchServers(m_dependencies.pServers);
@@ -275,6 +288,16 @@ void CrateServerFeature::updateServers() {
         pServer->pSync = std::make_unique<LibrarySync>(
                 id, m_pServers->client(id), m_dependencies.pDbConnectionPool);
         LibrarySync* pSync = pServer->pSync.get();
+        if (Client* pClient = m_pServers->client(id)) {
+            pServer->pSearch = std::make_unique<Search>(
+                    id, pClient, m_dependencies.pDbConnectionPool);
+            connect(pServer->pSearch.get(),
+                    &Search::resultsReady,
+                    this,
+                    [this, id](qint64 containerId, const QString& query) {
+                        onSearchResults(id, containerId, query);
+                    });
+        }
         connect(pSync, &LibrarySync::containersUpdated, this, [this, id] {
             loadSidebar(id);
         });
@@ -686,6 +709,7 @@ void CrateServerFeature::onLazyChildExpandation(const QModelIndex& index) {
 }
 
 void CrateServerFeature::showLibrary(const QString& serverId) {
+    endSearch();
     m_pLibraryModel->setBpmPrecision(m_pConfig->getValue(
             mixxx::library::prefs::kBpmColumnPrecisionConfigKey,
             BaseTrackTableModel::kBpmColumnPrecisionDefault));
@@ -696,6 +720,8 @@ void CrateServerFeature::showLibrary(const QString& serverId) {
 }
 
 void CrateServerFeature::showContainer(const QString& serverId, qint64 containerId) {
+    endSearch();
+    m_containerServerId = serverId;
     m_pContainerModel->setBpmPrecision(m_pConfig->getValue(
             mixxx::library::prefs::kBpmColumnPrecisionConfigKey,
             BaseTrackTableModel::kBpmColumnPrecisionDefault));
@@ -706,6 +732,74 @@ void CrateServerFeature::showContainer(const QString& serverId, qint64 container
     whenReady(serverId, [this, serverId, containerId] {
         syncIfNeeded(serverId, containerId);
     });
+}
+
+bool CrateServerFeature::onSearch(CrateServerTrackModel* pModel, const QString& text) {
+    const bool fromResults = pModel == m_pSearchModel.get();
+    QString serverId;
+    if (fromResults) {
+        serverId = m_searchServerId;
+    } else if (pModel == m_pLibraryModel.get()) {
+        serverId = m_pLibraryModel->serverId();
+    } else {
+        serverId = m_containerServerId;
+    }
+    Server* pServer = server(serverId);
+    if (!pServer || !pServer->pSearch) {
+        // Without the server's search, the words filter what is on screen
+        return false;
+    }
+    if (text.trimmed().size() < 2) {
+        if (!m_searching) {
+            return false;
+        }
+        // Cleared: what was on screen before the search
+        CrateServerTrackModel* pSearched = m_pSearchedModel;
+        const bool resultsShown = m_resultsShown;
+        endSearch();
+        if (resultsShown && pSearched) {
+            emit showTrackModel(pSearched);
+        }
+        return true;
+    }
+    if (fromResults && text == m_pSearchModel->currentSearch() && !pServer->pSearch->isBusy()) {
+        // The search box showing the results' own query again
+        return true;
+    }
+    if (!fromResults) {
+        m_pSearchedModel = pModel;
+    }
+    m_searching = true;
+    m_searchServerId = serverId;
+    pServer->pSearch->search(text);
+    return true;
+}
+
+void CrateServerFeature::onSearchResults(
+        const QString& serverId, qint64 containerId, const QString& query) {
+    if (!m_searching || serverId != m_searchServerId) {
+        return;
+    }
+    m_pSearchModel->setBpmPrecision(m_pConfig->getValue(
+            mixxx::library::prefs::kBpmColumnPrecisionConfigKey,
+            BaseTrackTableModel::kBpmColumnPrecisionDefault));
+    m_pSearchModel->setSearchText(query);
+    m_pSearchModel->showContainer(containerId);
+    if (!m_resultsShown) {
+        m_resultsShown = true;
+        emit showTrackModel(m_pSearchModel);
+        emit enableCoverArtDisplay(false);
+    }
+}
+
+void CrateServerFeature::endSearch() {
+    if (Server* pServer = server(m_searchServerId); pServer && pServer->pSearch) {
+        pServer->pSearch->cancel();
+    }
+    m_searching = false;
+    m_resultsShown = false;
+    m_pSearchedModel = nullptr;
+    m_pSearchModel->setSearchText(QString());
 }
 
 void CrateServerFeature::syncIfNeeded(const QString& serverId, qint64 containerId) {

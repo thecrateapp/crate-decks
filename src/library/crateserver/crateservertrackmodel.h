@@ -4,6 +4,7 @@
 #include <QString>
 #include <QThreadPool>
 #include <QVector>
+#include <functional>
 #include <optional>
 
 #include "library/trackmodel.h"
@@ -80,6 +81,21 @@ class CrateServerTrackModel : public QAbstractTableModel, public TrackModel {
         return m_loading;
     }
 
+    /// Called first when the user searches, with the search box's text: true
+    /// when it takes the search (the Crate section's DJ search, F3.C-PR3), so
+    /// the rows are not filtered here. Without one, or when it returns false,
+    /// the rows are filtered locally by every word.
+    using SearchHandler = std::function<bool(const QString& text)>;
+    void setSearchHandler(SearchHandler handler) {
+        m_searchHandler = std::move(handler);
+    }
+    /// Shows `text` as the current search without filtering the rows: the
+    /// query whose results the model shows.
+    void setSearchText(const QString& text) {
+        m_search = text;
+        m_filterBySearch = false;
+    }
+
     // QAbstractItemModel
     int rowCount(const QModelIndex& parent = QModelIndex()) const override;
     int columnCount(const QModelIndex& parent = QModelIndex()) const override;
@@ -150,6 +166,9 @@ class CrateServerTrackModel : public QAbstractTableModel, public TrackModel {
     qint64 m_containerId = 0;
     QString m_serverId;
     QString m_search;
+    SearchHandler m_searchHandler;
+    /// Whether m_search filters the rows, or only names their query.
+    bool m_filterBySearch = true;
     int m_sortColumn;
     Qt::SortOrder m_sortOrder = Qt::AscendingOrder;
     int m_bpmPrecision = 2;

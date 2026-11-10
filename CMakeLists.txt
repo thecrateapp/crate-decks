@@ -5349,6 +5349,7 @@ if(CRATE)
       src/crate/library/cratelibraryjson.cpp
       src/crate/library/cratelibrarystore.cpp
       src/crate/library/cratelibrarysync.cpp
+      src/crate/library/cratesearch.cpp
       src/crate/session/crateloopbackserver.cpp
       src/crate/session/cratesecretstore.cpp
       src/crate/session/cratesession.cpp
@@ -5392,6 +5393,7 @@ if(CRATE)
         src/test/crate/crateeventsubscriber_test.cpp
         src/test/crate/cratejson_test.cpp
         src/test/crate/cratelibrarysync_test.cpp
+        src/test/crate/cratesearch_test.cpp
         src/test/crate/crateloopbackserver_test.cpp
         src/test/crate/cratesecretstore_test.cpp
         src/test/crate/crateserverprofiles_test.cpp
