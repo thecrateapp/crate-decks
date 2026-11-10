@@ -22,9 +22,9 @@
 #ifdef __BROADCAST__
 #include "preferences/broadcastprofile.h"
 #endif
+#include "preferences/configobject.h"
 #include "preferences/dialog/dlgprefrecord.h"
 #include "recording/defs_recording.h"
-#include "preferences/configobject.h"
 #include "test/mixxxtest.h"
 #include "util/cmdlineargs.h"
 #include "util/versionstore.h"
@@ -232,7 +232,8 @@ TEST_F(CrateBrandingTest, DefaultStreamNameIsTheApplication) {
 TEST_F(CrateBrandingTest, RecordingsFolderIsNamedAfterTheApplication) {
     QTemporaryDir settings;
     ASSERT_TRUE(settings.isValid());
-    auto pConfig = UserSettingsPointer(new UserSettings(settings.filePath(QStringLiteral("mixxx.cfg"))));
+    auto pConfig = UserSettingsPointer(
+            new UserSettings(settings.filePath(QStringLiteral("mixxx.cfg"))));
     const DlgPrefRecord page(nullptr, pConfig);
     const QString folder = pConfig->getValueString(ConfigKey(RECORDING_PREF_KEY, "Directory"));
     EXPECT_TRUE(folder.endsWith(QStringLiteral("/Crate Decks/Recordings"))) << qPrintable(folder);
