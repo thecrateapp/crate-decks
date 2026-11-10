@@ -76,7 +76,9 @@ STATES = {
 # and the Solar icons it colours.
 ICON_STATES_FOR = {
     "accent": ("iconAccent", ("add-circle",)),
-    "danger": ("iconDanger", ("logout", "trash-bin-trash")),
+    "danger": ("iconDanger", ("close-circle", "logout", "trash-bin-trash")),
+    # The icon of a warning message box (own brand, BR.PR3)
+    "warning": ("iconWarning", ("danger-triangle",)),
 }
 
 

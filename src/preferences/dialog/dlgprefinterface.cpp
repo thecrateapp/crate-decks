@@ -289,7 +289,8 @@ void DlgPrefInterface::slotUpdateSkins() {
     QIcon systemSkinIcon;
     if (ComboBoxSkinconf->count() > 0) {
         ComboBoxSkinconf->insertSeparator(index);
-        systemSkinIcon = QIcon(iconsPath.filePath("ic_mixxx_symbolic.svg"));
+        // Crate Decks: the built-in skins carry the Crate logo, not Mixxx's
+        systemSkinIcon = QIcon(QStringLiteral(":/images/crate-logo.svg"));
         index++;
     }
 

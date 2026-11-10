@@ -9,6 +9,7 @@
 #include <QHash>
 #include <QImage>
 #include <QLabel>
+#include <QPushButton>
 #include <QRegularExpression>
 #include <QString>
 #include <QTemporaryDir>
@@ -18,6 +19,11 @@
 #include "crate/appidentity.h"
 #include "defs_urls.h"
 #include "dialog/dlgabout.h"
+#ifdef __BROADCAST__
+#include "preferences/broadcastprofile.h"
+#endif
+#include "preferences/dialog/dlgprefrecord.h"
+#include "recording/defs_recording.h"
 #include "preferences/configobject.h"
 #include "test/mixxxtest.h"
 #include "util/cmdlineargs.h"
@@ -208,6 +214,31 @@ TEST_F(CrateBrandingTest, BroadcastKeychainPrefixIsNotMixxxs) {
     EXPECT_STREQ("Crate - ", crate::kBroadcastKeychainPrefix);
 }
 
+// Plan "Own brand", BR.PR2: what leaves the window names Crate Decks. A new
+// broadcast profile streams as the application, with Crate's website, which
+// listeners and Preferences see.
+TEST_F(CrateBrandingTest, DefaultStreamNameIsTheApplication) {
+#ifdef __BROADCAST__
+    const BroadcastProfile profile(QStringLiteral("Test"));
+    EXPECT_QSTRING_EQ(QStringLiteral("Crate Decks"), profile.getStreamName());
+    EXPECT_QSTRING_EQ(QStringLiteral("https://cratemusic.app"), profile.getStreamWebsite());
+#else
+    GTEST_SKIP() << "Built without broadcasting";
+#endif
+}
+
+// Plan "Own brand", BR.PR2: the default recordings folder, which Preferences
+// shows and the file manager too, is named after the application
+TEST_F(CrateBrandingTest, RecordingsFolderIsNamedAfterTheApplication) {
+    QTemporaryDir settings;
+    ASSERT_TRUE(settings.isValid());
+    auto pConfig = UserSettingsPointer(new UserSettings(settings.filePath(QStringLiteral("mixxx.cfg"))));
+    const DlgPrefRecord page(nullptr, pConfig);
+    const QString folder = pConfig->getValueString(ConfigKey(RECORDING_PREF_KEY, "Directory"));
+    EXPECT_TRUE(folder.endsWith(QStringLiteral("/Crate Decks/Recordings"))) << qPrintable(folder);
+    EXPECT_FALSE(folder.contains(QLatin1String("Mixxx"))) << qPrintable(folder);
+}
+
 // TEST_GAP: whether the icon looks right is a human decision (gate G1).
 TEST_F(CrateBrandingTest, AppIconExistsInEveryInstalledSize) {
     for (const int size : {32, 64, 128, 256, 512}) {
@@ -336,6 +367,23 @@ TEST_F(CrateBrandingTest, AboutCreditsMixxxAndLinksTheSourceCode) {
     const auto* pLicense = about.findChild<QTextBrowser*>(QStringLiteral("licenseText"));
     ASSERT_NE(nullptr, pLicense);
     EXPECT_TRUE(pLicense->toPlainText().contains(QStringLiteral("Mixxx Development Team")));
+}
+
+TEST_F(CrateBrandingTest, AboutOffersNoDonation) {
+    const DlgAbout about;
+
+    // Of Mixxx, About keeps only the legal line, the credits and the
+    // licence (design D2); Crate Decks asks for no donations to Mixxx
+    const auto* pDonate = about.findChild<QPushButton*>(QStringLiteral("btnDonate"));
+    if (pDonate) {
+        EXPECT_TRUE(pDonate->isHidden());
+    }
+    for (const QPushButton* pButton : about.findChildren<QPushButton*>()) {
+        if (!pButton->isHidden()) {
+            EXPECT_FALSE(pButton->text().contains(QStringLiteral("Donate"), Qt::CaseInsensitive))
+                    << qPrintable(pButton->text());
+        }
+    }
 }
 
 TEST_F(CrateBrandingTest, AboutCreditsTheSolarIcons) {

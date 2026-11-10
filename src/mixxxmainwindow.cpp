@@ -66,7 +66,9 @@
 #endif
 
 #ifdef __CRATE__
-// Crate Decks: the application's default style (V2.PR5)
+// Crate Decks: the application's default style (V2.PR5) and the first start,
+// which asks Mixxx's first-run questions (plan "Own brand", BR.PR3)
+#include "crate/ui/cratefirstrun.h"
 #include "crate/ui/dialogs/dialogstyle.h"
 #endif // __CRATE__
 
@@ -331,8 +333,10 @@ void MixxxMainWindow::initialize() {
     tryParseAndSetDefaultStyleSheet();
 
     if (!loadConfiguredSkin()) {
+        // Crate Decks: translatable, so that the brand layer names no Mixxx
         reportCriticalErrorAndQuit(
-                "default skin cannot be loaded - see <b>mixxx</b> trace for more information");
+                tr("default skin cannot be loaded - see <b>mixxx</b> trace for more "
+                   "information"));
         m_pCentralWidget = oldWidget;
         //TODO (XXX) add dialog to warn user and launch skin choice page
     } else {
@@ -373,8 +377,15 @@ void MixxxMainWindow::initialize() {
                     .getOutputs()
                     .isEmpty() &&
             !m_pCoreServices->getSoundManager()->pipewireSkipConfig()) {
-        // Exit when we press the Exit button in the noSoundDlg dialog
-        // only call it if result != OK
+#ifdef __CRATE__
+        // Crate Decks: the first start's sound page offers the outputs, or
+        // continuing without one, in its own words
+        if (crate::firstRunPending(m_pCoreServices->getSettings())) {
+            break;
+        }
+#endif // __CRATE__
+       // Exit when we press the Exit button in the noSoundDlg dialog
+       // only call it if result != OK
         bool continueClicked = false;
         if (noOutputDlg(&continueClicked) != QDialog::Accepted) {
             exit(0);
@@ -581,6 +592,12 @@ void MixxxMainWindow::initializeWindow() {
 
 #ifndef __APPLE__
 void MixxxMainWindow::alwaysHideMenuBarDlg() {
+#ifdef __CRATE__
+    // Crate Decks: the skin decides, nobody is asked; CrateDecks has no menu
+    // bar in its mockups (Alt shows it)
+    crate::decideMenuBar(m_pCoreServices->getSettings());
+    return;
+#endif // __CRATE__
     // Don't show the dialog if the user unchecked "Ask me again"
     if (!m_pCoreServices->getSettings()->getValue<bool>(
                 kMenuBarHintConfigKey, true)) {

@@ -51,6 +51,7 @@
 #include "crate/ui/crateaddserverwidget.h"
 #include "crate/ui/cratefirstrun.h"
 #include "crate/ui/crateprefsections.h"
+#include "crate/ui/delegates/sidebardelegate.h"
 #include "crate/ui/dialogs/dialogscrim.h"
 #include "crate/ui/dialogs/preferenceschrome.h"
 #include "crate/ui/dlgprefcrate.h"
@@ -73,6 +74,7 @@
 #include "skin/legacy/launchimage.h"
 #include "skin/skinloader.h"
 #include "sources/soundsourceproxy.h"
+#include "test/crate/offscreendecks.h"
 #include "test/mixxxtest.h"
 #include "track/cue.h"
 #include "track/keyutils.h"
@@ -93,6 +95,9 @@
 #endif
 
 namespace {
+
+using crate::test::OffscreenDecks;
+using crate::test::waitFor;
 
 const QString kCrateDecks = QStringLiteral("CrateDecks");
 const QString kLateNight = QStringLiteral("LateNight");
@@ -194,43 +199,6 @@ class SkinLoadClock {
     qint64 m_startNs = -1;
     qint64 m_endNs = -1;
 };
-
-/// Answers every modal dialog as it shows, so that nothing waits offscreen:
-/// "Continue" where there is one (no output devices, which has no sound
-/// card on purpose), otherwise reject.
-class DialogRejecter : public QObject {
-  protected:
-    bool eventFilter(QObject* pWatched, QEvent* pEvent) override {
-        if (pEvent->type() == QEvent::Show) {
-            if (auto* pDialog = qobject_cast<QDialog*>(pWatched); pDialog && pDialog->isModal()) {
-                if (auto* pBox = qobject_cast<QMessageBox*>(pDialog)) {
-                    const QList<QAbstractButton*> buttons = pBox->buttons();
-                    for (QAbstractButton* pButton : buttons) {
-                        if (pButton->text() == QLatin1String("Continue")) {
-                            QTimer::singleShot(0, pButton, &QAbstractButton::click);
-                            return QObject::eventFilter(pWatched, pEvent);
-                        }
-                    }
-                }
-                QTimer::singleShot(0, pDialog, &QDialog::reject);
-            }
-        }
-        return QObject::eventFilter(pWatched, pEvent);
-    }
-};
-
-/// Processes events until `done` or `timeoutMs`.
-bool waitFor(const std::function<bool()>& done, int timeoutMs) {
-    QElapsedTimer timer;
-    timer.start();
-    while (!done()) {
-        if (timer.elapsed() > timeoutMs) {
-            return false;
-        }
-        QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
-    }
-    return true;
-}
 
 /// A track of the library of a disposable profile.
 struct LibraryRow {
@@ -442,111 +410,6 @@ bool insertCrateLibrary(const QString& settingsPath, const QString& rowsPath) {
     return ok;
 }
 
-/// Crate Decks started offscreen on a disposable profile, with no sound
-/// devices: the real main window and skin, as main.cpp builds them.
-class OffscreenDecks {
-  public:
-    using Settings = QList<std::pair<ConfigKey, QString>>;
-
-    explicit OffscreenDecks(const QString& settingsPath)
-            : m_settingsPath(settingsPath),
-              m_previousArgs(CmdlineArgs::Instance()) {
-    }
-
-    ~OffscreenDecks() {
-        stop();
-        QCoreApplication::instance()->removeEventFilter(&m_dialogRejecter);
-        CmdlineArgs::Instance() = m_previousArgs;
-    }
-
-    /// Writes the profile: the skin, no sound API and `settings`.
-    void writeProfile(const QString& skin, const Settings& settings = {}) {
-        auto config = UserSettingsPointer(new UserSettings(m_settingsPath + "mixxx.cfg"));
-        config->setValue(ConfigKey("[Config]", "Version"), VersionStore::version());
-        config->setValue(ConfigKey("[Config]", "ResizableSkin"), skin);
-        // Offscreen there is no OpenGL: do not warn about it
-        config->setValue(ConfigKey("[Direct Rendering]", "Warned"), QStringLiteral("yes"));
-        for (const auto& [key, value] : settings) {
-            config->setValue(key, value);
-        }
-        config->save();
-        QFile soundConfig(m_settingsPath + "soundconfig.xml");
-        if (soundConfig.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-            soundConfig.write("<SoundManagerConfig api=\"None\"/>\n");
-        }
-    }
-
-    /// Starts the core services and the main window. Returns how long the
-    /// main window took to initialize, skin included, in milliseconds.
-    /// `beforeSkin` runs once the core services are up, just before the
-    /// skin loads: the first CoreServices of a process installs Mixxx's log
-    /// handler, so message handlers go in there.
-    qint64 start(QApplication* pApp, const std::function<void()>& beforeSkin = {}) {
-        pApp->installEventFilter(&m_dialogRejecter);
-        CmdlineArgs::Instance().setSettingsPath(m_settingsPath);
-        CmdlineArgs args;
-        args.setSettingsPath(m_settingsPath);
-        m_pCoreServices = std::make_shared<mixxx::CoreServices>(args, pApp);
-        m_pMainWindow = std::make_unique<MixxxMainWindow>(m_pCoreServices);
-        m_pCoreServices->initialize();
-        if (beforeSkin) {
-            beforeSkin();
-        }
-        QElapsedTimer timer;
-        timer.start();
-#ifdef MIXXX_USE_QOPENGL
-        if (QGuiApplication::platformName() != QLatin1String("offscreen")) {
-            // As main.cpp does: the OpenGL probe initializes the window once
-            // its context is up
-            m_pMainWindow->initializeQOpenGL();
-            waitFor(
-                    [this] {
-                        return !qobject_cast<LaunchImage*>(m_pMainWindow->centralWidget());
-                    },
-                    30000);
-        } else
-#endif
-        {
-            m_pMainWindow->initialize();
-        }
-        const qint64 elapsed = timer.elapsed();
-        QCoreApplication::processEvents();
-        return elapsed;
-    }
-
-    void stop() {
-        m_pMainWindow.reset();
-        m_pCoreServices.reset();
-    }
-
-    /// Whether modal dialogs are answered as they show (from start()), so
-    /// that nothing waits offscreen. The screenshots keep them open.
-    void answerModalDialogs(bool answer) {
-        if (answer) {
-            QCoreApplication::instance()->installEventFilter(&m_dialogRejecter);
-        } else {
-            QCoreApplication::instance()->removeEventFilter(&m_dialogRejecter);
-        }
-    }
-
-    MixxxMainWindow* mainWindow() const {
-        return m_pMainWindow.get();
-    }
-    QWidget* skin() const {
-        return m_pMainWindow ? m_pMainWindow->centralWidget() : nullptr;
-    }
-    mixxx::CoreServices* coreServices() const {
-        return m_pCoreServices.get();
-    }
-
-  private:
-    const QString m_settingsPath;
-    const CmdlineArgs m_previousArgs;
-    DialogRejecter m_dialogRejecter;
-    std::shared_ptr<mixxx::CoreServices> m_pCoreServices;
-    std::unique_ptr<MixxxMainWindow> m_pMainWindow;
-};
-
 class CrateSkinLoadTest : public MixxxTest {
   protected:
     /// Loads `skin` and returns its skin warnings.
@@ -588,6 +451,72 @@ TEST_F(CrateSkinLoadTest, IsDefaultSkin) {
 TEST_F(CrateSkinLoadTest, LateNightStillLoads) {
     const QStringList warnings = loadSkin(kLateNight);
     EXPECT_TRUE(warnings.isEmpty()) << warnings.join(QLatin1Char('\n')).toStdString();
+}
+
+/// The titles of the dialogs that show while it is alive.
+class ShownDialogTitles : public QObject {
+  public:
+    QStringList titles;
+
+  protected:
+    bool eventFilter(QObject* pWatched, QEvent* pEvent) override {
+        if (pEvent->type() == QEvent::Show) {
+            if (auto* pDialog = qobject_cast<QDialog*>(pWatched)) {
+                titles.append(pDialog->windowTitle());
+            }
+        }
+        return QObject::eventFilter(pWatched, pEvent);
+    }
+};
+
+// Plan "Own brand", BR.PR3: on a new profile with no music folder and no
+// sound device, Mixxx asked for a music folder, warned of "No Output
+// Devices" and asked whether to hide the menu bar, all before Crate's first
+// start. The first start asks the first two in its own pages and the skin
+// decides the third.
+TEST_F(CrateSkinLoadTest, FirstStartAsksNoMixxxQuestions) {
+    QTemporaryDir profile;
+    ASSERT_TRUE(profile.isValid());
+    OffscreenDecks decks(profile.path() + QLatin1Char('/'));
+    decks.writeProfile(kCrateDecks);
+    ShownDialogTitles shown;
+    application()->installEventFilter(&shown);
+    decks.start(application());
+    application()->removeEventFilter(&shown);
+    ASSERT_NE(nullptr, decks.skin());
+    EXPECT_TRUE(shown.titles.isEmpty()) << qPrintable(shown.titles.join(QStringLiteral(", ")));
+    const UserSettingsPointer pConfig = decks.coreServices()->getSettings();
+    EXPECT_EQ(1, pConfig->getValue<int>(ConfigKey("[Config]", "hide_menubar"), 0));
+    EXPECT_EQ(0, pConfig->getValue<int>(ConfigKey("[Config]", "show_menubar_hint"), 1));
+}
+
+// Plan "Own brand", BR.PR5: Mixxx's skins carry the Mixxx logo, so
+// Preferences offers only CrateDecks; the others still load by name
+TEST_F(CrateSkinLoadTest, OnlyCrateDecksIsOffered) {
+    mixxx::skin::SkinLoader loader(config());
+    QStringList offered;
+    for (const auto& pSkin : loader.getSystemSkins()) {
+        offered.append(pSkin->name());
+    }
+    EXPECT_EQ(QStringList{kCrateDecks}, offered);
+    EXPECT_NE(nullptr, loader.getSkin(kLateNight));
+}
+
+// Plan "Own brand", BR.PR6: the sidebar's section of Mixxx's own library is
+// "Local", next to "Crate · <server>"
+TEST_F(CrateSkinLoadTest, SidebarSectionsNameNoMixxx) {
+    QTemporaryDir profile;
+    ASSERT_TRUE(profile.isValid());
+    OffscreenDecks decks(profile.path() + QLatin1Char('/'));
+    decks.writeProfile(kCrateDecks);
+    decks.start(application());
+    ASSERT_NE(nullptr, decks.skin());
+    auto* pSidebar = decks.skin()->findChild<WLibrarySidebar*>();
+    ASSERT_NE(nullptr, pSidebar);
+    auto* pDelegate = qobject_cast<crate::delegates::SidebarDelegate*>(pSidebar->itemDelegate());
+    ASSERT_NE(nullptr, pDelegate);
+    const QModelIndex first = pSidebar->model()->index(0, 0);
+    EXPECT_QSTRING_EQ(QStringLiteral("Local"), pDelegate->sectionHeader(first));
 }
 
 TEST_F(CrateSkinLoadTest, ToolbarOpensPreferences) {

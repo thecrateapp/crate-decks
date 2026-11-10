@@ -497,7 +497,7 @@ DlgPrefSound::DlgPrefSound(QWidget* pParent,
                 tr("To enable Realtime scheduling (currently disabled), see the %1.")
                         .arg(coloredLinkString(
                                 m_pLinkColor,
-                                QStringLiteral("Mixxx Wiki"),
+                                tr("Mixxx Wiki"),
                                 MIXXX_WIKI_AUDIO_LATENCY_URL)));
     }
 #else

@@ -60,6 +60,7 @@ QtObject {
     readonly property color iconPrimary: "#f1f5f9"
     readonly property color iconAccent: "#06b6d4"
     readonly property color iconDanger: "#ef6465"
+    readonly property color iconWarning: "#f9c94a"
 
     // deck
     readonly property color deckA: "#67e8f9"
@@ -493,6 +494,7 @@ QtObject {
     readonly property real lineHeightPrefsTitle: 1.1
     readonly property real fontSizeFirstRunTitle: 34
     readonly property real firstRunActionsTop: 4
+    readonly property real messageIconSize: 32
     readonly property real stepsGap: 10
     readonly property real stepGap: 8
     readonly property real fieldGap: 8

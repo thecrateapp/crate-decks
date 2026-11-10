@@ -29,7 +29,7 @@ LabelAndCount splitCount(const QString& text);
 /// Top-level items belong to sections, which start with a MonoLabel header
 /// in the accent tone above their first item. An item's section is its
 /// SidebarSectionRole or, without one, the default section: Mixxx's own
-/// features have none and fall in "Mixxx". Child items indent 20 px a level
+/// features have none and fall in "Local". Child items indent 20 px a level
 /// and have no icon, as in the mockups; the view's own indentation and
 /// branch arrows are off.
 ///

@@ -16,6 +16,7 @@
 #include "controllers/controllermanager.h"
 #include "coreservices.h"
 #include "crate/appidentity.h"
+#include "crate/brand/brandtranslator.h"
 #ifdef __CRATE__
 #include <QTimer>
 
@@ -143,11 +144,13 @@ int runMixxx(MixxxApplication* pApp, const CmdlineArgs& args) {
             qDebug() << "Displaying main window";
             mainWindow.show();
 #ifdef __CRATE__
-            // Crate Decks: once, while there is no Crate server, offer to
-            // connect one over the main window.
+            // Crate Decks: once, the first start over the main window:
+            // connect a Crate server, the sound output and, optionally,
+            // local music folders, instead of Mixxx's first-run dialogs.
             QTimer::singleShot(0, &mainWindow, [&mainWindow, pCoreServices] {
                 crate::offerFirstRun(pCoreServices->getSettings(),
                         crate::CrateServers::instance(),
+                        crate::firstRunServices(pCoreServices.get()),
                         &mainWindow);
             });
 #endif
@@ -266,6 +269,11 @@ int main(int argc, char * argv[]) {
     adjustScaleFactor(&args);
 
     MixxxApplication app(argc, argv);
+
+    // Crate Decks: brand every translated text that names Mixxx, from the
+    // first tr() lookup (--help) on and over the translations that
+    // CoreServices installs later.
+    crate::installBrandTranslator(&app);
 
 #if defined(Q_OS_WIN)
     // The Mixxx style is based on Qt's WindowsVista style

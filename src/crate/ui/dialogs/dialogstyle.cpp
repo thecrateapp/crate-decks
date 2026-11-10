@@ -1,5 +1,6 @@
 #include "crate/ui/dialogs/dialogstyle.h"
 
+#include <QAbstractButton>
 #include <QAbstractSpinBox>
 #include <QApplication>
 #include <QBoxLayout>
@@ -8,9 +9,11 @@
 #include <QEvent>
 #include <QFile>
 #include <QFontInfo>
+#include <QIcon>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMenu>
+#include <QMessageBox>
 #include <QPainter>
 #include <QPushButton>
 #include <QStyle>
@@ -40,6 +43,40 @@ QString readFile(const QString& path) {
     return QString::fromUtf8(file.readAll());
 }
 
+/// The Solar icon of a message box's kind instead of the platform's (plan
+/// "Own brand", BR.PR3): question and information in accentHi, a warning in
+/// the warning tone, an error in the danger tone. Its name is the box's
+/// "crateIcon" property, for tests. Its buttons lose the platform's icons.
+void setSolarIcon(QMessageBox* pBox) {
+    const char* name = nullptr;
+    switch (pBox->icon()) {
+    case QMessageBox::Question:
+        name = "question-circle_active";
+        break;
+    case QMessageBox::Information:
+        name = "info-circle_active";
+        break;
+    case QMessageBox::Warning:
+        name = "danger-triangle_warning";
+        break;
+    case QMessageBox::Critical:
+        name = "close-circle_danger";
+        break;
+    case QMessageBox::NoIcon:
+        return;
+    }
+    const int size = DialogMetrics::installed().px("messageIconSize");
+    const QIcon icon(designPath() + QStringLiteral("icons/") + QLatin1String(name) +
+            QStringLiteral(".svg"));
+    pBox->setIconPixmap(icon.pixmap(QSize(size, size), pBox->devicePixelRatioF()));
+    pBox->setProperty("crateIcon", QLatin1String(name));
+    // Nor the platform's icons on its buttons (the red No, the green Yes)
+    const QList<QAbstractButton*> buttons = pBox->buttons();
+    for (QAbstractButton* pButton : buttons) {
+        pButton->setIcon(QIcon());
+    }
+}
+
 /// What the application's style cannot do with QSS, done as widgets are
 /// polished:
 /// - menus are windows of their own: a translucent window lets the QSS
@@ -49,7 +86,8 @@ QString readFile(const QString& path) {
 ///   padding: in dialogs, the text gets the field's padding as margins.
 /// - each dialog gets the dialog style as its own. The filter sees the
 ///   Polish event before the dialog handles it, so the dialog and then its
-///   children are polished with it.
+///   children are polished with it;
+/// - message boxes get a Solar icon instead of the platform's.
 class PolishFixes : public QObject {
   public:
     using QObject::QObject;
@@ -64,6 +102,10 @@ class PolishFixes : public QObject {
         if (auto* pDialog = qobject_cast<QDialog*>(pWatched)) {
             if (pDialog->styleSheet().isEmpty() && !dialogStyleSheet.isEmpty()) {
                 pDialog->setStyleSheet(dialogStyleSheet);
+            }
+            if (auto* pBox = qobject_cast<QMessageBox*>(pDialog);
+                    pBox && !dialogStyleSheet.isEmpty()) {
+                setSolarIcon(pBox);
             }
         } else if (auto* pMenu = qobject_cast<QMenu*>(pWatched)) {
             if (!pMenu->testAttribute(Qt::WA_WState_Created)) {

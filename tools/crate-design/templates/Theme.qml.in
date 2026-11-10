@@ -60,6 +60,7 @@ QtObject {
     readonly property color iconPrimary: "{{iconPrimary}}"
     readonly property color iconAccent: "{{iconAccent}}"
     readonly property color iconDanger: "{{iconDanger}}"
+    readonly property color iconWarning: "{{iconWarning}}"
 
     // deck
     readonly property color deckA: "{{deckA}}"
@@ -493,6 +494,7 @@ QtObject {
     readonly property real lineHeightPrefsTitle: {{lineHeightPrefsTitle}}
     readonly property real fontSizeFirstRunTitle: {{fontSizeFirstRunTitle}}
     readonly property real firstRunActionsTop: {{firstRunActionsTop}}
+    readonly property real messageIconSize: {{messageIconSize}}
     readonly property real stepsGap: {{stepsGap}}
     readonly property real stepGap: {{stepGap}}
     readonly property real fieldGap: {{fieldGap}}

@@ -248,7 +248,7 @@ TEST_F(CrateDelegatesTest, PaintsSidebarSectionsAndActiveItem) {
     QTreeView view;
     view.resize(240, 300);
     SidebarDelegate delegate(m_style, &view);
-    delegate.setDefaultSection(QStringLiteral("Mixxx"));
+    delegate.setDefaultSection(QStringLiteral("Local"));
     const QModelIndex crate = item({{Qt::DisplayRole, QStringLiteral("Library")},
             {SidebarSectionRole, QStringLiteral("Crate · dev.crate.local")},
             {SidebarCountRole, QStringLiteral("136 512")}});
@@ -257,7 +257,7 @@ TEST_F(CrateDelegatesTest, PaintsSidebarSectionsAndActiveItem) {
 
     // A header above the first item of each section
     EXPECT_EQ(QStringLiteral("Crate · dev.crate.local"), delegate.sectionHeader(crate));
-    EXPECT_EQ(QStringLiteral("Mixxx"), delegate.sectionHeader(tracks));
+    EXPECT_EQ(QStringLiteral("Local"), delegate.sectionHeader(tracks));
     EXPECT_EQ(QString(), delegate.sectionHeader(autoDj));
     QStyleOptionViewItem option;
     option.rect = QRect(0, 0, 240, m_style.rowHeight);

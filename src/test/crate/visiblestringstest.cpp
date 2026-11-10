@@ -25,11 +25,12 @@ namespace {
 
 /// "Mixxx" where it refers to Mixxx the project, which stays: Mixxx versions,
 /// the "Mixxx" cue modes, the Controller Engine of Mixxx mappings, Mixxx's
-/// hardware guide and manual, and the credits in About.
+/// hardware guide, manual, wiki and forums, and the credits in About. Since
+/// the own brand (BR.PR1), the brand layer rewrites them where they show.
 const QRegularExpression kMixxxProjectReference(QStringLiteral(
         "Mixxx(?= versions| [0-9]| %[0-9]| mode| Controller Engine"
-        "| DJ Hardware Guide| (?i:user manual)| Development Team|</a>)"
-        "|Donate to Mixxx"));
+        "| DJ Hardware Guide| (?i:user manual)| Development Team|</a>"
+        "|&nbsp;| Wiki| Controller Forums)"));
 
 const QRegularExpression kTrCall(QStringLiteral(
         "\\btr\\(\\s*((?:\"(?:[^\"\\\\]|\\\\.)*\"\\s*)+)"));
@@ -152,7 +153,6 @@ TEST(CrateVisibleStringsTest, ProjectReferencesStay) {
                  QStringLiteral("Mixxx DJ Hardware Guide"),
                  QStringLiteral("Refer to the Mixxx User Manual for details."),
                  QStringLiteral("a newer Mixxx Controller Engine"),
-                 QStringLiteral("Donate to Mixxx"),
          }) {
         QString withoutProjectReferences = string;
         withoutProjectReferences.remove(kMixxxProjectReference);

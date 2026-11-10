@@ -3554,10 +3554,6 @@ WPushButton#PlayDeck[value="0"] {
     image: url(skins:CrateDecks/palemoon/buttons/btn__settings_on.svg) no-repeat left top;
   }
 
-#ToolbarLogo {
-  image: url(skins:CrateDecks/palemoon/style/mixxx_logo_small.svg) no-repeat center center;
-}
-
 /* Search bar Clear button */
 WSearchLineEdit QToolButton:!focus {
   image: url(skins:CrateDecks/palemoon/buttons/btn__lib_clear_search.svg);
