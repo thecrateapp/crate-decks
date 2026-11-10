@@ -31,7 +31,9 @@ import re
 import sys
 import xml.etree.ElementTree as ET
 
-REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+REPO = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+)
 INVENTORY = os.path.join("res", "crate-brand", "mixxx-strings.json")
 
 # "Mixxx" as a word the user reads: not in a file name, a path, a URL, an
@@ -40,14 +42,17 @@ INVENTORY = os.path.join("res", "crate-brand", "mixxx-strings.json")
 # Finnish "Mixxx-yhteisö". For the literals of the sources, which are English,
 # it is stricter than kNamesMixxx in brandtext.cpp, which also brands the name
 # glued to other scripts in translations ("启动Mixxx时").
-NAMES_MIXXX = re.compile(r"(?<![\w./\\@:])(?:Mixxx|MIXXX|mixxx(?!-))(?![\w@]|[./\\:]+\w)")
+NAMES_MIXXX = re.compile(
+    r"(?<![\w./\\@:])(?:Mixxx|MIXXX|mixxx(?!-))(?![\w@]|[./\\:]+\w)"
+)
 # Any form of the name, for translatable strings: "MixxxControl" in an error
 # dialog is a Mixxx term the user reads, even if the rule leaves it alone.
 MENTIONS_MIXXX = re.compile(r"mixxx", re.IGNORECASE)
 
 TR_CALL = re.compile(r"(?<![\w])(?:tr|qsTr|QT_TR_NOOP|QT_TR_N_NOOP)\(\s*$")
 TRANSLATE_CALL = re.compile(
-    r"(?<![\w])(?:translate|QT_TRANSLATE_NOOP|QT_TRANSLATE_NOOP3|QT_TRANSLATE_N_NOOP)\(\s*$"
+    r"(?<![\w])(?:translate|QT_TRANSLATE_NOOP|QT_TRANSLATE_NOOP3"
+    r"|QT_TRANSLATE_N_NOOP)\(\s*$"
 )
 SOURCE_SUFFIXES = (".cpp", ".h", ".mm")
 QML_SUFFIXES = (".qml", ".js")
@@ -123,7 +128,11 @@ def tokens(source):
             end = source.find("*/", i + 2)
             i = length if end < 0 else end + 2
             code.append(" ")
-        elif c == "R" and source.startswith('R"', i) and (i == 0 or not source[i - 1].isalnum()):
+        elif (
+            c == "R"
+            and source.startswith('R"', i)
+            and (i == 0 or not source[i - 1].isalnum())
+        ):
             open_paren = source.find("(", i + 2)
             delimiter = source[i + 2 : open_paren]
             close = source.find(")" + delimiter + '"', open_paren)
@@ -264,9 +273,15 @@ def updated(inventory, strings, literals):
         entry["source"] = source
         entry["files"] = sorted(strings[source])
         new_strings.append(
-            {k: entry[k] for k in ("source", "files", "treatment", "text", "es", "why") if k in entry}
+            {
+                k: entry[k]
+                for k in ("source", "files", "treatment", "text", "es", "why")
+                if k in entry
+            }
         )
-    known_literals = {(e["file"], e["text"]): e for e in inventory.get("literals", [])}
+    known_literals = {
+        (e["file"], e["text"]): e for e in inventory.get("literals", [])
+    }
     new_literals = []
     for rel, text in literals:
         entry = known_literals.get((rel, text), {"why": ""})
@@ -275,7 +290,9 @@ def updated(inventory, strings, literals):
             if key in entry:
                 literal[key] = entry[key]
         new_literals.append(literal)
-    result = {k: v for k, v in inventory.items() if k not in ("strings", "literals")}
+    result = {
+        k: v for k, v in inventory.items() if k not in ("strings", "literals")
+    }
     result["strings"] = new_strings
     result["literals"] = new_literals
     return result
@@ -287,14 +304,18 @@ def problems(inventory):
     for entry in inventory["strings"]:
         treatment = entry.get("treatment")
         if treatment not in ("rule", "text", "keep"):
-            found.append(f"unknown treatment {treatment!r}: {entry['source']!r}")
+            found.append(
+                f"unknown treatment {treatment!r}: {entry['source']!r}"
+            )
         if treatment == "text" and "text" not in entry:
             found.append(f"'text' without a text: {entry['source']!r}")
         if treatment == "keep" and not entry.get("why"):
             found.append(f"'keep' without a reason: {entry['source']!r}")
     for entry in inventory["literals"]:
         if not entry.get("why"):
-            found.append(f"literal without a reason, {entry['file']}: {entry['text']!r}")
+            found.append(
+                f"literal without a reason, {entry['file']}: {entry['text']!r}"
+            )
     return found
 
 
@@ -305,7 +326,9 @@ def dump(inventory):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--repo", default=REPO)
-    parser.add_argument("--check", action="store_true", help="fail if out of date")
+    parser.add_argument(
+        "--check", action="store_true", help="fail if out of date"
+    )
     args = parser.parse_args(argv)
 
     path = os.path.join(args.repo, INVENTORY)
@@ -318,7 +341,9 @@ def main(argv=None):
         if stale:
             old = {e["source"] for e in current.get("strings", [])}
             new = {e["source"] for e in fresh["strings"]}
-            old_literals = {(e["file"], e["text"]) for e in current.get("literals", [])}
+            old_literals = {
+                (e["file"], e["text"]) for e in current.get("literals", [])
+            }
             new_literals = {(e["file"], e["text"]) for e in fresh["literals"]}
             for source in sorted(new - old):
                 print(f"new string naming Mixxx: {source!r}")
@@ -328,7 +353,10 @@ def main(argv=None):
                 print(f"new literal naming Mixxx, {rel}: {text!r}")
             for rel, text in sorted(old_literals - new_literals):
                 print(f"literal no longer in the sources, {rel}: {text!r}")
-            print(f"{INVENTORY} is out of date: run tools/crate-brand/inventory.py and review it")
+            print(
+                f"{INVENTORY} is out of date: run "
+                "tools/crate-brand/inventory.py and review it"
+            )
         for issue in issues:
             print(issue)
         return 1 if stale or issues else 0
@@ -337,7 +365,9 @@ def main(argv=None):
         handle.write(dump(fresh))
     for issue in problems(fresh):
         print(issue)
-    print(f"{len(fresh['strings'])} strings, {len(fresh['literals'])} literals")
+    print(
+        f"{len(fresh['strings'])} strings, {len(fresh['literals'])} literals"
+    )
     return 0
 
 

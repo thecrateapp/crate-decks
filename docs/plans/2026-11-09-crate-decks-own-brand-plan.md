@@ -347,4 +347,3 @@ Built on `feat/decks-own-brand` (local, not pushed), one commit per task, each b
   follows §7.2, test first (`CrateBrandingTest.AboutOffersNoDonation`); the inventory drops the string (104
   strings, 2 kept).
 - **Still to do:** BR.PR7 (decided, separate follow-up PR), BR.PR8 (with F9.PR1), BR.PR9 (optional refactor).
-

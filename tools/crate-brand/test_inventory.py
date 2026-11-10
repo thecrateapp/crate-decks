@@ -11,7 +11,7 @@ import pytest
 
 import inventory
 
-SOURCE = r'''
+SOURCE = r"""
 #include "mixxxmainwindow.h" // a file name, not a string to brand
 // tr("Commented out Mixxx")
 /* QObject::tr("Also commented out, Mixxx") */
@@ -31,7 +31,7 @@ void f() {
     int n = 1'000;
     show(R"(Raw Mixxx)");
 }
-'''
+"""  # noqa: E501
 
 UI = """<?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
@@ -41,21 +41,32 @@ UI = """<?xml version="1.0" encoding="UTF-8"?>
   <property name="whatsThis"><string>No name here</string></property>
  </widget>
 </ui>
-"""
+"""  # noqa: E501
 
 
 def make_repo(tmp_path, source=SOURCE):
     (tmp_path / "src" / "test").mkdir(parents=True)
     (tmp_path / "src" / "main.cpp").write_text(source, encoding="utf-8")
     (tmp_path / "src" / "dlg.ui").write_text(UI, encoding="utf-8")
-    (tmp_path / "src" / "test" / "skipped.cpp").write_text('tr("Test Mixxx");', encoding="utf-8")
+    (tmp_path / "src" / "test" / "skipped.cpp").write_text(
+        'tr("Test Mixxx");', encoding="utf-8"
+    )
     (tmp_path / "res" / "qml").mkdir(parents=True)
-    (tmp_path / "res" / "qml" / "Main.qml").write_text('Text { text: qsTr("QML Mixxx") }', encoding="utf-8")
+    (tmp_path / "res" / "qml" / "Main.qml").write_text(
+        'Text { text: qsTr("QML Mixxx") }', encoding="utf-8"
+    )
     return tmp_path
 
 
 def test_names_mixxx_skips_file_names_urls_and_longer_words():
-    for text in ("Exit Mixxx?", "Mixxx's settings", "MIXXX", "mixxx 2.4", "Mixxx-yhteisö", "(Mixxx)"):
+    for text in (
+        "Exit Mixxx?",
+        "Mixxx's settings",
+        "MIXXX",
+        "mixxx 2.4",
+        "Mixxx-yhteisö",
+        "(Mixxx)",
+    ):
         assert inventory.NAMES_MIXXX.search(text), text
     for text in (
         "mixxxdb.sqlite",
@@ -102,10 +113,17 @@ def test_update_keeps_decisions_and_adds_new_strings(tmp_path):
     strings, literals = inventory.scan(repo)
     old = {
         "strings": [
-            {"source": "Mixxx mode", "files": ["x"], "treatment": "text", "text": "Default mode"},
+            {
+                "source": "Mixxx mode",
+                "files": ["x"],
+                "treatment": "text",
+                "text": "Default mode",
+            },
             {"source": "Gone Mixxx", "files": ["y"], "treatment": "rule"},
         ],
-        "literals": [{"file": "src/main.cpp", "text": "Running Mixxx", "why": "log"}],
+        "literals": [
+            {"file": "src/main.cpp", "text": "Running Mixxx", "why": "log"}
+        ],
     }
     fresh = inventory.updated(old, strings, literals)
     by_source = {e["source"]: e for e in fresh["strings"]}
@@ -116,7 +134,9 @@ def test_update_keeps_decisions_and_adds_new_strings(tmp_path):
     whys = {(e["file"], e["text"]): e["why"] for e in fresh["literals"]}
     assert whys[("src/main.cpp", "Running Mixxx")] == "log"
     assert whys[("src/main.cpp", "Mixxx")] == ""
-    assert any("literal without a reason" in p for p in inventory.problems(fresh))
+    assert any(
+        "literal without a reason" in p for p in inventory.problems(fresh)
+    )
 
 
 def test_check_fails_when_upstream_adds_a_string(tmp_path, capsys):
@@ -129,9 +149,14 @@ def test_check_fails_when_upstream_adds_a_string(tmp_path, capsys):
     path.write_text(inventory.dump(data), encoding="utf-8")
     assert inventory.main(["--repo", str(repo), "--check"]) == 0
 
-    (repo / "src" / "new.cpp").write_text('tr("New in Mixxx 2.8");', encoding="utf-8")
+    (repo / "src" / "new.cpp").write_text(
+        'tr("New in Mixxx 2.8");', encoding="utf-8"
+    )
     assert inventory.main(["--repo", str(repo), "--check"]) == 1
-    assert "new string naming Mixxx: 'New in Mixxx 2.8'" in capsys.readouterr().out
+    assert (
+        "new string naming Mixxx: 'New in Mixxx 2.8'"
+        in capsys.readouterr().out
+    )
 
 
 def test_inventory_of_this_repository_is_current():
@@ -139,20 +164,35 @@ def test_inventory_of_this_repository_is_current():
 
 
 @pytest.mark.skipif(
-    not (shutil.which("lupdate") or os.path.exists("/usr/lib/qt6/bin/lupdate")),
+    not (
+        shutil.which("lupdate") or os.path.exists("/usr/lib/qt6/bin/lupdate")
+    ),
     reason="needs Qt's lupdate",
 )
 def test_scan_agrees_with_lupdate(tmp_path):
     lupdate = shutil.which("lupdate") or "/usr/lib/qt6/bin/lupdate"
     ts = tmp_path / "all.ts"
     subprocess.run(
-        [lupdate, "-silent", "-recursive", "src", "res/qml", "-extensions", "cpp,h,ui,qml,js",
-         "-locations", "none", "-no-obsolete", "-ts", str(ts)],
-        cwd=inventory.REPO, check=True, capture_output=True,
+        [
+            lupdate,
+            "-silent",
+            "-recursive",
+            "src",
+            "res/qml",
+            "-extensions",
+            "cpp,h,ui,qml,js",
+            "-locations",
+            "none",
+            "-no-obsolete",
+            "-ts",
+            str(ts),
+        ],
+        cwd=inventory.REPO,
+        check=True,
+        capture_output=True,
     )
     expected = set()
     for message in ET.parse(ts).getroot().iter("message"):
-        locations = message.findall("location")
         source = message.findtext("source") or ""
         if inventory.MENTIONS_MIXXX.search(source):
             expected.add(source)
