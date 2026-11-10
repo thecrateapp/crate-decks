@@ -1,0 +1,44 @@
+<!--
+Description:
+  A stem with two decks (GU1 proposal "Stems"): MonoLabel name, volume rail
+  and mute, which fills in the deck colour when on.
+Variables: ChanNum, Stem (1 to 4), Name, Pair
+-->
+<Template>
+  <SetVariable name="StemGroup">[Channel<Variable name="ChanNum"/>_Stem<Variable name="Stem"/>]</SetVariable>
+  <WidgetGroup>
+    <ObjectName>CrateStem</ObjectName>
+    <Layout>horizontal</Layout>
+    <SizePolicy>me,min</SizePolicy>
+    <Children>
+      <Label>
+        <ObjectName>MonoStemName</ObjectName>
+        <Text><Variable name="Name"/></Text>
+        <Connection>
+          <ConfigKey><Variable name="StemGroup"/>,mute</ConfigKey>
+          <BindProperty>highlight</BindProperty>
+        </Connection>
+      </Label>
+      <SliderComposed>
+        <ObjectName>CrateStemRail</ObjectName>
+        <TooltipId>StemVolumeKnob</TooltipId>
+        <SizePolicy>me,f</SizePolicy>
+        <Slider scalemode="STRETCH">skins:CrateDecks/generated/controls/stem-rail.svg</Slider>
+        <Handle scalemode="STRETCH_ASPECT">skins:CrateDecks/generated/controls/stem-handle.svg</Handle>
+        <Horizontal>true</Horizontal>
+        <Connection>
+          <ConfigKey><Variable name="StemGroup"/>,volume</ConfigKey>
+        </Connection>
+      </SliderComposed>
+      <PushButton>
+        <TooltipId>StemMuteButton</TooltipId>
+        <ObjectName>CrateStemMute<Variable name="Pair"/></ObjectName>
+        <NumberStates>2</NumberStates>
+        <Connection>
+          <ConfigKey><Variable name="StemGroup"/>,mute</ConfigKey>
+          <ButtonState>LeftButton</ButtonState>
+        </Connection>
+      </PushButton>
+    </Children>
+  </WidgetGroup>
+</Template>

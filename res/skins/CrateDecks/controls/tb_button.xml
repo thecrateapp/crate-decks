@@ -1,0 +1,42 @@
+<!--
+Description:
+  A toolbar button of the GU1 mockups (.tb-btn): Solar icon and MonoLabel
+  text, outlined and tinted in accentHi when active. The text, a label,
+  gives the button its width; the transparent push button on top of it takes
+  the clicks and draws the icon, the border and the fill (style.qss.in).
+  tb_button_narrow_icon.xml is the same button without its text below the
+  1366 layout breakpoint (data-narrow="icon" in the mockups).
+Variables:
+  Icon        : suffix of the push button's object name (TbIcon<Icon>), which
+                picks the icon in style.qss.in
+  Text        : label text, in English as the app's source strings
+  TooltipId   : tooltip from src/skin/legacy/tooltips.cpp
+  ConfigKey   : control the button toggles
+-->
+<Template>
+  <WidgetGroup>
+    <ObjectName>TbButton</ObjectName>
+    <Layout>stacked</Layout>
+    <SizePolicy>max,max</SizePolicy>
+    <Children>
+      <Label>
+        <ObjectName>MonoTbButtonText</ObjectName>
+        <Text><Variable name="Text"/></Text>
+        <Alignment>left</Alignment>
+        <Connection>
+          <ConfigKey><Variable name="ConfigKey"/></ConfigKey>
+          <BindProperty>highlight</BindProperty>
+        </Connection>
+      </Label>
+      <PushButton>
+        <TooltipId><Variable name="TooltipId"/></TooltipId>
+        <ObjectName>TbIcon<Variable name="Icon"/></ObjectName>
+        <NumberStates>2</NumberStates>
+        <Connection>
+          <ConfigKey><Variable name="ConfigKey"/></ConfigKey>
+          <ButtonState>LeftButton</ButtonState>
+        </Connection>
+      </PushButton>
+    </Children>
+  </WidgetGroup>
+</Template>

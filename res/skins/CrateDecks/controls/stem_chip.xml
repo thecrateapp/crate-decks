@@ -1,0 +1,34 @@
+<!--
+Description:
+  A stem with four decks (GU1 proposal "Stems"): a chip with the stem's name
+  that mutes it; muted, it fades and the name is struck through.
+Variables: ChanNum, Stem (1 to 4), Name, Pair
+-->
+<Template>
+  <SetVariable name="StemGroup">[Channel<Variable name="ChanNum"/>_Stem<Variable name="Stem"/>]</SetVariable>
+  <WidgetGroup>
+    <ObjectName>CrateStemChip</ObjectName>
+    <Layout>stacked</Layout>
+    <SizePolicy>max,max</SizePolicy>
+    <Children>
+      <Label>
+        <ObjectName>MonoStemChipText<Variable name="Pair"/></ObjectName>
+        <Text><Variable name="Name"/></Text>
+        <Alignment>center</Alignment>
+        <Connection>
+          <ConfigKey><Variable name="StemGroup"/>,mute</ConfigKey>
+          <BindProperty>highlight</BindProperty>
+        </Connection>
+      </Label>
+      <PushButton>
+        <TooltipId>StemMuteButton</TooltipId>
+        <ObjectName>CrateStemChipFrame</ObjectName>
+        <NumberStates>2</NumberStates>
+        <Connection>
+          <ConfigKey><Variable name="StemGroup"/>,mute</ConfigKey>
+          <ButtonState>LeftButton</ButtonState>
+        </Connection>
+      </PushButton>
+    </Children>
+  </WidgetGroup>
+</Template>

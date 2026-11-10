@@ -338,4 +338,36 @@ TEST_F(CrateBrandingTest, AboutCreditsMixxxAndLinksTheSourceCode) {
     EXPECT_TRUE(pLicense->toPlainText().contains(QStringLiteral("Mixxx Development Team")));
 }
 
+TEST_F(CrateBrandingTest, AboutCreditsTheSolarIcons) {
+    const DlgAbout about;
+
+    // CC BY 4.0 asks for visible credit, its licence and what changed
+    // (design 14.3)
+    const auto* pAttribution = about.findChild<QLabel*>(QStringLiteral("crate_attribution"));
+    ASSERT_NE(nullptr, pAttribution);
+    const QString text = pAttribution->text();
+    EXPECT_TRUE(text.contains(QStringLiteral("Solar Icons Set"))) << qPrintable(text);
+    EXPECT_TRUE(text.contains(QStringLiteral("480 Design"))) << qPrintable(text);
+    EXPECT_TRUE(text.contains(QStringLiteral("https://creativecommons.org/licenses/by/4.0/")))
+            << qPrintable(text);
+    EXPECT_TRUE(text.contains(QStringLiteral("recoloured"))) << qPrintable(text);
+    // And the fonts' licence
+    EXPECT_TRUE(text.contains(QStringLiteral("SIL Open Font License"))) << qPrintable(text);
+    EXPECT_TRUE(pAttribution->openExternalLinks());
+}
+
+#ifdef __CRATE__
+TEST_F(CrateBrandingTest, AboutHasTheFirstStartLook) {
+    const DlgAbout about;
+
+    // No window frame: the dialog draws its own, as the first start
+    EXPECT_TRUE(about.windowFlags().testFlag(Qt::FramelessWindowHint));
+    EXPECT_NE(nullptr, about.findChild<QWidget*>(QStringLiteral("CrateDialogFrame")));
+    const auto* pTitle = about.findChild<QLabel*>(QStringLiteral("CrateAboutTitle"));
+    ASSERT_NE(nullptr, pTitle);
+    EXPECT_QSTRING_EQ(QStringLiteral("Crate Decks"), pTitle->text());
+    EXPECT_NE(nullptr, about.findChild<QLabel*>(QStringLiteral("MonoAboutKicker")));
+}
+#endif
+
 } // namespace

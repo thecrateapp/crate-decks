@@ -5342,10 +5342,29 @@ if(CRATE)
       src/crate/stems/resampler.cpp
       src/crate/stems/stemdsp.cpp
       src/crate/crateaddserverflow.cpp
+      src/crate/crateserverrows.cpp
       src/crate/crateservers.cpp
       src/crate/ui/crateaddserverwidget.cpp
+      src/crate/ui/crateprefsections.cpp
       src/crate/ui/cratefirstrun.cpp
       src/crate/ui/dlgprefcrate.cpp
+      src/crate/ui/delegates/camelotdelegate.cpp
+      src/crate/ui/delegates/celldelegate.cpp
+      src/crate/ui/delegates/delegatestyle.cpp
+      src/crate/ui/delegates/sidebardelegate.cpp
+      src/crate/ui/delegates/statedelegates.cpp
+      src/crate/ui/dialogs/aboutstyle.cpp
+      src/crate/ui/dialogs/dialogchrome.cpp
+      src/crate/ui/dialogs/dialogscrim.cpp
+      src/crate/ui/dialogs/dialogstyle.cpp
+      src/crate/ui/dialogs/levelgauge.cpp
+      src/crate/ui/dialogs/preferenceschrome.cpp
+      src/crate/ui/skin/crateserverstatus.cpp
+      src/crate/ui/skin/crateskin.cpp
+      src/crate/ui/skin/decktrackfields.cpp
+      src/crate/ui/skin/librarystyle.cpp
+      src/crate/ui/skin/mixerstyle.cpp
+      src/crate/ui/skin/preferencescontrol.cpp
   )
   # The tests of the Crate integration are added here and not in the list of
   # mixxx-test sources, which comes before this option.
@@ -5365,6 +5384,11 @@ if(CRATE)
         src/test/crate/cratesession_test.cpp
         src/test/crate/modelstore_test.cpp
         src/test/crate/stemdsp_test.cpp
+        src/test/crate/skinloadtest.cpp
+        src/test/crate/mixerstyletest.cpp
+        src/test/crate/delegatestest.cpp
+        src/test/crate/dialogstest.cpp
+        src/test/crate/decktrackfieldstest.cpp
     )
   endif()
 

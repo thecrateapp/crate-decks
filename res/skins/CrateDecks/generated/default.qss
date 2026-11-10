@@ -1,0 +1,224 @@
+/*
+  Crate Decks: the default style of the application (plan V2.PR5), with the
+  language of the Crate admin (design 14.1).
+
+  Template for tools/crate-design/generate.py: the placeholders in double
+  braces come from res/crate-design/tokens.json. Do not write colours,
+  sizes, radii or fonts by hand here (AGENTS.md 5.2).
+
+  With CRATE, Mixxx loads this file instead of res/skins/default.qss, for
+  the whole application and not only the main window
+  (crate/ui/dialogs/dialogstyle.h), and every dialog gets dialogs.qss as its
+  own style. A skin's own style still wins inside the skin. Every rule here
+  is matched against every widget of the skin, so this file only has what
+  is not a dialog's:
+  - menus and tooltips, the application's for every skin;
+  - the rules of Mixxx's default.qss that every skin relies on (library
+    preview button, BPM lock, cue menu, colour picker, search clear button),
+    with Solar icons.
+*/
+
+/* ── Mixxx's default rules, with Solar icons ─────────────────────────── */
+
+#LibraryPreviewButton {
+  background: transparent;
+  border: 0;
+}
+#LibraryPreviewButton:checked {
+  image: url(skins:CrateDecks/generated/icons/pause_active.svg);
+}
+#LibraryPreviewButton:!checked {
+  image: url(skins:CrateDecks/generated/icons/play_idle.svg);
+}
+
+/* 'Played' checkbox and BPM lock: C++ sizes their indicator to the
+   library font */
+WTrackTableView::indicator,
+#LibraryBPMButton::indicator {
+}
+QPushButton#LibraryBPMButton {
+  background: transparent;
+  border: 0;
+}
+QPushButton#LibraryBPMButton:checked {
+  image: url(skins:CrateDecks/generated/icons/lock_idle.svg);
+}
+QPushButton#LibraryBPMButton:!checked {
+  image: url(skins:CrateDecks/generated/icons/lock_disabled.svg);
+}
+
+WCueMenuPopup #CueDeleteButton {
+  image: url(skins:CrateDecks/generated/icons/trash-bin-trash_idle.svg);
+}
+
+WColorPicker QPushButton[noColor="true"] {
+  background-color: #0a0a0f;
+}
+/* "Any colour": the rainbow of Mixxx's colour picker */
+WColorPicker QPushButton[customColor="true"] {
+  background-color: qlineargradient(x1: 0, y1: 0, x2: 1, y2: 1,
+                                    stop: 0 #ff0000,
+                                    stop: 0.2 #ffff00,
+                                    stop: 0.4 #00ff00,
+                                    stop: 0.6 #00ffff,
+                                    stop: 0.8 #0000ff,
+                                    stop: 1 #ff00ff);
+}
+WColorPicker QPushButton[checked="false"] {
+  qproperty-icon: none;
+}
+WColorPicker QPushButton[checked="true"] {
+  qproperty-icon: url(skins:CrateDecks/generated/icons/check-circle_primary.svg);
+}
+
+#SearchClearButton {
+  background: none;
+  border: 0;
+}
+#SearchClearButton:!focus {
+  image: url(skins:CrateDecks/generated/icons/close-circle_idle.svg);
+}
+#SearchClearButton:focus {
+  image: url(skins:CrateDecks/generated/icons/close-circle_hover.svg);
+}
+
+WSearchRelatedTracksMenu #SearchSelectedAction::indicator {
+  image: url(skins:CrateDecks/generated/icons/magnifier_idle.svg);
+  width: 16px;
+  height: 16px;
+}
+
+/* ── Menus: the admin's dropdown menu ─────────────────────────────────── */
+
+/* Every context menu (track, column chooser, sidebar, cue, cover art,
+   fields), the menu bar's menus and the effect selectors */
+QMenu,
+WEffectSelector QAbstractScrollArea,
+WEffectChainPresetSelector QAbstractScrollArea,
+WSearchLineEdit QAbstractScrollArea,
+#fadeModeCombobox QAbstractScrollArea {
+  background-color: #111218;
+  border: 1px solid rgba(241, 245, 249, 26);
+  border-radius: 6px;
+  padding: 4px;
+  color: rgba(241, 245, 249, 199);
+  font-family: "Roboto";
+  font-size: 13px;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+}
+QMenu::item {
+  min-height: 32px;
+  padding: 0 16px 0 8px;
+  border-radius: 4px;
+  background-color: transparent;
+  color: rgba(241, 245, 249, 199);
+}
+QMenu::item:selected {
+  background-color: rgba(241, 245, 249, 13);
+  color: #f1f5f9;
+}
+QMenu::item:disabled {
+  color: #4a4c52;
+}
+QMenu::separator {
+  height: 1px;
+  background-color: rgba(241, 245, 249, 15);
+  margin: 4px 8px;
+}
+QMenu::icon {
+  padding-left: 8px;
+}
+QMenu::indicator {
+  width: 16px;
+  height: 16px;
+  padding-left: 8px;
+}
+QMenu::indicator:non-exclusive:unchecked {
+  image: url(skins:CrateDecks/generated/controls/checkbox_idle.svg);
+}
+QMenu::indicator:non-exclusive:checked {
+  image: url(skins:CrateDecks/generated/controls/checkbox-checked_active.svg);
+}
+QMenu::indicator:exclusive:unchecked {
+  image: url(skins:CrateDecks/generated/controls/radio_idle.svg);
+}
+QMenu::indicator:exclusive:checked {
+  image: url(skins:CrateDecks/generated/controls/radio-checked_active.svg);
+}
+QMenu::right-arrow {
+  image: url(skins:CrateDecks/generated/icons/alt-arrow-right_idle.svg);
+  width: 14px;
+  height: 14px;
+  padding-right: 8px;
+}
+QMenu::right-arrow:selected {
+  image: url(skins:CrateDecks/generated/icons/alt-arrow-right_hover.svg);
+}
+
+/* The column chooser and the crates and playlists of the track menu are
+   checkboxes inside the menu */
+QMenu QCheckBox {
+  min-height: 32px;
+  padding: 0 8px;
+  spacing: 8px;
+  border-radius: 4px;
+  background-color: transparent;
+  color: rgba(241, 245, 249, 199);
+  font-family: "Roboto";
+  font-size: 13px;
+}
+QMenu QCheckBox:hover {
+  background-color: rgba(241, 245, 249, 13);
+  color: #f1f5f9;
+}
+QMenu QCheckBox::indicator {
+  width: 16px;
+  height: 16px;
+}
+QMenu QCheckBox::indicator:unchecked {
+  image: url(skins:CrateDecks/generated/controls/checkbox_idle.svg);
+}
+QMenu QCheckBox::indicator:checked {
+  image: url(skins:CrateDecks/generated/controls/checkbox-checked_active.svg);
+}
+QMenu QCheckBox::indicator:indeterminate {
+  image: url(skins:CrateDecks/generated/controls/checkbox-checked_disabled.svg);
+}
+QMenu QLineEdit {
+  min-height: 30px;
+  padding: 0 8px;
+  border: 1px solid rgba(241, 245, 249, 26);
+  border-radius: 4px;
+  background-color: #111218;
+  color: #f1f5f9;
+}
+
+QMenuBar {
+  background-color: #0a0a0f;
+  color: rgba(241, 245, 249, 199);
+  font-family: "Roboto";
+  font-size: 13px;
+  border-bottom: 1px solid rgba(241, 245, 249, 26);
+}
+QMenuBar::item {
+  padding: 0 8px;
+  min-height: 24px;
+  background-color: transparent;
+}
+QMenuBar::item:selected,
+QMenuBar::item:pressed {
+  background-color: rgba(241, 245, 249, 13);
+  color: #f1f5f9;
+}
+
+QToolTip {
+  background-color: #111218;
+  border: 1px solid rgba(241, 245, 249, 26);
+  border-radius: 4px;
+  color: #f1f5f9;
+  font-family: "Roboto";
+  font-size: 13px;
+  padding: 4px;
+}

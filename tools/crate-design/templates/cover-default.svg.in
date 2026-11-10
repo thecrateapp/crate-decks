@@ -1,0 +1,4 @@
+<!-- Cover of a track without one: a quiet tile (template for generate.py) -->
+<svg xmlns="http://www.w3.org/2000/svg" width="{{coverSize.number}}" height="{{coverSize.number}}" viewBox="0 0 {{coverSize.number}} {{coverSize.number}}">
+  <rect width="{{coverSize.number}}" height="{{coverSize.number}}" fill="{{bgSecondary}}"/>
+</svg>

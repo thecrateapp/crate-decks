@@ -1,0 +1,120 @@
+<!--
+  The library of the GU1 mockups (decks.js library(), decks.css .lib): a
+  sidebar of 240 px as the admin's navigation, a 1 px rule, and the search
+  row (the field, how many tracks the view shows and from where, and the
+  maximise button) over the track table. C++ paints what QSS cannot (plan V2.PR4,
+  crate/ui/skin/librarystyle.cpp): the sidebar's items and section headers,
+  the table's rows, rules and selection, its MonoLabel column headers, the
+  deck letters of loaded tracks and the cells (crate/ui/delegates/).
+
+  The search row keeps a slot, CrateLibraryViews, for the switch between the
+  track list and the Compatibles view (F5, with V3's Camelot wheel), which
+  the mockups show on its right; it is empty and hidden until then.
+-->
+<Template>
+  <!-- The singleton takes this group and names it LibrarySingleton, so the
+       library's own name goes on the group inside. 'ignore' lets the
+       library shrink to nothing, the inner groups expand to fill the space
+       it gets (as in LateNight) -->
+  <WidgetGroup>
+    <SizePolicy>me,i</SizePolicy>
+    <Layout>vertical</Layout>
+    <Children>
+      <WidgetGroup>
+        <ObjectName>CrateLibrary</ObjectName>
+        <SizePolicy>me,me</SizePolicy>
+        <Layout>horizontal</Layout>
+        <Children>
+
+          <WidgetGroup>
+            <ObjectName>CrateSidebar</ObjectName>
+            <Layout>vertical</Layout>
+            <SizePolicy>f,me</SizePolicy>
+            <Children>
+              <LibrarySidebar></LibrarySidebar>
+            </Children>
+          </WidgetGroup>
+          <WidgetGroup><ObjectName>CrateSidebarRule</ObjectName></WidgetGroup>
+
+          <WidgetGroup>
+            <ObjectName>CrateLibraryMain</ObjectName>
+            <Layout>vertical</Layout>
+            <SizePolicy>me,me</SizePolicy>
+            <Children>
+
+              <!-- 44 px, 40 below the 768 breakpoint; the gutter of the
+                   decks, narrower below the 1366 one -->
+              <WidgetGroup>
+                <ObjectName>CrateSearchRow</ObjectName>
+                <Layout>horizontal</Layout>
+                <SizePolicy>me,f</SizePolicy>
+                <Children>
+                  <WidgetGroup>
+                    <ObjectName>CrateSearchRowInner</ObjectName>
+                    <Layout>horizontal</Layout>
+                    <SizePolicy>me,me</SizePolicy>
+                    <Children>
+                      <WidgetGroup>
+                        <ObjectName>CrateSearchQuery</ObjectName>
+                        <Layout>horizontal</Layout>
+                        <SizePolicy>me,f</SizePolicy>
+                        <Children>
+                          <Label><ObjectName>CrateSearchIcon</ObjectName></Label>
+                          <SearchBox></SearchBox>
+                        </Children>
+                      </WidgetGroup>
+
+                      <!-- How many tracks the view shows and from where;
+                       C++ writes it (crate/ui/skin/librarystyle.cpp) -->
+                  <Label><ObjectName>MonoLibraryMeta</ObjectName></Label>
+
+                  <!-- Slot of the Tracks / Compatibles switch (F5, V3) -->
+                      <WidgetGroup>
+                        <ObjectName>CrateLibraryViews</ObjectName>
+                        <Layout>horizontal</Layout>
+                        <SizePolicy>min,min</SizePolicy>
+                        <Children/>
+                        <Connection>
+                          <ConfigKey>[CrateDecks],show_library_views</ConfigKey>
+                          <BindProperty>visible</BindProperty>
+                        </Connection>
+                      </WidgetGroup>
+
+                      <PushButton>
+                        <TooltipId>maximize_library</TooltipId>
+                        <ObjectName>TbIconMaximize</ObjectName>
+                        <NumberStates>2</NumberStates>
+                        <Connection>
+                          <ConfigKey>[Skin],show_maximized_library</ConfigKey>
+                          <ButtonState>LeftButton</ButtonState>
+                        </Connection>
+                      </PushButton>
+                    </Children>
+                    <Connection>
+                      <ConfigKey>[CrateDecks],layout_narrow</ConfigKey>
+                      <BindProperty>highlight</BindProperty>
+                    </Connection>
+                  </WidgetGroup>
+                </Children>
+                <Connection>
+                  <ConfigKey>[CrateDecks],layout_short</ConfigKey>
+                  <BindProperty>highlight</BindProperty>
+                </Connection>
+              </WidgetGroup>
+              <WidgetGroup><ObjectName>CrateSearchRule</ObjectName></WidgetGroup>
+
+              <Library>
+                <ShowButtonText>false</ShowButtonText>
+                <!-- Mixxx's track colours, faint under the row -->
+                <TrackTableBackgroundColorOpacity>0.175</TrackTableBackgroundColorOpacity>
+                <SignalColor><Variable name="CrateWaveMidAccent"/></SignalColor>
+              </Library>
+
+            </Children>
+          </WidgetGroup>
+
+        </Children>
+      </WidgetGroup>
+    </Children>
+  </WidgetGroup>
+</Template>

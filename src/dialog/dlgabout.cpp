@@ -5,6 +5,9 @@
 #include <QLocale>
 
 #include "crate/appidentity.h"
+#ifdef __CRATE__
+#include "crate/ui/dialogs/aboutstyle.h"
+#endif
 #include "defs_urls.h"
 #include "moc_dlgabout.cpp"
 #include "util/color/color.h"
@@ -60,6 +63,14 @@ DlgAbout::DlgAbout()
                                     .toString(),
                             tr("Source code of this version")));
     verticalLayout->insertWidget(2, pBasedOn);
+    // Crate Decks: credits of the Solar icons (CC BY 4.0) and of the fonts
+    auto* pAttribution = new QLabel(this);
+    pAttribution->setObjectName(QStringLiteral("crate_attribution"));
+    pAttribution->setWordWrap(true);
+    pAttribution->setTextFormat(Qt::RichText);
+    pAttribution->setOpenExternalLinks(true);
+    pAttribution->setText(crate::attributionText(linkStyle));
+    verticalLayout->insertWidget(3, pAttribution);
 
     QFile licenseFile(":/LICENSE");
     if (!licenseFile.open(QIODevice::ReadOnly)) {
@@ -555,4 +566,9 @@ DlgAbout::DlgAbout()
 
     connect(buttonBox, &QDialogButtonBox::accepted, this, &DlgAbout::accept);
     connect(buttonBox, &QDialogButtonBox::rejected, this, &DlgAbout::reject);
+
+#ifdef __CRATE__
+    // Crate Decks: the look of the first-start dialog (V2.PR5)
+    crate::styleAbout(this);
+#endif
 }

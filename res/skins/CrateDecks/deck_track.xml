@@ -1,0 +1,238 @@
+<!--
+  Track row of a deck (GU1 mockups .deck-track): cover, title in Roboto,
+  artist and genre, and the BPM and time remaining in Bricolage 700 with
+  tabular figures (C++ adds tnum to the "DeckNumber" widgets), each over
+  its MonoLabel. Every column sits on the row's baseline (align-items: end).
+Variables: ChanNum, Size ("" for two decks, "Four" for the compact decks),
+  NumberSizeKey (the layout class that shrinks the numbers), CoverKey and
+  CoverValue (the cover shows while that control has that value)
+-->
+<Template>
+  <WidgetGroup>
+    <ObjectName>CrateDeckTrack<Variable name="Size"/></ObjectName>
+    <Layout>horizontal</Layout>
+    <SizePolicy>me,max</SizePolicy>
+    <Children>
+      <WidgetGroup>
+        <ObjectName>CrateDeckCoverBox<Variable name="Size"/></ObjectName>
+        <Layout>vertical</Layout>
+        <SizePolicy>max,me</SizePolicy>
+        <Children>
+          <WidgetGroup><SizePolicy>min,me</SizePolicy></WidgetGroup>
+          <CoverArt>
+            <ObjectName>CrateDeckCover<Variable name="Size"/></ObjectName>
+            <TooltipId>coverart</TooltipId>
+            <Group>[Channel<Variable name="ChanNum"/>]</Group>
+            <DefaultCover>skins:CrateDecks/generated/cover-default.svg</DefaultCover>
+          </CoverArt>
+        </Children>
+        <!-- With two decks, as cover art is set; the compact decks lose it
+             below the 768 px breakpoint -->
+        <Connection>
+          <ConfigKey><Variable name="CoverKey"/></ConfigKey>
+          <Transform><IsEqual><Variable name="CoverValue"/></IsEqual></Transform>
+          <BindProperty>visible</BindProperty>
+        </Connection>
+      </WidgetGroup>
+
+      <WidgetGroup>
+        <ObjectName>CrateDeckTitle</ObjectName>
+        <Layout>vertical</Layout>
+        <SizePolicy>e,me</SizePolicy>
+        <Children>
+          <WidgetGroup><SizePolicy>min,me</SizePolicy></WidgetGroup>
+          <TrackProperty>
+            <ObjectName>CrateDeckTitleText<Variable name="Size"/></ObjectName>
+            <TooltipId>track_title</TooltipId>
+            <Property>titleInfo</Property>
+            <Alignment>left</Alignment>
+            <Elide>right</Elide>
+            <SizePolicy>i,min</SizePolicy>
+            <Channel><Variable name="ChanNum"/></Channel>
+            <Connection>
+              <ConfigKey>[CrateDecks],layout_short</ConfigKey>
+              <BindProperty>highlight</BindProperty>
+            </Connection>
+          </TrackProperty>
+          <WidgetGroup>
+            <ObjectName>CrateDeckArtistRow</ObjectName>
+            <Layout>horizontal</Layout>
+            <SizePolicy>e,min</SizePolicy>
+            <Children>
+              <!-- Each field hides while it is empty, and the separator shows
+                   only between two: "SNAYX", never "SNAYX ·". A field that
+                   shows again measures its new text, which an empty WLabel
+                   would not do. The empty strut at the end keeps the row's
+                   line with both fields hidden, so that the title does not
+                   move -->
+              <TrackProperty>
+                <ObjectName>CrateDeckArtist<Variable name="Size"/></ObjectName>
+                <TooltipId>track_artist</TooltipId>
+                <Property>artist</Property>
+                <Alignment>left</Alignment>
+                <Elide>right</Elide>
+                <SizePolicy>max,min</SizePolicy>
+                <Channel><Variable name="ChanNum"/></Channel>
+                <Connection>
+                  <ConfigKey>[CrateDecks],layout_short</ConfigKey>
+                  <BindProperty>highlight</BindProperty>
+                </Connection>
+                <Connection>
+                  <ConfigKey>[CrateDecks],deck<Variable name="ChanNum"/>_has_artist</ConfigKey>
+                  <BindProperty>visible</BindProperty>
+                </Connection>
+              </TrackProperty>
+              <WidgetGroup>
+                <Layout>horizontal</Layout>
+                <SizePolicy>max,min</SizePolicy>
+                <Children>
+                  <Label>
+                    <ObjectName>CrateDeckArtist<Variable name="Size"/></ObjectName>
+                    <Text> · </Text>
+                    <SizePolicy>max,min</SizePolicy>
+                    <Connection>
+                      <ConfigKey>[CrateDecks],layout_short</ConfigKey>
+                      <BindProperty>highlight</BindProperty>
+                    </Connection>
+                    <Connection>
+                      <ConfigKey>[CrateDecks],deck<Variable name="ChanNum"/>_has_artist</ConfigKey>
+                      <BindProperty>visible</BindProperty>
+                    </Connection>
+                  </Label>
+                </Children>
+                <Connection>
+                  <ConfigKey>[CrateDecks],deck<Variable name="ChanNum"/>_has_genre</ConfigKey>
+                  <BindProperty>visible</BindProperty>
+                </Connection>
+              </WidgetGroup>
+              <!-- Not "i": the row aligns left, so an ignored width is 0 and
+                   the genre never showed -->
+              <TrackProperty>
+                <ObjectName>CrateDeckArtist<Variable name="Size"/></ObjectName>
+                <Property>genre</Property>
+                <Alignment>left</Alignment>
+                <Elide>right</Elide>
+                <SizePolicy>max,min</SizePolicy>
+                <Channel><Variable name="ChanNum"/></Channel>
+                <Connection>
+                  <ConfigKey>[CrateDecks],layout_short</ConfigKey>
+                  <BindProperty>highlight</BindProperty>
+                </Connection>
+                <Connection>
+                  <ConfigKey>[CrateDecks],deck<Variable name="ChanNum"/>_has_genre</ConfigKey>
+                  <BindProperty>visible</BindProperty>
+                </Connection>
+              </TrackProperty>
+              <Label>
+                <ObjectName>CrateDeckArtist<Variable name="Size"/></ObjectName>
+                <SizePolicy>min,min</SizePolicy>
+                <Connection>
+                  <ConfigKey>[CrateDecks],layout_short</ConfigKey>
+                  <BindProperty>highlight</BindProperty>
+                </Connection>
+              </Label>
+            </Children>
+          </WidgetGroup>
+        </Children>
+      </WidgetGroup>
+
+      <WidgetGroup>
+        <ObjectName>CrateDeckNumber</ObjectName>
+        <Layout>vertical</Layout>
+        <SizePolicy>max,me</SizePolicy>
+        <Children>
+          <NumberBpm>
+            <ObjectName>DeckNumberBpm<Variable name="Size"/></ObjectName>
+            <TooltipId>visual_bpm</TooltipId>
+            <Alignment>right</Alignment>
+            <Channel><Variable name="ChanNum"/></Channel>
+            <NumberOfDigits>2</NumberOfDigits>
+            <Connection>
+              <ConfigKey>[Channel<Variable name="ChanNum"/>],visual_bpm</ConfigKey>
+            </Connection>
+            <Connection>
+              <ConfigKey><Variable name="NumberSizeKey"/></ConfigKey>
+              <BindProperty>highlight</BindProperty>
+            </Connection>
+          </NumberBpm>
+          <WidgetGroup>
+            <Layout>horizontal</Layout>
+            <SizePolicy>min,min</SizePolicy>
+            <Children>
+              <WidgetGroup><SizePolicy>me,min</SizePolicy></WidgetGroup>
+              <NumberRate>
+                <ObjectName>MonoDeckMeta</ObjectName>
+                <TooltipId>rate_display</TooltipId>
+                <Text>BPM · </Text>
+                <Channel><Variable name="ChanNum"/></Channel>
+                <NumberOfDigits>2</NumberOfDigits>
+              </NumberRate>
+              <Label>
+                <ObjectName>MonoDeckMeta</ObjectName>
+                <Text> %</Text>
+              </Label>
+            </Children>
+          </WidgetGroup>
+        </Children>
+      </WidgetGroup>
+
+      <WidgetGroup>
+        <ObjectName>CrateDeckNumber</ObjectName>
+        <Layout>vertical</Layout>
+        <SizePolicy>max,me</SizePolicy>
+        <Children>
+          <NumberPos>
+            <ObjectName>DeckNumberTime<Variable name="Size"/></ObjectName>
+            <TooltipId>track_time</TooltipId>
+            <Alignment>right</Alignment>
+            <Channel><Variable name="ChanNum"/></Channel>
+            <Connection>
+              <ConfigKey>[Channel<Variable name="ChanNum"/>],playposition</ConfigKey>
+            </Connection>
+            <Connection>
+              <ConfigKey><Variable name="NumberSizeKey"/></ConfigKey>
+              <BindProperty>highlight</BindProperty>
+            </Connection>
+          </NumberPos>
+          <WidgetGroup>
+            <Layout>horizontal</Layout>
+            <SizePolicy>min,min</SizePolicy>
+            <Children>
+              <WidgetGroup><SizePolicy>me,min</SizePolicy></WidgetGroup>
+              <!-- The time shows what [Controls],ShowDurationRemaining
+                   picks: elapsed (0), remaining (1) or both (2) -->
+              <Label>
+                <ObjectName>MonoDeckMeta</ObjectName>
+                <Text>Remain · </Text>
+                <Connection>
+                  <ConfigKey>[Controls],ShowDurationRemaining</ConfigKey>
+                  <Transform><IsEqual>1</IsEqual></Transform>
+                  <BindProperty>visible</BindProperty>
+                </Connection>
+              </Label>
+              <Label>
+                <ObjectName>MonoDeckMeta</ObjectName>
+                <Text>Elapsed · </Text>
+                <Connection>
+                  <ConfigKey>[Controls],ShowDurationRemaining</ConfigKey>
+                  <Transform><IsEqual>1</IsEqual><Not/></Transform>
+                  <BindProperty>visible</BindProperty>
+                </Connection>
+              </Label>
+              <TrackProperty>
+                <ObjectName>MonoDeckMeta</ObjectName>
+                <TooltipId>track_duration</TooltipId>
+                <Property>durationTextSeconds</Property>
+                <Channel><Variable name="ChanNum"/></Channel>
+              </TrackProperty>
+            </Children>
+          </WidgetGroup>
+        </Children>
+      </WidgetGroup>
+    </Children>
+    <Connection>
+      <ConfigKey>[CrateDecks],layout_narrow</ConfigKey>
+      <BindProperty>highlight</BindProperty>
+    </Connection>
+  </WidgetGroup>
+</Template>

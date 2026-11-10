@@ -1,0 +1,86 @@
+<!--
+  The waveform band of the GU1 mockups (decks.js waveformBand(), decks.css
+  .wf): one row per deck, A and B with two decks, C, A, B and D with four,
+  each with the deck's waveform singleton (waveforms.xml). The rows after
+  the first take their 1 px rule out of their height, as the mockups'
+  .wf-row + .wf-row border does, and a 1 px rule closes the band.
+Variables:
+  Band : "" for the band over the decks, "Library" for the lower one over
+         the maximised library (library-compatibles.html, its wf-h)
+-->
+<Template>
+  <WidgetGroup>
+    <ObjectName>CrateWaveformBand</ObjectName>
+    <Layout>vertical</Layout>
+    <SizePolicy>me,f</SizePolicy>
+    <Children>
+
+      <!-- Two decks: A, B -->
+      <WidgetGroup>
+        <Layout>vertical</Layout>
+        <SizePolicy>me,f</SizePolicy>
+        <Children>
+          <Template src="skins:CrateDecks/waveform_row.xml">
+            <SetVariable name="ChanNum">1</SetVariable>
+            <SetVariable name="Letter">A</SetVariable>
+            <SetVariable name="Pair">AC</SetVariable>
+            <SetVariable name="Rows"><Variable name="Band"/>Two</SetVariable>
+          </Template>
+          <WidgetGroup><ObjectName>CrateWaveformRule</ObjectName></WidgetGroup>
+          <Template src="skins:CrateDecks/waveform_row.xml">
+            <SetVariable name="ChanNum">2</SetVariable>
+            <SetVariable name="Letter">B</SetVariable>
+            <SetVariable name="Pair">BD</SetVariable>
+            <SetVariable name="Rows"><Variable name="Band"/>TwoNext</SetVariable>
+          </Template>
+        </Children>
+        <Connection>
+          <ConfigKey>[Skin],show_4decks</ConfigKey>
+          <Transform><Not/></Transform>
+          <BindProperty>visible</BindProperty>
+        </Connection>
+      </WidgetGroup>
+
+      <!-- Four decks: C, A, B, D -->
+      <WidgetGroup>
+        <Layout>vertical</Layout>
+        <SizePolicy>me,f</SizePolicy>
+        <Children>
+          <Template src="skins:CrateDecks/waveform_row.xml">
+            <SetVariable name="ChanNum">3</SetVariable>
+            <SetVariable name="Letter">C</SetVariable>
+            <SetVariable name="Pair">AC</SetVariable>
+            <SetVariable name="Rows"><Variable name="Band"/>Four</SetVariable>
+          </Template>
+          <WidgetGroup><ObjectName>CrateWaveformRule</ObjectName></WidgetGroup>
+          <Template src="skins:CrateDecks/waveform_row.xml">
+            <SetVariable name="ChanNum">1</SetVariable>
+            <SetVariable name="Letter">A</SetVariable>
+            <SetVariable name="Pair">AC</SetVariable>
+            <SetVariable name="Rows"><Variable name="Band"/>FourNext</SetVariable>
+          </Template>
+          <WidgetGroup><ObjectName>CrateWaveformRule</ObjectName></WidgetGroup>
+          <Template src="skins:CrateDecks/waveform_row.xml">
+            <SetVariable name="ChanNum">2</SetVariable>
+            <SetVariable name="Letter">B</SetVariable>
+            <SetVariable name="Pair">BD</SetVariable>
+            <SetVariable name="Rows"><Variable name="Band"/>FourNext</SetVariable>
+          </Template>
+          <WidgetGroup><ObjectName>CrateWaveformRule</ObjectName></WidgetGroup>
+          <Template src="skins:CrateDecks/waveform_row.xml">
+            <SetVariable name="ChanNum">4</SetVariable>
+            <SetVariable name="Letter">D</SetVariable>
+            <SetVariable name="Pair">BD</SetVariable>
+            <SetVariable name="Rows"><Variable name="Band"/>FourNext</SetVariable>
+          </Template>
+        </Children>
+        <Connection>
+          <ConfigKey>[Skin],show_4decks</ConfigKey>
+          <BindProperty>visible</BindProperty>
+        </Connection>
+      </WidgetGroup>
+
+      <WidgetGroup><ObjectName>CrateWaveformBandRule</ObjectName></WidgetGroup>
+    </Children>
+  </WidgetGroup>
+</Template>

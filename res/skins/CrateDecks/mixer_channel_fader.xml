@@ -1,0 +1,80 @@
+<!--
+  The fader of a channel strip (GU1 mockups .strip-fader): the level meter
+  and the volume fader side by side, and the headphone (PFL) button under
+  them. The fader's rail and ticks and its filled handle while it moves are
+  crate/ui/skin/mixerstyle.cpp's; the idle handle is fader-handle-v30.svg.
+Variables: ChanNum, Pair (AC or BD), Size ("" or "Four")
+-->
+<Template>
+  <SetVariable name="Group">[Channel<Variable name="ChanNum"/>]</SetVariable>
+  <WidgetGroup>
+    <ObjectName>CrateStripFader<Variable name="Size"/></ObjectName>
+    <Layout>vertical</Layout>
+    <SizePolicy>min,me</SizePolicy>
+    <Children>
+      <WidgetGroup>
+        <ObjectName>CrateStripMeterFader</ObjectName>
+        <Layout>horizontal</Layout>
+        <SizePolicy>min,me</SizePolicy>
+        <Children>
+          <Template src="skins:CrateDecks/mixer_vu.xml">
+            <SetVariable name="VuKey">vu_meter</SetVariable>
+            <SetVariable name="PeakKey">peak_indicator</SetVariable>
+            <SetVariable name="Colour"><Variable name="Pair"/></SetVariable>
+          </Template>
+          <SliderComposed>
+            <ObjectName>CrateFaderChannel<Variable name="Size"/><Variable name="Pair"/></ObjectName>
+            <TooltipId>channel_volume</TooltipId>
+            <SizePolicy>f,me</SizePolicy>
+            <Handle scalemode="STRETCH">skins:CrateDecks/generated/controls/fader-handle-v<Variable name="CrateFaderWidth"/>.svg</Handle>
+            <Horizontal>false</Horizontal>
+            <Connection>
+              <ConfigKey><Variable name="Group"/>,volume</ConfigKey>
+            </Connection>
+          </SliderComposed>
+        </Children>
+      </WidgetGroup>
+      <WidgetGroup>
+        <Layout>horizontal</Layout>
+        <SizePolicy>min,max</SizePolicy>
+        <Children>
+          <WidgetGroup><SizePolicy>me,min</SizePolicy></WidgetGroup>
+          <!-- One button per size: a button's style does not follow a
+               change of the layout class -->
+          <PushButton>
+            <ObjectName>CratePfl<Variable name="Size"/><Variable name="Pair"/></ObjectName>
+            <TooltipId>pfl</TooltipId>
+            <NumberStates>2</NumberStates>
+            <Connection>
+              <ConfigKey><Variable name="Group"/>,pfl</ConfigKey>
+              <ButtonState>LeftButton</ButtonState>
+            </Connection>
+            <Connection>
+              <ConfigKey>[CrateDecks],layout_short</ConfigKey>
+              <Transform><Not/></Transform>
+              <BindProperty>visible</BindProperty>
+            </Connection>
+          </PushButton>
+          <PushButton>
+            <ObjectName>CratePfl<Variable name="Size"/>Short<Variable name="Pair"/></ObjectName>
+            <TooltipId>pfl</TooltipId>
+            <NumberStates>2</NumberStates>
+            <Connection>
+              <ConfigKey><Variable name="Group"/>,pfl</ConfigKey>
+              <ButtonState>LeftButton</ButtonState>
+            </Connection>
+            <Connection>
+              <ConfigKey>[CrateDecks],layout_short</ConfigKey>
+              <BindProperty>visible</BindProperty>
+            </Connection>
+          </PushButton>
+          <WidgetGroup><SizePolicy>me,min</SizePolicy></WidgetGroup>
+        </Children>
+      </WidgetGroup>
+    </Children>
+    <Connection>
+      <ConfigKey>[CrateDecks],layout_short</ConfigKey>
+      <BindProperty>highlight</BindProperty>
+    </Connection>
+  </WidgetGroup>
+</Template>

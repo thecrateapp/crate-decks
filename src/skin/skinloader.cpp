@@ -6,6 +6,11 @@
 
 #include "control/controlproxy.h"
 #include "control/controlpushbutton.h"
+#ifdef __CRATE__
+#include "coreservices.h"
+#include "crate/ui/dialogs/dialogstyle.h"
+#include "crate/ui/skin/crateskin.h"
+#endif
 #include "mixer/playermanager.h"
 #include "moc_skinloader.cpp"
 #include "skin/legacy/launchimage.h"
@@ -159,7 +164,12 @@ SkinPointer SkinLoader::getConfiguredSkin() const {
 }
 
 QString SkinLoader::getDefaultSkinName() const {
+#ifdef __CRATE__
+    // Crate Decks: its own skin is the default (design 5.2, plan V2.PR1)
+    return crate::kSkinName;
+#else
     return "LateNight";
+#endif
 }
 
 QWidget* SkinLoader::loadConfiguredSkin(QWidget* pParent,
@@ -185,6 +195,11 @@ QWidget* SkinLoader::loadConfiguredSkin(QWidget* pParent,
     // the skin was loaded.
     setupMicDuckingControls();
 
+#ifdef __CRATE__
+    // Crate Decks: the skin's defaults also reach the controls that exist
+    // before it loads (folded racks, plan V2.PR3)
+    crate::applySkinDefaults(m_pConfig, pSkin->path().absoluteFilePath());
+#endif
     QWidget* pLoadedSkin = pSkin->loadSkin(pParent, m_pConfig, pSkinCreatedControls, pCoreServices);
 
     // If the skin exists but failed to load, try to fall back to the default skin.
@@ -206,6 +221,9 @@ QWidget* SkinLoader::loadConfiguredSkin(QWidget* pParent,
             }
 
             // This might also fail, but
+#ifdef __CRATE__
+            crate::applySkinDefaults(m_pConfig, pSkin->path().absoluteFilePath());
+#endif
             pLoadedSkin = pSkin->loadSkin(pParent, m_pConfig, pSkinCreatedControls, pCoreServices);
         }
         DEBUG_ASSERT(pLoadedSkin);
@@ -214,6 +232,15 @@ QWidget* SkinLoader::loadConfiguredSkin(QWidget* pParent,
     VERIFY_OR_DEBUG_ASSERT(pLoadedSkin != nullptr) {
         qCritical() << "No skin can be loaded, please check your installation.";
     }
+#ifdef __CRATE__
+    // Crate Decks: what the CrateDecks skin's QSS cannot do (MonoLabel
+    // tracking and capitals, layout classes, Crate status, the library's
+    // painting). Other skins are left as they are.
+    crate::prepareLoadedSkin(pLoadedSkin,
+            pSkin->path().absoluteFilePath(),
+            pCoreServices ? pCoreServices->getLibrary().get() : nullptr,
+            m_pConfig);
+#endif
     qInfo() << "Loaded skin" << pSkin->name() << "from" << pSkin->path().filePath();
     return pLoadedSkin;
 }
@@ -229,6 +256,11 @@ LaunchImage* SkinLoader::loadLaunchImage(QWidget* pParent) const {
         // Construct default LaunchImage
         pLaunchImage = new LaunchImage(pParent, QString());
     }
+#ifdef __CRATE__
+    // Crate Decks: the Crate Decks brand instead of the Mixxx logo, whatever
+    // the skin (V2.PR5)
+    crate::styleLaunchImage(pLaunchImage, m_pConfig->getResourcePath());
+#endif // __CRATE__
 
     return pLaunchImage;
 }

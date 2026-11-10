@@ -2,22 +2,31 @@
 
 #include <gtest/gtest.h>
 
+#include <QDialog>
+#include <QFrame>
 #include <QJsonDocument>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
+#include <QMainWindow>
 #include <QPushButton>
+#include <QScopeGuard>
 #include <QSignalSpy>
 #include <QSqlQuery>
 #include <QString>
+#include <QTimer>
 #include <QUrl>
 #include <memory>
 
 #include "crate/client/crateserveraddress.h"
 #include "crate/crateaddserverflow.h"
+#include "crate/crateserverrows.h"
 #include "crate/crateservers.h"
 #include "crate/db/crateserverprofiles.h"
 #include "crate/ui/cratefirstrun.h"
+#include "crate/ui/dialogs/dialogscrim.h"
+#include "crate/ui/dialogs/dialogstyle.h"
+#include "skin/legacy/launchimage.h"
 #include "test/crate/fakecratenetwork.h"
 #include "test/mixxxdbtest.h"
 
@@ -257,8 +266,116 @@ TEST_F(CrateAddServerFlowTest, PageAddsAServer) {
     EXPECT_TRUE(pList->item(0)->text().contains(QStringLiteral("https://crate.test")));
 }
 
+TEST_F(CrateAddServerFlowTest, ServerRowsShowFeaturesAndState) {
+    EXPECT_TRUE(crate::serverRows(*m_pServers).isEmpty());
+    const QByteArray capabilities = QByteArrayLiteral(R"({"decks": {
+        "available": true, "min_client_version": "0.1.0", "contract_version": 1,
+        "features": ["library_cursor", "beatmatch"]}})");
+    m_pFlow->setAddress(QStringLiteral("https://crate.test"));
+    lastSent().pReply->respond(200, capabilities);
+    m_pFlow->loginWithPassword(QStringLiteral("dj@crate.test"), QStringLiteral("right"));
+    lastSent().pReply->respond(200, kLoginAnswer);
+
+    const QList<crate::ServerRow> rows = crate::serverRows(*m_pServers);
+    ASSERT_EQ(1, rows.size());
+    const crate::ServerRow& row = rows.first();
+    EXPECT_QSTRING_EQ(QStringLiteral("crate.test"), row.name);
+    EXPECT_QSTRING_EQ(QStringLiteral("https://crate.test"), row.meta.value(0));
+    EXPECT_TRUE(row.meta.join(u' ').contains(QStringLiteral("dj@crate.test")));
+    EXPECT_EQ(crate::ServerRow::State::SignedIn, row.state);
+    EXPECT_QSTRING_EQ(QStringLiteral("signedIn"), row.stateName());
+    // Every feature of the contract, in the mockup's order, available or not
+    ASSERT_EQ(6, row.features.size());
+    EXPECT_EQ((crate::ServerRow::Feature{QStringLiteral("library"), true}), row.features[0]);
+    EXPECT_EQ((crate::ServerRow::Feature{QStringLiteral("analysis"), false}), row.features[1]);
+    EXPECT_EQ((crate::ServerRow::Feature{QStringLiteral("beatmatch"), true}), row.features[2]);
+    EXPECT_FALSE(row.features[5].available);
+}
+
+TEST(CrateServerRowsTest, FeaturesNeedAValidAnswer) {
+    EXPECT_TRUE(crate::serverFeatures(QByteArray()).isEmpty());
+    EXPECT_EQ(6, crate::serverFeatures(kDecksCapabilities).size());
+}
+
+TEST_F(CrateAddServerFlowTest, FirstRunDialogFollowsTheSteps) {
+    std::unique_ptr<QDialog> pDialog(crate::createFirstRunDialog(m_pServers.get(), nullptr));
+    auto* pStep = pDialog->findChild<QLabel*>(QStringLiteral("MonoFirstRunStep"));
+    ASSERT_NE(nullptr, pStep);
+    EXPECT_QSTRING_EQ(QStringLiteral("Step 1 of 3"), pStep->text());
+    const QList<QFrame*> lanes = pDialog->findChildren<QFrame*>(QStringLiteral("CrateStepLane"));
+    ASSERT_EQ(3, lanes.size());
+    EXPECT_TRUE(lanes[0]->property("current").toBool());
+    EXPECT_FALSE(lanes[1]->property("current").toBool());
+    // "Not now" is the first start's cancel
+    auto* pCancel = pDialog->findChild<QPushButton*>(QStringLiteral("crateCancel"));
+    ASSERT_NE(nullptr, pCancel);
+    EXPECT_QSTRING_EQ(QStringLiteral("Not now"), pCancel->text());
+
+    pDialog->findChild<QLineEdit*>(QStringLiteral("crateServerAddress"))
+            ->setText(QStringLiteral("crate.test"));
+    pDialog->findChild<QPushButton*>(QStringLiteral("crateConnect"))->click();
+    EXPECT_QSTRING_EQ(QStringLiteral("Step 2 of 3"), pStep->text());
+    lastSent().pReply->respond(200, kDecksCapabilities);
+    EXPECT_QSTRING_EQ(QStringLiteral("Step 3 of 3"), pStep->text());
+    EXPECT_TRUE(lanes[2]->property("current").toBool());
+
+    QSignalSpy rejected(pDialog.get(), &QDialog::rejected);
+    pCancel->click();
+    EXPECT_EQ(1, rejected.count());
+}
+
+TEST_F(CrateAddServerFlowTest, FirstRunDimsTheMainWindowUntilItCloses) {
+    // Crate's styles on a main window, as MixxxMainWindow sets them, undone
+    // for the next tests
+    const auto restore = qScopeGuard([] { crate::applyStyles(nullptr, QString(), QString()); });
+    QWidget mainWindow;
+    mainWindow.resize(1280, 720);
+    ASSERT_TRUE(crate::applyApplicationStyle(
+            &mainWindow, ConfigObject<ConfigValue>::computeResourcePath()));
+    mainWindow.show();
+    QCoreApplication::processEvents();
+    std::unique_ptr<QDialog> pDialog(crate::createFirstRunDialog(m_pServers.get(), &mainWindow));
+    // As offerFirstRun() opens it, until "Not now"
+    bool dimmed = false;
+    QTimer::singleShot(0, pDialog.get(), [&pDialog, &dimmed] {
+        const crate::DialogScrim* pScrim = crate::blockingDialogScrim();
+        dimmed = pScrim && pScrim->isActive();
+        pDialog->findChild<QPushButton*>(QStringLiteral("crateCancel"))->click();
+    });
+    EXPECT_EQ(QDialog::Rejected, pDialog->exec());
+    EXPECT_TRUE(dimmed);
+    ASSERT_NE(nullptr, crate::blockingDialogScrim());
+    EXPECT_FALSE(crate::blockingDialogScrim()->isActive());
+}
+
+// With OpenGL, Mixxx loads the skin and the dialog styles only after the
+// event loop starts, and then shows its own startup dialogs: the first start
+// waits for both, or it shows unstyled over the launch image
+TEST_F(CrateAddServerFlowTest, FirstRunWaitsForTheSkinAndOtherDialogs) {
+    QMainWindow mainWindow;
+    mainWindow.setCentralWidget(new LaunchImage(&mainWindow, QString()));
+    mainWindow.show();
+    EXPECT_FALSE(crate::firstRunCanShow(&mainWindow));
+
+    // The skin replaces the launch image
+    mainWindow.setCentralWidget(new QWidget(&mainWindow));
+    EXPECT_TRUE(crate::firstRunCanShow(&mainWindow));
+
+    // Another modal dialog, as Mixxx's "No Output Devices"
+    QDialog other(&mainWindow);
+    other.setWindowModality(Qt::ApplicationModal);
+    other.show();
+    EXPECT_FALSE(crate::firstRunCanShow(&mainWindow));
+    other.close();
+    EXPECT_TRUE(crate::firstRunCanShow(&mainWindow));
+
+    // A parent that is no main window has nothing to wait for
+    QWidget parent;
+    EXPECT_TRUE(crate::firstRunCanShow(&parent));
+}
+
 // TEST_GAP: offerFirstRun() shows a modal dialog, so it is checked by hand;
-// the tests cover when it is offered.
+// the tests cover when it is offered and that it waits for the skin.
 TEST_F(CrateAddServerFlowTest, FirstRunIsOfferedOnceWhileThereIsNoServer) {
     EXPECT_TRUE(crate::shouldOfferFirstRun(config(), *m_pServers));
 

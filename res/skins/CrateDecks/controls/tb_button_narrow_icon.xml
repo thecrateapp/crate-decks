@@ -1,0 +1,46 @@
+<!--
+Description:
+  tb_button.xml that shows only its icon below the 1366 layout breakpoint
+  (data-narrow="icon" in the GU1 mockups): two buttons on the same control,
+  the one with text above the breakpoint and the bare icon below it.
+Variables:
+  Icon        : suffix of the push buttons' object name (TbIcon<Icon>), which
+                picks the icon in style.qss.in
+  Text        : label text, in English as the app's source strings
+  TooltipId   : tooltip from src/skin/legacy/tooltips.cpp
+  ConfigKey   : control the button toggles
+-->
+<Template>
+  <WidgetGroup>
+    <ObjectName>TbButtonNarrowIcon</ObjectName>
+    <Layout>horizontal</Layout>
+    <SizePolicy>min,min</SizePolicy>
+    <Children>
+      <WidgetGroup>
+        <Layout>horizontal</Layout>
+        <SizePolicy>min,min</SizePolicy>
+        <Children>
+          <Template src="skins:CrateDecks/controls/tb_button.xml"/>
+        </Children>
+        <Connection>
+          <ConfigKey>[CrateDecks],layout_narrow</ConfigKey>
+          <Transform><Not/></Transform>
+          <BindProperty>visible</BindProperty>
+        </Connection>
+      </WidgetGroup>
+      <PushButton>
+        <TooltipId><Variable name="TooltipId"/></TooltipId>
+        <ObjectName>TbIcon<Variable name="Icon"/></ObjectName>
+        <NumberStates>2</NumberStates>
+        <Connection>
+          <ConfigKey><Variable name="ConfigKey"/></ConfigKey>
+          <ButtonState>LeftButton</ButtonState>
+        </Connection>
+        <Connection>
+          <ConfigKey>[CrateDecks],layout_narrow</ConfigKey>
+          <BindProperty>visible</BindProperty>
+        </Connection>
+      </PushButton>
+    </Children>
+  </WidgetGroup>
+</Template>

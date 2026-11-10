@@ -1,0 +1,355 @@
+<!--
+  Toolbar of the GU1 mockups (lib/decks.js toolbar(), decks.css .tb): brand,
+  decks, folded racks, Smart Mix and Auto DJ, the Crate server and its
+  connection, the readings, the clock and the icon buttons. 64 px with a
+  1 px rule, as the admin top bar. Below the 1366 layout breakpoint
+  ([CrateDecks],layout_narrow) some buttons show only their icon and the
+  latency, recording and broadcast entries hide.
+-->
+<Template>
+  <WidgetGroup>
+    <ObjectName>CrateToolbar</ObjectName>
+    <Layout>vertical</Layout>
+    <SizePolicy>e,f</SizePolicy>
+    <Children>
+      <!-- The row of controls, 32 px high, centred in the 64 px bar
+           (.tb align-items: center) -->
+      <WidgetGroup><SizePolicy>min,me</SizePolicy></WidgetGroup>
+      <WidgetGroup>
+        <ObjectName>CrateToolbarRow</ObjectName>
+        <Layout>horizontal</Layout>
+        <SizePolicy>e,f</SizePolicy>
+        <Children>
+
+          <WidgetGroup>
+            <ObjectName>CrateToolbarBrand</ObjectName>
+            <Layout>horizontal</Layout>
+            <SizePolicy>min,min</SizePolicy>
+            <Children>
+              <Label>
+                <ObjectName>CrateToolbarLogo</ObjectName>
+              </Label>
+              <Label>
+                <ObjectName>CrateToolbarBrandName</ObjectName>
+                <Text>Crate Decks</Text>
+              </Label>
+            </Children>
+          </WidgetGroup>
+
+          <WidgetGroup><ObjectName>CrateToolbarSeparator</ObjectName></WidgetGroup>
+
+          <WidgetGroup>
+            <ObjectName>CrateToolbarGroup</ObjectName>
+            <Layout>horizontal</Layout>
+            <SizePolicy>min,min</SizePolicy>
+            <Children>
+              <!-- 2 decks and 4 decks select a value of [Skin],show_4decks:
+                   IsEqual shows the active one, and its inverse always writes
+                   the button's value -->
+              <WidgetGroup>
+                <ObjectName>TbButton</ObjectName>
+                <Layout>stacked</Layout>
+                <SizePolicy>min,min</SizePolicy>
+                <Children>
+                  <Label>
+                    <ObjectName>MonoTbButtonText</ObjectName>
+                    <Text>2 decks</Text>
+                    <Connection>
+                      <ConfigKey>[Skin],show_4decks</ConfigKey>
+                      <Transform><Not/></Transform>
+                      <BindProperty>highlight</BindProperty>
+                    </Connection>
+                  </Label>
+                  <PushButton>
+                    <TooltipId>toggle_4decks</TooltipId>
+                    <ObjectName>TbIconDecks2</ObjectName>
+                    <NumberStates>2</NumberStates>
+                    <Connection>
+                      <ConfigKey>[Skin],show_4decks</ConfigKey>
+                      <Transform><IsEqual>0</IsEqual></Transform>
+                      <ButtonState>LeftButton</ButtonState>
+                    </Connection>
+                  </PushButton>
+                </Children>
+              </WidgetGroup>
+              <WidgetGroup>
+                <ObjectName>TbButton</ObjectName>
+                <Layout>stacked</Layout>
+                <SizePolicy>min,min</SizePolicy>
+                <Children>
+                  <Label>
+                    <ObjectName>MonoTbButtonText</ObjectName>
+                    <Text>4 decks</Text>
+                    <Connection>
+                      <ConfigKey>[Skin],show_4decks</ConfigKey>
+                      <BindProperty>highlight</BindProperty>
+                    </Connection>
+                  </Label>
+                  <PushButton>
+                    <TooltipId>toggle_4decks</TooltipId>
+                    <ObjectName>TbIconDecks4</ObjectName>
+                    <NumberStates>2</NumberStates>
+                    <Connection>
+                      <ConfigKey>[Skin],show_4decks</ConfigKey>
+                      <Transform><Not/><IsEqual>0</IsEqual></Transform>
+                      <ButtonState>LeftButton</ButtonState>
+                    </Connection>
+                  </PushButton>
+                </Children>
+              </WidgetGroup>
+            </Children>
+          </WidgetGroup>
+
+          <!-- Effects, samplers, mic and aux are folded until shown -->
+          <WidgetGroup>
+            <ObjectName>CrateToolbarGroup</ObjectName>
+            <Layout>horizontal</Layout>
+            <SizePolicy>min,min</SizePolicy>
+            <Children>
+              <Template src="skins:CrateDecks/controls/tb_button_narrow_icon.xml">
+                <SetVariable name="Icon">Fx</SetVariable>
+                <SetVariable name="Text">FX</SetVariable>
+                <SetVariable name="TooltipId">show_effects</SetVariable>
+                <SetVariable name="ConfigKey">[Skin],show_effectrack</SetVariable>
+              </Template>
+              <Template src="skins:CrateDecks/controls/tb_button_narrow_icon.xml">
+                <SetVariable name="Icon">Samplers</SetVariable>
+                <SetVariable name="Text">Samplers</SetVariable>
+                <SetVariable name="TooltipId">show_samplers</SetVariable>
+                <SetVariable name="ConfigKey">[Skin],show_samplers</SetVariable>
+              </Template>
+              <Template src="skins:CrateDecks/controls/tb_button_narrow_icon.xml">
+                <SetVariable name="Icon">MicAux</SetVariable>
+                <SetVariable name="Text">Mic · Aux</SetVariable>
+                <SetVariable name="TooltipId">show_microphone</SetVariable>
+                <SetVariable name="ConfigKey">[Skin],show_microphones</SetVariable>
+              </Template>
+            </Children>
+          </WidgetGroup>
+
+          <WidgetGroup><ObjectName>CrateToolbarSeparator</ObjectName></WidgetGroup>
+
+          <WidgetGroup>
+            <ObjectName>CrateToolbarGroup</ObjectName>
+            <Layout>horizontal</Layout>
+            <SizePolicy>min,min</SizePolicy>
+            <Children>
+              <!-- Smart Mix: laid out; its control arrives with the Smart Mix
+                   director (plan F6), so the button does nothing yet -->
+              <WidgetGroup>
+                <ObjectName>TbButton</ObjectName>
+                <Layout>stacked</Layout>
+                <SizePolicy>min,min</SizePolicy>
+                <Children>
+                  <Label>
+                    <ObjectName>MonoTbButtonText</ObjectName>
+                    <Text>Smart Mix</Text>
+                  </Label>
+                  <PushButton>
+                    <ObjectName>TbIconSmartMix</ObjectName>
+                    <NumberStates>1</NumberStates>
+                  </PushButton>
+                </Children>
+              </WidgetGroup>
+              <Template src="skins:CrateDecks/controls/tb_button_narrow_icon.xml">
+                <SetVariable name="Icon">AutoDj</SetVariable>
+                <SetVariable name="Text">Auto DJ</SetVariable>
+                <SetVariable name="TooltipId">autodj_status</SetVariable>
+                <SetVariable name="ConfigKey">[AutoDJ],enabled</SetVariable>
+              </Template>
+            </Children>
+          </WidgetGroup>
+
+          <WidgetGroup><SizePolicy>me,min</SizePolicy></WidgetGroup>
+
+          <!-- Crate server and connection: C++ fills the text and sets the
+               crateState property (crate/ui/skin/crateserverstatus.cpp) -->
+          <WidgetGroup>
+            <ObjectName>CrateStatus</ObjectName>
+            <Layout>horizontal</Layout>
+            <SizePolicy>min,min</SizePolicy>
+            <Children>
+              <Label>
+                <ObjectName>CrateStatusDot</ObjectName>
+              </Label>
+              <Label>
+                <ObjectName>MonoCrateStatus</ObjectName>
+                <Text>Crate</Text>
+              </Label>
+            </Children>
+          </WidgetGroup>
+
+          <WidgetGroup>
+            <ObjectName>CrateToolbarSeparator</ObjectName>
+            <Connection>
+              <ConfigKey>[CrateDecks],layout_narrow</ConfigKey>
+              <Transform><Not/></Transform>
+              <BindProperty>visible</BindProperty>
+            </Connection>
+          </WidgetGroup>
+
+          <!-- Readings: the share of the audio buffer used for processing, and
+               the output latency -->
+          <WidgetGroup>
+            <ObjectName>CrateToolbarReading</ObjectName>
+            <Layout>vertical</Layout>
+            <SizePolicy>min,min</SizePolicy>
+            <Children>
+              <WidgetGroup><SizePolicy>min,me</SizePolicy></WidgetGroup>
+              <WidgetGroup>
+                <ObjectName>CrateToolbarReadingRow</ObjectName>
+                <Layout>horizontal</Layout>
+                <SizePolicy>min,min</SizePolicy>
+                <Children>
+                  <Number>
+                    <ObjectName>MonoReading</ObjectName>
+                    <Alignment>left</Alignment>
+                    <TooltipId>audio_latency_usage</TooltipId>
+                    <Text>CPU · </Text>
+                    <NumberOfDigits>0</NumberOfDigits>
+                    <Connection>
+                      <ConfigKey>[App],audio_latency_usage</ConfigKey>
+                    </Connection>
+                  </Number>
+                  <Label>
+                    <ObjectName>MonoReading</ObjectName>
+                    <Alignment>left</Alignment>
+                    <Text> %</Text>
+                  </Label>
+                </Children>
+              </WidgetGroup>
+              <!-- A 1 px lane that crate/ui/skin/mixerstyle.cpp paints: a
+                   VuMeter with OpenGL cannot be thinner than 2 px -->
+              <SliderComposed>
+                <TooltipId>audio_latency_usage</TooltipId>
+                <ObjectName>CrateMeterLane</ObjectName>
+                <Size><Variable name="CrateReadingMinWidth"/>min,<Variable name="CrateLaneMeter"/>f</Size>
+                <Horizontal>true</Horizontal>
+                <Connection>
+                  <ConfigKey>[App],audio_latency_usage</ConfigKey>
+                  <ConnectValueFromWidget>false</ConnectValueFromWidget>
+                </Connection>
+              </SliderComposed>
+              <WidgetGroup><SizePolicy>min,me</SizePolicy></WidgetGroup>
+            </Children>
+          </WidgetGroup>
+
+          <WidgetGroup>
+            <ObjectName>CrateToolbarReading</ObjectName>
+            <Layout>vertical</Layout>
+            <SizePolicy>min,min</SizePolicy>
+            <Children>
+              <WidgetGroup><SizePolicy>min,me</SizePolicy></WidgetGroup>
+              <WidgetGroup>
+                <ObjectName>CrateToolbarReadingRow</ObjectName>
+                <Layout>horizontal</Layout>
+                <SizePolicy>min,min</SizePolicy>
+                <Children>
+                  <Number>
+                    <ObjectName>MonoReading</ObjectName>
+                    <Alignment>left</Alignment>
+                    <Text>Latency · </Text>
+                    <NumberOfDigits>1</NumberOfDigits>
+                    <Connection>
+                      <ConfigKey>[App],output_latency_ms</ConfigKey>
+                    </Connection>
+                  </Number>
+                  <Label>
+                    <ObjectName>MonoReading</ObjectName>
+                    <Alignment>left</Alignment>
+                    <Text> ms</Text>
+                  </Label>
+                </Children>
+              </WidgetGroup>
+              <!-- A 1 px lane that crate/ui/skin/mixerstyle.cpp paints: a
+                   VuMeter with OpenGL cannot be thinner than 2 px -->
+              <SliderComposed>
+                <ObjectName>CrateMeterLane</ObjectName>
+                <Size><Variable name="CrateReadingMinWidth"/>min,<Variable name="CrateLaneMeter"/>f</Size>
+                <Horizontal>true</Horizontal>
+                <Connection>
+                  <ConfigKey>[App],audio_latency_overload</ConfigKey>
+                  <ConnectValueFromWidget>false</ConnectValueFromWidget>
+                </Connection>
+              </SliderComposed>
+              <WidgetGroup><SizePolicy>min,me</SizePolicy></WidgetGroup>
+            </Children>
+            <Connection>
+              <ConfigKey>[CrateDecks],layout_narrow</ConfigKey>
+              <Transform><Not/></Transform>
+              <BindProperty>visible</BindProperty>
+            </Connection>
+          </WidgetGroup>
+
+          <Time>
+            <ObjectName>CrateToolbarClock</ObjectName>
+            <TooltipId>time</TooltipId>
+            <CustomFormat>HH:mm</CustomFormat>
+          </Time>
+
+          <WidgetGroup>
+            <ObjectName>CrateToolbarGroup</ObjectName>
+            <Layout>horizontal</Layout>
+            <SizePolicy>min,min</SizePolicy>
+            <Children>
+              <PushButton>
+                <TooltipId>toggle_recording</TooltipId>
+                <ObjectName>TbIconRecord</ObjectName>
+                <NumberStates>3</NumberStates>
+                <Connection>
+                  <ConfigKey>[Recording],toggle_recording</ConfigKey>
+                  <EmitOnPressAndRelease>true</EmitOnPressAndRelease>
+                  <ButtonState>LeftButton</ButtonState>
+                </Connection>
+                <Connection>
+                  <ConfigKey>[Recording],status</ConfigKey>
+                  <ConnectValueFromWidget>false</ConnectValueFromWidget>
+                </Connection>
+                <Connection>
+                  <ConfigKey>[CrateDecks],layout_narrow</ConfigKey>
+                  <Transform><Not/></Transform>
+                  <BindProperty>visible</BindProperty>
+                </Connection>
+              </PushButton>
+              <PushButton>
+                <TooltipId>broadcast_enabled</TooltipId>
+                <ObjectName>TbIconBroadcast</ObjectName>
+                <NumberStates>2</NumberStates>
+                <Connection>
+                  <ConfigKey>[Shoutcast],enabled</ConfigKey>
+                  <ButtonState>LeftButton</ButtonState>
+                </Connection>
+                <Connection>
+                  <ConfigKey>[CrateDecks],layout_narrow</ConfigKey>
+                  <Transform><Not/></Transform>
+                  <BindProperty>visible</BindProperty>
+                </Connection>
+              </PushButton>
+              <!-- Opens Preferences: Mixxx has no control for it, so the
+                   skin's C++ triggers the menu bar's Preferences action -->
+              <PushButton>
+                <Tooltip>Preferences</Tooltip>
+                <ObjectName>TbIconSettings</ObjectName>
+                <NumberStates>2</NumberStates>
+                <Connection>
+                  <ConfigKey>[CrateDecks],show_preferences</ConfigKey>
+                  <ButtonState>LeftButton</ButtonState>
+                </Connection>
+              </PushButton>
+            </Children>
+          </WidgetGroup>
+
+        </Children>
+        <Connection>
+          <ConfigKey>[CrateDecks],layout_narrow</ConfigKey>
+          <BindProperty>highlight</BindProperty>
+        </Connection>
+      </WidgetGroup>
+      <WidgetGroup><SizePolicy>min,me</SizePolicy></WidgetGroup>
+    </Children>
+    <Connection>
+      <ConfigKey>[CrateDecks],layout_narrow</ConfigKey>
+      <BindProperty>highlight</BindProperty>
+    </Connection>
+  </WidgetGroup>
+</Template>

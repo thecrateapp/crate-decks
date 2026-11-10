@@ -20,6 +20,9 @@ TOKENS = {
             "textMuted": {"value": "#999ca0"},
             "textFaint": {"value": "#4a4c52"},
             "onAccent": {"value": "#0a0a0f"},
+            "borderSubtle": {"value": "#f1f5f9", "alpha": 0.06},
+            "textSubtle": {"value": "#7e8084"},
+            "dangerText": {"value": "#ef6465"},
         },
         "iconState": {
             "iconIdle": {"ref": "textMuted"},
@@ -27,6 +30,9 @@ TOKENS = {
             "iconActive": {"ref": "accentHi"},
             "iconDisabled": {"ref": "textFaint"},
             "iconOnAccent": {"ref": "onAccent"},
+            "iconPrimary": {"ref": "textPrimary"},
+            "iconAccent": {"ref": "accentHi"},
+            "iconDanger": {"ref": "dangerText"},
         },
         "geometry": {
             "radiusMd": {"value": 4, "unit": "px"},
@@ -44,10 +50,30 @@ TOKENS = {
             "knobTickEvery": {"value": 2},
             "knobTickLong": {"value": 4.5, "unit": "px"},
             "knobTickShort": {"value": 2, "unit": "px"},
-            "faderRail": {"value": 1, "unit": "px"},
-            "faderTickStep": {"value": 10, "unit": "%"},
             "faderHandleWidth": {"value": 18, "unit": "px"},
             "faderHandleHeight": {"value": 10, "unit": "px"},
+            "faderHandleLine": {"value": 8, "unit": "px"},
+            "faderWidth": {"value": 30, "unit": "px"},
+            "pitchFaderWidth": {"value": 34, "unit": "px"},
+            "knobCanvas": {"value": 40, "unit": "px"},
+            "knobTickGap": {"value": 1.5, "unit": "px"},
+            "knobDot": {"value": 3, "unit": "px"},
+            "knobDotInset": {"value": 5, "unit": "px"},
+            "knobSizeCompact": {"value": 30, "unit": "px"},
+            "knobSizeFourShort": {"value": 26, "unit": "px"},
+            "vuWarningDb": {"value": -6, "unit": "dB"},
+            "phraseHeight": {"value": 18, "unit": "px"},
+            "tickPhrase": {"value": 10, "unit": "px"},
+            "stemRailHeight": {"value": 18, "unit": "px"},
+            "stemRailInset": {"value": 3, "unit": "px"},
+            "stemTickOffset": {"value": 4, "unit": "px"},
+            "stemTickShort": {"value": 2, "unit": "px"},
+            "stemTickLong": {"value": 3, "unit": "px"},
+            "stemHandleWidth": {"value": 5, "unit": "px"},
+            "stemHandleHeight": {"value": 9, "unit": "px"},
+            "switchWidth": {"value": 32, "unit": "px"},
+            "switchHeight": {"value": 18, "unit": "px"},
+            "switchKnob": {"value": 14, "unit": "px"},
         },
     },
 }
@@ -81,6 +107,10 @@ def design(tmp_path):
     (svg / "solar").mkdir(parents=True)
     (svg / "controls").mkdir()
     (svg / "solar" / "play.svg").write_text(ICON, encoding="utf-8")
+    # The icons that also get a button's colour (ICON_STATES_FOR)
+    for _, icons in generate.ICON_STATES_FOR.values():
+        for icon in icons:
+            (svg / "solar" / f"{icon}.svg").write_text(ICON, encoding="utf-8")
     return {
         "tokens": tokens,
         "templates": templates,
@@ -145,16 +175,15 @@ def test_svg_recolor_per_state(design):
         "active": "#67e8f9",
         "disabled": "#4a4c52",
         "onaccent": "#0a0a0f",
+        "primary": "#f1f5f9",
     }
     assert set(generate.STATES) == set(expected)
     for state, colour in expected.items():
         svg = (design["out"] / "icons" / f"play_{state}.svg").read_text()
         assert "currentColor" not in svg
         assert f'fill="{colour}"' in svg
-    handle = design["out"] / "controls" / "fader-handle-v_active.svg"
-    assert 'fill="#67e8f9"' in handle.read_text()
-    idle = design["out"] / "controls" / "fader-handle-v_idle.svg"
-    assert 'stroke="#999ca0"' in idle.read_text()
+    handle = (design["out"] / "controls" / "fader-handle-v30.svg").read_text()
+    assert 'fill="#0a0a0f" stroke="#999ca0"' in handle
 
 
 def test_svg_without_current_color_fails(design):
@@ -236,6 +265,12 @@ def test_only_solar_icons():
     allowed = {generate.SVG / "solar", generate.SVG / "controls"}
     for path in generate.HERE.rglob("*"):
         if path.name.endswith((".svg", ".svg.in")):
+            # Templates draw the logo and plain shapes from tokens; they are
+            # not icons and never come from an icon set.
+            if generate.TEMPLATES in path.parents:
+                assert path.name.endswith(".svg.in"), path
+                assert "currentColor" not in path.read_text(), path
+                continue
             assert path.parent in allowed, f"{path}: icons are Solar only"
     subset = set()
     for line in (generate.SVG / "solar" / "SUBSET").read_text().splitlines():
@@ -329,3 +364,190 @@ def test_wave_palette_of_the_decks():
         bd = tokens[f"wave{band}DeckBD"].value
         assert ac == tokens[f"wave{band}Accent"].value
         assert bd == tokens[f"wave{band}Neutral"].value
+
+
+def test_qss_sum_of_tokens(design):
+    template = design["templates"] / "style.qss.in"
+    template.write_text(
+        QSS_TEMPLATE
+        + "QLabel { padding-left: {{ tickLong + tickShort - strokeHairline }};"
+        + " qproperty-layoutSpacing: {{tickLong+tickShort.number}}; }\n",
+        encoding="utf-8",
+    )
+    run(design)
+    qss = (design["out"] / "style.qss").read_text(encoding="utf-8")
+    assert "padding-left: 9px;" in qss
+    assert "qproperty-layoutSpacing: 10;" in qss
+
+
+def test_sum_needs_one_unit(design):
+    template = design["templates"] / "style.qss.in"
+    template.write_text(
+        QSS_TEMPLATE + "QLabel { width: {{tickLong + knobSweep}}; }\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(generate.GeneratorError, match="mixed units"):
+        run(design)
+
+
+def test_sum_of_unknown_token_fails(design):
+    template = design["templates"] / "style.qss.in"
+    template.write_text(
+        QSS_TEMPLATE + "QLabel { width: {{tickLong + tickLonger}}; }\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(
+        generate.GeneratorError, match="unknown token tickLonger"
+    ):
+        run(design)
+
+
+def test_half_of_a_length(design):
+    template = design["templates"] / "style.qss.in"
+    template.write_text(
+        QSS_TEMPLATE + "QLabel { border-radius: {{tickLong.half}}; }\n",
+        encoding="utf-8",
+    )
+    run(design)
+    qss = (design["out"] / "style.qss").read_text(encoding="utf-8")
+    assert "border-radius: 3.5px;" in qss
+
+
+def test_tracking_times_size_is_a_length(design):
+    data = json.loads(design["tokens"].read_text(encoding="utf-8"))
+    data["tokens"]["geometry"]["trackingCaps"] = {"value": 0.14, "unit": "em"}
+    data["tokens"]["geometry"]["fontSizeLabel"] = {"value": 11, "unit": "px"}
+    design["tokens"].write_text(json.dumps(data), encoding="utf-8")
+    template = design["templates"] / "style.qss.in"
+    template.write_text(
+        QSS_TEMPLATE
+        + "QLabel { letter-spacing: {{trackingCaps * fontSizeLabel}}; }\n",
+        encoding="utf-8",
+    )
+    run(design)
+    qss = (design["out"] / "style.qss").read_text(encoding="utf-8")
+    assert "letter-spacing: 1.54px;" in qss
+
+
+def test_fractional_font_size_in_points(design):
+    data = json.loads(design["tokens"].read_text(encoding="utf-8"))
+    data["tokens"]["geometry"]["fontSizeMeta"] = {"value": 10.5, "unit": "px"}
+    design["tokens"].write_text(json.dumps(data), encoding="utf-8")
+    template = design["templates"] / "style.qss.in"
+    template.write_text(
+        QSS_TEMPLATE
+        + "QLabel { font-size: {{fontSizeMeta.fontsize}}; }\n"
+        + "QSpinBox { font-size: {{tickLong.fontsize}}; }\n",
+        encoding="utf-8",
+    )
+    run(design)
+    qss = (design["out"] / "style.qss").read_text(encoding="utf-8")
+    assert "font-size: 7.875pt;" in qss
+    assert "font-size: 7px;" in qss
+
+
+def test_scales_keep_hairlines_when_stretched(design):
+    run(design)
+    controls = design["out"] / "controls"
+    for name in ("phrase-ruler.svg", "stem-rail.svg", "knob-scale.svg"):
+        svg = (controls / name).read_text(encoding="utf-8")
+        assert 'vector-effect="non-scaling-stroke"' in svg, name
+    ruler = (controls / "phrase-ruler.svg").read_text(encoding="utf-8")
+    # 64 beats: a baseline and 65 ticks
+    assert ruler.count("<line") == 66
+
+
+def test_knob_scale_and_arc_share_the_ring(design):
+    run(design)
+    controls = design["out"] / "controls"
+    scale = (controls / "knob-scale.svg").read_text(encoding="utf-8")
+    # The GU1 mockups' 40 x 40 knob: ring at 20 - 0.5 - 4.5 - 1.5
+    assert 'viewBox="0 0 40 40"' in scale
+    assert 'r="13.5"' in scale
+    # 19 ticks over 270 degrees, one every 15, long every 30
+    assert scale.count("<line") == 19
+    dot = (controls / "knob-dot.svg").read_text(encoding="utf-8")
+    assert '<circle cx="20" cy="11.5" r="1.5" fill="#f1f5f9"/>' in dot
+
+    tokens = generate.load_tokens(design["tokens"])
+    derived = generate.derived_tokens(tokens, set())
+    # The arc of WKnobComposed runs on the ring at each knob size
+    assert derived["knobArcRadius"].value == 13.5
+    assert derived["knobArcRadiusCompact"].value == 10.125
+    assert derived["knobArcRadiusFourShort"].value == 8.775
+    assert derived["faderHandleLength"].value == 11
+
+
+def test_derived_values_reach_templates(design):
+    template = design["templates"] / "style.qss.in"
+    template.write_text(
+        QSS_TEMPLATE + "/* {{knobArcRadiusCompact}} {{vuWarningLevel}} */\n",
+        encoding="utf-8",
+    )
+    run(design)
+    qss = (design["out"] / "style.qss").read_text(encoding="utf-8")
+    assert "/* 10.125 0.7412 */" in qss
+
+
+def test_vu_level_follows_mixxx_meter_scale():
+    # EngineVuMeter: full scale is 1, and -6 dB below it is about 0.74
+    assert generate.vu_level(0) == pytest.approx(1)
+    assert generate.vu_level(-6) == pytest.approx(0.7412, abs=1e-4)
+    assert generate.vu_level(-20) < generate.vu_level(-6)
+
+
+def test_fader_handles_sit_on_the_rail(design):
+    run(design)
+    controls = design["out"] / "controls"
+    v30 = (controls / "fader-handle-v30.svg").read_text(encoding="utf-8")
+    # 30 px across, the rail at 15.5 as in the mockups: an 18 x 10 outline
+    # on half pixels and an 8 px line through the middle
+    assert 'width="30" height="11"' in v30
+    assert '<rect x="6.5" y="0.5" width="18" height="10"' in v30
+    assert 'x1="11.50" y1="5.50" x2="19.50" y2="5.50"' in v30
+    v34 = (controls / "fader-handle-v34.svg").read_text(encoding="utf-8")
+    assert '<rect x="8.5" y="0.5" width="18" height="10"' in v34
+    h30 = (controls / "fader-handle-h30.svg").read_text(encoding="utf-8")
+    assert 'width="11" height="30"' in h30
+    assert '<rect x="0.5" y="6.5" width="10" height="18"' in h30
+
+
+def test_switch_is_the_admin_switch(design):
+    run(design)
+    controls = design["out"] / "controls"
+    off = (controls / "switch-off.svg").read_text(encoding="utf-8")
+    on = (controls / "switch-on.svg").read_text(encoding="utf-8")
+    # decks.css .switch: a 32 x 18 pill, the 14 px knob 1 px inside the
+    # border, on the left in textSubtle and on the right over accentHi
+    assert 'width="32" height="18"' in off
+    assert 'rx="8.5" fill="none" stroke="#f1f5f9" stroke-opacity="0.1"' in off
+    assert '<circle cx="9" cy="9" r="7" fill="#7e8084"/>' in off
+    assert 'fill="#67e8f9" stroke="#67e8f9"' in on
+    assert '<circle cx="23" cy="9" r="7" fill="#0a0a0f"/>' in on
+    for name in ("switch-off-disabled.svg", "switch-on-disabled.svg"):
+        assert (controls / name).exists()
+
+
+def test_some_icons_get_a_button_colour(design):
+    run(design)
+    icons = design["out"] / "icons"
+    danger = (icons / "logout_danger.svg").read_text(encoding="utf-8")
+    assert 'fill="#ef6465"' in danger
+    assert (icons / "add-circle_accent.svg").exists()
+    # Only the icons that need the state get it
+    assert not (icons / "play_danger.svg").exists()
+
+
+def test_missing_icon_for_a_button_colour_fails(design):
+    (design["svg"] / "solar" / "logout.svg").unlink()
+    with pytest.raises(generate.GeneratorError, match="logout"):
+        run(design)
+
+
+def test_application_style_is_generated():
+    # The application's default style and the splash screen: generated, and
+    # with every placeholder resolved
+    for name in ("default.qss", "dialogs.qss", "launch.qss"):
+        text = (generate.OUT / name).read_text(encoding="utf-8")
+        assert "{{" not in text and "}}" not in text, name
+        assert "#" in text and ":/images/" not in text, name

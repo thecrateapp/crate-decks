@@ -1,0 +1,55 @@
+<!--
+  Cue row of the compact decks (four decks) and of the two-deck decks below
+  the 1366 breakpoint (GU1 mockups .cue-row): the hotcue nodes and, with
+  four decks, the stems as chips (below the breakpoint, only a "Stems"
+  label). The chips hide until the deck plays a track with stems.
+Variables: ChanNum, Pair, Size, ChipsOff ("0" shows the stem chips of a
+  deck with stems; "-100" never, as it is added to [ChannelN],stem_count)
+-->
+<Template>
+  <WidgetGroup>
+    <ObjectName>CrateCueRow<Variable name="Size"/></ObjectName>
+    <Layout>horizontal</Layout>
+    <SizePolicy>me,max</SizePolicy>
+    <Children>
+      <Template src="skins:CrateDecks/deck_hotcues.xml"/>
+      <WidgetGroup><SizePolicy>me,min</SizePolicy></WidgetGroup>
+      <WidgetGroup>
+        <ObjectName>CrateStemChips</ObjectName>
+        <Layout>horizontal</Layout>
+        <SizePolicy>min,min</SizePolicy>
+        <Children>
+          <Label>
+            <ObjectName>MonoStemChipsLabel</ObjectName>
+            <Text>Stems</Text>
+            <Connection>
+              <ConfigKey>[CrateDecks],layout_narrow</ConfigKey>
+              <BindProperty>highlight</BindProperty>
+            </Connection>
+          </Label>
+          <WidgetGroup>
+            <ObjectName>CrateStemChipsRow</ObjectName>
+            <Layout>horizontal</Layout>
+            <SizePolicy>min,min</SizePolicy>
+            <Children>
+              <Template src="skins:CrateDecks/controls/stem_chip.xml"><SetVariable name="Stem">1</SetVariable><SetVariable name="Name">Drums</SetVariable></Template>
+              <Template src="skins:CrateDecks/controls/stem_chip.xml"><SetVariable name="Stem">2</SetVariable><SetVariable name="Name">Bass</SetVariable></Template>
+              <Template src="skins:CrateDecks/controls/stem_chip.xml"><SetVariable name="Stem">3</SetVariable><SetVariable name="Name">Other</SetVariable></Template>
+              <Template src="skins:CrateDecks/controls/stem_chip.xml"><SetVariable name="Stem">4</SetVariable><SetVariable name="Name">Vocals</SetVariable></Template>
+            </Children>
+            <Connection>
+              <ConfigKey>[CrateDecks],layout_narrow</ConfigKey>
+              <Transform><Not/></Transform>
+              <BindProperty>visible</BindProperty>
+            </Connection>
+          </WidgetGroup>
+        </Children>
+        <Connection>
+          <ConfigKey>[Channel<Variable name="ChanNum"/>],stem_count</ConfigKey>
+          <Transform><Add><Variable name="ChipsOff"/></Add></Transform>
+          <BindProperty>visible</BindProperty>
+        </Connection>
+      </WidgetGroup>
+    </Children>
+  </WidgetGroup>
+</Template>

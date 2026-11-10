@@ -1,0 +1,34 @@
+<!--
+  The crossfader (GU1 mockups .xfader): A, the horizontal fader with its
+  rail, ticks and outline handle, B. Its handle fills in accent while it
+  moves (crate/ui/skin/mixerstyle.cpp).
+-->
+<Template>
+  <WidgetGroup>
+    <ObjectName>CrateCrossfader</ObjectName>
+    <Layout>horizontal</Layout>
+    <SizePolicy>me,max</SizePolicy>
+    <Children>
+      <Label>
+        <ObjectName>MonoCrossfaderSide</ObjectName>
+        <Text>A</Text>
+        <Alignment>center</Alignment>
+      </Label>
+      <SliderComposed>
+        <ObjectName>CrateFaderCross</ObjectName>
+        <TooltipId>crossfader</TooltipId>
+        <SizePolicy>me,f</SizePolicy>
+        <Handle scalemode="STRETCH">skins:CrateDecks/generated/controls/fader-handle-h<Variable name="CrateFaderWidth"/>.svg</Handle>
+        <Horizontal>true</Horizontal>
+        <Connection>
+          <ConfigKey>[Master],crossfader</ConfigKey>
+        </Connection>
+      </SliderComposed>
+      <Label>
+        <ObjectName>MonoCrossfaderSide</ObjectName>
+        <Text>B</Text>
+        <Alignment>center</Alignment>
+      </Label>
+    </Children>
+  </WidgetGroup>
+</Template>
