@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="32" viewBox="0 0 120 32">
+  <line x1="0.00" y1="16.00" x2="120.00" y2="16.00" stroke="#f1f5f9" stroke-width="1" stroke-opacity="0.2"/>
+  <line x1="0.50" y1="7.00" x2="0.50" y2="4.00" stroke="#4a4c52" stroke-width="1"/>
+  <line x1="0.50" y1="25.00" x2="0.50" y2="28.00" stroke="#4a4c52" stroke-width="1"/>
+  <line x1="12.40" y1="7.00" x2="12.40" y2="4.00" stroke="#4a4c52" stroke-width="1"/>
+  <line x1="12.40" y1="25.00" x2="12.40" y2="28.00" stroke="#4a4c52" stroke-width="1"/>
+  <line x1="24.30" y1="7.00" x2="24.30" y2="4.00" stroke="#4a4c52" stroke-width="1"/>
+  <line x1="24.30" y1="25.00" x2="24.30" y2="28.00" stroke="#4a4c52" stroke-width="1"/>
+  <line x1="36.20" y1="7.00" x2="36.20" y2="4.00" stroke="#4a4c52" stroke-width="1"/>
+  <line x1="36.20" y1="25.00" x2="36.20" y2="28.00" stroke="#4a4c52" stroke-width="1"/>
+  <line x1="48.10" y1="7.00" x2="48.10" y2="4.00" stroke="#4a4c52" stroke-width="1"/>
+  <line x1="48.10" y1="25.00" x2="48.10" y2="28.00" stroke="#4a4c52" stroke-width="1"/>
+  <line x1="60.00" y1="7.00" x2="60.00" y2="0.00" stroke="#999ca0" stroke-width="1"/>
+  <line x1="60.00" y1="25.00" x2="60.00" y2="32.00" stroke="#999ca0" stroke-width="1"/>
+  <line x1="71.90" y1="7.00" x2="71.90" y2="4.00" stroke="#4a4c52" stroke-width="1"/>
+  <line x1="71.90" y1="25.00" x2="71.90" y2="28.00" stroke="#4a4c52" stroke-width="1"/>
+  <line x1="83.80" y1="7.00" x2="83.80" y2="4.00" stroke="#4a4c52" stroke-width="1"/>
+  <line x1="83.80" y1="25.00" x2="83.80" y2="28.00" stroke="#4a4c52" stroke-width="1"/>
+  <line x1="95.70" y1="7.00" x2="95.70" y2="4.00" stroke="#4a4c52" stroke-width="1"/>
+  <line x1="95.70" y1="25.00" x2="95.70" y2="28.00" stroke="#4a4c52" stroke-width="1"/>
+  <line x1="107.60" y1="7.00" x2="107.60" y2="4.00" stroke="#4a4c52" stroke-width="1"/>
+  <line x1="107.60" y1="25.00" x2="107.60" y2="28.00" stroke="#4a4c52" stroke-width="1"/>
+  <line x1="119.50" y1="7.00" x2="119.50" y2="4.00" stroke="#4a4c52" stroke-width="1"/>
+  <line x1="119.50" y1="25.00" x2="119.50" y2="28.00" stroke="#4a4c52" stroke-width="1"/>
+</svg>

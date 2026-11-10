@@ -1,0 +1,221 @@
+// Crate Decks design tokens for QML (stage 2, design section 14.4).
+// Template for tools/crate-design/generate.py: every token in
+// res/crate-design/tokens.json has a property here. Lengths are in pixels,
+// tracking in em, durations in milliseconds and sweeps in degrees.
+pragma Singleton
+import QtQuick 2.12
+
+QtObject {
+    // color
+    readonly property color bgApp: "{{bgApp}}"
+    readonly property color bgPanel: "{{bgPanel}}"
+    readonly property color bgRaised: "{{bgRaised}}"
+    readonly property color bgPopover: "{{bgPopover}}"
+    readonly property color bgSecondary: "{{bgSecondary}}"
+    readonly property color border: "{{border}}"
+    readonly property color borderSubtle: "{{borderSubtle}}"
+    readonly property color borderHover: "{{borderHover}}"
+    readonly property color hoverBg: "{{hoverBg}}"
+    readonly property color hoverBgStrong: "{{hoverBgStrong}}"
+    readonly property color scrollbarThumb: "{{scrollbarThumb}}"
+    readonly property color scrollbarHover: "{{scrollbarHover}}"
+    readonly property color textPrimary: "{{textPrimary}}"
+    readonly property color textSecondary: "{{textSecondary}}"
+    readonly property color textMuted: "{{textMuted}}"
+    readonly property color textSubtle: "{{textSubtle}}"
+    readonly property color textFaint: "{{textFaint}}"
+    readonly property color navIdle: "{{navIdle}}"
+    readonly property color accent: "{{accent}}"
+    readonly property color onAccent: "{{onAccent}}"
+    readonly property color accentHi: "{{accentHi}}"
+    readonly property color accentBg: "{{accentBg}}"
+    readonly property color accentBorder: "{{accentBorder}}"
+    readonly property color accentBorderFocus: "{{accentBorderFocus}}"
+    readonly property color rowHover: "{{rowHover}}"
+    readonly property color rowSelected: "{{rowSelected}}"
+    readonly property color focusRing: "{{focusRing}}"
+    readonly property color warning: "{{warning}}"
+    readonly property color warningText: "{{warningText}}"
+    readonly property color danger: "{{danger}}"
+    readonly property color dangerText: "{{dangerText}}"
+    readonly property color logoStart: "{{logoStart}}"
+    readonly property color logoEnd: "{{logoEnd}}"
+    readonly property color logoShade: "{{logoShade}}"
+
+    // iconState
+    readonly property color iconIdle: "{{iconIdle}}"
+    readonly property color iconHover: "{{iconHover}}"
+    readonly property color iconActive: "{{iconActive}}"
+    readonly property color iconDisabled: "{{iconDisabled}}"
+    readonly property color iconOnAccent: "{{iconOnAccent}}"
+
+    // deck
+    readonly property color deckA: "{{deckA}}"
+    readonly property color deckB: "{{deckB}}"
+    readonly property color deckC: "{{deckC}}"
+    readonly property color deckD: "{{deckD}}"
+
+    // waveform
+    readonly property color waveBg: "{{waveBg}}"
+    readonly property color waveLowAccent: "{{waveLowAccent}}"
+    readonly property color waveMidAccent: "{{waveMidAccent}}"
+    readonly property color waveHighAccent: "{{waveHighAccent}}"
+    readonly property color waveLowNeutral: "{{waveLowNeutral}}"
+    readonly property color waveMidNeutral: "{{waveMidNeutral}}"
+    readonly property color waveHighNeutral: "{{waveHighNeutral}}"
+    readonly property color wavePlayhead: "{{wavePlayhead}}"
+    readonly property color waveBeat: "{{waveBeat}}"
+    readonly property color waveDownbeat: "{{waveDownbeat}}"
+    readonly property color waveOverviewBg: "{{waveOverviewBg}}"
+    readonly property color waveOverviewPlayed: "{{waveOverviewPlayed}}"
+    // "Accent" (logo bands) or "Neutral" (the reserve: greys on every deck)
+    readonly property string wavePaletteDeckAC: "{{wavePaletteDeckAC}}"
+    readonly property color waveLowDeckAC: "{{waveLowDeckAC}}"
+    readonly property color waveMidDeckAC: "{{waveMidDeckAC}}"
+    readonly property color waveHighDeckAC: "{{waveHighDeckAC}}"
+    readonly property color waveLowDeckBD: "{{waveLowDeckBD}}"
+    readonly property color waveMidDeckBD: "{{waveMidDeckBD}}"
+    readonly property color waveHighDeckBD: "{{waveHighDeckBD}}"
+
+    // meter
+    readonly property color vuLevel: "{{vuLevel}}"
+    readonly property color vuWarning: "{{vuWarning}}"
+    readonly property color vuClip: "{{vuClip}}"
+    readonly property color vuTrack: "{{vuTrack}}"
+    readonly property color vuClipTrack: "{{vuClipTrack}}"
+    readonly property real vuWarningDb: {{vuWarningDb}}
+    readonly property real vuBarWidth: {{vuBarWidth}}
+
+    // font
+    readonly property string fontBody: "{{fontBody}}"
+    readonly property string fontDisplay: "{{fontDisplay}}"
+    readonly property string fontMono: "{{fontMono}}"
+    readonly property real fontWeightBody: {{fontWeightBody}}
+    readonly property real fontWeightTitle: {{fontWeightTitle}}
+    readonly property real fontWeightDisplay: {{fontWeightDisplay}}
+    readonly property real fontWeightMono: {{fontWeightMono}}
+
+    // fontSize
+    readonly property real fontSizeCounter: {{fontSizeCounter}}
+    readonly property real fontSizeBadge: {{fontSizeBadge}}
+    readonly property real fontSizeMeta: {{fontSizeMeta}}
+    readonly property real fontSizeLabel: {{fontSizeLabel}}
+    readonly property real fontSizeEyebrow: {{fontSizeEyebrow}}
+    readonly property real fontSizeInfoBadge: {{fontSizeInfoBadge}}
+    readonly property real fontSizeCaption: {{fontSizeCaption}}
+    readonly property real fontSizeBody: {{fontSizeBody}}
+    readonly property real fontSizeTitle: {{fontSizeTitle}}
+    readonly property real fontSizeDisplay: {{fontSizeDisplay}}
+    readonly property real fontSizeLegend: {{fontSizeLegend}}
+    readonly property real fontSizeTable: {{fontSizeTable}}
+    readonly property real fontSizeDeckNumber: {{fontSizeDeckNumber}}
+    readonly property real fontSizeDeckNumberCompact: {{fontSizeDeckNumberCompact}}
+
+    // tracking
+    readonly property real trackingCaps: {{trackingCaps}}
+    readonly property real trackingKicker: {{trackingKicker}}
+    readonly property real trackingEyebrow: {{trackingEyebrow}}
+    readonly property real trackingTitle: {{trackingTitle}}
+    readonly property real trackingNumeral: {{trackingNumeral}}
+
+    // height
+    readonly property real heightControl: {{heightControl}}
+    readonly property real heightControlSm: {{heightControlSm}}
+    readonly property real heightControlXs: {{heightControlXs}}
+    readonly property real heightControlLg: {{heightControlLg}}
+    readonly property real heightTableCell: {{heightTableCell}}
+    readonly property real heightTrackRow: {{heightTrackRow}}
+    readonly property real heightTrackRowCompact: {{heightTrackRowCompact}}
+    readonly property real heightTableHeader: {{heightTableHeader}}
+    readonly property real heightLibraryRow: {{heightLibraryRow}}
+    readonly property real heightSearch: {{heightSearch}}
+
+    // layout
+    readonly property real sidebarWidth: {{sidebarWidth}}
+    readonly property real sidebarWidthCollapsed: {{sidebarWidthCollapsed}}
+    readonly property real topbarHeight: {{topbarHeight}}
+    readonly property real activeBarWidth: {{activeBarWidth}}
+    readonly property real focusRingWidth: {{focusRingWidth}}
+
+    // lane
+    readonly property real laneMeter: {{laneMeter}}
+    readonly property real laneSlider: {{laneSlider}}
+    readonly property real sliderDot: {{sliderDot}}
+    readonly property real scrollbarWidth: {{scrollbarWidth}}
+
+    // radius
+    readonly property real radiusSm: {{radiusSm}}
+    readonly property real radiusMd: {{radiusMd}}
+    readonly property real radiusLg: {{radiusLg}}
+    readonly property real radiusXl: {{radiusXl}}
+    readonly property real radiusPanel: {{radiusPanel}}
+    readonly property real radiusPill: {{radiusPill}}
+
+    // motion
+    readonly property real motionFast: {{motionFast}}
+    readonly property real motionNormal: {{motionNormal}}
+    readonly property string motionEaseSnap: "{{motionEaseSnap}}"
+
+    // iconSize
+    readonly property real iconNano: {{iconNano}}
+    readonly property real iconMicro: {{iconMicro}}
+    readonly property real iconXs: {{iconXs}}
+    readonly property real iconSm: {{iconSm}}
+    readonly property real iconMd: {{iconMd}}
+    readonly property real iconLg: {{iconLg}}
+    readonly property real iconXl: {{iconXl}}
+
+    // geometry
+    readonly property real strokeHairline: {{strokeHairline}}
+    readonly property real strokeNode: {{strokeNode}}
+    readonly property real strokeActive: {{strokeActive}}
+    readonly property real strokeNodeActive: {{strokeNodeActive}}
+    readonly property real strokeSelected: {{strokeSelected}}
+    readonly property real strokeConnection: {{strokeConnection}}
+    readonly property real nodeLeaf: {{nodeLeaf}}
+    readonly property real nodeSibling: {{nodeSibling}}
+    readonly property real nodeRoot: {{nodeRoot}}
+    readonly property real nodeSelected: {{nodeSelected}}
+    readonly property real tickCount: {{tickCount}}
+    readonly property real tickEvery: {{tickEvery}}
+    readonly property real tickLong: {{tickLong}}
+    readonly property real tickShort: {{tickShort}}
+    readonly property var dashData: [{{dashData.list}}]
+    readonly property var dashQueue: [{{dashQueue.list}}]
+    readonly property var dashTelemetry: [{{dashTelemetry.list}}]
+    readonly property var dashAxis: [{{dashAxis.list}}]
+    readonly property real opacityContext: {{opacityContext}}
+    readonly property real opacityRest: {{opacityRest}}
+    readonly property real opacityMuted: {{opacityMuted}}
+    readonly property real opacityGuide: {{opacityGuide}}
+    readonly property real opacityLevel: {{opacityLevel}}
+    readonly property real glowPulseRadius: {{glowPulseRadius}}
+    readonly property real glowPulseAlpha: {{glowPulseAlpha}}
+    readonly property real wheelCanvas: {{wheelCanvas}}
+    readonly property real camelotRingA: {{camelotRingA}}
+    readonly property real camelotRingB: {{camelotRingB}}
+    readonly property real tickPhrase: {{tickPhrase}}
+    readonly property real hotcueRadius: {{hotcueRadius}}
+    readonly property real levelRingRadius: {{levelRingRadius}}
+
+    // knob
+    readonly property real knobSize: {{knobSize}}
+    readonly property real knobSizeCompact: {{knobSizeCompact}}
+    readonly property real knobTickLong: {{knobTickLong}}
+    readonly property real knobTickShort: {{knobTickShort}}
+    readonly property real knobSweep: {{knobSweep}}
+    readonly property real knobTickCount: {{knobTickCount}}
+    readonly property real knobTickEvery: {{knobTickEvery}}
+    readonly property real knobArcWidth: {{knobArcWidth}}
+    readonly property real knobDot: {{knobDot}}
+
+    // fader
+    readonly property real faderRail: {{faderRail}}
+    readonly property real faderTickStep: {{faderTickStep}}
+    readonly property real faderHandleWidth: {{faderHandleWidth}}
+    readonly property real faderHandleHeight: {{faderHandleHeight}}
+
+    // deckDisplay
+    readonly property string deckNumberFont: "{{deckNumberFont}}"
+    readonly property real deckNumberWeight: {{deckNumberWeight}}
+}
