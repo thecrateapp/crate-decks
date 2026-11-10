@@ -216,7 +216,8 @@ TEST_F(CrateDialogsTest, MessageBoxesUseSolarIcons) {
                 QStringLiteral("Exit?"),
                 QMessageBox::Yes | QMessageBox::No);
         confirm.ensurePolished();
-        for (QAbstractButton* pButton : confirm.buttons()) {
+        const QList<QAbstractButton*> buttons = confirm.buttons();
+        for (QAbstractButton* pButton : buttons) {
             EXPECT_TRUE(pButton->icon().isNull()) << qPrintable(pButton->text());
         }
     }

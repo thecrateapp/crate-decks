@@ -379,7 +379,8 @@ TEST_F(CrateBrandingTest, AboutOffersNoDonation) {
     if (pDonate) {
         EXPECT_TRUE(pDonate->isHidden());
     }
-    for (const QPushButton* pButton : about.findChildren<QPushButton*>()) {
+    const QList<QPushButton*> buttons = about.findChildren<QPushButton*>();
+    for (const QPushButton* pButton : buttons) {
         if (!pButton->isHidden()) {
             EXPECT_FALSE(pButton->text().contains(QStringLiteral("Donate"), Qt::CaseInsensitive))
                     << qPrintable(pButton->text());

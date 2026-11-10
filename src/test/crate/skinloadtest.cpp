@@ -495,7 +495,8 @@ TEST_F(CrateSkinLoadTest, FirstStartAsksNoMixxxQuestions) {
 TEST_F(CrateSkinLoadTest, OnlyCrateDecksIsOffered) {
     mixxx::skin::SkinLoader loader(config());
     QStringList offered;
-    for (const auto& pSkin : loader.getSystemSkins()) {
+    const auto systemSkins = loader.getSystemSkins();
+    for (const auto& pSkin : systemSkins) {
         offered.append(pSkin->name());
     }
     EXPECT_EQ(QStringList{kCrateDecks}, offered);

@@ -134,9 +134,9 @@ TEST_F(LibraryScannerTest, OtherConnectionsCanWriteDuringScan) {
             &m_libraryScanner,
             &LibraryScanner::trackAdded,
             &m_libraryScanner,
-            [&](TrackPointer pTrack) {
-                addedTracks.append(pTrack);
-                probe();
+            [pAddedTracks = &addedTracks, pProbe = &probe](TrackPointer pTrack) {
+                pAddedTracks->append(pTrack);
+                (*pProbe)();
             },
             Qt::DirectConnection);
     QObject::connect(&m_libraryScanner,
@@ -207,9 +207,9 @@ TEST_F(LibraryScannerTest, ScanCommitsInShortBatches) {
             &m_libraryScanner.m_trackDao,
             &TrackDAO::tracksAdded,
             &m_libraryScanner,
-            [&batches](const QSet<TrackId>& trackIds) {
+            [pBatches = &batches](const QSet<TrackId>& trackIds) {
                 if (!trackIds.isEmpty()) {
-                    batches.append(static_cast<int>(trackIds.size()));
+                    pBatches->append(static_cast<int>(trackIds.size()));
                 }
             },
             Qt::DirectConnection);
@@ -220,8 +220,8 @@ TEST_F(LibraryScannerTest, ScanCommitsInShortBatches) {
             &m_libraryScanner,
             &LibraryScanner::trackAdded,
             &m_libraryScanner,
-            [&addedTracks](TrackPointer pTrack) {
-                addedTracks.append(pTrack);
+            [pAddedTracks = &addedTracks](TrackPointer pTrack) {
+                pAddedTracks->append(pTrack);
             },
             Qt::DirectConnection);
     const auto stopScanner = qScopeGuard([this]() {

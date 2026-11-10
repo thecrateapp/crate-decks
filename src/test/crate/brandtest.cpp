@@ -242,7 +242,7 @@ TEST(CrateBrandTextTest, NoMixxxLogoInTheInterface) {
     EXPECT_FALSE(logo.isNull());
 
     const QDir src(ConfigObject<ConfigValue>::computeResourcePath() + QStringLiteral("../src"));
-    const QRegularExpression mixxxLogo(
+    static const QRegularExpression mixxxLogo(
             QStringLiteral("ic_mixxx_symbolic|mixxx_logo|mixxx-icon-logo|MIXXX_LOGO_PATH"));
     // The splash screen's default style, which crate::styleLaunchImage()
     // replaces; About, which hides the .ui's logo (F1.PR2); an unused define

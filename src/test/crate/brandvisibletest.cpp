@@ -67,14 +67,16 @@ struct Seen {
 QList<QRegularExpression> keptCredits() {
     QList<QRegularExpression> credits;
     const crate::BrandInventory& inventory = crate::BrandInventory::instance();
-    for (const QString& source : inventory.sources()) {
+    const QStringList sources = inventory.sources();
+    for (const QString& source : sources) {
         if (inventory.string(source)->treatment != crate::BrandInventory::Treatment::Keep) {
             continue;
         }
         const QString plain = QTextDocumentFragment::fromHtml(source).toPlainText();
         // escape() turns "%1" into "\%1"
         QString pattern = QRegularExpression::escape(plain);
-        pattern.replace(QRegularExpression(QStringLiteral("\\\\%\\d")), QStringLiteral(".*?"));
+        static const QRegularExpression kFormatArgument(QStringLiteral("\\\\%\\d"));
+        pattern.replace(kFormatArgument, QStringLiteral(".*?"));
         credits.append(QRegularExpression(pattern));
     }
     return credits;
@@ -269,7 +271,8 @@ class CrateBrandVisibleTest : public MixxxTest {
 };
 
 QWidget* topLevelOf(const char* className) {
-    for (QWidget* pWindow : QApplication::topLevelWidgets()) {
+    const QWidgetList windows = QApplication::topLevelWidgets();
+    for (QWidget* pWindow : windows) {
         if (pWindow->inherits(className)) {
             return pWindow;
         }
