@@ -506,7 +506,8 @@ FirstRunServices firstRunServices(mixxx::CoreServices* pCoreServices) {
     };
     services.showSoundPreferences = [] {
         // Over the first start, as Mixxx opens it from "No Output Devices"
-        for (QWidget* pWindow : QApplication::topLevelWidgets()) {
+        const QWidgetList windows = QApplication::topLevelWidgets();
+        for (QWidget* pWindow : windows) {
             if (auto* pPreferences = qobject_cast<QDialog*>(pWindow);
                     pPreferences && pWindow->inherits("DlgPreferences")) {
                 QMetaObject::invokeMethod(pPreferences, "showSoundHardwarePage");

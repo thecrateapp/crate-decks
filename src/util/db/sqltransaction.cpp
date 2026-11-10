@@ -9,8 +9,7 @@ namespace {
 
 const mixxx::Logger kLogger("SqlTransaction");
 
-inline
-bool beginTransaction(QSqlDatabase database) {
+inline bool beginTransaction(const QSqlDatabase& database) {
     if (!database.isOpen()) {
         // Should only happen during tests
         kLogger.warning()
