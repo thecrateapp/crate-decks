@@ -34,6 +34,7 @@
 #include "util/color/colorpalette.h"
 #include "util/color/predefinedcolorpalettes.h"
 #include "util/datetime.h"
+#include "util/db/dbconnection.h"
 #include "util/db/sqlite.h"
 #include "util/logger.h"
 #include "widget/wlibrary.h"
@@ -62,6 +63,10 @@ inline QSqlDatabase cloneDatabase(
                 << cloned
                 << cloned.lastError();
     }
+    // Waits for SQLite's lock as Mixxx's own connections do, e.g. to save
+    // the column order while the library scanner writes (upstream issue
+    // 6631)
+    mixxx::DbConnection::installBusyHandler(cloned);
     return cloned;
 }
 

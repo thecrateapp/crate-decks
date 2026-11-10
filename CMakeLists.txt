@@ -3040,6 +3040,7 @@ if(BUILD_TESTING)
     ${src-mixxx-test}
     src/test/crate/brandingtest.cpp
     src/test/crate/fontstest.cpp
+    src/test/crate/dbwritelocktest.cpp
     src/test/crate/visiblestringstest.cpp
   )
 

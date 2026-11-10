@@ -45,6 +45,17 @@ class DbConnection final {
     }
 
     bool open();
+
+    /// Whether a connection of another thread has waited for SQLite's lock
+    /// within the last `withinMs`: a writer that holds it often, as the
+    /// library scanner, lets it through (upstream issue 6631)
+    static bool otherThreadWaitsForLock(int withinMs);
+
+    /// Makes `database`, open, wait for SQLite's lock as Mixxx's
+    /// connections do, trying again every millisecond, and tell others
+    /// when it waits. For connections that Qt clones without DbConnection,
+    /// as the track tables' (BaseTrackTableModel).
+    static void installBusyHandler(const QSqlDatabase& database);
     void close();
 
     bool isOpen() const {
