@@ -5,6 +5,7 @@
 #include <QJsonObject>
 #include <QJsonParseError>
 #include <QUrl>
+#include <cmath>
 
 #include "crate/client/cratejson.h"
 
@@ -166,6 +167,56 @@ QString containerTracksPath(const QString& kind, const QString& remoteId) {
 
 QString containerTreePath() {
     return QStringLiteral("/api/decks/containers");
+}
+
+Result<QList<RemoteTrack>> parseSearchTracks(const QByteArray& json) {
+    const Result<QJsonObject> root = parseObject(json);
+    if (!root.ok()) {
+        return root.error();
+    }
+    ObjectReader rootReader(root.value());
+    const QJsonArray items = rootReader.requiredArray(u"tracks");
+    if (!rootReader.ok()) {
+        return rootReader.error();
+    }
+    QList<RemoteTrack> tracks;
+    tracks.reserve(items.size());
+    for (qsizetype i = 0; i < items.size(); ++i) {
+        const QString path = itemPath("tracks", i);
+        if (!items[i].isObject()) {
+            return Error::decode(path + QStringLiteral(" is not an object"));
+        }
+        const QJsonObject object = items[i].toObject();
+        ObjectReader reader(object, path);
+        RemoteTrack track;
+        track.entityUid = reader.optionalId(u"entity_uid");
+        track.title = reader.optionalString(u"title");
+        track.artist = reader.optionalString(u"artist");
+        track.album = reader.optionalString(u"album");
+        if (const auto seconds = reader.optionalDouble(u"duration")) {
+            track.durationMs = std::llround(*seconds * 1000.0);
+        }
+        track.bpm = reader.optionalDouble(u"bpm");
+        track.camelot = reader.optionalString(u"camelot");
+        track.energy = reader.optionalDouble(u"energy");
+        track.genre = reader.optionalString(u"genre");
+        const QJsonValue playable = object.value(QLatin1String("playable"));
+        if (!playable.isUndefined() && !playable.isNull()) {
+            track.playable = reader.requiredBool(u"playable");
+        }
+        track.coverUrl = reader.optionalString(u"cover_url");
+        if (!reader.ok()) {
+            return reader.error();
+        }
+        if (!track.entityUid.isEmpty()) {
+            tracks.append(track);
+        }
+    }
+    return tracks;
+}
+
+QString searchPath() {
+    return QStringLiteral("/api/search");
 }
 
 } // namespace crate::library

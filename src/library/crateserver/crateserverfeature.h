@@ -124,12 +124,26 @@ class CrateServerFeature : public LibraryFeature {
     void showContainer(const QString& serverId, qint64 containerId);
     void syncIfNeeded(const QString& serverId, qint64 containerId);
     void expandOwnItems();
+    /// The search box's `text` on `pModel`; true when the DJ search takes it.
+    bool onSearch(CrateServerTrackModel* pModel, const QString& text);
+    void onSearchResults(const QString& serverId, qint64 containerId, const QString& query);
+    /// Drops the search: the user went to another node.
+    void endSearch();
 
     const Dependencies m_dependencies;
     QPointer<CrateServers> m_pServers;
     parented_ptr<TreeItemModel> m_pSidebarModel;
     parented_ptr<CrateServerTrackModel> m_pContainerModel;
     parented_ptr<CrateServerTrackModel> m_pLibraryModel;
+    /// The results of the DJ search.
+    parented_ptr<CrateServerTrackModel> m_pSearchModel;
+    /// The server of the container on screen.
+    QString m_containerServerId;
+    /// The model the search started from, shown again when it is cleared.
+    CrateServerTrackModel* m_pSearchedModel = nullptr;
+    QString m_searchServerId;
+    bool m_searching = false;
+    bool m_resultsShown = false;
     QPointer<WLibrarySidebar> m_pSidebarWidget;
     /// Saved servers, in the order CrateServers keeps them.
     QStringList m_serverIds;

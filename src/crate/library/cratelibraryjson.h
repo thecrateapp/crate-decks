@@ -113,4 +113,15 @@ QString containerTracksPath(const QString& kind, const QString& remoteId);
 /// The path of the container tree.
 QString containerTreePath();
 
+/// Parses the tracks of `GET /api/search?fields=dj` (`{"artists": [],
+/// "albums": [], "tracks": [...]}`): entity uid, title, artist, album,
+/// genre, BPM, Camelot key, energy, cover and `playable`, with the duration
+/// in seconds. The DJ search has no format, bitrate, sample rate or profile
+/// quality. A track without an entity uid cannot be streamed or loaded and
+/// is left out; a field of the wrong type is a Decode error.
+Result<QList<RemoteTrack>> parseSearchTracks(const QByteArray& json);
+
+/// The path of the search.
+QString searchPath();
+
 } // namespace crate::library
