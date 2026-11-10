@@ -5338,6 +5338,8 @@ if(CRATE)
   target_sources(
     mixxx-lib
     PRIVATE
+      src/crate/analysis/analysisimporter.cpp
+      src/crate/analysis/mixprofile.cpp
       src/crate/client/cratecapabilities.cpp
       src/crate/client/crateclient.cpp
       src/crate/client/crateserveraddress.cpp
@@ -5388,6 +5390,7 @@ if(CRATE)
     target_sources(
       mixxx-test
       PRIVATE
+        src/test/crate/analysisimporter_test.cpp
         src/test/crate/cratecapabilities_test.cpp
         src/test/crate/crateclient_test.cpp
         src/test/crate/crateeventsubscriber_test.cpp
