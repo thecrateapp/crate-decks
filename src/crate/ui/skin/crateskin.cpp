@@ -14,6 +14,7 @@
 
 #include "control/controlobject.h"
 #include "crate/crateservers.h"
+#include "crate/ui/delegates/delegatestyle.h"
 #include "crate/ui/skin/crateserverstatus.h"
 #include "crate/ui/skin/decktrackfields.h"
 #include "crate/ui/skin/librarystyle.h"
@@ -242,6 +243,8 @@ void prepareLoadedSkin(QWidget* pSkinRoot,
     if (!pSkinRoot) {
         return;
     }
+    // Another skin paints Mixxx's own cells; styleLibrary() sets CrateDecks'
+    delegates::DelegateStyle::setCurrent(delegates::DelegateStyle());
     const SkinVariables variables = readSkinVariables(QDir(skinPath).filePath(kVarsXml));
     if (variables.isEmpty()) {
         return;

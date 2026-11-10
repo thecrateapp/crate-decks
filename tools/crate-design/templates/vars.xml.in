@@ -153,6 +153,9 @@
   <SetVariable name="CrateLibColumnBpm">{{libraryColumnBpm}}</SetVariable>
   <SetVariable name="CrateLibColumnKey">{{libraryColumnKey}}</SetVariable>
   <SetVariable name="CrateLibColumnTime">{{libraryColumnTime}}</SetVariable>
+  <SetVariable name="CrateLibColumnEnergy">{{libraryColumnEnergy}}</SetVariable>
+  <SetVariable name="CrateLibColumnProfile">{{libraryColumnProfile}}</SetVariable>
+  <SetVariable name="CrateLibColumnCache">{{libraryColumnCache}}</SetVariable>
   <SetVariable name="CrateLibColumnArtist">{{libraryColumnArtist}}</SetVariable>
   <SetVariable name="CrateLibColumnGenre">{{libraryColumnGenre}}</SetVariable>
   <SetVariable name="CrateLibFontSizeText">{{fontSizeCaption}}</SetVariable>

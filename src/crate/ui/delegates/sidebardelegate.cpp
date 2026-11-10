@@ -2,6 +2,7 @@
 
 #include <QAbstractItemView>
 #include <QFontMetrics>
+#include <QIcon>
 #include <QPainter>
 #include <QRegularExpression>
 #include <QSvgRenderer>
@@ -48,9 +49,32 @@ void SidebarDelegate::setLogo(int role, const QString& svgPath, QSize size) {
     m_logoSize = size;
 }
 
+bool SidebarDelegate::isSectionRoot(const QModelIndex& index) const {
+    return !m_sectionRootIcon.isEmpty() && m_iconNameRole >= 0 && index.isValid() &&
+            !index.parent().isValid() &&
+            index.data(m_iconNameRole).toString() == m_sectionRootIcon;
+}
+
 QString SidebarDelegate::sectionOf(const QModelIndex& index) const {
+    if (isSectionRoot(index)) {
+        return index.data(Qt::DisplayRole).toString();
+    }
     const QString section = index.data(SidebarSectionRole).toString();
     return section.isEmpty() ? m_defaultSection : section;
+}
+
+int SidebarDelegate::levelOf(const QModelIndex& index) const {
+    int depth = depthOf(index);
+    if (depth > 0) {
+        QModelIndex top = index;
+        while (top.parent().isValid()) {
+            top = top.parent();
+        }
+        if (isSectionRoot(top)) {
+            --depth;
+        }
+    }
+    return depth;
 }
 
 QString SidebarDelegate::sectionHeader(const QModelIndex& index) const {
@@ -58,6 +82,9 @@ QString SidebarDelegate::sectionHeader(const QModelIndex& index) const {
         return QString();
     }
     const QString section = sectionOf(index);
+    if (isSectionRoot(index)) {
+        return section;
+    }
     if (index.row() == 0) {
         return section;
     }
@@ -74,6 +101,11 @@ QSize SidebarDelegate::sizeHint(
         const QStyleOptionViewItem& option, const QModelIndex& index) const {
     if (!m_style.isValid()) {
         return QStyledItemDelegate::sizeHint(option, index);
+    }
+    if (isSectionRoot(index)) {
+        // Only its header: its children are the section's rows
+        const int width = m_pView ? m_pView->viewport()->width() : option.rect.width();
+        return QSize(width, sectionHeaderHeight());
     }
     int height = m_style.rowHeight;
     if (!sectionHeader(index).isEmpty()) {
@@ -110,6 +142,9 @@ void SidebarDelegate::paint(QPainter* pPainter,
                 Qt::AlignLeft | Qt::AlignVCenter);
         row.setTop(row.top() + sectionHeaderHeight());
     }
+    if (isSectionRoot(index)) {
+        return;
+    }
 
     const QRect item = row.adjusted(m_style.sidebarItemInset, 0, -m_style.sidebarItemInset, 0);
     const bool active = option.state & QStyle::State_Selected;
@@ -124,7 +159,7 @@ void SidebarDelegate::paint(QPainter* pPainter,
                 m_style.accentHi);
     }
 
-    const int depth = depthOf(index);
+    const int depth = levelOf(index);
     int left = item.left() + m_style.sidebarItemPadding + depth * m_style.sidebarIndent;
     int right = item.right() - m_style.sidebarItemPadding;
     if (m_logoRole >= 0 && index.data(m_logoRole).toBool() && !m_logoSize.isEmpty()) {
@@ -137,7 +172,11 @@ void SidebarDelegate::paint(QPainter* pPainter,
         logo.render(pPainter, rect);
         left += m_logoSize.width() + m_style.sidebarIconGap;
     } else if (depth == 0 && m_iconNameRole >= 0) {
-        const QString path = m_iconPaths.value(index.data(m_iconNameRole).toString());
+        // A section root's children name their icon through their QIcon
+        const QString iconName = index.parent().isValid()
+                ? index.data(Qt::DecorationRole).value<QIcon>().name()
+                : index.data(m_iconNameRole).toString();
+        const QString path = m_iconPaths.value(iconName);
         if (!path.isEmpty()) {
             const int size = m_style.sidebarIcon;
             paintIcon(pPainter,

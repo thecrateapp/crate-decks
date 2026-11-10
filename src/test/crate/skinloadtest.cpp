@@ -44,6 +44,10 @@
 #include "coreservices.h"
 #include "crate/crateserverrows.h"
 #include "crate/crateservers.h"
+#include "crate/db/crateserverprofiles.h"
+#include "crate/db/crateserverschema.h"
+#include "crate/library/cratelibraryjson.h"
+#include "crate/library/cratelibrarystore.h"
 #include "crate/ui/crateaddserverwidget.h"
 #include "crate/ui/cratefirstrun.h"
 #include "crate/ui/crateprefsections.h"
@@ -57,6 +61,7 @@
 #include "database/mixxxdb.h"
 #include "dialog/dlgabout.h"
 #include "library/library.h"
+#include "library/sidebarmodel.h"
 #include "library/trackcollectionmanager.h"
 #include "library/trackmodel.h"
 #include "mixer/basetrackplayer.h"
@@ -80,6 +85,7 @@
 #include "waveform/waveform.h"
 #include "widget/wglwidget.h"
 #include "widget/wlibrary.h"
+#include "widget/wlibrarysidebar.h"
 #include "widget/wtracktableview.h"
 
 #ifdef MIXXX_USE_QOPENGL
@@ -309,6 +315,131 @@ QList<LibraryRow> readLibraryRows(const QString& path) {
                 fields[6].toDouble()});
     }
     return rows;
+}
+
+/// Gives the profile at `settingsPath` a Crate server, dev.crate.local, as if
+/// Decks had synced its library (plan F3.C-PR2): the tracks of a
+/// tab-separated file (readLibraryRows()'s columns, then energy from 1 to 10
+/// and profile quality), the mockups' 48 playlists and 12 crates, a few
+/// genres and moods, recent and likes with every track, and the mockups'
+/// library count. Nothing reaches a server: the sidebar and the tables are
+/// painted from the profile.
+bool insertCrateLibrary(const QString& settingsPath, const QString& rowsPath) {
+    const QString name = QStringLiteral("crate-library-crate");
+    const QString server = QStringLiteral("harness-server");
+    bool ok = true;
+    {
+        QSqlDatabase db = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), name);
+        db.setDatabaseName(settingsPath + QStringLiteral("mixxxdb.sqlite"));
+        ok = db.open() && MixxxDb::initDatabaseSchema(db) &&
+                crate::db::createCrateServerSchema(db);
+        crate::ServerProfile profile;
+        profile.id = server;
+        profile.baseUrl = QUrl(QStringLiteral("https://dev.crate.local"));
+        ok = ok && crate::db::saveServerProfile(db, profile) &&
+                crate::db::saveLastCapabilities(db,
+                        server,
+                        R"({"decks": {"available": true, "min_client_version": "0.1.0",
+                            "contract_version": 1, "features": ["library_cursor"]}})");
+
+        crate::library::ContainerTree tree;
+        // The whole library, as the server's tree counts it
+        tree.libraryTrackCount = 136512;
+        const auto add = [&tree](const QString& kind, const QString& id, const QString& name) {
+            crate::library::RemoteContainer container;
+            container.kind = kind;
+            container.remoteId = id;
+            container.name = name;
+            container.etag = kind + id;
+            tree.containers.append(container);
+        };
+        const QStringList playlists = {QStringLiteral("Warm-up · Nov"),
+                QStringLiteral("Peak hour"),
+                QStringLiteral("Closing")};
+        for (int i = 0; i < 48; ++i) {
+            add(QStringLiteral("playlist"),
+                    QString::number(i + 1),
+                    i < playlists.size() ? playlists[i] : QStringLiteral("Set %1").arg(i + 1));
+        }
+        for (int i = 0; i < 12; ++i) {
+            add(QStringLiteral("crate"),
+                    QStringLiteral("crate-%1").arg(i),
+                    QStringLiteral("Crate %1").arg(i + 1));
+        }
+        for (const QString& genre : {QStringLiteral("Melodic Techno"),
+                     QStringLiteral("Deep House")}) {
+            add(QStringLiteral("genre"), genre.toLower().replace(u' ', u'-'), genre);
+        }
+        for (const QString& mood : {QStringLiteral("Euphoric"), QStringLiteral("Dark")}) {
+            add(QStringLiteral("mood"), mood.toLower(), mood);
+        }
+        add(QStringLiteral("recent"), QStringLiteral("recent"), QStringLiteral("Recent"));
+        add(QStringLiteral("likes"), QStringLiteral("me"), QStringLiteral("Likes"));
+        ok = ok &&
+                crate::library::storeContainerTree(db, server, tree) ==
+                        crate::library::WriteStatus::Ok;
+
+        QList<crate::library::RemoteTrack> tracks;
+        QFile file(rowsPath);
+        ok = ok && file.open(QIODevice::ReadOnly | QIODevice::Text);
+        while (ok && !file.atEnd()) {
+            const QStringList fields = QString::fromUtf8(file.readLine()).trimmed().split(u'\t');
+            if (fields.size() < 9) {
+                continue;
+            }
+            crate::library::RemoteTrack track;
+            track.entityUid = QStringLiteral("uid-%1").arg(tracks.size());
+            track.title = fields[0];
+            track.artist = fields[1];
+            track.album = fields[2];
+            track.genre = fields[3];
+            track.bpm = fields[4].toDouble();
+            track.camelot = fields[5];
+            track.durationMs = static_cast<qint64>(fields[6].toDouble() * 1000);
+            track.energy = fields[7].toDouble() / 10;
+            track.profileQuality = fields[8] == QLatin1String("none") ? QString() : fields[8];
+            track.format = QStringLiteral("flac");
+            track.playable = true;
+            tracks.append(track);
+        }
+        ok = ok && !tracks.isEmpty() &&
+                crate::library::storeTracks(db,
+                        server,
+                        tracks,
+                        QStringLiteral("2026-11-09T10:00:00Z")) ==
+                        crate::library::WriteStatus::Ok;
+        QStringList uids;
+        for (const auto& track : std::as_const(tracks)) {
+            uids.append(track.entityUid);
+        }
+        const auto containers = crate::library::loadContainers(db, server);
+        for (const auto& container : containers) {
+            QStringList stored;
+            if (container.kind == QLatin1String("likes")) {
+                stored = uids;
+            } else if (container.kind == QLatin1String("playlist") &&
+                    container.remoteId == QLatin1String("1")) {
+                stored = uids.mid(0, 12);
+            } else {
+                continue;
+            }
+            ok = ok &&
+                    crate::library::replaceContainerTracks(db,
+                            container.id,
+                            stored,
+                            {{{QString(),
+                                     QStringLiteral("\"h\""),
+                                     static_cast<int>(stored.size())}},
+                                    container.etag,
+                                    QStringLiteral("2026-11-09T10:00:00Z")}) ==
+                            crate::library::WriteStatus::Ok;
+        }
+        if (!ok) {
+            qWarning() << "Crate library:" << db.lastError().text();
+        }
+    }
+    QSqlDatabase::removeDatabase(name);
+    return ok;
 }
 
 /// Crate Decks started offscreen on a disposable profile, with no sound
@@ -1291,8 +1422,10 @@ QImage overMainWindow(const QImage& background, QWidget* pWidget, QPoint at = QP
 /// the first start and a confirmation with the scrim and Preferences
 /// without it. Runs only with CRATE_SKIN_SCREENSHOTS=<output dir>;
 /// CRATE_SKIN_TRACKS=<dir> loads the first audio files of that directory into
-/// decks A, B and C, and CRATE_SKIN_LIBRARY_ROWS=<file> fills the library
-/// with the tracks of a tab-separated file (readLibraryRows()). Never point
+/// decks A, B and C, CRATE_SKIN_LIBRARY_ROWS=<file> fills the library
+/// with the tracks of a tab-separated file (readLibraryRows()) and
+/// CRATE_SKIN_CRATE_LIBRARY=<file> adds a Crate server with a synced library
+/// (insertCrateLibrary()). Never point
 /// it at audio that belongs in the repository.
 /// Offscreen there is no OpenGL and the scrolling waveforms stay empty;
 /// tools/crate-design/skin-screenshots.sh runs it with OpenGL in a headless
@@ -1353,6 +1486,10 @@ TEST_F(CrateSkinScreenshots, Capture) {
         EXPECT_FALSE(rows.isEmpty()) << libraryRows.toStdString();
         EXPECT_TRUE(insertLibraryRows(profile.path() + QLatin1Char('/'), rows));
     }
+    const QString crateLibrary = qEnvironmentVariable("CRATE_SKIN_CRATE_LIBRARY");
+    if (!crateLibrary.isEmpty()) {
+        EXPECT_TRUE(insertCrateLibrary(profile.path() + QLatin1Char('/'), crateLibrary));
+    }
     decks.start(application());
     ASSERT_NE(nullptr, decks.skin());
     // The skin alone fills the window, as with the menu bar hidden
@@ -1361,6 +1498,38 @@ TEST_F(CrateSkinScreenshots, Capture) {
     if (auto* pStatus = decks.skin()->findChild<crate::ServerStatus*>()) {
         pStatus->showStatus(QStringLiteral("dev.crate.local"),
                 crate::ServerStatus::State::Connected);
+    }
+
+    // CRATE_SKIN_CRATE_OPEN=<label> opens that item of the sidebar, as a
+    // click does: a Crate playlist instead of the Crate library
+    const QString crateOpen = qEnvironmentVariable("CRATE_SKIN_CRATE_OPEN");
+    if (!crateOpen.isEmpty()) {
+        const QList<WLibrarySidebar*> sidebars = decks.skin()->findChildren<WLibrarySidebar*>();
+        for (WLibrarySidebar* pSidebar : sidebars) {
+            auto* pModel = qobject_cast<SidebarModel*>(pSidebar->model());
+            if (!pModel) {
+                continue;
+            }
+            QList<QModelIndex> pending = {QModelIndex()};
+            QModelIndex found;
+            while (!pending.isEmpty() && !found.isValid()) {
+                const QModelIndex parent = pending.takeFirst();
+                for (int row = 0; row < pModel->rowCount(parent); ++row) {
+                    const QModelIndex index = pModel->index(row, 0, parent);
+                    if (index.data().toString().startsWith(crateOpen)) {
+                        found = index;
+                        break;
+                    }
+                    pending.append(index);
+                }
+            }
+            EXPECT_TRUE(found.isValid()) << crateOpen.toStdString();
+            if (found.isValid()) {
+                pSidebar->selectIndex(found, false);
+                pModel->clicked(found);
+                waitFor([] { return false; }, 300);
+            }
+        }
     }
 
     // A playing and leading, B cued near its start, C in the middle, D empty

@@ -275,6 +275,9 @@ QtObject {
     readonly property real libraryColumnBpm: 76
     readonly property real libraryColumnKey: 54
     readonly property real libraryColumnTime: 60
+    readonly property real libraryColumnEnergy: 46
+    readonly property real libraryColumnProfile: 108
+    readonly property real libraryColumnCache: 58
     readonly property real libraryColumnArtist: 0.16
     readonly property real libraryColumnGenre: 0.13
     readonly property real libraryStateGap: 6

@@ -3,5 +3,8 @@
     <qresource prefix="/">
       <!-- Crate Decks application icon for windows and dialogs (MIXXX_ICON_PATH) -->
         <file>images/icons/256x256/apps/app.cratemusic.decks.png</file>
+      <!-- Icon of the Crate library feature (LibraryFeature looks it up by its
+           icon name, crateserver); the CrateDecks skin paints its own -->
+        <file alias="images/library/ic_library_crateserver.svg">skins/CrateDecks/generated/icons/server_idle.svg</file>
     </qresource>
 </RCC>
