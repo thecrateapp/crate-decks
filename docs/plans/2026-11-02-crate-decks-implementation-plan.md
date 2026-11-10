@@ -98,7 +98,7 @@ flowchart TD
   G3 --> F5[F5 · Recomendaciones]
   G3 --> F6[F6 · Smart Mix en AutoDJ · S5]
   F6 --> G4{{G4}}
-  SM4[[smart-mix-3 · SM4]] --> F6b[F6b · AI Assisted Mixing · cliente]
+  SM2[[smart-mix-3 · SM2]] --> F6b[F6b · Planner v3 en Decks]
   G4 --> F6b
   F6b --> G4b{{G4b}}
   F5 --> F7[F7 · Escritura de vuelta · S6]
@@ -133,7 +133,7 @@ con la skin `CrateDecks`.
 | F4b | Reproducción progresiva (D14) como preferencia; G3b decide si va activada por defecto | 3 | 15–25 días |
 | F5 | Compatibles, Radio y Paths | 3 cliente | 4–6 días |
 | F6 | Modo AutoDJ "Crate Smart Mix" y asistente | 1 servidor + 4 cliente | 10–14 días |
-| F6b | Planner v3 y AI Assisted Mixing en el cliente (servidor en el plan smart-mix-3) | 3 | 6–9 días |
+| F6b | Planner v3 in Decks: the v3 candidate menu and limits the server serves (AI refinement dropped after SG3) | 1 | 2–4 días |
 | F7 | Historial, now playing, likes, valoraciones y playlists | 1 servidor + 3 cliente | 5–7 días |
 | F8 | Cues y correcciones sincronizadas | 2 servidor + 2 cliente | 7–10 días |
 | F9 | AppImage, `.deb`, DMG y MSI; aviso de actualización; documentación | 3–4 | 5–8 días |
@@ -951,9 +951,13 @@ grep -rn "smart-mix-v2" app/crate | head
 
 **Gate G4 (Diego):** prueba de escucha A/B de 10 transiciones (Android Smart Mix frente a Decks AutoDJ) con los mismos pares, más los CSV de desviación. **No se sigue sin su aprobación.**
 
+**Decided (Diego, 2026-11-10):** Diego has no DJ gear and cannot run listening tests, so G4 uses automatic metrics on rendered transitions, as in SM5: beat phase in the overlap (Beat This!), voice on voice (YAMNet) and EBU R128 level jumps. The same 10 pairs are rendered offline twice, as Android Smart Mix and as Decks AutoDJ would play them, and the report compares both, together with the deviation CSVs. Diego still approves the gate on that report, and the agent still stops at it.
+
 ---
 
 ## F6b · AI Assisted Mixing en Decks (D15)
+
+**Decided (Diego, 2026-11-10):** SG3 of smart-mix-3 was a no-go (the AI stays off), so F6b keeps only planner v3 in Decks. F6b.PR1 consumes the smart-mix-v3 candidate menu and the policy limits the server already serves to Crate Decks (monorepo `aea3d084e`: with `source: "decks"` and `localRefinement`, each v3 plan carries its candidates with their score breakdowns and the limits resolved for the edge; `limit_violations` is the reference check Decks mirrors). F6b.PR2 (requesting and collecting the refinement) and F6b.PR3 (the AI option and the `AI · <MODEL>` origin) are dropped. G4b no longer is a booth test with the refinement on: see its new text below.
 
 **Depende de smart-mix-3** ([plan](2026-11-02-smart-mix-3-implementation-plan.md)):
 - F6b.PR1 necesita SM2 (planner v3 en la API).
@@ -982,6 +986,8 @@ desarrollar se usa el stack dev con la IA activada en local (Ollama con Qwen), n
 
 ### F6b.PR2 · Petición y recogida del refinamiento
 
+**Dropped (Diego, 2026-11-10):** no AI refinement after SG3's no-go. Kept for the record.
+
 | Fichero | Contenido |
 |---|---|
 | `src/crate/smartmix/refinementtracker.{h,cpp}` | Por arista: estado (`none`, `pending`, `ready`, `unavailable`, `late`), plan refinado, `modelLabel`, motivo, confianza y `promptVersion`. Recogida: vuelve a pedir las aristas `pending` en un único lote, como mucho cada 5 s y nunca más de 32 aristas por petición. Si el servidor anuncia el evento SSE `smart_mix.refinement_ready` (SM6), lo usa en lugar del polling. Deja de seguir una arista cuando sale de la cola o cuando el director entra en `Preparing` |
@@ -1006,6 +1012,8 @@ desarrollar se usa el stack dev con la IA activada en local (Ollama con Qwen), n
 
 ### F6b.PR3 · Interfaz y preferencia
 
+**Dropped (Diego, 2026-11-10):** without the refinement there is no AI option, origin or toggle. Kept for the record.
+
 | Fichero | Contenido |
 |---|---|
 | `DlgPrefCrate` | Opción "AI Assisted Mixing" (apagada por defecto), visible solo con `ai_assisted.available`. Muestra `model_label`, si es local o cloud, y la latencia típica, con un texto: "La configuración del modelo es del servidor; Crate Decks solo envía la petición" |
@@ -1019,6 +1027,8 @@ desarrollar se usa el stack dev con la IA activada en local (Ollama con Qwen), n
 
 **Gate G4b (Diego):** prueba de cabina de 1 h con AutoDJ y asistente, con el refinamiento activo y el modelo
 elegido en SG3 de smart-mix-3. Activarlo por defecto en el servidor es decisión de SG4 de ese plan.
+
+**Decided (Diego, 2026-11-10):** replaced. G4b is an automatic-metrics check of planner v3 in Decks: AutoDJ transitions planned with v2 and with v3 (its candidate menu and limits) are rendered offline over the same pairs, and the report gives automatic metrics on rendered transitions, as in SM5: beat phase in the overlap (Beat This!), voice on voice (YAMNet) and EBU R128 level jumps for both, plus how often Decks' local limit check agrees with the server's `limit_violations`. Diego approves the gate on the report.
 
 ---
 
@@ -1365,7 +1375,7 @@ Esquema previsto (se detallará en un plan propio cuando GU2 lo apruebe):
 | Divergencia entre `tokens.json` y el admin | El admin cambia de paleta y Decks no | Revisión en el trabajo continuo: cada cambio en `app/shared/ui/tokens/` abre un issue en el fork |
 | Q17: lecturas cortas o cuelgues al expulsar en algún formato | Sin motor: ninguna lectura corta en FLAC, AAC, ALAC y Opus. El MP3 falla con FFmpeg 9.0.2 incluso completo | D14 solo para FLAC, AAC, ALAC y Opus; el MP3 se descarga entero hasta arreglar la fuente FFmpeg o tener una fuente basada en MAD. Las banderas de aborto evitan los cuelgues (F4b) |
 | FFmpeg ausente en algún build de plataforma | Q17 | D14 solo donde exista FFmpeg; el resto usa la descarga completa |
-| smart-mix-3 se retrasa o SG3 es no-go | F6b bloqueada o sin IA | F6b.PR1 (v3) sigue siendo útil por sí solo; PR2 y PR3 se aparcan sin afectar al resto de Decks |
+| smart-mix-3 se retrasa o SG3 es no-go | F6b bloqueada o sin IA | F6b.PR1 (v3) sigue siendo útil por sí solo; PR2 y PR3 se aparcan sin afectar al resto de Decks. SG3 was a no-go: PR2 and PR3 are dropped (2026-11-10) |
 | La calidad del análisis de Crate no mejora a tiempo (S8) | El grid sigue fuera del control de calidad en las pistas de prueba | `AnalysisImporter` deja los beats y la tonalidad a Mixxx (política por defecto mientras S8 no esté); Crate sigue aportando cues, planes y compatibles |
 | Upstream o Diego rechazan el hook de carga asíncrona | Sin decisión antes de F3 | La sección Crate usa vista propia, como el spike: sin columnas nativas, arrastre ni `LoadSelectedTrack` hasta que haya hook |
 | El stack dev borra pistas sin fichero | Faltan pistas después de arrancar o sincronizar | Desactivar `library_pipeline` y `repair_duplicate_tracks` en `schedules` antes de arrancar los workers; importar el audio de prueba con artistas propios (informe del spike) |
