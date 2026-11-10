@@ -119,7 +119,7 @@ Si el LLM no mejora el resultado (SG3), no se activa, y el trabajo de estructura
 - **Qué se añade al perfil de mezcla:**
   - **Frases:** límites cada 8, 16 o 32 compases sobre los downbeats. Cada frase lleva su posición en beats y ms, su longitud en compases, su energía media y su cambio respecto a la anterior, y un tipo heurístico (`intro`, `build`, `peak`, `break`, `outro`, `body`).
   - **Curva de energía:** un valor por compás, cuantizado a 8 bits.
-  - **Presencia de voz por frase (opcional y aparte):** solo si una heurística espectral barata alcanza la precisión mínima de §10. Si no, se omite: no se mete un modelo de separación de fuentes en el camino del análisis.
+  - **Presencia de voz por frase (opcional y aparte):** la calcula un modelo pequeño de audio (SM3-D13). La heurística espectral que se probó primero no alcanzó §10 y se quedó apagada en SG1. Sigue sin meterse un modelo de separación de fuentes en el camino del análisis.
 - **Implementación:**
   - En Python y en Rust, con paridad comprobada como hoy.
   - `ANALYZER_VERSION` pasa a `smart-mix-audio-v7` (S8 de Crate Decks ya usó v6) y `PROFILE_SCHEMA_VERSION` a 2.
@@ -129,6 +129,7 @@ Si el LLM no mejora el resultado (SG3), no se activa, y el trabajo de estructura
 **SM3-D3. Planner `smart-mix-v3` con menú de candidatos.**
 - **Qué hace:** `plan_transition_candidates` genera de 4 a 8 candidatos válidos por arista, combinando frase de salida, frase de entrada, longitud (8, 16 o 32 compases, dentro de la política), intercambio de bajos sí o no y curva. Ordena con una puntuación determinista que tiene en cuenta la estructura.
 - **El plan v3** es el primer candidato. `smart-mix-v2` se mantiene sin cambios y es el valor por defecto de la API hasta que los clientes migren.
+- **Listen** migra a v3 con su propio plan, detrás de un interruptor del servidor y sin mover ese valor por defecto, que siguen leyendo VirtualDJ y las versiones antiguas de la app: [plan de Listen en Smart Mix v3](2026-11-09-listen-smart-mix-v3-plan.md).
 - **Contrato:**
   - La API acepta `plannerVersion: "smart-mix-v2" | "smart-mix-v3"`.
   - `API_CONTRACT_VERSION` pasa a `"2026-11"`.
@@ -236,6 +237,128 @@ Solo hay refinamiento si los tres están activos. El admin puede limitar la acci
 - Hay un arnés de evaluación offline desde la primera fase (SM0). Mide v2, v3 determinista y v3 + IA sobre el mismo conjunto de aristas.
 - La IA se activa por defecto solo si mejora las métricas de §10 sin violaciones y pasa la escucha a ciegas de Diego.
 
+**SM3-D13. Voz por frase con un modelo pequeño de audio.** (decidido por Diego en SG1, 2026-11-04; modelo YAMNet, elegido por Diego el mismo día tras la prueba de SMV.PR1; pendientes en SG1b el umbral y la precisión y el recall con las etiquetas revisadas)
+- **Por qué:** la heurística espectral de SM1.PR4 marcó como voz 13 de 322 frases en 28 pistas spike. No encontró voz en pistas claramente cantadas (Boy Harsher, Joy Division, Marilyn Manson). Diego la dejó apagada sin etiquetar.
+- **Qué hace:** un clasificador de audio puntúa ventanas cortas de cada frase con sus clases de voz cantada o hablada. El byte de la frase es la fracción de ventanas con voz (0–255). `vocal_presence` sigue siendo un byte por frase, y nulo si no hay frases o no hay modelo.
+- **Candidatos**, medidos en SMV.PR1:
+  - **YAMNet** (AudioSet, unos 3,7 M de parámetros, Apache-2.0): el pequeño de referencia, con clases de canto, habla y rap. Pesos del repositorio original para conservar la licencia.
+  - **PANNs CNN14** (AudioSet): ya va en la imagen del worker de análisis para mood y energía, así que no añade modelo ni licencia, pero es grande (unos 80 M de parámetros) y más lento.
+  - **Voz/instrumental de Essentia** (MusiCNN o EffNet-Discogs): pequeño y entrenado para esto, pero con licencia CC BY-NC-SA 4.0, no comercial. Solo entra si Diego acepta esa licencia. El proyecto ya retiró de la imagen los clasificadores de Essentia.
+- **Prueba previa (2026-11-04):**
+  - **Conjunto:** 649 frases de 64 pistas spike. La referencia sale de las letras sincronizadas de LRCLIB: 449 frases en 49 pistas.
+  - **Resultados:**
+
+    | Modelo | AUC | Precisión / recall de «voz» | Especificidad | s de CPU por pista |
+    | --- | ---: | ---: | ---: | ---: |
+    | YAMNet | 0,86 | 0,90 / 0,92 | 0,67 | 3,5 |
+    | PANNs CNN14 | 0,87 | 0,89 / 0,93 | 0,61 | 110 |
+    | Essentia voz/instrumental | 0,73 | 0,82 / 0,99 | 0,29 | 12,5 |
+
+  - **Lectura:**
+    - Essentia dice «voz» en casi todo, porque se entrenó con fragmentos etiquetados enteros. Aceptar su licencia no lo arregla.
+    - PANNs acierta casi lo mismo que YAMNet, pero cuesta 30 veces más.
+    - El orden no cambia al variar la regla de referencia.
+- **Dónde corre:** en el worker de análisis, como paso de Python después del perfil, venga de Rust o de Python, sobre las frases ya calculadas. No toca la paridad Python/Rust. Si el modelo no está en la imagen (ARM sin runtime), `vocal_presence` queda nulo. Si la voz falla, el perfil se guarda sin ella.
+- **Aceptación:** la de §10, frente a las frases etiquetadas a mano. El umbral de cada modelo se elige con validación cruzada sobre ese conjunto, no sobre todo él.
+- **Lo usan:** la métrica de choque de voces (§10), el prompt (§8) y una penalización en la puntuación de candidatos de v3 (SM3-D3) cuando las dos frases que se solapan tienen voz.
+- **Versión:** la voz entra en `smart-mix-audio-v7`, que aún no está desplegado, para que el backfill final la calcule en la misma pasada. Si SG1b dice que ningún modelo vale, v7 se despliega sin voz. Si cuando llegue ya hay perfiles v7 fuera de desarrollo, sube a v8.
+
+**SM3-D14. Beats y downbeats con Beat This!** (decidido por Diego en SG1, 2026-11-05)
+- **Por qué:** SG1 comparó v7 con All-In-One (`allin1` 1.1.0, MIT, solo offline) y con madmom.
+  - En 25 pistas de géneros de mezcla por frases en las que esos dos coinciden en al menos el 90 % de los downbeats, la heurística de v7 acierta el downbeat en 10. Esa heurística (onsets graves y cambio de acorde, mejor fase módulo 4) es la misma en Python y en Rust. Beat This! acierta en 21.
+  - En las pistas que falla, todas las frases empiezan un tiempo antes o después del «1» real.
+  - La rejilla también falla: cuenta a medio tempo en punk rápido, toma un tempo equivocado y deriva en grabaciones en directo. Por eso corregir solo la fase deja 14 de 25.
+  - `structure_confidence` no separa las pistas buenas de las malas.
+- **Qué hace:** Beat This! (CPJKU, ISMIR 2024; código y pesos MIT) da los beats y los downbeats, con su post-proceso DBN.
+  - **Checkpoint:** `small0` (8 MB). En la medición de SMB, `final0` (77 MB) no acierta más: en 56 pistas, sus downbeats coinciden con los de All-In-One en 37 y los de `small0` en 38; con árbitro, 30 y 31.
+  - **Post-proceso DBN** (Diego, 2026-11-05, tras la medición de SMB): el `DBNDownBeatTrackingProcessor` de madmom (compases de 3 o 4 tiempos), el mismo que ofrece Beat This! con `dbn=True`.
+    - Sin él, el modelo deja beats espurios a 80–100 ms en la mitad de las pistas. Cuando la rejilla no es constante, la fase módulo 4 se desplaza en cada uno.
+    - En 127 pistas de mezcla por frases:
+
+      | Post-proceso | Con downbeat | Downbeat correcto | Con árbitro (37): correcto |
+      |---|---:|---:|---:|
+      | Ninguno (`dbn=False`) | 84 | 65 | 27 de 31 |
+      | DBN | 115 | 86 | 34 de 35 |
+
+    - Cuesta 1–3 s por pista, un 5 % de lo que tarda el modelo.
+    - madmom se compila desde git (commit `27f032e8`), porque la versión de PyPI no compila en Python 3.13. El código es BSD. El paquete trae modelos CC BY-NC-SA que Crate no usa.
+  - **Dónde corre:** el worker de análisis lo ejecuta en Python, con torch como YAMNet, antes del análisis.
+  - **Cómo llega a los analizadores:** pasa el resultado a Rust (`crate-cli analyze --beats <json>`) y al analizador de Python.
+  - **Qué hacen con él:** los dos analizadores usan esos beats en lugar de su tracker y conservan el ajuste a rejilla constante. El downbeat es la fase módulo 4 de la rejilla que recoge más downbeats de Beat This!, siempre que recoja al menos el 60 %. Si no llega, la pista se queda sin downbeat ni frases.
+  - **Sin modelo** (pesos o madmom ausentes, ARM o `PANNS=off`), si el modelo falla o si la pista pasa del máximo de duración: el comportamiento de antes, con un aviso en el log. Nunca se usa el modelo sin DBN.
+- **Procedencia:** una columna `beat_tracker` (por ejemplo, `beat-this-small0-dbn`), nula con el tracker propio. Funciona como `vocal_detector`: un borrador que trae tracker sustituye a un perfil de la misma versión que no lo tiene.
+- **Coste**, con 1 hilo y pistas de hasta 240 s:
+  - En desarrollo (Core Ultra 9 185H): `small0`, unos 15 s por pista, más 1–3 s de DBN; `final0`, unos 25 s. Sin Beat This!, v7 cuesta 4–6 s (Rust 1–3 s más YAMNet).
+  - En producción (i7-7700, 4 núcleos y 8 hilos) se calcula 1,4 veces más.
+- **Versión:** entra en `smart-mix-audio-v7`, que no está desplegado.
+
+**SM3-D15. Ventana nocturna para el backfill** (decidido por Diego, 2026-11-05)
+- **Por qué:** producción tiene casi 140.000 pistas y un i7-7700 de 4 núcleos y 8 hilos, con `crate-analysis-worker` a 4 procesos.
+  - Con v7 y `small0` (unos 28 s por pista en producción), el backfill dura unos 15 días con 4 procesos todo el día.
+  - Con ventana nocturna, unos 12–13.
+- **Qué hace:** el backfill tiene una ventana nocturna configurable en Admin.
+  - **Por defecto:** de 01:00 a 08:00, hora de `Europe/Madrid`, con 8 análisis del backfill en vuelo; fuera de la ventana, 4.
+  - **Qué cuenta:** el coordinador nunca tiene en vuelo más hijos del backfill que el límite de la hora actual. Las importaciones y los reanálisis manuales no cuentan.
+  - **Cambio de franja:** se aplica en el siguiente lote, sin interrumpir análisis en curso.
+- **Despliegue:** `crate-analysis-worker` arranca con tantos procesos como el máximo nocturno, con CPU y memoria acordes. Así no hace falta reiniciar ni escalar desde fuera; Crate no tiene acceso al socket de Docker.
+
+**SM3-D16. Señales de los modelos guardadas por pista** (decidido por Diego, 2026-11-05, tras una revisión externa del pipeline)
+- **Por qué:** Beat This! es unas tres cuartas partes del coste del perfil.
+  - Hoy, cualquier mejora futura de la rejilla, del downbeat o de las frases obliga a repetirlo en un backfill de 12–13 días.
+  - Con sus beats guardados, una versión posterior (por ejemplo, la segmentación por novelty de v8) solo necesita el paso de Rust: unos 4–6 s por pista y un backfill de unos 3 días.
+  - Lo mismo pasa con YAMNet si cambian las frases.
+- **Qué se guarda,** en una tabla propia por pista, aparte del perfil:
+  - los beats y downbeats de Beat This! tras el DBN, con su `beat_tracker`;
+  - el compás que elige el DBN (`beats_per_bar`, 3 o 4);
+  - las puntuaciones de voz de YAMNet por ventana (0,48 s), en el mismo byte logarítmico que las frases, con su `vocal_detector`.
+  - Las ventanas de voz se guardan solo cuando ya se calculan, que es cuando la pista tiene frases: no añaden coste.
+- **Tamaño:** unos 3–4 KB por pista, menos de 1 GB para 140.000 pistas. No se guardan los logits del modelo (unos 13 GB): solo harían falta para volver a cambiar el post-proceso.
+- **Cuándo se reutilizan:** cuando coinciden la revisión de la fuente (`smart_mix_source_revision`: tamaño, mtime e inodo) y el nombre del tracker o del detector actuales. Si no coinciden, se recalculan y se reemplazan.
+- **Compás de 3 tiempos:** si el DBN elige 3, el perfil lo dice (`time_signature = 3`) y se queda sin downbeat ni frases, y por tanto va a crossfade. Hoy esto ocurre por accidente, cuando no se llega al 60 %. Las frases y los consumidores (planificador, Crate Decks) asumen compases de 4.
+- **Fuera de esta decisión:**
+  - la segmentación por novelty de timbre y armonía, que entra antes del backfill con SM3-D17;
+  - Beat This! exportado a ONNX para ganar velocidad, como propuesta sin aprobar.
+
+**SM3-D17. Novelty de armonía y timbre en la segmentación** (decidido por Diego, 2026-11-06, al cerrar SG1: «aprobado, pero v8 antes del backfill»)
+- **Por qué:** la novelty de v7 solo mide energía y balance de tres bandas, así que no ve una sección que cambia de armonía o de timbre sin cambiar de volumen.
+  - Frente a las secciones de All-In-One, el F1 de las fronteras es 0,49 a ±3 s en las 131 pistas de mezcla por frases con downbeat.
+- **Alcance de v8, decidido con datos:**
+  - **Anclaje por tramos: descartado.** Se simuló sobre las 131 pistas con los downbeats guardados del modelo: arregla 2–3 pistas y estropea 4–7, con cambios de fase de 4, 8 o 16 compases.
+    - El DBN mantiene un solo compás por pista, así que los «cambios de fase» salían de proyectar sus downbeats sobre la rejilla constante.
+    - Los desacuerdos que quedan son del modelo frente a All-In-One, y madmom no apoya a ninguno de los dos en 23 de 34.
+  - **Novelty: entra aunque no llega al umbral acordado** (+0,05 de F1 a ±3 s sin bajar la precisión). Diego la aceptó con la mejora medida.
+- **Qué hace:**
+  - **Rasgos nuevos por compás,** sobre las mismas tramas centradas que las bandas y sin los 50 ms de cada extremo:
+    - la media del chroma (12 notas);
+    - la media de 13 MFCC (transformada del coseno del espectrograma mel), estandarizados por coeficiente sobre los compases que van del primero al último con música (los huecos cortos incluidos).
+  - **Novelty en cada frontera:** la de v7 (`max(0, nivel + 0,5 · bandas − 0,5)`) más dos términos, con las mismas reglas de huecos y bordes:
+    - 2 × la distancia coseno entre el chroma medio de los 4 compases anteriores y el de los 4 siguientes;
+    - 8 × la distancia entre sus MFCC medios, dividida por √13.
+  - **Coste por frontera** del programa dinámico: de 1,0 a 4,0 dB. Recupera la precisión que bajaban los términos nuevos.
+  - **Sin cambios:** la rejilla de 8 compases con sus bonificaciones de 16 y 32, los picos, los tipos de frase y la fórmula de `structure_confidence`. Su valor sí se mueve, porque hay más picos.
+- **Medición del prototipo:** reutiliza las funciones de producción con los rasgos de Python sobre la rejilla de Rust. Los pesos se eligieron con las pistas spike y la mitad de las de producción; la otra mitad quedó reservada.
+
+  | F1 / precisión a ±3 s | v7 | v7 con SM3-D17 |
+  |---|---|---|
+  | Ajuste (102 pistas) | 0,512 / 0,569 | 0,538 / 0,571 |
+  | Reservadas (29) | 0,410 / 0,474 | 0,493 / 0,519 |
+  | Todas (131) | 0,490 | 0,528 |
+
+  - Quedan 11,7 frases por pista (antes 10,5), y el 77 % son de 8 compases (antes el 69 %): el planificador no pierde puntos de mezcla.
+  - La variante B (kernel de Foote sobre la autosimilitud por compás) daba casi lo mismo en las pistas de ajuste y menos en las reservadas.
+- **Paridad:**
+  - Python y Rust usan el mismo algoritmo y las mismas constantes, y con los mismos rasgos dan las mismas frases. Lo vigila una fixture de estructura con chroma y MFCC por compás.
+  - Rust reutiliza su chroma por trama y su banco mel. Como su chroma no es idéntico al de librosa (pasa lo mismo con las bandas), la paridad sobre audio real mantiene su tolerancia.
+- **Contrato y datos:**
+  - No cambian la API ni el esquema, y la versión sigue siendo `smart-mix-audio-v7`.
+  - Los rasgos nuevos no se guardan (serían unos 15 KB por pista); se recalculan del audio, que el análisis lee de todas formas.
+- **Coste:** como mucho 0,5 s más por pista, medido en SMB.PR3. La estimación del backfill no cambia.
+- **Aceptación** con la imagen final sobre las mismas 131 pistas:
+  - F1 a ±3 s de 0,52 o más;
+  - precisión no menor que la de v7;
+  - como mucho 0,5 s más por pista.
+  - Si no se cumple, se para y se informa.
+
 ## 5. Arquitectura
 
 ```mermaid
@@ -273,7 +396,8 @@ sequenceDiagram
 |---|---|---|
 | `phrases` | `jsonb` | `[{start_beat, start_ms, bars, energy, delta_energy, kind}]`, con 120 frases como máximo |
 | `energy_curve` | `bytea` | Un byte por compás (energía 0–255), con un máximo de 2.048 compases |
-| `vocal_presence` | `bytea` o nulo | Un byte por frase (0–255); nulo si el detector no se activa |
+| `vocal_presence` | `bytea` o nulo | Un byte por frase (0–255) del modelo de voz (SM3-D13); nulo sin modelo o sin frases |
+| `vocal_detector` | `text` o nulo | Modelo y versión que calcularon la voz, por ejemplo `yamnet-1`; nulo si no hay voz |
 | `structure_confidence` | `real` | Confianza global de la segmentación |
 
 **Tabla `smart_mix_refined_plans`:**
@@ -384,7 +508,7 @@ No se guarda el prompt ni la respuesta cruda, igual que el resto de la capa de I
 - **Render:** script de evaluación con FFmpeg, siguiendo el plan (cues, ratio, ganancia, curva y bajos). Vive en `tools/smart-mix-eval/`, fuera del camino de producción.
 - **Criterio:** Diego puntúa del 1 al 5; la IA tiene que ganar o empatar en ≥ 60 % de los pares sin que ninguno sea peor que 2.
 
-**Detector de voz:** precisión ≥ 0,8 y recall ≥ 0,7 frente a 100 frases etiquetadas a mano. Si no, se omite (SM3-D2).
+**Detector de voz:** precisión ≥ 0,8 y recall ≥ 0,7 frente a al menos 100 frases etiquetadas a mano (`tools/smart-mix-eval/vocals_labels.csv`). Si ningún modelo de SM3-D13 lo alcanza, la voz se omite.
 
 ## 11. Presupuestos
 
@@ -392,6 +516,7 @@ No se guarda el prompt ni la respuesta cruda, igual que el resto de la capa de I
 |---|---|
 | API de transition plans | Sin cambio: p95 < 50 ms en caché y < 150 ms sin caché. Los refinamientos se leen en el mismo `mget`; ninguna consulta extra a PostgreSQL en el camino caliente salvo un fallo de caché, que es una lectura por clave primaria `ANY(:keys)` |
 | Análisis estructural | ≤ 10 % más de tiempo que `smart-mix-audio-v6` por pista; el backfill en cola heavy no compite con la reproducción |
+| Voz por frase | El tiempo de CPU por pista que apruebe Diego en SG1b con la medición de SMV.PR1, aparte del presupuesto anterior |
 | Familia `ai` | `ai`: 2 hilos por defecto, ≤ 300 s por tarea, espera en cola p95 ≤ 5 s para refinamientos de Smart Mix con la conexión libre. `ai_bulk`: 1 hilo y lotes largos. Ninguna tarea de IA en `fast`, `default`, `heavy` ni `maintenance`; ninguna llamada a modelo en HTTP |
 | Coste | Estimación: 3–6 K tokens de entrada y ~500 de salida por transición; con modelos tipo `deepseek-flash`, del orden de $0,001 por transición antes de caché. Verificar precios oficiales al configurar; cambiaron varias veces en 2026. Los presupuestos diarios de la conexión (llamadas y tokens) se respetan |
 | Base de datos | Una fila por refinamiento; índice por `(from_entity_uid, to_entity_uid)` para invalidar; limpieza a 180 días sin lectura |
@@ -408,6 +533,8 @@ No se guarda el prompt ni la respuesta cruda, igual que el resto de la capa de I
 | Coste descontrolado | Factura | Reserva previa existente, límites diarios, caché por combinación, `aiRefinement` explícito por petición |
 | Privacidad o jurisdicción | Datos fuera del servidor | Solo números (SM3-D6), aviso y confirmación del admin, local por defecto (SM3-D11) |
 | Paridad Python/Rust en el análisis nuevo | Perfiles distintos según el camino | Extender `test_smart_mix_rust_parity.py` y los tests de `tools/crate-cli` antes del merge |
+| Ningún modelo de voz alcanza §10 con voces distorsionadas o sintes en la banda de la voz | Sin voz por frase | La voz se queda apagada; v3 y el refinamiento funcionan sin ella (SM3-D13) |
+| La voz alarga el backfill final | Más horas de CPU en la cola heavy | Medir en SMV.PR1; si no cabe, muestrear ventanas dentro de cada frase; decide SG1b |
 | Proveedor `openai_compatible` como vector de SSRF | Seguridad | Plantillas de origen, confirmación de orígenes arbitrarios, fijado de dirección como Ollama, sin redirecciones; revisión en SG2 |
 | Cambios de ID de modelo (Moonshot retira alias) | Acción rota | Manifiesto declarado con IDs fijos; `ai_catalog_refresh` avisa en el admin si desaparece |
 
@@ -416,7 +543,8 @@ No se guarda el prompt ni la respuesta cruda, igual que el resto de la capa de I
 | Gate | Cuándo | Qué decide Diego |
 |---|---|---|
 | SG0 | Antes de SM1 | Este diseño: estructura primero, menú de candidatos, minimización y activación en tres niveles. Familia `ai` ya decidida; se confirman los carriles `ai`/`ai_bulk` y la UX asíncrona de Music Paths |
-| SG1 | Tras SM1 | Calidad de la segmentación (revisión visual en el admin sobre 30 pistas variadas) y si se incluye el detector de voz |
+| SG1 | Tras SM1 | Calidad de la segmentación (revisión visual en el admin sobre 30 pistas variadas) y si se incluye el detector de voz. Decidido el 2026-11-04: la heurística se queda apagada y la voz pasa a un modelo (SM3-D13). El 2026-11-05 la revisión visual se sustituye por la comparación con All-In-One y madmom: el downbeat no pasa, y beats y downbeats pasan a Beat This! (SM3-D14). SG1 se cierra con la misma comparación sobre el v7 corregido |
+| SG1b | Tras SMV.PR1 | Modelo de voz: candidato, licencia, coste por pista y precisión y recall frente a las frases etiquetadas |
 | SG2 | Tras SM3 | Seguridad del proveedor `openai_compatible` y plantillas de origen |
 | SG3 | Tras SM5 | Go/no-go de la IA con las métricas y la escucha a ciegas |
 | SG4 | Tras SM6 | Activar por defecto y modelo recomendado; despliegue en producción con el proceso normal de release |

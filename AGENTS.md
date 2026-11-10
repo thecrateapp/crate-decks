@@ -27,19 +27,19 @@ Ningún cambio de servidor se hace desde este repositorio.
 
 **Solo si Diego lo pide de forma explícita:**
 
-- `git push`, abrir o actualizar PRs, comentar en PRs o issues y crear issues.
+- `git push`, abrir, actualizar y mergear PRs a `main` (con merge commit y el CI en verde), comentar en PRs o issues y crear issues.
 - Instalar paquetes del sistema (`tools/*_buildenv.sh setup` o cualquier `sudo`).
 - Crear tags o releases.
 
 **Nunca:**
 
-- Hacer merge a `main` o a `upstream`, ni force-push a ramas compartidas.
+- Hacer merge a `upstream` ni force-push a ramas compartidas.
 - Dar por superado un gate humano (§4).
 - Abrir, comentar o actualizar nada en `mixxxdj/mixxx`: ni PRs, ni issues, ni reviews. No se contribuye a Mixxx (§9).
 - Usar el servidor de producción de Crate o sus credenciales.
 - Mergear la rama `spike/crate-decks`: su código es desechable.
 
-**Prueba humana antes del merge:** los cambios que afectan al audio, al motor, a AutoDJ, a Smart Mix o a las controladoras los prueba Diego con un setup de DJ real antes del merge. El PR dice qué hay que probar y cómo.
+**Evidencia antes del merge:** no hay prueba con un setup de DJ real. Los cambios que afectan al audio, al motor, a AutoDJ, a Smart Mix o a las controladoras llevan evidencia offline (clips A/B, métricas de escucha, capturas o pruebas headless de la app real), y el PR dice qué puede comprobar Diego en su escritorio y cómo.
 
 ## 3. Texto generado por IA
 
@@ -48,9 +48,9 @@ Ningún cambio de servidor se hace desde este repositorio.
 
 ## 4. Planes, decisiones y gates
 
-- Las decisiones se citan por su ID: D1–D15 y S1–S7 (Crate Decks), SM3-D1–D12 (Smart Mix 3).
+- Las decisiones se citan por su ID: D1–D15 y S1–S7 (Crate Decks), SM3-D1–D13 (Smart Mix 3).
 - Nada marcado como *pendiente* de un gate se implementa sin la aprobación explícita de Diego.
-- **Gates:** G0–G6, G3b, G4b, GU1 y GU2 (§13 del diseño de Decks); SG0–SG4 (§13 del diseño de Smart Mix 3). Al llegar a uno, el agente para, presenta lo que pide el gate y espera.
+- **Gates:** G0–G6, G3b, G4b, GU1 y GU2 (§13 del diseño de Decks); SG0–SG4 y SG1b (§13 del diseño de Smart Mix 3). Al llegar a uno, el agente para, presenta lo que pide el gate y espera.
 - Las fases se ejecutan en el orden del plan, y cada tarea empieza por el test en rojo que indica.
 - **Si el código no coincide con el plan** (rutas, números de línea o APIs que no existen o se comportan de otra forma): para, informa y propone el cambio al plan. No te desvíes en silencio. Los números de línea de los planes son de Mixxx `bc49961`; revalídalos antes de usarlos.
 - Los planes viven en `docs/plans/` y se cambian por PR, como cualquier otro fichero. Los informes (spike y evaluaciones) también van a `docs/plans/`.

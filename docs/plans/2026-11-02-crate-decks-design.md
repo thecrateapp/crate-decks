@@ -308,6 +308,8 @@ flowchart LR
 
 ### 5.2. Parches en ficheros de Mixxx (lista cerrada; cualquier otro necesita justificación)
 
+Los parches de V2 (skin por defecto ampliado, `coreservices.cpp`, `mixxxmainwindow.cpp`, `dlgabout.cpp` y `dlgpreferences.cpp` ampliado) los aprobó Diego el 2026-11-09.
+
 | Fichero | Cambio | ¿Hook genérico? |
 |---|---|---|
 | ~~`src/library/trackcollectionmanager.cpp`~~ | **Descartado tras F0 (Q9):** no hay forma de registrar colecciones externas (la línea 59 es un `TODO`), y la colección recibiría `saveTrack`, purgas y reubicaciones desde cualquier hilo. Se reconsidera en F7/F8 | — |
@@ -322,13 +324,16 @@ flowchart LR
 | `src/widget/wtracktableview.cpp`, `src/widget/wtrackmenu.cpp`, `src/library/trackmodel.h` | **Aprobado en G0.** Hook de carga asíncrona: `TrackModel::requestTrackLoad(index, group, play)`, virtual y con `false` por defecto, al que llaman el doble clic, Enter, `LoadSelectedTrack` y "Cargar en Deck N" antes de `getTrack`. Hace falta porque `getTrack` es síncrono, también se llama al seleccionar y no recibe el deck (F0 Q9) | Sí (genérico) |
 | `src/sources/soundsourceffmpeg.{h,cpp}` | Hook virtual `openInputContext()` (+9 / −2; el valor por defecto mantiene el comportamiento) para la fuente progresiva (F0 Q17) | Posible |
 | `src/engine/cachingreader/cachingreaderworker.cpp`, `src/analyzer/analyzerthread.cpp`, `src/coreservices.cpp` | Banderas de aborto para que una lectura progresiva que espera bytes se despierte al expulsar, cargar otra pista o cerrar; si no, `quitWait()` espera para siempre (F0 Q17) | Posible |
-| `src/preferences/dialog/dlgpreferences.cpp` | Registrar `DlgPrefCrate` | No |
+| `src/preferences/dialog/dlgpreferences.cpp` | Registrar `DlgPrefCrate` y dar a Preferencias el aspecto de las maquetas de GU1 (V2.PR5) | No |
 | `src/sources/soundsourceproxy.cpp` (`registerProviders`) | Registrar `SoundSourceCrateProgressive` con prioridad `Highest`; solo en F4b (D14) | Quizá: un hook genérico de fuentes progresivas |
 | Importación de metadatos al añadir la pista (localizar en F4b: `TrackCollectionManager` / `SoundSourceProxy::updateTrackFromSource`) | Saltar la lectura de tags de pistas Crate en descarga; solo en F4b | No |
 | `res/skins/CrateDecks/` (nuevo, derivado de LateNight) | Skin propia; no se modifica LateNight | No |
-| `res/skins/default.qss` | Estilo de diálogos y preferencias con los tokens de Crate | No |
+| `res/skins/default.qss` | **No se toca** (V2.PR5): con `CRATE`, la ventana principal y cada diálogo cargan `generated/default.qss` y `generated/dialogs.qss`, generados desde los tokens. Un test avisa si una sincronía con upstream añade a `default.qss` una regla que el de Crate no tenga | No |
 | `res/fonts/` | Roboto, Bricolage Grotesque y JetBrains Mono (OFL 1.1), copiadas de `app/shared/fonts/` con sus licencias | No |
-| Skin por defecto (`src/skin/skinloader.cpp` o la constante que la define) | `CrateDecks` en lugar de `LateNight` | No |
+| Skin por defecto (`src/skin/skinloader.cpp` o la constante que la define) | `CrateDecks` en lugar de `LateNight`; al cargar la skin, sus valores por defecto (racks plegados) y el estilo de la biblioteca (V2.PR3 y V2.PR4) | No |
+| `src/coreservices.cpp` (además de las banderas de aborto) | Valores por defecto de la biblioteca de Crate Decks, como el BPM con dos decimales, escritos antes de que Preferencias guarde los de Mixxx (V2.PR4). Afecta a cualquier skin | No |
+| `src/mixxxmainwindow.cpp` | Aplicar los estilos generados desde los tokens a la ventana principal y a cada diálogo, que son ventanas propias (V2.PR5) | No |
+| `src/dialog/dlgabout.cpp` | Atribución de los iconos Solar (CC BY 4.0) y de las fuentes, y el aspecto de About (V2.PR5) | No |
 
 ## 6. Datos locales
 
@@ -699,30 +704,49 @@ demasiado lentos para las filas de la biblioteca.
 | (b) Interfaz QML | 4–8 meses-persona | Alto: interfaz inestable, riesgo de corrupción del perfil, árbol muy móvil, un solo contribuidor | Aspecto completo, pero hay que construir biblioteca, AutoDJ, preferencias, muestras y efectos |
 | **(c) Mixto (elegida)** | (a) + 6–10 semanas en la etapa 2 | Bajo ahora, acotado después | (a) en la primera release; QML cuando se cumplan los criterios de §14.4, sin rehacer diseño ni lógica |
 
-### 14.3. Adaptaciones DJ del lenguaje del admin (color por deck y Solar decididos; el resto, en GU1)
+### 14.3. Adaptaciones DJ del lenguaje del admin (cerradas en GU1)
 
 El admin es una consola de operaciones; Decks es un instrumento en una cabina oscura. Algunas convenciones
 DJ chocan con las políticas del admin (un solo acento, sin verde, sin color fuera de cian, ámbar y rojo).
-Se proponen estas desviaciones, que se deciden en GU1:
+Se propusieron estas desviaciones y GU1 las cerró.
 
-| Tema | Admin | Propuesta para Decks | Motivo |
+**GU1 cerrado (Diego, 2026-11-09):** se aprueban las maquetas de V1.3 tal cual, con todas las recomendaciones
+para las opciones abiertas y las propuestas nuevas de abajo. Las maquetas aprobadas son la referencia de
+píxeles de V2 y V3: cada PR visual se compara con ellas lado a lado. Viven fuera del fork, como pide V1.3, en
+`crate-agents/decks-mockups/` (`index.html` y capturas en `png/`).
+
+| Tema | Admin | Decisión para Decks | Motivo |
 |---|---|---|---|
 | Color por deck | Un único acento; otros tonos prohibidos | **Decidido (Diego, 2026-11-02):** deck 1 y 3 en `accentHi` cian; deck 2 y 4 en `textPrimary` (blanco frío). Siempre con la letra del deck (A/B/C/D) en mono, en la cabecera MonoLabel y en los controles asignados (EQ, fader, VU). Sin segundo tono | Distinguir los decks de un vistazo sin inventar colores ni romper la política de un solo acento |
 | Tonalidad | Mono de 10,5 px en una columna fija; sin Camelot ni color | Camelot (`8A`) en mono en la columna fija. Además, una **rueda Camelot con la gramática de GenreWheel**: dos anillos (A interior, B exterior) de 12 nodos; la tonalidad del deck maestro como nodo activo relleno en cian; las compatibles (±1, cambio A/B, +7 energía) como nodos con trazo `accentHi` y aristas activas con flecha; el resto en reposo y las no relacionadas al 25 %. Sin rueda de colores por tono | Smart Mix y la búsqueda DJ hablan Camelot; la armonía se lee por forma y posición, no por color |
-| Knobs (EQ, ganancia, filtro, efectos) | No existen | Escala de instrumento como la StackMap: anillo de 1 px en `border-quiet` con marcas (una larga cada 4), arco de valor de 1,5 px en `accentHi` con extremos redondeados, punto indicador de 3 px y MonoLabel debajo. Sin volumen, sombras ni texturas | Mismo idioma que el anillo de nivel de la StackMap |
-| Faders, pitch y crossfader | Slider de 2 px con punto de 8 px | Carril de 1 px con marcas cada 10 % (centro más largo), tirador de contorno de 1 px de 10 × 18 px. Al moverse o con sync activo, el tirador se rellena de `accentHi` | La lectura del valor está en las marcas, no en el tirador |
-| Plan de Smart Mix (asistente y AutoDJ) | No existe | Vista con la gramática de StackMap. Dos líneas de tiempo horizontales de 1 px (saliente arriba, entrante abajo) con marcas de beat; puntos de cue como nodos; la ventana de transición como conexión activa con flecha. Cada aspecto del plan es un patrón de trazo: tempo continuo, intercambio de bajos `3 4`, ganancia `9 4`, beatmatch largo `1 5`. Leyenda con MonoLabel y cifras en display | Explica el plan sin colores nuevos |
-| Caché y descargas | Carriles de 1 px | Anillo de nivel como en StackMap (r 6–8, 1,5 px, extremos redondeados) en la fila de la pista y en la vista de caché | Mismo idioma de progreso en todas partes |
+| Knobs (EQ, ganancia, filtro, efectos) | No existen | Escala de instrumento como la StackMap: knob de 36 px (30 con 4 decks y a 768 px de alto), anillo de 1 px en `border-quiet` con 24 marcas (una larga cada 30°; las 48 de StackMap se leen como una corona a este tamaño), arco de valor de 1,5 px en el color del deck con extremos redondeados, punto indicador de 3 px y MonoLabel debajo. Sin volumen, sombras ni texturas | Mismo idioma que el anillo de nivel de la StackMap |
+| Faders, pitch y crossfader | Slider de 2 px con punto de 8 px | Carril de 1 px con marcas cada 10 % (centro más largo), tirador de contorno de 1 px de 18 × 10 px. Al moverse o con sync activo, el tirador se rellena de `accentHi` | La lectura del valor está en las marcas, no en el tirador |
+| Plan de Smart Mix (asistente y AutoDJ) | No existe | Vista con la gramática de StackMap. Dos líneas de tiempo horizontales de 1 px (saliente arriba, entrante abajo) con marcas de beat; puntos de cue como nodos; la ventana de transición como conexión activa con flecha. Cada aspecto del plan es un patrón de trazo: tempo continuo, intercambio de bajos `3 4`, ganancia `9 4`, beatmatch largo `1 5`. Leyenda con MonoLabel y cifras en display. Si las etiquetas de carril molestan en V3, pasan a la leyenda | Explica el plan sin colores nuevos |
+| Caché y descargas | Carriles de 1 px | Anillo de nivel como en StackMap (r 7, 1,5 px, extremos redondeados) en la fila de la pista y en la vista de caché | Mismo idioma de progreso en todas partes |
 | Simplicidad de la interfaz | Listas con reglas, sin cajas anidadas | Por defecto: 2 decks, mezclador y biblioteca. Efectos, muestras, mic y aux se pliegan y aparecen con un botón. Sin fondos de panel dentro de paneles; separadores de 1 px y MonoLabel como cabecera de cada zona. Los controles poco usados de LateNight (botones de vinilo, slip, extras de bucle) se mueven a menús o desaparecen de la vista por defecto | "Diseño de UI simple" es un requisito, no un acabado |
-| Densidad de biblioteca | Filas de pista de 56 px (compactas 52); celdas de 44 | Densidad "cabina": filas de 28–32 px. Preferencias y diálogos con las alturas del admin | En un set se ven muchas pistas a la vez |
-| VU y clip | Medidores de 1 px en cian, con ámbar como aviso | VU en `accentHi` → `warning` (≥ −6 dBFS) → `danger` (clip). Barras de 3–4 px por legibilidad a distancia | El rojo de clip es universal y avisa de algo destructivo para el sonido |
-| Forma de onda | No existe en el admin | Paleta "filtered" de 3 bandas derivada del logo: graves `#0e7490`, medios `#06b6d4`, agudos `#67e8f9`. Fondo `bgApp`, cabeza de lectura `textPrimary`, beats al 20 % de `#f1f5f9`, downbeats al 40 %, cues de intro y outro en el color del deck. En el deck 2/4, variante neutra en grises fríos (graves `#4a4c52`, medios `#999ca0`, agudos `#f1f5f9`), según el color por deck decidido | Coherencia con el logo y con la distinción de decks |
+| Densidad de biblioteca | Filas de pista de 56 px (compactas 52); celdas de 44 | Densidad "cabina": filas de 30 px con metadatos en mono de 11 px. Preferencias y diálogos con las alturas del admin | En un set se ven muchas pistas a la vez |
+| VU y clip | Medidores de 1 px en cian, con ámbar como aviso | VU en el color del deck → `warning` (≥ −6 dBFS) → `danger` (clip), con retención de pico de 1 px. Barras de 4 px por legibilidad a distancia | El rojo de clip es universal y avisa de algo destructivo para el sonido |
+| Forma de onda | No existe en el admin | Paleta "filtered" de 3 bandas derivada del logo: graves `#0e7490`, medios `#06b6d4`, agudos `#67e8f9`. Fondo `bgApp`, cabeza de lectura `textPrimary`, beats al 20 % de `#f1f5f9`, downbeats al 40 %, cues de intro y outro en el color del deck. En el deck 2/4, variante neutra en grises fríos (graves `#4a4c52`, medios `#999ca0`, agudos `#f1f5f9`), según el color por deck decidido. Reserva: grises en todos los decks si en cabina las bandas resultan fuertes | Coherencia con el logo y con la distinción de decks |
 | Estados de Crate | Cian correcto, ámbar problema | Perfil `full`: sin marca. `partial`: punto ámbar. Ausente: rótulo mono "SIN PERFIL" en `textSubtle`. Caché lista: punto `accentHi`. Descargando: carril de 1 px. Fallo: ámbar. Rojo solo para acciones destructivas | Respeta la política del admin |
-| Botones de transporte | Botones con borde y texto cian | Play, cue y sync con borde y estado activo en relleno `accentHi` con texto `onAccent`, que es lo que hacen los chips activos del admin | En cabina, el estado activo tiene que leerse sin esfuerzo |
-| Números grandes del deck | `StatNumber` en display con `tabular-nums`; la política prohíbe display en lecturas numéricas pequeñas | BPM y tiempo restante del deck en Bricolage 700 con cifras tabulares, si la fuente las tiene (verificar en F0 Q15); si no, JetBrains Mono 400 a tamaño grande | Lectura a distancia |
-| Fuentes en tabla | Títulos en Roboto; meta en mono de 10,5 px | Igual. Comprobar en F0 Q15 si 10,5 px se lee en cabina; el suelo propuesto es 11 px | Legibilidad con brillo bajo |
+| Botones de transporte | Botones con borde y texto cian | Play, cue y sync con borde y estado activo en relleno del color del deck con glifo `onAccent`, que es lo que hacen los chips activos del admin | En cabina, el estado activo tiene que leerse sin esfuerzo |
+| Números grandes del deck | `StatNumber` en display con `tabular-nums`; la política prohíbe display en lecturas numéricas pequeñas | BPM y tiempo restante del deck en Bricolage 700 con cifras tabulares (`tnum`, comprobado en `fontstest.cpp`): 34 px, y 26 y 22 px en los decks compactos | Lectura a distancia |
+| Fuentes en tabla | Títulos en Roboto; meta en mono de 10,5 px | Títulos en Roboto; metadatos en mono de 11 px, que es el suelo | Legibilidad con brillo bajo |
 | Iconos | Solar (contorno), lucide solo para glifos auditados | **Decidido (Diego, 2026-11-02): Solar al 100 %.** Ningún icono de lucide, ni siquiera chevrons, X o loader; el equivalente Solar sustituye a cada uno. Contorno por defecto y relleno para Play, Pause y Heart, como el admin; exportados a SVG por el generador. **Licencia:** el set Solar se publica como CC BY 4.0. Se añade su atribución en About, en `CRATE.md` y en el paquete. En V1 se comprueba la licencia exacta del paquete del que se extraen los SVG, solo para cumplirla, no para elegir otro set | Coherencia total con la dirección de iconos de Crate |
 | Movimiento | Pestañas con muelle, pop-in de 200 ms | Sin animaciones en la skin QWidget (QSS no anima), salvo las del propio Mixxx | Límite técnico; se recupera en la etapa QML |
+| Stems (añadido en GU1) | No existen | Cuatro stems por deck (drums, bass, other, vocals) con volumen, nivel y mute. Con 2 decks, una fila de carriles; con 4 decks, chips con nivel. Mute en el color del deck. Se maquetan en V2 y funcionan con la reproducción de stems (ST6 del plan de stems) | Los stems son controles de primera línea en la mezcla |
+
+**Propuestas añadidas en GU1** (no estaban en la tabla y quedan aprobadas):
+- **Regla de frase bajo el overview:** 64 beats con marcas de beat, compás y frase, y la posición en el color del deck.
+- **Línea de Smart Mix en el deck:** próxima transición, tipo y cuenta atrás.
+- **Hotcues como nodos numerados:** huecos en reposo y con el trazo del deck cuando están puestos.
+- **Estado de Crate en la barra superior:** servidor y conexión.
+- **Deck vacío** con zona para arrastrar una pista.
+- **Distribución a 1366 × 768:** barra con iconos, hotcues en su propia fila, stems en 2 × 2, y sin regla de frase ni línea de Smart Mix. Con 4 decks la biblioteca queda en 3 filas, así que se puede maximizar.
+
+**Velo detrás de los diálogos (Diego, 2026-11-09):** Preferencias no oscurece la ventana. No es modal, para
+poder ajustar algo en pleno set sin perder de vista los decks. Los diálogos que bloquean (primer arranque y
+confirmaciones) sí llevan el velo de la maqueta. En Wayland el velo es una ventana hija y cubre el contenido, no la
+barra de título que dibuja Qt (CSD); aceptado por Diego el 2026-11-09.
 
 ### 14.4. Criterios para la etapa 2 (QML, GU2)
 

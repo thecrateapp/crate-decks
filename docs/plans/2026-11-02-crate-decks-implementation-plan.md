@@ -596,11 +596,15 @@ En `cratecapabilities_test.cpp`:
 | Fichero | Contenido |
 |---|---|
 | `src/library/crateserver/crateserverfeature.{h,cpp}` | `title()` = "Crate"; `sidebarModel()` (`TreeItemModel`: un nodo por servidor y, dentro, Biblioteca, Playlists, Crates, Géneros, Moods, Recientes y Likes); `activate()` y `activateChild()` muestran el modelo de pistas; carga perezosa (`onLazyChildExpandation`); menú contextual mínimo (Actualizar) |
-| `src/library/crateserver/crateservertrackmodel.{h,cpp}` | Sobre `BaseExternalTrackModel`: vista TEMPORARY `crateserver_view_<container>` sobre `crateserver_container_tracks ⨝ crateserver_tracks`; columnas Camelot, Energía, Calidad del perfil y Estado de caché (`ColumnCache` / `TrackModel::Capabilities` como en Rekordbox); `getTrack()` sin implementar todavía (F4) |
+| `src/library/crateserver/crateservertrackmodel.{h,cpp}` | Modelo propio sobre `QAbstractTableModel` y `TrackModel` (ver la desviación debajo): lee `crateserver_container_tracks ⨝ crateserver_tracks` en un hilo de trabajo, filtra y ordena allí y cambia las filas de una vez; columnas Camelot, Energía, Calidad del perfil y Estado de caché con sus delegates; solo la capacidad de ordenar hasta F4; `getTrack()` sin implementar todavía (F4) |
 | `src/library/library.cpp` | Registrar `CrateServerFeature` con `addFeature` detrás de `CRATE` (unas 4 líneas, F0 Q9). **Parche de Mixxx**: anotarlo |
 | (sin `ExternalTrackCollection`) | F0 Q9: `TrackCollectionManager` no puede registrarla (`trackcollectionmanager.cpp:56-60` es un `TODO`), y repartiría `saveTrack`, purgas y reubicaciones desde cualquier hilo. Se reconsidera en F7/F8 si hacen falta esos avisos |
 
 Si F0/Q9 recomendó `library.cpp` en lugar de `ExternalTrackCollection`, se usa esa vía y se ajusta esta tabla.
+
+**Desviación aprobada (Diego, 2026-11-09):** el modelo de pistas no deriva de `BaseExternalTrackModel` ni de `BaseSqlTableModel`.
+- `BaseTrackTableModel` declara `data()` y `delegateForColumn()` como `final`, así que una subclase no puede dar a los delegates de Crate sus roles (Camelot, calidad del perfil, estado de caché).
+- Un modelo propio lee, filtra y ordena las filas fuera del hilo principal, que nunca espera a SQLite (diseño §9). No hace falta la vista TEMPORARY ni la caché de toda la tabla que exige `BaseExternalTrackModel`.
 
 **Tests:**
 - `crateserverfeature_test.cpp` (fixture `LibraryTest`):
@@ -1175,6 +1179,10 @@ diseña el icono definitivo de la app (G1), que tiene que estar antes de F9.
 
 **Gate GU1 (Diego):** aprueba las maquetas y cierra §14.3. Los valores `pending` de `tokens.json` pasan a definitivos.
 
+**GU1 cerrado (Diego, 2026-11-09):** maquetas aprobadas tal cual, con todas las recomendaciones para las
+opciones abiertas y las propuestas nuevas. Las decisiones están en §14.3 del diseño. En V2, la fila de cada PR
+ya las recoge.
+
 ### V2 · Skin `CrateDecks`
 
 Base: copia de `res/skins/LateNight/` en `res/skins/CrateDecks/` (el commit de la copia queda anotado en
@@ -1182,11 +1190,47 @@ Base: copia de `res/skins/LateNight/` en `res/skins/CrateDecks/` (el commit de l
 
 | PR | Alcance | Ficheros principales |
 |---|---|---|
-| V2.PR1 | Esqueleto y estilo global: `skin.xml` con un único esquema `Crate` (sin PaleMoon ni Classic), `style.qss.in`, `vars.xml` generado, fuentes, barra de herramientas de 64 px, skin `CrateDecks` por defecto | `res/skins/CrateDecks/skin.xml`, `style.qss.in`, `skin.ini`, la constante de skin por defecto en `src/skin/` |
-| V2.PR2 | Decks, simples: cabecera MonoLabel (`DECK A · 8A · 124.00 BPM`), título en Roboto, BPM y tiempo restante en cifras grandes de display (o mono según Q15), botones de transporte con borde y estado activo relleno, hotcues como nodos numerados, overview y colores de onda de §14.3. Los controles poco usados (vinilo, slip, extras de bucle) van a un menú del deck | `res/skins/CrateDecks/deck_*.xml`, `generated/controls/`, `generated/vars.xml` |
-| V2.PR3 | Mezclador con la gramática de StackMap (§14.3): knobs con anillo de 1 px, 48 marcas y arco de 1,5 px en `accentHi`; faders, pitch y crossfader con carril de 1 px, marcas y tirador de contorno; VU `accentHi` → `warning` → `danger`; MonoLabel en cada control. Efectos, muestras, mic y aux plegados por defecto (botón en la toolbar) | `mixer*.xml`, `fx*.xml`, `sampler*.xml`, `generated/controls/knob_*.svg` |
-| V2.PR4 | Biblioteca: barra lateral de 240 px como la navegación del admin (elementos MonoLabel en mayúsculas de 11 px; activo en `textPrimary` con barra izquierda de 2 px en `accentHi`; hover en `accentHi`; cabeceras de sección MonoLabel en tono `accent`). Tabla con densidad "cabina" en lista con reglas de 1 px (sin cebra ni cajas), cabeceras MonoLabel, fila seleccionada con barra izquierda de 2 px y relleno cian al 8 %, hover cian al 4 %, BPM, tonalidad y duración en mono de 11 px en columnas fijas. Buscador de 40 px sin fondo propio, scrollbar de 8 px. Delegates para chips (Camelot, calidad, caché) en `src/crate/ui/delegates/` | `library.xml`, `style.qss.in` (sección biblioteca), `src/crate/ui/delegates/*.{h,cpp}` |
+| V2.PR1 | Esqueleto y estilo global: `skin.xml` con un único esquema `Crate` (sin PaleMoon ni Classic), `style.qss.in`, `vars.xml` generado, fuentes, barra de herramientas de 64 px con el estado de Crate (servidor y conexión), skin `CrateDecks` por defecto. MonoLabel en QSS puro: `text-transform` y `letter-spacing` funcionan en Qt 6.12 con el tracking en px (`em` lo interpreta como porcentaje del ancho del glifo). El C++ solo pone `tnum` y los ejes variables de las cifras del deck | `res/skins/CrateDecks/skin.xml`, `style.qss.in`, `skin.ini`, la constante de skin por defecto en `src/skin/` |
+| V2.PR2 | Decks, simples: cabecera MonoLabel (`DECK A · 8A · 124.00 BPM`), título en Roboto, BPM y tiempo restante en Bricolage 700 con cifras tabulares (34 px; 26 y 22 en compacto), botones de transporte con borde y estado activo relleno en el color del deck, hotcues como nodos numerados, overview y colores de onda de §14.3 (bandas del logo en A/C y grises en B/D), regla de frase bajo el overview, línea de Smart Mix, fila de stems (carriles con 2 decks, chips con 4) y deck vacío con zona de arrastre. La regla de frase, la línea de Smart Mix y los stems se maquetan aquí y se conectan cuando haya datos (F5, F6 y ST6 del plan de stems); mientras tanto quedan ocultos. Los controles poco usados (vinilo, slip, extras de bucle) van a un menú del deck. Distribución propia a 1366 × 768 (§14.3) | `res/skins/CrateDecks/deck_*.xml`, `generated/controls/`, `generated/vars.xml` |
+| V2.PR3 | Mezclador con la gramática de StackMap (§14.3): knobs de 36 px (30 con 4 decks y a 768 px) con anillo de 1 px, 24 marcas y arco de 1,5 px en el color del deck (variable de skin por deck para el arco de `WKnobComposed`); faders, pitch y crossfader con carril de 1 px, marcas y tirador de contorno de 18 × 10 px; VU de 4 px en el color del deck → `warning` → `danger` con pico de 1 px (widget propio si `WVuMeter` no basta); MonoLabel en cada control. Efectos, muestras, mic y aux plegados por defecto (botón en la toolbar) | `mixer*.xml`, `fx*.xml`, `sampler*.xml`, `generated/controls/knob_*.svg` |
+| V2.PR4 | Biblioteca: barra lateral de 240 px como la navegación del admin (elementos MonoLabel en mayúsculas de 11 px; activo en `textPrimary` con barra izquierda de 2 px en `accentHi`; hover en `accentHi`; cabeceras de sección MonoLabel en tono `accent`). Tabla con densidad "cabina" (filas de 30 px) en lista con reglas de 1 px (sin cebra ni cajas), cabeceras MonoLabel, fila seleccionada con barra izquierda de 2 px y relleno cian al 8 %, hover cian al 4 %, BPM, tonalidad y duración en mono de 11 px en columnas fijas. Buscador de 40 px sin fondo propio, scrollbar de 8 px. Delegates para chips (Camelot, calidad, caché con anillo de r 7) en `src/crate/ui/delegates/`. Con 4 decks, la biblioteca se puede maximizar | `library.xml`, `style.qss.in` (sección biblioteca), `src/crate/ui/delegates/*.{h,cpp}` |
 | V2.PR5 | Diálogos y preferencias: reescribir `res/skins/default.qss` desde una plantilla con los mismos tokens, más `About` y el asistente de primer arranque | `res/skins/default.qss.in`, `generated/default.qss` |
+
+**Huecos de Mixxx detectados en V2.PR2.** Decks no se queda en lo que hace Mixxx: cada hueco se implementa en el
+PR indicado.
+- **Intro y outro en el overview** como subrayado del color del deck, como en la maqueta (Mixxx solo los pinta
+  como relleno tenue): V3.PR1, con un parche acotado a `WOverview` o pintado propio, justificado en el PR.
+- **Nivel por stem** para los carriles y chips de stems (Mixxx no tiene un control de nivel por stem): un
+  control de nivel por stem calculado en el motor como el VU del canal, sin reservas ni locks. Va con la
+  reproducción de stems, en ST6.PR1 del plan de stems; la skin ya tiene los carriles.
+- **Abrir Preferencias desde la barra** (ningún control lo hace; hoy el botón abre el panel de la skin): V2.PR5.
+- **Efectos, muestras, mic y aux plegados por defecto** (`SkinControls` crea sus controles valiendo 1 antes de
+  cargar la skin): V2.PR3.
+- **Pantalla de arranque** con la marca de Crate Decks en lugar del logo de Mixxx: V2.PR5.
+- **Ondas en las capturas sin pantalla:** sin OpenGL no hay ningún tipo de onda. El arnés de capturas tiene que
+  renderizar con GL sin pantalla (EGL de Mesa) para comparar las ondas con la maqueta: V2.PR3.
+- **Fila `Artista · Género` con un campo vacío** (Diego, 2026-11-09). Sin género se lee `SNAYX ·`, y sin ninguno
+  de los dos queda un `·` suelto: `<TrackProperty>` no dice si su campo está vacío y ningún control lo hace.
+  Componer la fila en una sola etiqueta perdería lo que da `WTrackProperty` (editar el artista con doble clic,
+  el menú de pista y el arrastre), y una propiedad nueva en `Track` o una opción en `WTrackProperty` tocaría
+  ficheros fuera de §5.2 del diseño. Se usa un control por campo, como en la cabecera del deck: seguimiento de
+  V2.PR2 en `feat/decks-skin`, antes del merge de V2.
+  - `crate::DeckTrackFields` (`src/crate/ui/skin/decktrackfields.{h,cpp}`, sin widgets) sigue la pista de cada
+    deck con `PlayerInfo::trackChanged` y las señales `artistChanged` y `genreChanged` de `Track`. Pone
+    `[CrateDecks],deckN_has_artist` y `deckN_has_genre` a 1 si el campo tiene texto, sin contar espacios. Los
+    controles los crea el manifiesto de `skin.xml`, como `deckN_menu`, y el objeto arranca en `prepareLoadedSkin`.
+  - `deck_track.xml`: el artista y el género se ven con su control, y el separador, dentro del grupo del género,
+    solo si también hay artista. La fila conserva su alto con los dos vacíos, para que el título no salte. Los
+    decks normales y compactos usan la misma plantilla.
+  - **Tests primero:** `CrateDeckTrackFieldsTest` (cargar una pista temporal, cambiarle artista y género, vaciar
+    el deck) y `CrateSkinLoadTest.DeckArtistRowHidesEmptyFields`, que pone los controles como
+    `DeckHeadHidesEmptyFields` y comprueba los textos visibles y el alto de la fila.
+  - **Tamaño:** unas 300 líneas con los tests. De Mixxx solo cambia `CMakeLists.txt` (fuentes de `src/crate`),
+    que ya está en la lista cerrada.
+  - **Otras filas revisadas:** ninguna más une campos opcionales. La cabecera ya oculta la clave y el BPM vacíos;
+    CPU, latencia, BPM y tiempo unen un rótulo fijo con un valor que siempre existe; y las uniones del C++ de
+    Crate (biblioteca, barra lateral y servidores en Preferencias) ya saltan los vacíos. La línea de Smart Mix
+    (F6) y la regla de frase (F5 y F6) seguirán la misma regla cuando se conecten.
 
 **Tests:**
 - `src/test/crate/skinloadtest.cpp`:
@@ -1206,7 +1250,7 @@ Base: copia de `res/skins/LateNight/` en `res/skins/CrateDecks/` (el commit de l
 
 | Fichero | Contenido |
 |---|---|
-| `instrumentpainter.{h,cpp}` | Utilidades comunes: plumas cosméticas de 1 px alineadas a medio píxel, anillos con marcas (48, una larga cada 4), ejes discontinuos, patrones de trazo por tipo, nodos (hueco, activo, seleccionado, contexto), flechas, MonoLabel pintado (mayúsculas, tracking 0,14 em, separador ` · `) y cifra de display. Todo desde los tokens de geometría |
+| `instrumentpainter.{h,cpp}` | Utilidades comunes: plumas cosméticas de 1 px alineadas a medio píxel, anillos con marcas configurables (24 con una larga cada 30° en los knobs, según GU1; 48 con una larga cada 4 en los anillos de StackMap), ejes discontinuos, patrones de trazo por tipo, nodos (hueco, activo, seleccionado, contexto), flechas, MonoLabel pintado (mayúsculas, tracking 0,14 em, separador ` · `) y cifra de display. Todo desde los tokens de geometría |
 | `camelotwheel.{h,cpp}` y `camelotwheelmodel.{h,cpp}` | Rueda Camelot de §14.3: el modelo (sin widgets) calcula activo, compatibles y contexto a partir de la tonalidad del deck maestro y de los compatibles de F5; el widget dibuja dos anillos de 12 nodos, aristas activas con flecha y un centro con la tonalidad en display. Clic en un nodo filtra la vista Compatibles por esa tonalidad |
 | `transitionplanview.{h,cpp}` y `transitionplanviewmodel.{h,cpp}` | Plan de Smart Mix de §14.3: dos líneas de tiempo con marcas de beat, cues como nodos, ventana de transición, patrones por aspecto (tempo, bajos, ganancia, beatmatch largo) y leyenda MonoLabel. Durante la ejecución, cursor de progreso a 30 fps como máximo |
 | `levelring.{h,cpp}` | Anillo de nivel (progreso de descarga, cobertura de un set offline) como `stack-map__level` |
