@@ -503,7 +503,7 @@ TEST_F(CrateSkinLoadTest, OnlyCrateDecksIsOffered) {
 }
 
 // Plan "Own brand", BR.PR6: the sidebar's section of Mixxx's own library is
-// "Local", next to "Crate · <server>"
+// "Local", next to Crate's section (F3), which comes first
 TEST_F(CrateSkinLoadTest, SidebarSectionsNameNoMixxx) {
     QTemporaryDir profile;
     ASSERT_TRUE(profile.isValid());
@@ -515,8 +515,18 @@ TEST_F(CrateSkinLoadTest, SidebarSectionsNameNoMixxx) {
     ASSERT_NE(nullptr, pSidebar);
     auto* pDelegate = qobject_cast<crate::delegates::SidebarDelegate*>(pSidebar->itemDelegate());
     ASSERT_NE(nullptr, pDelegate);
-    const QModelIndex first = pSidebar->model()->index(0, 0);
-    EXPECT_QSTRING_EQ(QStringLiteral("Local"), pDelegate->sectionHeader(first));
+    QStringList headers;
+    for (int row = 0; row < pSidebar->model()->rowCount(); ++row) {
+        const QString header = pDelegate->sectionHeader(pSidebar->model()->index(row, 0));
+        if (!header.isEmpty()) {
+            headers.append(header);
+        }
+    }
+    EXPECT_TRUE(headers.contains(QStringLiteral("Local"))) << headers.join(u',').toStdString();
+    for (const QString& header : std::as_const(headers)) {
+        EXPECT_FALSE(header.contains(QStringLiteral("Mixxx"), Qt::CaseInsensitive))
+                << header.toStdString();
+    }
 }
 
 TEST_F(CrateSkinLoadTest, ToolbarOpensPreferences) {
