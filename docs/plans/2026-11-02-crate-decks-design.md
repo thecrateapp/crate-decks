@@ -242,7 +242,7 @@ Android e iOS quedan fuera (Mixxx tiene un target Android experimental; no se to
   - Si FFmpeg no puede abrir el fichero con cabecera y cola, la fuente devuelve `Aborted` y la pista espera a la descarga completa (comportamiento D4).
 - **Plataformas:** la opción `FFMPEG` de CMake solo se activa si encuentra FFmpeg (`CMakeLists.txt:2766`). F0 Q17 comprueba que los builds de Linux, macOS y Windows lo incluyen; donde no, la plataforma usa solo D4.
 
-**D15. AI Assisted Mixing (consume Smart Mix 3).** (pendiente SG3/SG4 del plan smart-mix-3)
+**D15. AI Assisted Mixing (consume Smart Mix 3).** (pendiente SG3/SG4 del plan smart-mix-3) Decided (Diego, 2026-11-10): SG3 was a no-go, so Decks keeps only planner v3 (F6b.PR1); the AI refinement parts are dropped.
 - **Dónde se hace:** todo el trabajo de servidor está en el plan paralelo smart-mix-3 ([diseño](2026-11-02-smart-mix-3-design.md), [plan](2026-11-02-smart-mix-3-implementation-plan.md)): análisis estructural, planner `smart-mix-v3` con menú de candidatos, refinamiento con LLM (DeepSeek, Kimi, Qwen en la nube o Qwen en local) en una cola propia, tabla de planes refinados y capacidad `smart_mix.ai_assisted`. Decks solo lo consume.
 - **Qué hace Decks:**
   - Usa `smart-mix-v3` cuando `capabilities.smart_mix.planner_versions` lo incluye, y v2 si no.
@@ -526,8 +526,8 @@ Todas siguen las reglas del monorepo:
 | G2 | Tras F2 | Contrato de autenticación del cliente `decks` (S1 y S2) antes de desplegarlo en el servidor. **Cerrado (2026-11-04):** S1 y S2 desplegados en Crate 3.2.0 |
 | G3 | Tras F4 | Experiencia de carga y caché en un set real |
 | G3b | Tras F4b, con el dato de F0 Q10 en WAN | Si la reproducción progresiva (D14) va activada por defecto. Construirla ya lo decidió G0 |
-| G4 | Tras F6 | Calidad de las transiciones de Smart Mix en los decks frente a Android (prueba de escucha) |
-| G4b | Tras F6b | AI Assisted Mixing en cabina: prueba de 1 h con AutoDJ y asistente, con el refinamiento activo y la conexión elegida en SG3 de smart-mix-3. La activación por defecto la decide SG4 de ese plan |
+| G4 | Tras F6 | Calidad de las transiciones de Smart Mix en los decks frente a Android. Decided (Diego, 2026-11-10): automatic metrics on rendered transitions (beat phase in the overlap, voice on voice, EBU R128 level jumps) and the deviation CSVs instead of a listening test |
+| G4b | Tras F6b | Decided (Diego, 2026-11-10): after SG3's no-go, planner v3 in Decks checked with the same automatic metrics (v2 against v3 over the same pairs, and Decks' limit check against the server's `limit_violations`). The booth test with the AI refinement no longer applies |
 | G5 | Tras F8 | Contrato de cues y correcciones (S7) |
 | G6 | Antes de la primera release pública | Empaquetado, firma y notas |
 
