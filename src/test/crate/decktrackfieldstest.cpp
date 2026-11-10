@@ -2,6 +2,7 @@
 
 #include <QString>
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "control/controlobject.h"
@@ -27,6 +28,16 @@ TrackPointer trackWith(const QString& artist, const QString& genre) {
 class CrateDeckTrackFieldsTest : public MixxxTest {
   protected:
     void SetUp() override {
+        // The controls that PlayerInfo reads when it is created. In the app
+        // CoreServices creates them first; a debug build asserts without them.
+        for (const auto& [group, item] : {
+                     std::pair{QStringLiteral("[Master]"), QStringLiteral("crossfader")},
+                     std::pair{QStringLiteral("[App]"), QStringLiteral("num_decks")},
+                     std::pair{QStringLiteral("[App]"), QStringLiteral("num_samplers")},
+                     std::pair{QStringLiteral("[App]"),
+                             QStringLiteral("num_preview_decks")}}) {
+            m_controls.push_back(std::make_unique<ControlObject>(ConfigKey(group, item)));
+        }
         // As in the app, where CoreServices creates it before any skin
         PlayerInfo::create();
         // As the CrateDecks skin's manifest declares them, for two decks
