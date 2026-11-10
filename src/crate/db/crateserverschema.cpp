@@ -83,6 +83,24 @@ const QStringList kLibraryStatements = {
                        "track_count INTEGER)"),
 };
 
+// F4: the mix profiles crate::analysis::ProfileStore fetched (design §6,
+// plan F4.C-PR2). `json` is the profile as the server sent it and
+// `profile_revision` its revision: the profile is current while it is the
+// one `crateserver_tracks` records for the track. `applied_cues` is a JSON
+// object with the Intro and Outro Decks set from a profile and that
+// profile's revision; it survives a new revision so that the new one can
+// tell Decks' cues from the user's.
+const QStringList kAnalysisStatements = {
+        QStringLiteral("CREATE TABLE IF NOT EXISTS crateserver_profiles ("
+                       "server_id TEXT NOT NULL, "
+                       "entity_uid TEXT NOT NULL, "
+                       "profile_revision TEXT NOT NULL, "
+                       "json TEXT NOT NULL, "
+                       "fetched_at TEXT NOT NULL, "
+                       "applied_cues TEXT, "
+                       "PRIMARY KEY (server_id, entity_uid))"),
+};
+
 // Each statement must be idempotent: they run at every start.
 const QStringList kStatements = {
         // Design §5.2. No secrets: the refresh token is in the keychain.
@@ -113,7 +131,7 @@ bool createCrateServerSchema(const QSqlDatabase& database) {
         kLogger.warning() << "Cannot start a transaction for the Crate tables";
         return false;
     }
-    const QStringList statements = kStatements + kLibraryStatements;
+    const QStringList statements = kStatements + kLibraryStatements + kAnalysisStatements;
     for (const QString& statement : statements) {
         QSqlQuery query(database);
         if (!query.exec(statement)) {
