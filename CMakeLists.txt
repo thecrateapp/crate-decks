@@ -2063,6 +2063,7 @@ target_sources(
     src/crate/appidentity.cpp
     src/crate/brand/brandtext.cpp
     src/crate/brand/brandtranslator.cpp
+    src/crate/brand/helpurl.cpp
 )
 
 if(UNIX AND NOT APPLE)
@@ -5408,6 +5409,7 @@ if(CRATE)
         src/test/crate/dialogstest.cpp
         src/test/crate/decktrackfieldstest.cpp
         src/test/crate/brandvisibletest.cpp
+        src/test/crate/helplinkstest.cpp
     )
   endif()
 

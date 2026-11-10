@@ -82,3 +82,6 @@
     MIXXX_MANUAL_URL "/chapters/preferences/sound_hardware#output-and-input-devices"
 #define MIXXX_MANUAL_FILENAME   "Mixxx-Manual.pdf"
 #define MIXXX_KBD_SHORTCUTS_FILENAME "Mixxx-Keyboard-Shortcuts.pdf"
+
+// Crate Decks: help links lead to Crate's documentation (BR.PR7)
+#include "crate/brand/helpurlmacros.h"
