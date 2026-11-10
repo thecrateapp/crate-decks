@@ -113,6 +113,8 @@ Decks es el cliente de DJ de primera clase.
 - Crate Decks queda **GPL-2.0-or-later** por ser una obra derivada de Mixxx, y el código propio que se compila en Decks también.
 - **Relación con el servidor:** el servidor Crate (AGPL-3.0) y Decks son programas distintos que hablan HTTP, así que no hay obligación cruzada.
 - **Marca:** no se usa el nombre ni el logo de Mixxx. Habrá créditos visibles ("Basado en Mixxx") en About y en la documentación.
+  - **Desde el 2026-11-09 (Diego):** no aparece nada de Mixxx en ningún sitio: cadenas, diálogos, menús, enlaces, imágenes, rutas, la terminal ni lo que Decks escribe para otros programas. Los diálogos de primer arranque de Mixxx se absorben en el de Crate. La única excepción son los créditos de About y del metainfo. Plan: [Own brand](2026-11-09-crate-decks-own-brand-plan.md).
+  - **Decisiones del 2026-11-10 (Diego, §7 del plan):** de Mixxx, About solo conserva la línea legal ("basado en Mixxx"), los créditos y el aviso de copyright y la GPL; sin el botón *Donate to Mixxx*. Solo se ofrece la skin `CrateDecks`. La sección local de la barra lateral se llama "Local". Las carpetas locales son opcionales en el primer arranque, cuyas páginas nuevas (sonido y música local, `first-run-pages.html`) quedan aprobadas como especificación, igual que las de GU1. Los enlaces de ayuda y documentación irán a las páginas de documentación de Crate, en un PR aparte (BR.PR7) que se mergea cuando esas páginas estén publicadas.
 - **Distribución:** los binarios llevan el código fuente correspondiente (enlace al tag del repo), como exige la GPL.
 
 **D3. Identidad de aplicación separada de Mixxx.**
@@ -310,6 +312,8 @@ flowchart LR
 
 Los parches de V2 (skin por defecto ampliado, `coreservices.cpp`, `mixxxmainwindow.cpp`, `dlgabout.cpp` y `dlgpreferences.cpp` ampliado) los aprobó Diego el 2026-11-09.
 
+**Marca propia (2026-11-09, [plan](2026-11-09-crate-decks-own-brand-plan.md)).** Las cadenas traducibles que nombran Mixxx no se editan en los ficheros de Mixxx: las reescribe en tiempo de ejecución la capa de marca (`crate::BrandTranslator`, instalada en `main.cpp`), con el inventario de `res/crate-brand/` y un test que falla cuando upstream añade una cadena nueva. Solo se parchea lo que no es traducible. Diego decidió los puntos abiertos del plan el 2026-11-10 (D2). Los parches de la marca propia están en la tabla con la etiqueta BR; los ficheros nuevos en la lista son `dlgprefrecord.cpp`, `screensaver.cpp`, `pipewireenumerator.cpp`, `engineprimeexportjob.cpp`, `dlglibraryexport.cpp`, `dlgprefeffects.cpp` y `cmdlineargs.cpp`.
+
 | Fichero | Cambio | ¿Hook genérico? |
 |---|---|---|
 | ~~`src/library/trackcollectionmanager.cpp`~~ | **Descartado tras F0 (Q9):** no hay forma de registrar colecciones externas (la línea 59 es un `TODO`), y la colección recibiría `saveTrack`, purgas y reubicaciones desde cualquier hilo. Se reconsidera en F7/F8 | — |
@@ -324,6 +328,7 @@ Los parches de V2 (skin por defecto ampliado, `coreservices.cpp`, `mixxxmainwind
 | `src/widget/wtracktableview.cpp`, `src/widget/wtrackmenu.cpp`, `src/library/trackmodel.h` | **Aprobado en G0.** Hook de carga asíncrona: `TrackModel::requestTrackLoad(index, group, play)`, virtual y con `false` por defecto, al que llaman el doble clic, Enter, `LoadSelectedTrack` y "Cargar en Deck N" antes de `getTrack`. Hace falta porque `getTrack` es síncrono, también se llama al seleccionar y no recibe el deck (F0 Q9) | Sí (genérico) |
 | `src/sources/soundsourceffmpeg.{h,cpp}` | Hook virtual `openInputContext()` (+9 / −2; el valor por defecto mantiene el comportamiento) para la fuente progresiva (F0 Q17) | Posible |
 | `src/engine/cachingreader/cachingreaderworker.cpp`, `src/analyzer/analyzerthread.cpp`, `src/coreservices.cpp` | Banderas de aborto para que una lectura progresiva que espera bytes se despierte al expulsar, cargar otra pista o cerrar; si no, `quitWait()` espera para siempre (F0 Q17) | Posible |
+| `src/util/db/sqltransaction.{h,cpp}`, `src/util/db/dbconnection.{h,cpp}`, `src/library/queryutil.h`, `src/library/basetracktablemodel.cpp`, `src/library/scanner/libraryscanner.{h,cpp}` | **Aprobado por Diego el 2026-11-09.** Escribir durante un escaneo de la biblioteca (upstream #6631): transacciones de escritura con `BEGIN IMMEDIATE`, reintento cada milisegundo con aviso de espera, también en las conexiones que clonan las tablas de pistas, y escáner por lotes que cede el bloqueo (`fix/decks-scanner-lock`) | Sí: fix genérico para upstream |
 | `src/preferences/dialog/dlgpreferences.cpp` | Registrar `DlgPrefCrate` y dar a Preferencias el aspecto de las maquetas de GU1 (V2.PR5) | No |
 | `src/sources/soundsourceproxy.cpp` (`registerProviders`) | Registrar `SoundSourceCrateProgressive` con prioridad `Highest`; solo en F4b (D14) | Quizá: un hook genérico de fuentes progresivas |
 | Importación de metadatos al añadir la pista (localizar en F4b: `TrackCollectionManager` / `SoundSourceProxy::updateTrackFromSource`) | Saltar la lectura de tags de pistas Crate en descarga; solo en F4b | No |
@@ -333,7 +338,18 @@ Los parches de V2 (skin por defecto ampliado, `coreservices.cpp`, `mixxxmainwind
 | Skin por defecto (`src/skin/skinloader.cpp` o la constante que la define) | `CrateDecks` en lugar de `LateNight`; al cargar la skin, sus valores por defecto (racks plegados) y el estilo de la biblioteca (V2.PR3 y V2.PR4) | No |
 | `src/coreservices.cpp` (además de las banderas de aborto) | Valores por defecto de la biblioteca de Crate Decks, como el BPM con dos decimales, escritos antes de que Preferencias guarde los de Mixxx (V2.PR4). Afecta a cualquier skin | No |
 | `src/mixxxmainwindow.cpp` | Aplicar los estilos generados desde los tokens a la ventana principal y a cada diálogo, que son ventanas propias (V2.PR5) | No |
-| `src/dialog/dlgabout.cpp` | Atribución de los iconos Solar (CC BY 4.0) y de las fuentes, y el aspecto de About (V2.PR5) | No |
+| `src/dialog/dlgabout.cpp` | Atribución de los iconos Solar (CC BY 4.0) y de las fuentes, y el aspecto de About (V2.PR5). BR: sin el botón *Donate to Mixxx* (decisión del 2026-11-10) | No |
+| `src/main.cpp` (además de la identidad) | BR: instalar la capa de marca justo después de crear la aplicación, también para `--help` | No |
+| `src/controllers/dlgprefcontroller.cpp`, `src/controllers/dlgprefcontrollers.cpp`, `src/preferences/dialog/dlgprefsound.cpp` | BR: las etiquetas de enlace fijas pasan por `tr()`; nombre, autor y descripción de los mapeos por `crate::brandText()` | No |
+| `src/preferences/broadcastprofile.cpp` (además del keychain) | BR: nombre de emisión por defecto desde `applicationName()` | Sí |
+| `src/preferences/dialog/dlgprefrecord.cpp` | BR: carpeta de grabaciones por defecto con el nombre de la aplicación | Sí |
+| `src/util/screensaver.cpp`, `src/soundio/pipewireenumerator.cpp`, `src/library/export/engineprimeexportjob.cpp`, `src/library/export/dlglibraryexport.cpp` | BR: inhibidor del salvapantallas, nodo de PipeWire y carpetas de la exportación a Engine DJ con el nombre de la aplicación | Sí |
+| `src/util/cmdlineargs.cpp` | BR: cuatro mensajes de terminal sin "Mixxx" | No |
+| `src/preferences/dialog/dlgprefeffects.cpp` | BR: el autor de un efecto pasa por `crate::brandText()` ("The Mixxx Team" se lee "Built-in") | No |
+| `src/coreservices.cpp` y `src/mixxxmainwindow.cpp` (primer arranque) | BR: con `CRATE`, sin el aviso de carpeta de música ni "No Output Devices" mientras el primer arranque de Crate está pendiente, que ofrece lo mismo en sus páginas; la skin decide la barra de menús sin preguntar | No |
+| `src/preferences/dialog/dlgprefinterface.cpp`, `src/controllers/dlgprefcontroller.cpp` (icono) | BR: las skins y los mapeos de serie se marcan con el logo de Crate generado (`:/images/crate-logo.svg`) en vez de `ic_mixxx_symbolic.svg`, que es el icono de Mixxx | No |
+| `src/skin/skinloader.cpp` (además de la skin por defecto) | BR: con `CRATE`, la lista de skins solo ofrece `CrateDecks`; las de Mixxx llevan su logo (decidido por Diego el 2026-11-10) | No |
+| `src/preferences/configobject.cpp`, `CMakeLists.txt`, `packaging/` (con F9.PR1) | BR: datos instalados en `share/crate-decks` en vez de `share/mixxx` | No |
 
 ## 6. Datos locales
 
