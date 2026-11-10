@@ -27,6 +27,8 @@ TrackPointer trackWith(const QString& artist, const QString& genre) {
 class CrateDeckTrackFieldsTest : public MixxxTest {
   protected:
     void SetUp() override {
+        // As in the app, where CoreServices creates it before any skin
+        PlayerInfo::create();
         // As the CrateDecks skin's manifest declares them, for two decks
         for (int deck = 1; deck <= 2; ++deck) {
             m_controls.push_back(std::make_unique<ControlObject>(
@@ -37,8 +39,7 @@ class CrateDeckTrackFieldsTest : public MixxxTest {
     }
 
     void TearDown() override {
-        PlayerInfo::instance().setTrackInfo(kDeck1, TrackPointer());
-        PlayerInfo::instance().setTrackInfo(kDeck2, TrackPointer());
+        PlayerInfo::destroy();
     }
 
     /// The controls of `deck` as "<has artist> <has genre>": "1 0" is a
