@@ -5325,6 +5325,8 @@ if(CRATE)
       src/crate/session/crateloopbackserver.cpp
       src/crate/session/cratesecretstore.cpp
       src/crate/session/cratesession.cpp
+      src/crate/stems/resampler.cpp
+      src/crate/stems/stemdsp.cpp
       src/crate/crateaddserverflow.cpp
       src/crate/crateservers.cpp
       src/crate/ui/crateaddserverwidget.cpp
@@ -5348,6 +5350,7 @@ if(CRATE)
         src/test/crate/dlgprefcrate_test.cpp
         src/test/crate/cratesession_test.cpp
         src/test/crate/modelstore_test.cpp
+        src/test/crate/stemdsp_test.cpp
     )
   endif()
 
@@ -5384,7 +5387,12 @@ if(CRATE)
   )
   if(CRATE_INFERENCE)
     message(STATUS "Crate inference with ONNX Runtime: ${ONNXRUNTIME_LIBRARY}")
-    target_sources(mixxx-lib PRIVATE src/crate/inference/inferenceruntime.cpp)
+    target_sources(
+      mixxx-lib
+      PRIVATE
+        src/crate/inference/inferenceruntime.cpp
+        src/crate/stems/stemseparator.cpp
+    )
     # Only the runtime sees ONNX Runtime's headers, so the rest of mixxx-lib
     # compiles the same with and without it.
     set_source_files_properties(
@@ -5395,7 +5403,9 @@ if(CRATE)
     if(BUILD_TESTING)
       target_sources(
         mixxx-test
-        PRIVATE src/test/crate/inferenceruntime_test.cpp
+        PRIVATE
+          src/test/crate/inferenceruntime_test.cpp
+          src/test/crate/stemseparator_test.cpp
       )
     endif()
   else()

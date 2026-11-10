@@ -187,6 +187,12 @@ class InferenceSession {
             std::vector<InferenceOutput>* pOutputs,
             QString* pError = nullptr);
 
+    /// Makes the run in progress fail between two nodes of the graph, and
+    /// every later run fail, until clearTermination(). Thread-safe: this is
+    /// how another thread cancels a run.
+    void terminate();
+    void clearTermination();
+
   private:
     friend class InferenceRuntime;
     struct Impl;

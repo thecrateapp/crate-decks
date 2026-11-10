@@ -2,17 +2,20 @@
 
 #include <gtest/gtest.h>
 
+#include <QDir>
 #include <QElapsedTimer>
+#include <QFile>
 #include <QFileInfo>
 #include <QHash>
 #include <QSet>
+#include <QtEndian>
 #include <QtGlobal>
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <iostream>
 #include <memory>
 #include <optional>
-#include <random>
 #include <vector>
 
 #include "test/mixxxtest.h"
@@ -253,6 +256,26 @@ TEST_F(InferenceRuntimeTest, RejectsInputsThatDoNotMatchTheirShape) {
     EXPECT_TRUE(outputs.empty());
 }
 
+TEST_F(InferenceRuntimeTest, TerminatedSessionFailsItsRunsUntilCleared) {
+    const InferenceRuntime runtime;
+    const auto pSession = runtime.createSession(fixturePath(), InferenceProvider::Cpu, 0);
+    ASSERT_NE(nullptr, pSession);
+    const std::vector<float> data(6);
+    std::vector<InferenceOutput> outputs;
+    QString error;
+
+    pSession->terminate();
+
+    EXPECT_FALSE(pSession->run({{QStringLiteral("x"), {1, 2, 3}, data},
+                                       {QStringLiteral("y"), {1, 2, 3}, data}},
+            &outputs,
+            &error));
+    EXPECT_FALSE(error.isEmpty());
+    EXPECT_TRUE(outputs.empty());
+    pSession->clearTermination();
+    expectFixtureRuns(pSession.get());
+}
+
 TEST_F(InferenceRuntimeTest, RunsCudaInParallelToKeepVideoMemoryDown) {
     InferenceRuntime::Options options;
     options.intraOpThreads = 6;
@@ -337,27 +360,46 @@ TEST_F(InferenceRuntimeTest, GpuRunsTinyOnnxFixtureOnWebGpu) {
     expectFixtureRuns(pSession.get());
 }
 
+/// Reads raw little-endian float32 values.
+std::vector<float> readFloats(const QString& path) {
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly)) {
+        ADD_FAILURE() << "Cannot read " << path.toStdString();
+        return {};
+    }
+    const QByteArray bytes = file.readAll();
+    std::vector<float> values(bytes.size() / sizeof(float));
+    for (size_t i = 0; i < values.size(); ++i) {
+        const quint32 bits = qFromLittleEndian<quint32>(bytes.constData() + i * sizeof(float));
+        std::memcpy(&values[i], &bits, sizeof(float));
+    }
+    return values;
+}
+
 /// The ST0 §5 speed and parity measurement of the separation graph, through
 /// this runtime: one 7.8 s segment on every available provider, against the
-/// CPU. Needs CRATE_TEST_GPU=1 and CRATE_TEST_MODEL, the path of an exported
-/// htdemucs graph (inputs mix and spec). Prints its results.
+/// CPU. Needs CRATE_TEST_GPU=1, CRATE_TEST_MODEL, the path of the exported
+/// htdemucs graph (inputs mix and spec), and CRATE_TEST_STEMS_GOLDEN, its
+/// golden set, whose first segment of real (synthetic) music is the input:
+/// random input made the SNR against the CPU vary between 61 and 67 dB.
+/// Prints its results.
 TEST_F(InferenceRuntimeTest, GpuMeasuresTheSeparationGraph) {
     const QString modelPath = qEnvironmentVariable("CRATE_TEST_MODEL");
-    if (!gpuTestsEnabled() || modelPath.isEmpty()) {
-        GTEST_SKIP() << "Set CRATE_TEST_GPU=1 and CRATE_TEST_MODEL to measure a model";
+    const QDir golden(qEnvironmentVariable("CRATE_TEST_STEMS_GOLDEN"));
+    if (!gpuTestsEnabled() || modelPath.isEmpty() ||
+            qEnvironmentVariable("CRATE_TEST_STEMS_GOLDEN").isEmpty()) {
+        GTEST_SKIP() << "Set CRATE_TEST_GPU=1, CRATE_TEST_MODEL and CRATE_TEST_STEMS_GOLDEN "
+                        "to measure a model";
     }
     constexpr int kSamples = 343980;
     constexpr int kBins = 2048;
     constexpr int kFrames = 336;
     // A 5-minute track at the ST0 stride (0.75 of a segment).
     const int segmentsPerTrack = static_cast<int>(std::ceil(300.0 * 44100 / (0.75 * kSamples)));
-    std::mt19937 generator(0);
-    std::normal_distribution<float> normal(0.0f, 0.3f);
-    std::vector<float> mix(2 * kSamples);
-    std::generate(mix.begin(), mix.end(), [&] { return normal(generator); });
-    // The graph only needs a spectrogram of the right shape and scale.
-    std::vector<float> spec(4 * kBins * kFrames);
-    std::generate(spec.begin(), spec.end(), [&] { return normal(generator); });
+    const std::vector<float> mix = readFloats(golden.filePath(QStringLiteral("segment_mix.bin")));
+    const std::vector<float> spec = readFloats(golden.filePath(QStringLiteral("segment_spec.bin")));
+    ASSERT_EQ(size_t(2 * kSamples), mix.size());
+    ASSERT_EQ(size_t(4 * kBins * kFrames), spec.size());
     const std::vector<InferenceInput> inputs = {
             {QStringLiteral("mix"), {1, 2, kSamples}, mix},
             {QStringLiteral("spec"), {1, 4, kBins, kFrames}, spec},
