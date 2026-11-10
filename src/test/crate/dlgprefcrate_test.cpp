@@ -2,22 +2,34 @@
 
 #include <gtest/gtest.h>
 
+#include <QComboBox>
+#include <QDialog>
+#include <QFrame>
 #include <QJsonDocument>
 #include <QLabel>
+#include <QLayout>
 #include <QLineEdit>
 #include <QListWidget>
+#include <QMainWindow>
 #include <QPushButton>
+#include <QScopeGuard>
 #include <QSignalSpy>
 #include <QSqlQuery>
+#include <QStackedWidget>
 #include <QString>
+#include <QTimer>
 #include <QUrl>
 #include <memory>
 
 #include "crate/client/crateserveraddress.h"
 #include "crate/crateaddserverflow.h"
+#include "crate/crateserverrows.h"
 #include "crate/crateservers.h"
 #include "crate/db/crateserverprofiles.h"
 #include "crate/ui/cratefirstrun.h"
+#include "crate/ui/dialogs/dialogscrim.h"
+#include "crate/ui/dialogs/dialogstyle.h"
+#include "skin/legacy/launchimage.h"
 #include "test/crate/fakecratenetwork.h"
 #include "test/mixxxdbtest.h"
 
@@ -257,8 +269,311 @@ TEST_F(CrateAddServerFlowTest, PageAddsAServer) {
     EXPECT_TRUE(pList->item(0)->text().contains(QStringLiteral("https://crate.test")));
 }
 
+TEST_F(CrateAddServerFlowTest, ServerRowsShowFeaturesAndState) {
+    EXPECT_TRUE(crate::serverRows(*m_pServers).isEmpty());
+    const QByteArray capabilities = QByteArrayLiteral(R"({"decks": {
+        "available": true, "min_client_version": "0.1.0", "contract_version": 1,
+        "features": ["library_cursor", "beatmatch"]}})");
+    m_pFlow->setAddress(QStringLiteral("https://crate.test"));
+    lastSent().pReply->respond(200, capabilities);
+    m_pFlow->loginWithPassword(QStringLiteral("dj@crate.test"), QStringLiteral("right"));
+    lastSent().pReply->respond(200, kLoginAnswer);
+
+    const QList<crate::ServerRow> rows = crate::serverRows(*m_pServers);
+    ASSERT_EQ(1, rows.size());
+    const crate::ServerRow& row = rows.first();
+    EXPECT_QSTRING_EQ(QStringLiteral("crate.test"), row.name);
+    EXPECT_QSTRING_EQ(QStringLiteral("https://crate.test"), row.meta.value(0));
+    EXPECT_TRUE(row.meta.join(u' ').contains(QStringLiteral("dj@crate.test")));
+    EXPECT_EQ(crate::ServerRow::State::SignedIn, row.state);
+    EXPECT_QSTRING_EQ(QStringLiteral("signedIn"), row.stateName());
+    // Every feature of the contract, in the mockup's order, available or not
+    ASSERT_EQ(6, row.features.size());
+    EXPECT_EQ((crate::ServerRow::Feature{QStringLiteral("library"), true}), row.features[0]);
+    EXPECT_EQ((crate::ServerRow::Feature{QStringLiteral("analysis"), false}), row.features[1]);
+    EXPECT_EQ((crate::ServerRow::Feature{QStringLiteral("beatmatch"), true}), row.features[2]);
+    EXPECT_FALSE(row.features[5].available);
+}
+
+TEST(CrateServerRowsTest, FeaturesNeedAValidAnswer) {
+    EXPECT_TRUE(crate::serverFeatures(QByteArray()).isEmpty());
+    EXPECT_EQ(6, crate::serverFeatures(kDecksCapabilities).size());
+}
+
+TEST_F(CrateAddServerFlowTest, FirstRunDialogFollowsTheSteps) {
+    std::unique_ptr<QDialog> pDialog(crate::createFirstRunDialog(m_pServers.get(), nullptr));
+    auto* pStep = pDialog->findChild<QLabel*>(QStringLiteral("MonoFirstRunStep"));
+    ASSERT_NE(nullptr, pStep);
+    EXPECT_QSTRING_EQ(QStringLiteral("Step 1 of 3"), pStep->text());
+    const QList<QFrame*> lanes = pDialog->findChildren<QFrame*>(QStringLiteral("CrateStepLane"));
+    ASSERT_EQ(3, lanes.size());
+    EXPECT_TRUE(lanes[0]->property("current").toBool());
+    EXPECT_FALSE(lanes[1]->property("current").toBool());
+    // "Not now" is the first start's cancel
+    auto* pCancel = pDialog->findChild<QPushButton*>(QStringLiteral("crateCancel"));
+    ASSERT_NE(nullptr, pCancel);
+    EXPECT_QSTRING_EQ(QStringLiteral("Not now"), pCancel->text());
+
+    pDialog->findChild<QLineEdit*>(QStringLiteral("crateServerAddress"))
+            ->setText(QStringLiteral("crate.test"));
+    pDialog->findChild<QPushButton*>(QStringLiteral("crateConnect"))->click();
+    EXPECT_QSTRING_EQ(QStringLiteral("Step 2 of 3"), pStep->text());
+    lastSent().pReply->respond(200, kDecksCapabilities);
+    EXPECT_QSTRING_EQ(QStringLiteral("Step 3 of 3"), pStep->text());
+    EXPECT_TRUE(lanes[2]->property("current").toBool());
+
+    QSignalSpy rejected(pDialog.get(), &QDialog::rejected);
+    pCancel->click();
+    EXPECT_EQ(1, rejected.count());
+}
+
+TEST_F(CrateAddServerFlowTest, FirstRunDimsTheMainWindowUntilItCloses) {
+    // Crate's styles on a main window, as MixxxMainWindow sets them, undone
+    // for the next tests
+    const auto restore = qScopeGuard([] { crate::applyStyles(nullptr, QString(), QString()); });
+    QWidget mainWindow;
+    mainWindow.resize(1280, 720);
+    ASSERT_TRUE(crate::applyApplicationStyle(
+            &mainWindow, ConfigObject<ConfigValue>::computeResourcePath()));
+    mainWindow.show();
+    QCoreApplication::processEvents();
+    std::unique_ptr<QDialog> pDialog(crate::createFirstRunDialog(m_pServers.get(), &mainWindow));
+    // As offerFirstRun() opens it, until "Not now"
+    bool dimmed = false;
+    QTimer::singleShot(0, pDialog.get(), [&pDialog, &dimmed] {
+        const crate::DialogScrim* pScrim = crate::blockingDialogScrim();
+        dimmed = pScrim && pScrim->isActive();
+        pDialog->findChild<QPushButton*>(QStringLiteral("crateCancel"))->click();
+    });
+    EXPECT_EQ(QDialog::Rejected, pDialog->exec());
+    EXPECT_TRUE(dimmed);
+    ASSERT_NE(nullptr, crate::blockingDialogScrim());
+    EXPECT_FALSE(crate::blockingDialogScrim()->isActive());
+}
+
+/// The first start's sound and music pages without Mixxx: devices and
+/// folders the test chooses, and what the pages did with them.
+struct FakeFirstRunServices {
+    QList<crate::FirstRunOutput> outputs;
+    QString mainOutput;
+    QStringList setOutputs;
+    int searches = 0;
+    int preferences = 0;
+    QString chosenFolder;
+    QStringList addedFolders;
+
+    crate::FirstRunServices services() {
+        crate::FirstRunServices services;
+        services.outputs = [this] { return outputs; };
+        services.mainOutput = [this] { return mainOutput; };
+        services.setMainOutput = [this](const QString& id) {
+            setOutputs.append(id);
+            mainOutput = id;
+            return true;
+        };
+        services.searchOutputs = [this] { ++searches; };
+        services.showSoundPreferences = [this] { ++preferences; };
+        services.chooseFolder = [this](QWidget*) { return chosenFolder; };
+        services.addMusicFolder = [this](const QString& folder) {
+            addedFolders.append(folder);
+            return true;
+        };
+        return services;
+    }
+};
+
+QWidget* currentFirstRunPage(QDialog* pDialog) {
+    auto* pPages = pDialog->findChild<QStackedWidget*>(QStringLiteral("CrateFirstRunPages"));
+    return pPages ? pPages->currentWidget() : nullptr;
+}
+
+QPushButton* firstRunButton(QDialog* pDialog, const char* objectName) {
+    QWidget* pPage = currentFirstRunPage(pDialog);
+    return pPage ? pPage->findChild<QPushButton*>(QLatin1String(objectName)) : nullptr;
+}
+
+TEST_F(CrateAddServerFlowTest, FirstRunPagesFollowTheServerPage) {
+    FakeFirstRunServices fake;
+    fake.outputs = {{QStringLiteral("0"), QStringLiteral("Built-in Audio")}};
+    fake.mainOutput = QStringLiteral("0");
+    std::unique_ptr<QDialog> pDialog(
+            crate::createFirstRunDialog(m_pServers.get(), fake.services(), nullptr));
+    ASSERT_NE(nullptr, currentFirstRunPage(pDialog.get()));
+    EXPECT_QSTRING_EQ(QStringLiteral("CrateFirstRunServer"),
+            currentFirstRunPage(pDialog.get())->objectName());
+
+    // "Not now" moves on to the sound page instead of closing
+    QSignalSpy rejected(pDialog.get(), &QDialog::rejected);
+    firstRunButton(pDialog.get(), "crateCancel")->click();
+    EXPECT_EQ(0, rejected.count());
+    EXPECT_QSTRING_EQ(QStringLiteral("CrateFirstRunSound"),
+            currentFirstRunPage(pDialog.get())->objectName());
+    auto* pMeta =
+            currentFirstRunPage(pDialog.get())
+                    ->findChild<QLabel*>(QStringLiteral("MonoFirstRunStep"));
+    ASSERT_NE(nullptr, pMeta);
+    EXPECT_QSTRING_EQ(QStringLiteral("Sound"), pMeta->text());
+
+    // Continue keeps the device it already uses, then the music page
+    firstRunButton(pDialog.get(), "crateFirstRunContinue")->click();
+    EXPECT_TRUE(fake.setOutputs.isEmpty());
+    EXPECT_QSTRING_EQ(QStringLiteral("CrateFirstRunMusic"),
+            currentFirstRunPage(pDialog.get())->objectName());
+
+    QSignalSpy accepted(pDialog.get(), &QDialog::accepted);
+    firstRunButton(pDialog.get(), "crateFirstRunFinish")->click();
+    EXPECT_EQ(1, accepted.count());
+    EXPECT_TRUE(fake.addedFolders.isEmpty()) << "Local folders are optional";
+}
+
+// The pages keep the width of the GU1 mockup (first-run: 560 px with its
+// padding), "Connect your Crate" included, and the dialog fits the page it
+// shows, not the tallest one
+TEST_F(CrateAddServerFlowTest, FirstRunPagesKeepTheMockupWidth) {
+    FakeFirstRunServices fake;
+    std::unique_ptr<QDialog> pDialog(
+            crate::createFirstRunDialog(m_pServers.get(), fake.services(), nullptr));
+    const int width = crate::DialogMetrics::installed().px("firstRunWidth");
+    ASSERT_GT(width, 0);
+    const auto size = [&pDialog] {
+        pDialog->layout()->activate();
+        return pDialog->size();
+    };
+    const QSize server = size();
+    EXPECT_EQ(width, server.width());
+
+    // Without an output the sound page has its three buttons
+    firstRunButton(pDialog.get(), "crateCancel")->click();
+    const QSize sound = size();
+    EXPECT_EQ(width, sound.width());
+    EXPECT_LT(sound.height(), server.height());
+
+    firstRunButton(pDialog.get(), "crateFirstRunContinue")->click();
+    const QSize music = size();
+    EXPECT_EQ(width, music.width());
+    EXPECT_LT(music.height(), server.height());
+}
+
+TEST_F(CrateAddServerFlowTest, FirstRunSoundPageSetsTheMainOutput) {
+    FakeFirstRunServices fake;
+    fake.outputs = {{QStringLiteral("0"), QStringLiteral("Built-in Audio")},
+            {QStringLiteral("1"), QStringLiteral("DJ Controller")}};
+    fake.mainOutput = QStringLiteral("0");
+    std::unique_ptr<QDialog> pDialog(
+            crate::createFirstRunDialog(m_pServers.get(), fake.services(), nullptr));
+    firstRunButton(pDialog.get(), "crateCancel")->click();
+
+    auto* pOutputs = currentFirstRunPage(pDialog.get())
+                             ->findChild<QComboBox*>(
+                                     QStringLiteral("crateFirstRunOutput"));
+    ASSERT_NE(nullptr, pOutputs);
+    ASSERT_EQ(2, pOutputs->count());
+    EXPECT_QSTRING_EQ(QStringLiteral("Built-in Audio"), pOutputs->currentText());
+    EXPECT_FALSE(pOutputs->isHidden());
+    pOutputs->setCurrentIndex(1);
+    firstRunButton(pDialog.get(), "crateFirstRunContinue")->click();
+    EXPECT_EQ(QStringList{QStringLiteral("1")}, fake.setOutputs);
+
+    // "More options" opens Preferences on the sound hardware page
+    std::unique_ptr<QDialog> pAgain(
+            crate::createFirstRunDialog(m_pServers.get(), fake.services(), nullptr));
+    firstRunButton(pAgain.get(), "crateCancel")->click();
+    firstRunButton(pAgain.get(), "crateFirstRunMore")->click();
+    EXPECT_EQ(1, fake.preferences);
+}
+
+TEST_F(CrateAddServerFlowTest, FirstRunSoundPageWithoutOutputsOffersToContinue) {
+    FakeFirstRunServices fake;
+    std::unique_ptr<QDialog> pDialog(
+            crate::createFirstRunDialog(m_pServers.get(), fake.services(), nullptr));
+    firstRunButton(pDialog.get(), "crateCancel")->click();
+    QWidget* pPage = currentFirstRunPage(pDialog.get());
+    EXPECT_TRUE(pPage->findChild<QComboBox*>(QStringLiteral("crateFirstRunOutput"))->isHidden());
+    auto* pWarning = pPage->findChild<QLabel*>(QStringLiteral("crateError"));
+    ASSERT_NE(nullptr, pWarning);
+    EXPECT_FALSE(pWarning->isHidden());
+    EXPECT_QSTRING_EQ(QStringLiteral("No output device found."), pWarning->text());
+
+    QPushButton* pSearch = firstRunButton(pDialog.get(), "crateFirstRunSearch");
+    ASSERT_NE(nullptr, pSearch);
+    EXPECT_FALSE(pSearch->isHidden());
+    pSearch->click();
+    EXPECT_EQ(1, fake.searches);
+
+    QPushButton* pContinue = firstRunButton(pDialog.get(), "crateFirstRunContinue");
+    EXPECT_QSTRING_EQ(QStringLiteral("Continue without sound"), pContinue->text());
+    pContinue->click();
+    EXPECT_QSTRING_EQ(QStringLiteral("CrateFirstRunMusic"),
+            currentFirstRunPage(pDialog.get())->objectName());
+}
+
+TEST_F(CrateAddServerFlowTest, FirstRunMusicPageAddsTheChosenFolders) {
+    FakeFirstRunServices fake;
+    fake.chosenFolder = QStringLiteral("/home/dj/Music");
+    std::unique_ptr<QDialog> pDialog(
+            crate::createFirstRunDialog(m_pServers.get(), fake.services(), nullptr));
+    firstRunButton(pDialog.get(), "crateCancel")->click();
+    firstRunButton(pDialog.get(), "crateFirstRunContinue")->click();
+
+    firstRunButton(pDialog.get(), "crateFirstRunAddFolder")->click();
+    EXPECT_EQ(QStringList{QStringLiteral("/home/dj/Music")}, fake.addedFolders);
+    auto* pFolders = currentFirstRunPage(pDialog.get())
+                             ->findChild<QLabel*>(
+                                     QStringLiteral("crateFirstRunFolders"));
+    ASSERT_NE(nullptr, pFolders);
+    EXPECT_FALSE(pFolders->isHidden());
+    EXPECT_TRUE(pFolders->text().contains(QLatin1String("Music")));
+
+    // A cancelled file dialog adds nothing
+    fake.chosenFolder.clear();
+    firstRunButton(pDialog.get(), "crateFirstRunAddFolder")->click();
+    EXPECT_EQ(1, fake.addedFolders.size());
+}
+
+TEST(CrateFirstRunTest, MenuBarIsHiddenWithoutAsking) {
+    auto pConfig = UserSettingsPointer(new UserSettings(QString()));
+    EXPECT_TRUE(crate::firstRunPending(pConfig));
+    crate::decideMenuBar(pConfig);
+    EXPECT_EQ(1, pConfig->getValue<int>(ConfigKey("[Config]", "hide_menubar"), 0));
+    EXPECT_EQ(0, pConfig->getValue<int>(ConfigKey("[Config]", "show_menubar_hint"), 1));
+
+    // A choice the user made stays
+    pConfig->setValue(ConfigKey("[Config]", "hide_menubar"), 0);
+    crate::decideMenuBar(pConfig);
+    EXPECT_EQ(0, pConfig->getValue<int>(ConfigKey("[Config]", "hide_menubar"), 1));
+
+    crate::markFirstRunOffered(pConfig);
+    EXPECT_FALSE(crate::firstRunPending(pConfig));
+}
+
+// With OpenGL, Mixxx loads the skin and the dialog styles only after the
+// event loop starts, and then shows its own startup dialogs: the first start
+// waits for both, or it shows unstyled over the launch image
+TEST_F(CrateAddServerFlowTest, FirstRunWaitsForTheSkinAndOtherDialogs) {
+    QMainWindow mainWindow;
+    mainWindow.setCentralWidget(new LaunchImage(&mainWindow, QString()));
+    mainWindow.show();
+    EXPECT_FALSE(crate::firstRunCanShow(&mainWindow));
+
+    // The skin replaces the launch image
+    mainWindow.setCentralWidget(new QWidget(&mainWindow));
+    EXPECT_TRUE(crate::firstRunCanShow(&mainWindow));
+
+    // Another modal dialog, as Mixxx's "No Output Devices"
+    QDialog other(&mainWindow);
+    other.setWindowModality(Qt::ApplicationModal);
+    other.show();
+    EXPECT_FALSE(crate::firstRunCanShow(&mainWindow));
+    other.close();
+    EXPECT_TRUE(crate::firstRunCanShow(&mainWindow));
+
+    // A parent that is no main window has nothing to wait for
+    QWidget parent;
+    EXPECT_TRUE(crate::firstRunCanShow(&parent));
+}
+
 // TEST_GAP: offerFirstRun() shows a modal dialog, so it is checked by hand;
-// the tests cover when it is offered.
+// the tests cover when it is offered and that it waits for the skin.
 TEST_F(CrateAddServerFlowTest, FirstRunIsOfferedOnceWhileThereIsNoServer) {
     EXPECT_TRUE(crate::shouldOfferFirstRun(config(), *m_pServers));
 

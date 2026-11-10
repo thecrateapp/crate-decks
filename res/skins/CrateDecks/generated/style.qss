@@ -1,0 +1,1613 @@
+/*
+  Crate Decks skin: the style of the CrateDecks skin (plan V2), with the
+  language of the Crate admin (design 14.1) and the values of the approved
+  GU1 mockups (crate-agents/decks-mockups/lib/decks.css).
+
+  Template for tools/crate-design/generate.py: the placeholders in double
+  braces come from res/crate-design/tokens.json. Do not write colours, sizes, radii or
+  fonts by hand here (AGENTS.md 5.2).
+
+  The skin loads LateNight's style first (skin.xml, root <Style>) for the
+  parts that V2 has not redone yet, and this file last, as the style of the
+  Crate scheme, so that its rules win.
+
+  Every widget whose object name starts with "Mono" is a MonoLabel. Qt's
+  QSS takes text-transform and letter-spacing, but reads letter-spacing in
+  em as a percentage of the glyph's width: the tracking is given in px,
+  tracking times font size. What QSS cannot set at all, the tabular figures
+  and optical size of the deck numbers, C++ sets on the widgets whose object
+  name starts with "DeckNumber" (crate/ui/skin/crateskin.cpp).
+*/
+
+/* ── Window ─────────────────────────────────────────────────────────── */
+
+#Mixxx,
+#SkinContainer {
+  background-color: #0a0a0f;
+}
+
+/* Body text in Roboto, as the admin */
+#Mixxx,
+WWidget,
+WLabel,
+WNumber, WNumberPos,
+WPushButton,
+WKey,
+WTime,
+WTrackProperty,
+WRecordingDuration {
+  font-family: "Roboto";
+  font-weight: 400;
+}
+
+QToolTip {
+  background-color: #111218;
+  border: 1px solid rgba(241, 245, 249, 26);
+  border-radius: 4px;
+  color: #f1f5f9;
+  font-family: "Roboto";
+  font-size: 13px;
+  padding: 4px;
+}
+
+/* ── MonoLabel (MonoLabel.tsx): mono 400, textSubtle ─────────────────── */
+
+/* At the size the GU1 mockups paint it: --text-label is 0.6875rem and their
+   root is 15 px. The deck letters, the phrase and pitch readouts and the
+   toolbar buttons are 11 px mono in the mockups, not MonoLabels. */
+[objectName^="Mono"] {
+  font-family: "JetBrains Mono";
+  font-weight: 400;
+  font-size: 7.734375pt;
+  text-transform: uppercase;
+  letter-spacing: 1.4438px;
+  color: #7e8084;
+}
+
+/* ── Toolbar: 64 px with a 1 px rule, as the admin top bar ───────────── */
+
+/* QSS sizes are content sizes: Qt adds padding and border to them.
+   WWidgetGroup applies qproperty-layoutContentsMargins twice, to the widget
+   and to its layout, so the margins below are half the gutter. */
+#CrateToolbar {
+  background-color: #0a0a0f;
+  border: 0;
+  border-bottom: 1px solid rgba(241, 245, 249, 26);
+  padding: 0;
+  min-height: 63px;
+  max-height: 63px;
+  qproperty-layoutSpacing: 0;
+  qproperty-layoutContentsMargins: rect(10 0 10 0);
+}
+/* Narrower than the 1366 layout breakpoint */
+#CrateToolbar[highlight="1"] {
+  qproperty-layoutContentsMargins: rect(7 0 7 0);
+}
+/* The row of controls, centred in the bar. Its explicit minimum width lets
+   the window shrink below the wide row, so that the skin can reach the
+   1366 layout breakpoint and switch to the narrow row. */
+#CrateToolbarRow {
+  min-width: 1px;
+  padding: 0;
+  qproperty-layoutContentsMargins: rect(0 0 0 0);
+  min-height: 32px;
+  max-height: 32px;
+  qproperty-layoutSpacing: 22;
+}
+#CrateToolbarRow[highlight="1"] {
+  qproperty-layoutSpacing: 12;
+}
+
+#CrateToolbarBrand {
+  qproperty-layoutSpacing: 10;
+}
+#CrateToolbarLogo {
+  image: url(skins:CrateDecks/generated/crate-logo.svg);
+  margin: 1px 0;
+  min-width: 28px;
+  max-width: 28px;
+  min-height: 30px;
+  max-height: 30px;
+}
+#CrateToolbarBrandName {
+  font-family: "Roboto";
+  font-size: 14px;
+  font-weight: 700;
+  color: #f1f5f9;
+}
+
+#CrateToolbarSeparator {
+  background-color: rgba(241, 245, 249, 26);
+  margin: 4px 0;
+  min-width: 1px;
+  max-width: 1px;
+  min-height: 24px;
+  max-height: 24px;
+}
+
+#CrateToolbarGroup {
+  qproperty-layoutSpacing: 4;
+}
+
+/* Toolbar buttons: a MonoLabel text under a transparent button that draws
+   the icon, the border and the active fill (controls/tb_button*.xml). The
+   text leaves room for the icon with a transparent border. */
+#MonoTbButtonText {
+  color: #999ca0;
+  margin-left: 10px;
+  border-left: 18px solid transparent;
+  padding-left: 8px;
+  padding-right: 10px;
+  min-height: 32px;
+  max-height: 32px;
+}
+#MonoTbButtonText[highlight="1"] {
+  color: #67e8f9;
+}
+
+/* QSS sizes are content sizes: Qt adds the padding and the border, so the
+   button is 32 x 32 with an 18 px icon 7 px from its left edge. */
+[objectName^="TbIcon"] {
+  background-color: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  image-position: left;
+  padding-left: 6px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  min-width: 24px;
+  min-height: 18px;
+  max-height: 18px;
+}
+/* With text, the icon keeps the text button's own padding */
+#TbButton [objectName^="TbIcon"] {
+  padding-left: 9px;
+}
+[objectName^="TbIcon"][displayValue="1"] {
+  border-color: rgba(103, 232, 249, 102);
+  background-color: rgba(6, 182, 212, 26);
+}
+
+#TbIconDecks2, #TbIconDecks4 { image: url(skins:CrateDecks/generated/icons/widget_idle.svg); }
+#TbIconDecks2[displayValue="1"], #TbIconDecks4[displayValue="1"] { image: url(skins:CrateDecks/generated/icons/widget_active.svg); }
+#TbIconFx { image: url(skins:CrateDecks/generated/icons/tuning_idle.svg); }
+#TbIconFx[displayValue="1"] { image: url(skins:CrateDecks/generated/icons/tuning_active.svg); }
+#TbIconSamplers { image: url(skins:CrateDecks/generated/icons/cassette-2_idle.svg); }
+#TbIconSamplers[displayValue="1"] { image: url(skins:CrateDecks/generated/icons/cassette-2_active.svg); }
+#TbIconMicAux { image: url(skins:CrateDecks/generated/icons/microphone_idle.svg); }
+#TbIconMicAux[displayValue="1"] { image: url(skins:CrateDecks/generated/icons/microphone_active.svg); }
+#TbIconSmartMix { image: url(skins:CrateDecks/generated/icons/stars_idle.svg); }
+#TbIconSmartMix[displayValue="1"] { image: url(skins:CrateDecks/generated/icons/stars_active.svg); }
+#TbIconAutoDj { image: url(skins:CrateDecks/generated/icons/shuffle_idle.svg); }
+#TbIconAutoDj[displayValue="1"] { image: url(skins:CrateDecks/generated/icons/shuffle_active.svg); }
+#TbIconRecord { image: url(skins:CrateDecks/generated/icons/record-circle_idle.svg); }
+#TbIconRecord[displayValue="1"], #TbIconRecord[displayValue="2"] { image: url(skins:CrateDecks/generated/icons/record-circle_active.svg); }
+#TbIconBroadcast { image: url(skins:CrateDecks/generated/icons/station_idle.svg); }
+#TbIconBroadcast[displayValue="1"], #TbIconBroadcast[displayValue="2"] { image: url(skins:CrateDecks/generated/icons/station_active.svg); }
+#TbIconSettings { image: url(skins:CrateDecks/generated/icons/settings_idle.svg); }
+#TbIconSettings[displayValue="1"] { image: url(skins:CrateDecks/generated/icons/settings_active.svg); }
+/* The icon-only buttons of the admin have no border or fill when active */
+#TbIconRecord[displayValue="1"], #TbIconRecord[displayValue="2"],
+#TbIconBroadcast[displayValue="1"], #TbIconBroadcast[displayValue="2"],
+#TbIconSettings[displayValue="1"] {
+  border-color: transparent;
+  background-color: transparent;
+}
+
+/* Crate status (StatusDot.tsx): server and connection. C++ sets the
+   crateState property: connected, connecting, signedOut or none. */
+#CrateStatus {
+  qproperty-layoutSpacing: 8;
+}
+#CrateStatusDot {
+  background-color: #7e8084;
+  border-radius: 3px;
+  margin: 13px 0;
+  min-width: 6px;
+  max-width: 6px;
+  min-height: 6px;
+  max-height: 6px;
+}
+#CrateStatusDot[crateState="connected"] { background-color: #67e8f9; }
+#CrateStatusDot[crateState="connecting"] { background-color: #999ca0; }
+#CrateStatusDot[crateState="signedOut"] { background-color: #fbbf24; }
+#MonoCrateStatus[crateState="connected"] { color: #67e8f9; }
+#MonoCrateStatus[crateState="connecting"] { color: #999ca0; }
+#MonoCrateStatus[crateState="signedOut"] { color: #f9c94a; }
+
+/* Readings: MonoLabel over a 1 px lane */
+#CrateToolbarReading {
+  qproperty-layoutSpacing: 5;
+  min-width: 64px;
+}
+#CrateToolbarReadingRow {
+  qproperty-layoutSpacing: 0;
+}
+
+#CrateToolbarClock {
+  font-family: "JetBrains Mono";
+  font-weight: 400;
+  font-size: 15px;
+  color: #f1f5f9;
+}
+
+/* ── Waveforms (decks.css .wf): a row per deck ─────────────────────── */
+
+#CrateMain,
+#CrateMainLibrary {
+  background-color: #0a0a0f;
+}
+/* The band's bottom rule is a group of its own: a border on the band would
+   be drawn over its last row, which fills it */
+#CrateWaveformBandRule {
+  background-color: rgba(241, 245, 249, 26);
+  min-height: 1px;
+  max-height: 1px;
+}
+#CrateWaveformRowTwo {
+  min-height: 92px;
+  max-height: 92px;
+}
+#CrateWaveformRowTwo[highlight="1"] {
+  min-height: 64px;
+  max-height: 64px;
+}
+#CrateWaveformRowFour {
+  min-height: 52px;
+  max-height: 52px;
+}
+#CrateWaveformRowFour[highlight="1"] {
+  min-height: 36px;
+  max-height: 36px;
+}
+/* The rows after the first: their rule is part of their height, as the
+   mockups' .wf-row + .wf-row border */
+#CrateWaveformRowTwoNext {
+  min-height: 91px;
+  max-height: 91px;
+}
+#CrateWaveformRowTwoNext[highlight="1"] {
+  min-height: 63px;
+  max-height: 63px;
+}
+#CrateWaveformRowFourNext {
+  min-height: 51px;
+  max-height: 51px;
+}
+#CrateWaveformRowFourNext[highlight="1"] {
+  min-height: 35px;
+  max-height: 35px;
+}
+/* Over the maximised library (library-compatibles.html --wf-h): 44 px with
+   two decks, the short four-deck rows with four, at any window height */
+#CrateWaveformRowLibraryTwo,
+#CrateWaveformRowLibraryTwo[highlight="1"] {
+  min-height: 44px;
+  max-height: 44px;
+}
+#CrateWaveformRowLibraryTwoNext,
+#CrateWaveformRowLibraryTwoNext[highlight="1"] {
+  min-height: 43px;
+  max-height: 43px;
+}
+#CrateWaveformRowLibraryFour,
+#CrateWaveformRowLibraryFour[highlight="1"] {
+  min-height: 36px;
+  max-height: 36px;
+}
+#CrateWaveformRowLibraryFourNext,
+#CrateWaveformRowLibraryFourNext[highlight="1"] {
+  min-height: 35px;
+  max-height: 35px;
+}
+#CrateWaveformRule,
+#CrateDeckRule {
+  min-height: 1px;
+  max-height: 1px;
+}
+#CrateWaveformRule {
+  background-color: rgba(241, 245, 249, 15);
+}
+#CrateDeckRule {
+  background-color: rgba(241, 245, 249, 26);
+}
+#CrateWaveformGutter {
+  border-right: 1px solid rgba(241, 245, 249, 15);
+  padding: 7px 0;
+  min-width: 33px;
+  max-width: 33px;
+}
+#CrateWaveLetterAC,
+#CrateWaveLetterBD {
+  font-family: "JetBrains Mono";
+  font-size: 13px;
+}
+#CrateWaveLetterAC { color: #67e8f9; }
+#CrateWaveLetterBD { color: #f1f5f9; }
+#CrateWaveDotAC,
+#CrateWaveDotBD {
+  background-color: #4a4c52;
+  border-radius: 3px;
+  min-width: 6px;
+  max-width: 6px;
+  min-height: 6px;
+  max-height: 6px;
+}
+#CrateWaveDotAC[highlight="1"] { background-color: #67e8f9; }
+#CrateWaveDotBD[highlight="1"] { background-color: #f1f5f9; }
+
+/* ── Decks and mixer (decks.css .decks) ─────────────────────────────── */
+
+#CrateDecksRow {
+  border-bottom: 1px solid rgba(241, 245, 249, 26);
+}
+#CrateMixerRule {
+  background-color: rgba(241, 245, 249, 26);
+  min-width: 1px;
+  max-width: 1px;
+}
+
+/* A deck: padding of .deck, the gutter narrower below the 1366
+   breakpoint; the pitch column 14 px from the deck. A group's padding does
+   not follow a restyle, so the paddings are layout margins, which
+   WWidgetGroup applies twice (half the value each time). With four decks
+   below the 768 breakpoint the mockups' 7 px becomes 8. */
+#CrateDeck {
+  qproperty-layoutContentsMargins: rect(0 7 0 6);
+}
+#CrateDeck[highlight="1"],
+#CrateDeckFour {
+  qproperty-layoutContentsMargins: rect(0 5 0 5);
+}
+#CrateDeckFour[highlight="1"] {
+  qproperty-layoutContentsMargins: rect(0 4 0 4);
+}
+#CrateDeckSides,
+#CrateDeckFourSides {
+  qproperty-layoutContentsMargins: rect(10 0 10 0);
+  qproperty-layoutSpacing: 14;
+}
+#CrateDeckSides[highlight="1"],
+#CrateDeckFourSides[highlight="1"] {
+  qproperty-layoutContentsMargins: rect(7 0 7 0);
+}
+#CrateDeckMain,
+#CrateDeckBody {
+  qproperty-layoutSpacing: 10;
+}
+#CrateDeckMain[highlight="1"],
+#CrateDeckBody[highlight="1"],
+#CrateDeckMainFour,
+#CrateDeckBodyFour {
+  qproperty-layoutSpacing: 8;
+}
+#CrateDeckMainFour[highlight="1"],
+#CrateDeckBodyFour[highlight="1"] {
+  qproperty-layoutSpacing: 6;
+}
+
+/* Header: letter box, MonoLabel, Leader badge, Crate state, menu */
+#CrateDeckHead {
+  qproperty-layoutSpacing: 10;
+  min-height: 24px;
+  max-height: 24px;
+}
+#CrateDeckHeadMeta {
+  qproperty-layoutSpacing: 0;
+}
+#CrateDeckLetterAC,
+#CrateDeckLetterBD {
+  font-family: "JetBrains Mono";
+  font-size: 11px;
+  border-radius: 2px;
+  min-width: 18px;
+  max-width: 18px;
+  min-height: 18px;
+  max-height: 18px;
+}
+#CrateDeckLetterAC { border: 1px solid #67e8f9; color: #67e8f9; }
+#CrateDeckLetterBD { border: 1px solid #f1f5f9; color: #f1f5f9; }
+#MonoDeckHeadSep {
+  padding: 0 4px;
+}
+/* A key keeps its case: "Am" is A minor, "AM" would read as A major */
+#MonoDeckHeadKey {
+  text-transform: none;
+}
+/* InfoBadge, accent tone */
+#CrateDeckLeader {
+  font-family: "JetBrains Mono";
+  font-size: 7.875pt;
+  color: #67e8f9;
+  background-color: rgba(6, 182, 212, 26);
+  border: 1px solid rgba(103, 232, 249, 102);
+  border-radius: 10px;
+  padding: 0 7px;
+  min-height: 18px;
+  max-height: 18px;
+}
+#CrateDeckTrackState {
+  qproperty-layoutSpacing: 8;
+}
+#CrateDeckStateDot {
+  background-color: #67e8f9;
+  border-radius: 3px;
+  margin: 9px 0;
+  min-width: 6px;
+  max-width: 6px;
+  min-height: 6px;
+  max-height: 6px;
+}
+#MonoDeckState {
+  color: #67e8f9;
+}
+#CrateDeckMenuButton {
+  background-color: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  image: url(skins:CrateDecks/generated/icons/menu-dots_idle.svg);
+  padding: 2px;
+  min-width: 18px;
+  max-width: 18px;
+  min-height: 18px;
+  max-height: 18px;
+}
+#CrateDeckMenuButton[displayValue="1"] {
+  image: url(skins:CrateDecks/generated/icons/menu-dots_active.svg);
+}
+
+/* Track row: cover, title, artist and genre, the deck numbers */
+#CrateDeckTrack,
+#CrateDeckTrackFour {
+  qproperty-layoutSpacing: 18;
+}
+#CrateDeckTrack[highlight="1"],
+#CrateDeckTrackFour[highlight="1"] {
+  qproperty-layoutSpacing: 12;
+}
+#CrateDeckCover {
+  min-width: 52px;
+  max-width: 52px;
+  min-height: 52px;
+  max-height: 52px;
+}
+#CrateDeckCoverFour {
+  min-width: 40px;
+  max-width: 40px;
+  min-height: 40px;
+  max-height: 40px;
+}
+#CrateDeckTitle {
+  qproperty-layoutSpacing: 3;
+}
+#CrateDeckTitleText,
+#CrateDeckTitleTextFour {
+  font-family: "Roboto";
+  font-weight: 500;
+  color: #f1f5f9;
+}
+#CrateDeckTitleText {
+  font-size: 19px;
+  letter-spacing: -0.19px;
+}
+#CrateDeckTitleTextFour {
+  font-size: 16px;
+  letter-spacing: -0.16px;
+}
+#CrateDeckTitleTextFour[highlight="1"] {
+  font-size: 14px;
+  letter-spacing: -0.14px;
+}
+#CrateDeckArtistRow {
+  qproperty-layoutSpacing: 0;
+  qproperty-layoutAlignment: 'AlignLeft | AlignVCenter';
+}
+#CrateDeckArtist,
+#CrateDeckArtistFour {
+  font-family: "Roboto";
+  font-size: 13px;
+  color: #999ca0;
+}
+#CrateDeckArtistFour[highlight="1"] {
+  font-size: 12px;
+}
+/* Packed at the bottom: a spacer above would add one more gap */
+#CrateDeckNumber {
+  qproperty-layoutSpacing: 6;
+  qproperty-layoutAlignment: 'AlignBottom';
+}
+/* Bricolage 700 with tabular figures (C++ adds tnum and the axes) */
+[objectName^="DeckNumber"] {
+  font-family: "Bricolage Grotesque";
+  font-weight: 700;
+  color: #f1f5f9;
+}
+/* The line box is .display's 0.95 em, tighter than the font's own */
+#DeckNumberBpm,
+#DeckNumberTime {
+  font-size: 34px;
+  letter-spacing: -1.53px;
+  min-height: 32.3px;
+  max-height: 32.3px;
+}
+#DeckNumberBpm[highlight="1"],
+#DeckNumberTime[highlight="1"] {
+  font-size: 28px;
+  letter-spacing: -1.26px;
+  min-height: 26.6px;
+  max-height: 26.6px;
+}
+#DeckNumberBpmFour,
+#DeckNumberTimeFour {
+  font-size: 26px;
+  letter-spacing: -1.17px;
+  min-height: 24.7px;
+  max-height: 24.7px;
+}
+#DeckNumberBpmFour[highlight="1"],
+#DeckNumberTimeFour[highlight="1"] {
+  font-size: 22px;
+  letter-spacing: -0.99px;
+  min-height: 20.9px;
+  max-height: 20.9px;
+}
+
+/* Overview: 40 to 88 px, the flexible row of the deck */
+#CrateOverviewBox {
+  min-height: 40px;
+  max-height: 88px;
+}
+#CrateOverviewBox[highlight="1"] {
+  max-height: 44px;
+}
+/* Four decks: 40 px at any height, as the mockups render it (.overview's
+   min-height of 40 wins over the grid row's 32, and below the 768
+   breakpoint over its max-height of 28) */
+#CrateOverviewBoxFour,
+#CrateOverviewBoxFour[highlight="1"] {
+  min-height: 40px;
+  max-height: 40px;
+}
+
+/* Deck menu over the overview */
+#CrateDeckMenu {
+  background-color: #111218;
+  border: 1px solid rgba(241, 245, 249, 26);
+  border-radius: 6px;
+  padding: 8px;
+  qproperty-layoutSpacing: 4;
+}
+
+/* Transport (decks.css .tbtn): outlined; CUE in accent; play and sync
+   filled in the deck colour when on */
+#CrateTransport,
+#CrateTransportFour,
+#CrateTransportFourShort {
+  qproperty-layoutSpacing: 8;
+}
+/* The transport and the hotcues of the compact decks, apart for each size
+   (deck_main_compact.xml): as tall as the deck's row gap */
+#CrateDeckLowerFour {
+  qproperty-layoutSpacing: 8;
+}
+#CrateDeckLowerFourShort {
+  qproperty-layoutSpacing: 6;
+}
+[objectName^="MonoCue"] {
+  background-color: transparent;
+  border: 1px solid #06b6d4;
+  border-radius: 4px;
+  color: #06b6d4;
+  min-width: 50px;
+  max-width: 50px;
+}
+[objectName^="MonoCue"][displayValue="1"] {
+  background-color: rgba(6, 182, 212, 26);
+}
+#MonoCue {
+  min-height: 34px;
+  max-height: 34px;
+}
+#MonoCueFour {
+  min-height: 28px;
+  max-height: 28px;
+}
+#MonoCueFourShort {
+  min-height: 24px;
+  max-height: 24px;
+}
+[objectName^="CratePlay"] {
+  background-color: transparent;
+  border: 1px solid rgba(241, 245, 249, 15);
+  border-radius: 4px;
+  image: url(skins:CrateDecks/generated/icons/play-bold_idle.svg);
+  min-width: 50px;
+  max-width: 50px;
+  min-height: 16px;
+  max-height: 16px;
+}
+#CratePlayAC,
+#CratePlayBD {
+  padding: 9px 0;
+}
+#CratePlayFourAC,
+#CratePlayFourBD {
+  padding: 6px 0;
+}
+#CratePlayFourShortAC,
+#CratePlayFourShortBD {
+  padding: 4px 0;
+}
+[objectName^="CratePlay"][displayValue="1"] {
+  image: url(skins:CrateDecks/generated/icons/pause-bold_onaccent.svg);
+}
+[objectName^="CratePlay"][objectName$="AC"][displayValue="1"] {
+  background-color: #67e8f9;
+  border-color: #67e8f9;
+}
+[objectName^="CratePlay"][objectName$="BD"][displayValue="1"] {
+  background-color: #f1f5f9;
+  border-color: #f1f5f9;
+}
+
+/* Text buttons: a MonoLabel under a transparent frame */
+[objectName^="MonoDeckButtonText"] {
+  color: rgba(241, 245, 249, 199);
+  border: 1px solid transparent;
+}
+[objectName^="MonoDeckButtonTextSync"] {
+  padding: 0 12px;
+  min-width: 26px;
+}
+[objectName^="MonoDeckButtonTextSmall"],
+[objectName^="MonoDeckButtonTextMenu"] {
+  padding: 0 8px;
+}
+#MonoDeckButtonTextSyncAC,
+#MonoDeckButtonTextSyncBD {
+  min-height: 34px;
+  max-height: 34px;
+}
+#MonoDeckButtonTextSyncFourAC,
+#MonoDeckButtonTextSyncFourBD {
+  min-height: 28px;
+  max-height: 28px;
+}
+#MonoDeckButtonTextSyncFourShortAC,
+#MonoDeckButtonTextSyncFourShortBD {
+  min-height: 24px;
+  max-height: 24px;
+}
+[objectName^="MonoDeckButtonTextSmall"],
+[objectName^="MonoDeckButtonTextMenu"] {
+  min-height: 26px;
+  max-height: 26px;
+}
+/* Below the 768 breakpoint the four decks' small buttons are as tall as
+   their transport */
+[objectName^="MonoDeckButtonTextSmallFourShort"] {
+  min-height: 24px;
+  max-height: 24px;
+}
+[objectName^="CrateDeckButtonFrame"] {
+  background-color: transparent;
+  border: 1px solid rgba(241, 245, 249, 15);
+  border-radius: 4px;
+}
+/* Sync on: filled in the deck colour, text onAccent */
+[objectName^="MonoDeckButtonTextSync"][highlight="1"] {
+  color: #0a0a0f;
+}
+[objectName^="CrateDeckButtonFrameSync"][objectName$="AC"][displayValue="1"] {
+  background-color: #67e8f9;
+  border-color: #67e8f9;
+}
+[objectName^="CrateDeckButtonFrameSync"][objectName$="BD"][displayValue="1"] {
+  background-color: #f1f5f9;
+  border-color: #f1f5f9;
+}
+/* Small buttons and the menu lit: outline and text in the deck colour */
+[objectName^="MonoDeckButtonTextSmall"][objectName$="AC"][highlight="1"],
+[objectName^="MonoDeckButtonTextMenu"][objectName$="AC"][highlight="1"] {
+  color: #67e8f9;
+}
+[objectName^="MonoDeckButtonTextSmall"][objectName$="BD"][highlight="1"],
+[objectName^="MonoDeckButtonTextMenu"][objectName$="BD"][highlight="1"] {
+  color: #f1f5f9;
+}
+[objectName^="CrateDeckButtonFrameSmall"][objectName$="AC"][displayValue="1"],
+[objectName^="CrateDeckButtonFrameMenu"][objectName$="AC"][displayValue="1"] {
+  border-color: rgba(103, 232, 249, 102);
+}
+[objectName^="CrateDeckButtonFrameSmall"][objectName$="BD"][displayValue="1"],
+[objectName^="CrateDeckButtonFrameMenu"][objectName$="BD"][displayValue="1"] {
+  border-color: rgba(241, 245, 249, 102);
+}
+
+/* Hotcues as nodes: a circle of hotcueRadius in its box, hollow at rest
+   and stroked in the deck colour when set. Mixxx fills a set hotcue with
+   its colour; the padding leaves no content for that fill
+   (background-clip), and the number is drawn over the whole button. */
+#CrateHotcues,
+#CrateHotcuesFour,
+#CrateHotcuesFourShort {
+  qproperty-layoutSpacing: 2;
+}
+#CrateHotcuesInline {
+  padding-left: 6px;
+}
+[objectName^="CrateCueNode"] {
+  font-family: "JetBrains Mono";
+  font-size: 10px;
+  color: #4a4c52;
+  background-color: transparent;
+  background-clip: content;
+  border: 1px solid rgba(241, 245, 249, 26);
+  border-radius: 10px;
+  margin: 4px;
+  padding: 9px;
+  min-width: 0;
+  min-height: 0;
+  max-width: 0;
+  max-height: 0;
+}
+[objectName^="CrateCueNode"][displayValue="1"],
+[objectName^="CrateCueNode"][displayValue="2"] {
+  color: #f1f5f9;
+}
+[objectName^="CrateCueNode"][objectName$="AC"][displayValue="1"],
+[objectName^="CrateCueNode"][objectName$="AC"][displayValue="2"] {
+  border-color: #67e8f9;
+}
+[objectName^="CrateCueNode"][objectName$="BD"][displayValue="1"],
+[objectName^="CrateCueNode"][objectName$="BD"][displayValue="2"] {
+  border-color: #f1f5f9;
+}
+/* Below the 768 breakpoint the four decks' nodes are 24 px boxes: the
+   mockups scale the 28 px node, circle included */
+[objectName^="CrateCueNodeFourShort"] {
+  border-radius: 9px;
+  margin: 3px;
+  padding: 8px;
+}
+
+/* Loop group: loop size, the size, the loop, key lock and quantize */
+#CrateLoop {
+  qproperty-layoutSpacing: 4;
+}
+[objectName^="CrateLoopDouble"],
+[objectName^="CrateLoopToggle"] {
+  background-color: transparent;
+  border: 1px solid rgba(241, 245, 249, 15);
+  border-radius: 4px;
+  padding: 5px 8px;
+  min-width: 16px;
+  max-width: 16px;
+  min-height: 16px;
+  max-height: 16px;
+}
+[objectName^="CrateLoopDoubleFourShort"],
+[objectName^="CrateLoopToggleFourShort"] {
+  padding: 4px 8px;
+}
+[objectName^="CrateLoopDouble"] {
+  image: url(skins:CrateDecks/generated/icons/alt-arrow-right_idle.svg);
+}
+[objectName^="CrateLoopToggle"] {
+  image: url(skins:CrateDecks/generated/icons/repeat_idle.svg);
+}
+[objectName^="CrateLoopToggle"][objectName$="AC"][displayValue="1"] {
+  border-color: rgba(103, 232, 249, 102);
+  image: url(skins:CrateDecks/generated/icons/repeat_active.svg);
+}
+[objectName^="CrateLoopToggle"][objectName$="BD"][displayValue="1"] {
+  border-color: rgba(241, 245, 249, 102);
+  image: url(skins:CrateDecks/generated/icons/repeat_primary.svg);
+}
+/* The loop size keeps LateNight's spin box geometry, whose arrows still
+   change the size, but shows only its number: without the arrows' room
+   Qt leaves the edit field 1 px wide */
+WBeatSpinBox[objectName^="CrateLoopSize"] {
+  font-family: "JetBrains Mono";
+  font-size: 13px;
+  color: #f1f5f9;
+  background-color: transparent;
+  border-image: none;
+  border-style: solid;
+  border-color: transparent;
+  /* the readout and the room of the hidden arrows */
+  min-width: 42px;
+  max-width: 42px;
+  qproperty-alignment: AlignCenter;
+}
+/* As tall as the transport buttons of its size; Qt adds a 1 px frame to
+   the spin box's content height */
+WBeatSpinBox#CrateLoopSizeFour,
+WBeatSpinBox#CrateLoopSizeFourShort {
+  border-width: 0;
+  padding: 0;
+}
+WBeatSpinBox#CrateLoopSizeFour {
+  min-height: 28px;
+  max-height: 28px;
+}
+WBeatSpinBox#CrateLoopSizeFourShort {
+  min-height: 24px;
+  max-height: 24px;
+}
+WBeatSpinBox[objectName^="CrateLoopSize"] QLineEdit {
+  background-color: transparent;
+}
+WBeatSpinBox[objectName^="CrateLoopSize"]::up-button,
+WBeatSpinBox[objectName^="CrateLoopSize"]::down-button {
+  background-color: transparent;
+  image: none;
+}
+
+/* Cue row and stems */
+#CrateCueRow,
+#CrateCueRowFour,
+#CrateCueRowFourShort {
+  qproperty-layoutSpacing: 12;
+}
+#CrateStems {
+  border-top: 1px solid rgba(241, 245, 249, 15);
+  padding-top: 8px;
+  qproperty-layoutSpacing: 14;
+}
+#CrateStemsRow {
+  qproperty-layoutSpacing: 14;
+}
+#CrateStemsGrid {
+  qproperty-layoutSpacing: 6;
+}
+#CrateStem {
+  qproperty-layoutSpacing: 8;
+}
+#MonoStemsLabel,
+#MonoStemName,
+[objectName^="MonoStemChipText"],
+#MonoStemChipsLabel,
+#MonoPitchLabel {
+  font-size: 7.125pt;
+  letter-spacing: 1.33px;
+}
+#MonoStemName {
+  min-width: 42px;
+}
+#MonoStemName[highlight="1"] {
+  color: #4a4c52;
+}
+#CrateStemRail {
+  min-height: 18px;
+  max-height: 18px;
+}
+[objectName^="CrateStemMute"] {
+  background-color: transparent;
+  border: 1px solid rgba(241, 245, 249, 15);
+  border-radius: 2px;
+  image: url(skins:CrateDecks/generated/icons/volume-cross_idle.svg);
+  padding: 3px 4px;
+  min-width: 14px;
+  max-width: 14px;
+  min-height: 14px;
+  max-height: 14px;
+}
+[objectName^="CrateStemMute"][displayValue="1"] {
+  image: url(skins:CrateDecks/generated/icons/volume-cross_onaccent.svg);
+}
+#CrateStemMuteAC[displayValue="1"] {
+  background-color: #67e8f9;
+  border-color: #67e8f9;
+}
+#CrateStemMuteBD[displayValue="1"] {
+  background-color: #f1f5f9;
+  border-color: #f1f5f9;
+}
+#CrateStemChips,
+#CrateStemChipsRow {
+  qproperty-layoutSpacing: 6;
+}
+[objectName^="MonoStemChipText"] {
+  color: rgba(241, 245, 249, 199);
+  border: 1px solid transparent;
+  padding: 0 9px 0 8px;
+  min-height: 20px;
+  max-height: 20px;
+}
+[objectName^="MonoStemChipText"][highlight="1"] {
+  color: #4a4c52;
+  text-decoration: line-through;
+}
+#CrateStemChipFrame {
+  background-color: transparent;
+  border: 1px solid rgba(241, 245, 249, 15);
+  border-radius: 2px;
+}
+#CrateStemChipFrame[displayValue="1"] {
+  border-color: rgba(241, 245, 249, 15);
+}
+/* Below the 1366 breakpoint the four-deck stems are a single label */
+#MonoStemChipsLabel[highlight="1"] {
+  border: 1px solid rgba(241, 245, 249, 15);
+  border-radius: 2px;
+  padding: 0 8px;
+  min-height: 20px;
+  max-height: 20px;
+}
+
+/* Phrase rule and Smart Mix line (laid out, hidden until their data) */
+#CratePhrase {
+  qproperty-layoutSpacing: 12;
+  min-height: 18px;
+  max-height: 18px;
+}
+#CratePhraseRuler {
+  border-image: url(skins:CrateDecks/generated/controls/phrase-ruler.svg) 0 0 0 0 stretch stretch;
+}
+#CratePhraseText {
+  font-family: "JetBrains Mono";
+  font-size: 11px;
+  color: rgba(241, 245, 249, 199);
+}
+#CrateNext {
+  qproperty-layoutSpacing: 10;
+  min-height: 22px;
+  max-height: 22px;
+}
+#CrateNextIcon {
+  image: url(skins:CrateDecks/generated/icons/stars_active.svg);
+  min-width: 16px;
+  max-width: 16px;
+  min-height: 16px;
+  max-height: 16px;
+}
+#CrateNextLane {
+  background-color: rgba(241, 245, 249, 26);
+  margin: 10.5px 0;
+  min-height: 1px;
+  max-height: 1px;
+}
+#CrateNextCountdown {
+  font-family: "JetBrains Mono";
+  font-size: 11px;
+  color: #f1f5f9;
+}
+
+/* Pitch column (decks.css .pitch) */
+#CratePitch,
+#CratePitchFour {
+  qproperty-layoutSpacing: 8;
+  min-width: 54px;
+  max-width: 54px;
+}
+[objectName^="CrateFaderPitch"] {
+  min-width: 34px;
+  max-width: 34px;
+}
+#CratePitchFaderBox {
+  min-height: 120px;
+}
+#CratePitchFaderBoxFour {
+  min-height: 80px;
+}
+#CratePitchFaderBoxFour[highlight="1"] {
+  min-height: 60px;
+}
+#CratePitchValue {
+  font-family: "JetBrains Mono";
+  font-size: 11px;
+  color: rgba(241, 245, 249, 199);
+}
+
+/* ── Mixer (decks.css .mixer, design 14.3) ─────────────────────────── */
+
+/* Padding and gaps are layout margins and spacing, which WWidgetGroup
+   applies twice (half the value each time) and which follow a restyle */
+#CrateMixer {
+  qproperty-layoutContentsMargins: rect(9 7 9 6);
+  qproperty-layoutSpacing: 10;
+}
+#CrateMixer[highlight="1"] {
+  qproperty-layoutContentsMargins: rect(9 5 9 4);
+}
+#CrateMixerStrips {
+  qproperty-layoutSpacing: 18;
+}
+#CrateStrip,
+#CrateStripFour {
+  qproperty-layoutSpacing: 4;
+}
+#CrateStripBody {
+  qproperty-layoutSpacing: 10;
+}
+/* Four decks: the fader 10 px under the knobs */
+#CrateStripFaderRowFour {
+  qproperty-layoutContentsMargins: rect(0 3 0 0);
+}
+
+/* The deck letter of a strip */
+#CrateStripLetterAC,
+#CrateStripLetterBD {
+  font-family: "JetBrains Mono";
+  font-size: 10px;
+  border-radius: 2px;
+  min-width: 16px;
+  max-width: 16px;
+  min-height: 16px;
+  max-height: 16px;
+}
+#CrateStripLetterAC { border: 1px solid #67e8f9; color: #67e8f9; }
+#CrateStripLetterBD { border: 1px solid #f1f5f9; color: #f1f5f9; }
+
+/* Knobs (decks.css .knob): 36 px, 30 below the 768 breakpoint; 30 and 26
+   with four decks. The arc radius of each size is in generated/vars.xml */
+#CrateStripKnobs {
+  qproperty-layoutSpacing: 3;
+}
+#CrateStripKnobs[highlight="1"] {
+  qproperty-layoutSpacing: 1;
+}
+#CrateStripKnobsFour {
+  qproperty-layoutSpacing: 0;
+}
+#CrateKnobBox {
+  qproperty-layoutSpacing: 2;
+}
+#CrateKnob {
+  min-width: 36px;
+  max-width: 36px;
+  min-height: 36px;
+  max-height: 36px;
+}
+#CrateKnobShort,
+#CrateKnobFour {
+  min-width: 30px;
+  max-width: 30px;
+  min-height: 30px;
+  max-height: 30px;
+}
+#CrateKnobFourShort {
+  min-width: 26px;
+  max-width: 26px;
+  min-height: 26px;
+  max-height: 26px;
+}
+/* MonoLabel of 9.5 px (9 below the 768 breakpoint), one line high */
+#MonoKnobLabel {
+  font-size: 7.125pt;
+  letter-spacing: 1.33px;
+  min-height: 9.5px;
+  max-height: 9.5px;
+}
+#MonoKnobLabel[highlight="1"] {
+  font-size: 9px;
+  letter-spacing: 1.26px;
+  min-height: 9px;
+  max-height: 9px;
+}
+
+/* Meter and fader of a strip, and the headphone button under them */
+#CrateStripFader,
+#CrateStripFaderFour {
+  qproperty-layoutSpacing: 8;
+}
+#CrateStripMeterFader {
+  qproperty-layoutSpacing: 6;
+}
+[objectName^="CrateFaderChannel"] {
+  min-width: 30px;
+  max-width: 30px;
+}
+#CrateFaderCross {
+  min-height: 30px;
+  max-height: 30px;
+}
+/* The colour that fills a fader's handle while it moves or syncs, and
+   lights a meter (crate/ui/skin/mixerstyle.cpp) */
+[objectName^="CrateFader"][objectName$="AC"],
+#CrateMeterVuAC {
+  color: #67e8f9;
+}
+[objectName^="CrateFader"][objectName$="BD"],
+#CrateMeterVuBD {
+  color: #f1f5f9;
+}
+#CrateFaderCross,
+#CrateMeterVuMain {
+  color: #67e8f9;
+}
+#CrateMeterLane {
+  color: #67e8f9;
+}
+
+/* Level meters (decks.css .vu): the clip segment over a 4 px bar */
+#CrateVu,
+#CrateVuClip,
+[objectName^="CrateMeterVu"] {
+  min-width: 4px;
+  max-width: 4px;
+}
+#CrateVuClip {
+  background-color: rgba(239, 68, 68, 46);
+  min-height: 4px;
+  max-height: 4px;
+}
+#CrateVuClip[highlight="1"] {
+  background-color: #ef4444;
+}
+
+/* Headphones (decks.css .tbtn[data-small]): outlined, filled in the deck
+   colour when on */
+[objectName^="CratePfl"] {
+  background-color: transparent;
+  border: 1px solid rgba(241, 245, 249, 26);
+  border-radius: 4px;
+  image: url(skins:CrateDecks/generated/icons/headphones-round-sound_idle.svg);
+  min-width: 32px;
+  max-width: 32px;
+  min-height: 16px;
+  max-height: 16px;
+}
+#CratePflAC, #CratePflBD,
+#CratePflShortAC, #CratePflShortBD {
+  padding: 5px 0;
+}
+#CratePflFourAC, #CratePflFourBD {
+  padding: 6px 0;
+}
+#CratePflFourShortAC, #CratePflFourShortBD {
+  padding: 4px 0;
+}
+[objectName^="CratePfl"][displayValue="1"] {
+  image: url(skins:CrateDecks/generated/icons/headphones-round-sound_onaccent.svg);
+}
+[objectName^="CratePfl"][objectName$="AC"][displayValue="1"] {
+  background-color: #67e8f9;
+  border-color: #67e8f9;
+}
+[objectName^="CratePfl"][objectName$="BD"][displayValue="1"] {
+  background-color: #f1f5f9;
+  border-color: #f1f5f9;
+}
+
+/* Main and headphones (decks.css .master) */
+/* Packed at the top, as the grid of .master: a spacer would add a gap */
+#CrateMaster {
+  qproperty-layoutContentsMargins: rect(2 0 2 0);
+  qproperty-layoutSpacing: 8;
+  qproperty-layoutAlignment: 'AlignTop';
+}
+#CrateMasterVus {
+  qproperty-layoutSpacing: 4;
+  min-height: 130px;
+  max-height: 130px;
+}
+#CrateMasterVus[highlight="1"] {
+  min-height: 96px;
+  max-height: 96px;
+}
+
+/* Crossfader (decks.css .xfader) */
+#CrateCrossfader {
+  qproperty-layoutSpacing: 10;
+}
+
+/* Empty deck: drop zone */
+#CrateDropZone {
+  border: 1px dashed rgba(241, 245, 249, 26);
+  border-radius: 6px;
+  qproperty-layoutSpacing: 14;
+}
+#CrateDropIcon {
+  image: url(skins:CrateDecks/generated/icons/vinyl-record_disabled.svg);
+  min-width: 28px;
+  max-width: 28px;
+  min-height: 28px;
+  max-height: 28px;
+}
+#CrateDropText {
+  qproperty-layoutSpacing: 4;
+}
+#CrateDropTitle {
+  font-family: "Roboto";
+  font-size: 14px;
+  color: #999ca0;
+}
+
+/* ── Library (decks.css .lib, plan V2.PR4) ────────────────────────────── */
+
+/* C++ paints what QSS cannot (crate/ui/skin/librarystyle.cpp and
+   crate/ui/delegates/): the sidebar's items and section headers, the
+   table's rows, rules, hover and selection, its MonoLabel column headers,
+   the deck letters of loaded tracks and the cells. QSS lays the library out
+   and clears what Qt would paint on its own. No rule here styles ::item,
+   which is what costs most when a table scrolls (plan V2, performance). */
+#CrateLibrary {
+  background-color: #0a0a0f;
+  qproperty-layoutSpacing: 0;
+}
+#CrateLibraryMain {
+  qproperty-layoutSpacing: 0;
+}
+
+/* Sidebar: 240 px with its 1 px rule, as the admin's navigation */
+#CrateSidebar {
+  min-width: 239px;
+  max-width: 239px;
+}
+#CrateSidebarRule {
+  background-color: rgba(241, 245, 249, 15);
+  min-width: 1px;
+  max-width: 1px;
+}
+#CrateLibrary WLibrarySidebar {
+  background-color: #0a0a0f;
+  border: 0;
+  outline: none;
+  padding: 6px 0 12px 0;
+  selection-background-color: transparent;
+  show-decoration-selected: 0;
+}
+
+/* Search row: 44 px, 40 below the 768 breakpoint, with its rule; the
+   search field has no background of its own */
+#CrateSearchRow {
+  min-height: 43px;
+  max-height: 43px;
+}
+#CrateSearchRow[highlight="1"] {
+  min-height: 39px;
+  max-height: 39px;
+}
+#CrateSearchRowInner {
+  qproperty-layoutContentsMargins: rect(10 0 10 0);
+  qproperty-layoutSpacing: 14;
+}
+#CrateSearchRowInner[highlight="1"] {
+  qproperty-layoutContentsMargins: rect(7 0 7 0);
+}
+#CrateSearchQuery {
+  qproperty-layoutSpacing: 10;
+}
+#CrateSearchRule {
+  background-color: rgba(241, 245, 249, 26);
+  min-height: 1px;
+  max-height: 1px;
+}
+#CrateSearchIcon {
+  image: url(skins:CrateDecks/generated/icons/magnifier_idle.svg);
+  min-width: 18px;
+  max-width: 18px;
+  min-height: 18px;
+  max-height: 18px;
+}
+#CrateLibrary WSearchLineEdit,
+#CrateLibrary WSearchLineEdit QLineEdit {
+  font-family: "JetBrains Mono";
+  font-size: 13px;
+  color: #f1f5f9;
+  background-color: transparent;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  selection-color: #0a0a0f;
+  selection-background-color: #67e8f9;
+}
+/* No arrow for the search history, which opens with the down key */
+#CrateLibrary WSearchLineEdit::drop-down,
+#CrateLibrary WSearchLineEdit::down-arrow {
+  width: 0;
+  border: 0;
+  image: none;
+}
+#CrateLibrary WSearchLineEdit QToolButton {
+  image: url(skins:CrateDecks/generated/icons/close-circle_idle.svg);
+  background-color: transparent;
+  border: 0;
+}
+#CrateLibrary WSearchLineEdit QToolButton:hover {
+  image: url(skins:CrateDecks/generated/icons/close-circle_hover.svg);
+}
+#TbIconMaximize { image: url(skins:CrateDecks/generated/icons/maximize_idle.svg); }
+#TbIconMaximize:hover { image: url(skins:CrateDecks/generated/icons/maximize_hover.svg); }
+#TbIconMaximize[displayValue="1"] {
+  image: url(skins:CrateDecks/generated/icons/maximize_active.svg);
+  border-color: transparent;
+  background-color: transparent;
+}
+
+/* Track table: "cabin" density, a list with 1 px rules and no zebra or
+   boxes (design 14.3). The view's text colour is that of names; C++ gives
+   titles, BPM, key and duration their own. Mixxx colours the text of played
+   and missing tracks with these properties. */
+#CrateLibrary WTrackTableView {
+  font-family: "Roboto";
+  font-size: 13px;
+  color: #999ca0;
+  background-color: #0a0a0f;
+  alternate-background-color: #0a0a0f;
+  selection-color: #f1f5f9;
+  selection-background-color: transparent;
+  border: 0;
+  outline: none;
+  qproperty-alternatingRowColors: false;
+  qproperty-showGrid: false;
+  qproperty-focusBorderColor: transparent;
+  qproperty-trackPlayedColor: #7e8084;
+  qproperty-trackMissingColor: #f9c94a;
+  qproperty-dropIndicatorColor: #67e8f9;
+}
+/* C++ paints the column headers as MonoLabels; QSS gives the header its
+   font, which Mixxx also measures it with */
+#CrateLibrary WTrackTableViewHeader,
+#CrateLibrary WTrackTableViewHeader::section {
+  font-family: "JetBrains Mono";
+  font-size: 7.875pt;
+  text-transform: uppercase;
+  letter-spacing: 1.47px;
+  color: #7e8084;
+  background-color: #0a0a0f;
+  border: 0;
+  padding: 0;
+}
+#CrateLibrary QAbstractScrollArea::corner,
+#CrateLibrary WTrackTableView QHeaderView {
+  background-color: #0a0a0f;
+  border: 0;
+}
+/* The corner over the deck letters carries on the header's rule */
+#CrateLibrary QTableCornerButton::section {
+  background-color: #0a0a0f;
+  border: 0;
+  border-bottom: 1px solid rgba(241, 245, 249, 26);
+}
+
+/* Cell editors, and the decks' inline title editor */
+#CrateLibrary WTrackTableView QLineEdit,
+#CrateLibrary WTrackTableView QPlainTextEdit,
+#CrateLibrary WTrackTableView QDoubleSpinBox,
+WTrackPropertyEditor {
+  font-family: "Roboto";
+  font-size: 13px;
+  color: #f1f5f9;
+  background-color: #111218;
+  border: 1px solid rgba(6, 182, 212, 102);
+  border-radius: 2px;
+  selection-color: #0a0a0f;
+  selection-background-color: #67e8f9;
+}
+
+/* Scroll bars of 8 px, a rounded thumb on no track (typography.css) */
+#CrateLibrary QScrollBar:vertical {
+  background-color: transparent;
+  border: 0;
+  margin: 0;
+  width: 8px;
+}
+#CrateLibrary QScrollBar:horizontal {
+  background-color: transparent;
+  border: 0;
+  margin: 0;
+  height: 8px;
+}
+#CrateLibrary QScrollBar::handle {
+  background-color: rgba(241, 245, 249, 26);
+  border: 0;
+  border-radius: 4px;
+}
+#CrateLibrary QScrollBar::handle:vertical {
+  min-height: 24px;
+}
+#CrateLibrary QScrollBar::handle:horizontal {
+  min-width: 24px;
+}
+#CrateLibrary QScrollBar::handle:hover {
+  background-color: rgba(241, 245, 249, 46);
+}
+#CrateLibrary QScrollBar::add-line,
+#CrateLibrary QScrollBar::sub-line {
+  width: 0;
+  height: 0;
+  border: 0;
+  background: none;
+}
+#CrateLibrary QScrollBar::add-page,
+#CrateLibrary QScrollBar::sub-page {
+  background: none;
+}
+
+/* ── Auto DJ and Analyze: the button bars of the library (plan V2.PR5) ─ */
+
+/* The admin's small buttons, outlined and neutral, with Solar icons; the
+   active state (Auto DJ on, repeat) as the admin's selected chip. LateNight's
+   rules above draw these bars with images: these win, one by one. C++ gives
+   the bars the library's gutter (crate/ui/skin/librarystyle.cpp). */
+#LibraryFeatureControls {
+  background-color: transparent;
+}
+#LibraryFeatureControls QPushButton {
+  min-height: 30px;
+  max-height: 30px;
+  min-width: 0;
+  margin: 0;
+  padding: 0 12px;
+  border: 1px solid rgba(241, 245, 249, 26);
+  border-image: none;
+  border-radius: 4px;
+  background-color: transparent;
+  color: rgba(241, 245, 249, 199);
+  font-family: "Roboto";
+  font-size: 13px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+}
+#LibraryFeatureControls QPushButton:hover {
+  border-color: rgba(241, 245, 249, 51);
+  color: #f1f5f9;
+}
+#LibraryFeatureControls QPushButton:pressed {
+  background-color: rgba(241, 245, 249, 13);
+}
+#LibraryFeatureControls QPushButton:checked {
+  border-color: rgba(103, 232, 249, 102);
+  background-color: rgba(6, 182, 212, 26);
+  color: #67e8f9;
+}
+#LibraryFeatureControls QPushButton:disabled {
+  border-color: rgba(241, 245, 249, 15);
+  background-color: transparent;
+  color: #4a4c52;
+}
+/* The action of the view: Analyze */
+#DlgAnalysis QPushButton#pushButtonAnalyze {
+  border-color: #06b6d4;
+  color: #06b6d4;
+}
+#DlgAnalysis QPushButton#pushButtonAnalyze:hover {
+  border-color: #67e8f9;
+  color: #67e8f9;
+}
+
+/* Auto DJ's icon buttons: Solar's play and pause for on and off, fade,
+   skip, shuffle, add a random track and repeat */
+#DlgAutoDJ QPushButton#pushButtonAutoDJ,
+#DlgAutoDJ QPushButton#pushButtonFadeNow,
+#DlgAutoDJ QPushButton#pushButtonSkipNext,
+#DlgAutoDJ QPushButton#pushButtonShuffle,
+#DlgAutoDJ QPushButton#pushButtonAddRandomTrack,
+#DlgAutoDJ QPushButton#pushButtonRepeatPlaylist {
+  min-width: 18px;
+  max-width: 18px;
+  padding: 0 6px;
+}
+#DlgAutoDJ QPushButton#pushButtonAutoDJ:!checked {
+  image: url(skins:CrateDecks/generated/icons/play-bold_idle.svg);
+}
+#DlgAutoDJ QPushButton#pushButtonAutoDJ:checked {
+  image: url(skins:CrateDecks/generated/icons/pause-bold_active.svg);
+}
+#DlgAutoDJ QPushButton#pushButtonFadeNow:enabled {
+  image: url(skins:CrateDecks/generated/icons/soundwave_idle.svg);
+}
+#DlgAutoDJ QPushButton#pushButtonFadeNow:!enabled {
+  image: url(skins:CrateDecks/generated/icons/soundwave_disabled.svg);
+}
+#DlgAutoDJ QPushButton#pushButtonSkipNext:enabled {
+  image: url(skins:CrateDecks/generated/icons/skip-next_idle.svg);
+}
+#DlgAutoDJ QPushButton#pushButtonSkipNext:!enabled {
+  image: url(skins:CrateDecks/generated/icons/skip-next_disabled.svg);
+}
+#DlgAutoDJ QPushButton#pushButtonShuffle:enabled {
+  image: url(skins:CrateDecks/generated/icons/shuffle_idle.svg);
+}
+#DlgAutoDJ QPushButton#pushButtonShuffle:!enabled {
+  image: url(skins:CrateDecks/generated/icons/shuffle_disabled.svg);
+}
+#DlgAutoDJ QPushButton#pushButtonAddRandomTrack:enabled {
+  image: url(skins:CrateDecks/generated/icons/add-circle_idle.svg);
+}
+#DlgAutoDJ QPushButton#pushButtonAddRandomTrack:!enabled {
+  image: url(skins:CrateDecks/generated/icons/add-circle_disabled.svg);
+}
+#DlgAutoDJ QPushButton#pushButtonRepeatPlaylist:!checked {
+  image: url(skins:CrateDecks/generated/icons/repeat_idle.svg);
+}
+#DlgAutoDJ QPushButton#pushButtonRepeatPlaylist:checked {
+  image: url(skins:CrateDecks/generated/icons/repeat_active.svg);
+}
+
+/* Transition mode and time: the admin's fields at the buttons' height */
+#DlgAutoDJ #fadeModeCombobox,
+#DlgAutoDJ #spinBoxTransition,
+#DlgAnalysis #spinBoxRecentDays {
+  min-height: 30px;
+  max-height: 30px;
+  margin: 0;
+  padding: 0 12px;
+  border: 1px solid rgba(241, 245, 249, 26);
+  border-image: none;
+  border-radius: 4px;
+  background-color: transparent;
+  color: #f1f5f9;
+  selection-background-color: rgba(6, 182, 212, 76);
+  selection-color: #f1f5f9;
+}
+#DlgAutoDJ #fadeModeCombobox {
+  font-family: "Roboto";
+  font-size: 13px;
+}
+#DlgAutoDJ #spinBoxTransition,
+#DlgAnalysis #spinBoxRecentDays {
+  font-family: "JetBrains Mono";
+  font-size: 11px;
+  qproperty-buttonSymbols: NoButtons;
+  /* Qt lays a spin box's text out on its border: centred, it clears it */
+  qproperty-alignment: AlignCenter;
+}
+#DlgAutoDJ #fadeModeCombobox:hover,
+#DlgAutoDJ #spinBoxTransition:hover,
+#DlgAnalysis #spinBoxRecentDays:hover {
+  border-color: rgba(241, 245, 249, 51);
+}
+#DlgAutoDJ #fadeModeCombobox:on,
+#DlgAutoDJ #spinBoxTransition:focus,
+#DlgAnalysis #spinBoxRecentDays:focus {
+  border-color: rgba(103, 232, 249, 102);
+  border-image: none;
+}
+#DlgAutoDJ #fadeModeCombobox::drop-down {
+  subcontrol-origin: padding;
+  subcontrol-position: center right;
+  width: 16px;
+  border: 0;
+  image: none;
+}
+#DlgAutoDJ #fadeModeCombobox::down-arrow {
+  image: url(skins:CrateDecks/generated/icons/alt-arrow-down_idle.svg);
+  width: 14px;
+  height: 14px;
+}
+/* Without arrows: zero-sized buttons, or Qt leaves the text a pixel wide */
+#DlgAutoDJ #spinBoxTransition::up-button,
+#DlgAutoDJ #spinBoxTransition::down-button,
+#DlgAnalysis #spinBoxRecentDays::up-button,
+#DlgAnalysis #spinBoxRecentDays::down-button {
+  subcontrol-origin: margin;
+  width: 0;
+  height: 0;
+  border: 0;
+  border-image: none;
+  image: none;
+}
+
+/* Their labels: what "sec." and the selection say, in mono */
+#LibraryFeatureControls QLabel {
+  background-color: transparent;
+  color: #999ca0;
+  font-family: "JetBrains Mono";
+  font-size: 11px;
+  margin: 0;
+}
+
+/* Analyze's All and New */
+#LibraryFeatureControls QRadioButton {
+  background-color: transparent;
+  color: rgba(241, 245, 249, 199);
+  font-family: "Roboto";
+  font-size: 13px;
+  spacing: 8px;
+  margin: 0;
+}
+#LibraryFeatureControls QRadioButton::indicator {
+  width: 16px;
+  height: 16px;
+}
+#LibraryFeatureControls QRadioButton::indicator:unchecked {
+  image: url(skins:CrateDecks/generated/controls/radio_idle.svg);
+}
+#LibraryFeatureControls QRadioButton::indicator:checked {
+  image: url(skins:CrateDecks/generated/controls/radio-checked_active.svg);
+}

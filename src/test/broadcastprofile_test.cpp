@@ -1,12 +1,13 @@
 #ifdef __BROADCAST__
 
+#include "preferences/broadcastprofile.h"
+
 #include <QFile>
 #include <QString>
 
-#include "test/mixxxtest.h"
-#include "preferences/broadcastprofile.h"
 #include "broadcast/defs_broadcast.h"
-#include "defs_urls.h"
+#include "crate/appidentity.h"
+#include "test/mixxxtest.h"
 
 namespace {
 
@@ -227,7 +228,7 @@ TEST(BroadcastProfileTest, DefaultValues) {
     // Check if some select attributes have non-empty default values
     ASSERT_FALSE(profile.getEnabled());
     ASSERT_EQ(profile.getPort(), BROADCAST_DEFAULT_PORT);
-    ASSERT_TRUE(profile.getStreamWebsite() == QString(MIXXX_WEBSITE_URL));
+    ASSERT_TRUE(profile.getStreamWebsite() == QString::fromLatin1(crate::kHomepageUrl));
     ASSERT_FALSE(profile.getStreamDesc().isEmpty());
     ASSERT_FALSE(profile.getStreamGenre().isEmpty());
     ASSERT_FALSE(profile.getMetadataFormat().isEmpty());

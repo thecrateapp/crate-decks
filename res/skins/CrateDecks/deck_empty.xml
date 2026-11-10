@@ -1,0 +1,38 @@
+<!--
+  Empty deck (GU1 proposal): a drop zone for a track, dashed, with the vinyl
+  icon and how to load the selected track instead.
+Variables: ChanNum, Letter
+-->
+<Template>
+  <TrackWidgetGroup>
+    <ObjectName>CrateDropZone</ObjectName>
+    <Layout>horizontal</Layout>
+    <SizePolicy>me,me</SizePolicy>
+    <Group>[Channel<Variable name="ChanNum"/>]</Group>
+    <Children>
+      <WidgetGroup><SizePolicy>me,min</SizePolicy></WidgetGroup>
+      <Label><ObjectName>CrateDropIcon</ObjectName></Label>
+      <WidgetGroup>
+        <ObjectName>CrateDropText</ObjectName>
+        <Layout>vertical</Layout>
+        <SizePolicy>min,min</SizePolicy>
+        <Children>
+          <Label>
+            <ObjectName>CrateDropTitle</ObjectName>
+            <Text>Drop a track here</Text>
+          </Label>
+          <Label>
+            <ObjectName>MonoDropHint</ObjectName>
+            <Text>Or select a track · Shift + <Variable name="Letter"/></Text>
+          </Label>
+        </Children>
+      </WidgetGroup>
+      <WidgetGroup><SizePolicy>me,min</SizePolicy></WidgetGroup>
+    </Children>
+    <Connection>
+      <ConfigKey>[Channel<Variable name="ChanNum"/>],track_loaded</ConfigKey>
+      <Transform><Not/></Transform>
+      <BindProperty>visible</BindProperty>
+    </Connection>
+  </TrackWidgetGroup>
+</Template>

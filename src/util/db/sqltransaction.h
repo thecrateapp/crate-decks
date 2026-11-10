@@ -2,6 +2,14 @@
 
 #include <QSqlDatabase>
 
+/// Begins a transaction that takes SQLite's write lock at once (BEGIN
+/// IMMEDIATE), so that it waits for the busy handler while another
+/// connection writes. A deferred transaction that reads before it writes
+/// gets "database is locked" at once instead when it tries to write, as
+/// SQLite avoids a deadlock (upstream issue 6631). Other drivers begin an
+/// ordinary transaction. Every transaction of SqlTransaction and
+/// ScopedTransaction begins here: they all write.
+bool beginImmediateTransaction(const QSqlDatabase& database);
 
 class SqlTransaction final {
   public:

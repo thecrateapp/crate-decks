@@ -3,6 +3,7 @@
 #include <QFocusEvent>
 #include <QMimeData>
 
+#include "crate/brand/brandtext.h"
 #include "effects/backends/effectmanifest.h"
 #include "effects/backends/effectsbackend.h"
 #include "effects/effectsmanager.h"
@@ -238,7 +239,9 @@ void DlgPrefEffects::effectsTableItemSelected(const QModelIndex& selected) {
     }
 
     effectName->setText(pManifest->name());
-    effectAuthor->setText(pManifest->author());
+    // Crate Decks: Mixxx's own effects say "The Mixxx Team"; the brand
+    // layer shows "Built-in" (design D2)
+    effectAuthor->setText(crate::brandText(pManifest->author()));
     effectDescription->setText(pManifest->description());
     effectVersion->setText(pManifest->version());
     effectType->setText(EffectsBackend::translatedBackendName(pManifest->backendType()));

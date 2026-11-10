@@ -48,6 +48,12 @@ QUrl sourceCodeUrl(const QString& gitDescribe);
 /// computes the same version for the package file names.
 QString buildVersion(const QString& gitDescribe);
 
+/// The visible credits of what Crate Decks ships from others, for About, as
+/// rich text with links in `linkStyle`: the Solar icons, whose CC BY 4.0
+/// licence asks for attribution and to say what changed (design 14.3, plan
+/// V2.PR5), and the admin's fonts under the SIL Open Font License.
+QString attributionText(const QString& linkStyle);
+
 /// Sets the organization, the desktop file name and the application version
 /// on the Qt application.
 /// Must be called before the QApplication is constructed.

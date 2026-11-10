@@ -1,0 +1,30 @@
+<!--
+Description:
+  A hotcue as a node of GenreWheel: a circle with its number, hollow at
+  rest and stroked in the deck colour when set (style.qss.in).
+Variables: Group, Number, Pair, Size
+-->
+<Template>
+  <HotcueButton>
+    <TooltipId>hotcue</TooltipId>
+    <ObjectName>CrateCueNode<Variable name="Size"/><Variable name="Pair"/></ObjectName>
+    <Group><Variable name="Group"/></Group>
+    <Hotcue><Variable name="Number"/></Hotcue>
+    <NumberStates>3</NumberStates>
+    <State>
+      <Number>0</Number>
+      <Text><Variable name="Number"/></Text>
+      <Alignment>center</Alignment>
+    </State>
+    <State>
+      <Number>1</Number>
+      <Text><Variable name="Number"/></Text>
+      <Alignment>center</Alignment>
+    </State>
+    <State>
+      <Number>2</Number>
+      <Text><Variable name="Number"/></Text>
+      <Alignment>center</Alignment>
+    </State>
+  </HotcueButton>
+</Template>

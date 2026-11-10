@@ -6,6 +6,7 @@
 #include <QSqlField>
 #include <QtDebug>
 
+#include "util/db/sqltransaction.h"
 
 #define LOG_FAILED_QUERY(query) qWarning() << __FILE__ << __LINE__ << "FAILED QUERY [" \
     << (query).executedQuery() << "]" << (query).lastError()
@@ -34,7 +35,8 @@ class ScopedTransaction {
                      << m_database.connectionName();
             return false;
         }
-        m_active = m_database.transaction();
+        // Takes the write lock at once (see beginImmediateTransaction())
+        m_active = beginImmediateTransaction(m_database);
         return m_active;
     }
     bool commit() {

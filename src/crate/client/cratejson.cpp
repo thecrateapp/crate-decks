@@ -97,6 +97,43 @@ std::optional<qint64> ObjectReader::optionalInteger(QStringView key) {
     return static_cast<qint64>(number);
 }
 
+std::optional<double> ObjectReader::optionalDouble(QStringView key) {
+    const QJsonValue value = field(key, false);
+    if (isAbsent(value)) {
+        return std::nullopt;
+    }
+    if (!value.isDouble()) {
+        fail(key, QStringLiteral("is not a number"));
+        return std::nullopt;
+    }
+    return value.toDouble();
+}
+
+QString ObjectReader::requiredId(QStringView key) {
+    return id(key, true);
+}
+
+QString ObjectReader::optionalId(QStringView key) {
+    return id(key, false);
+}
+
+QString ObjectReader::id(QStringView key, bool required) {
+    const QJsonValue value = field(key, required);
+    if (isAbsent(value)) {
+        return QString();
+    }
+    if (value.isString()) {
+        return value.toString();
+    }
+    const double number = value.toDouble();
+    if (!value.isDouble() || std::trunc(number) != number ||
+            std::abs(number) > kMaxExactInteger) {
+        fail(key, QStringLiteral("is not a string or an integer"));
+        return QString();
+    }
+    return QString::number(static_cast<qint64>(number));
+}
+
 QJsonObject ObjectReader::requiredObject(QStringView key) {
     const QJsonValue value = field(key, true);
     if (isAbsent(value)) {
@@ -119,6 +156,18 @@ std::optional<QJsonObject> ObjectReader::optionalObject(QStringView key) {
         return std::nullopt;
     }
     return value.toObject();
+}
+
+QJsonArray ObjectReader::requiredArray(QStringView key) {
+    const QJsonValue value = field(key, true);
+    if (isAbsent(value)) {
+        return QJsonArray();
+    }
+    if (!value.isArray()) {
+        fail(key, QStringLiteral("is not an array"));
+        return QJsonArray();
+    }
+    return value.toArray();
 }
 
 QStringList ObjectReader::optionalStringList(QStringView key) {

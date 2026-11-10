@@ -1,0 +1,33 @@
+<!--
+  A deck (two decks) on the left of the mixer: the deck and its pitch
+  column, pitch on the outer right, with the padding of the GU1 mockups
+  (.deck). The padding narrows below the 1366 breakpoints.
+Variables: ChanNum, Letter, Pair, and the deck's colours CrateDeck, WaveLow,
+  WaveMid and WaveHigh
+-->
+<Template>
+  <WidgetGroup>
+    <ObjectName>CrateDeck</ObjectName>
+    <Layout>horizontal</Layout>
+    <SizePolicy>me,me</SizePolicy>
+    <Children>
+      <WidgetGroup>
+        <ObjectName>CrateDeckSides</ObjectName>
+        <Layout>horizontal</Layout>
+        <SizePolicy>me,me</SizePolicy>
+        <Children>
+          <Template src="skins:CrateDecks/deck_main.xml"/>
+          <Template src="skins:CrateDecks/deck_pitch.xml"><SetVariable name="Size"></SetVariable></Template>
+        </Children>
+        <Connection>
+          <ConfigKey>[CrateDecks],layout_narrow</ConfigKey>
+          <BindProperty>highlight</BindProperty>
+        </Connection>
+      </WidgetGroup>
+    </Children>
+    <Connection>
+      <ConfigKey>[CrateDecks],layout_short</ConfigKey>
+      <BindProperty>highlight</BindProperty>
+    </Connection>
+  </WidgetGroup>
+</Template>

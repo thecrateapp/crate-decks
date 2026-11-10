@@ -1,0 +1,171 @@
+  <!--
+  CrateDecks, the skin of Crate Decks, with the language of the Crate admin
+  (design 14 of the Crate Decks plans) and the approved GU1 mockups.
+
+  It is derived from LateNight, Resizable skin for Mixxx 2.3.x
+  www.mixxx.org
+  Copyright (C) 2010-2013 jus <s.brandt@mixxx.org>, 2014 Owen Williams <owilliams@mixxx.org>,
+  2019-2021 ronso0 <ronso0@mixxx.org>
+  "LateNight" is licensed under the Creative Commons Attribution-ShareAlike 3.0 Unported license.
+  http://creativecommons.org/licenses/by-sa/3.0/
+  As a derived work, CrateDecks is shared under the same license.
+
+  With every copy of the work, you are required to either provide a copy of the license it self
+  or a link (URI). Failure to do this is a failure to complete the terms of the CC license.
+
+  Layout: generated/vars.xml sets the variables of res/crate-design/tokens.json
+  and instantiates main.xml, the layout. Style: LateNight's style.qss for the
+  parts that V2 has not redone yet, then generated/style.qss, the style of the
+  Crate scheme, which wins.
+  -->
+
+<!DOCTYPE skin>
+<skin>
+  <manifest>
+    <title>CrateDecks</title>
+    <author>Crate, after LateNight by owilliams, ronso0</author>
+    <version>0.1.0</version>
+    <description>The skin of Crate Decks: waveforms, two or four decks, mixer and library, with the language of the Crate admin.</description>
+    <language>en</language>
+    <license>Creative Commons Attribution, Share-Alike 3.0 Unported</license>
+    <attributes>
+    <!-- Set skin defaults -->
+      <attribute config_key="[App],num_decks">4</attribute>
+      <attribute config_key="[App],num_samplers">16</attribute>
+      <attribute persist="true" config_key="[Skin],show_waveforms">1</attribute>
+      <attribute persist="true" config_key="[Skin],timing_shift_buttons">0</attribute>
+
+    <!-- Crate Decks layout classes: C++ sets them from the size of the skin
+         and the breakpoints of generated/vars.xml (crate/ui/skin/) -->
+      <attribute persist="false" config_key="[CrateDecks],layout_narrow">0</attribute>
+      <attribute persist="false" config_key="[CrateDecks],layout_short">0</attribute>
+    <!-- The toolbar's Preferences button: C++ opens Preferences when it
+         goes to 1 (crate/ui/skin/preferencescontrol.h) -->
+      <attribute persist="false" config_key="[CrateDecks],show_preferences">0</attribute>
+    <!-- Deck menus (vinyl, slip and the loop extras), closed at start -->
+      <attribute persist="false" config_key="[CrateDecks],deck1_menu">0</attribute>
+      <attribute persist="false" config_key="[CrateDecks],deck2_menu">0</attribute>
+      <attribute persist="false" config_key="[CrateDecks],deck3_menu">0</attribute>
+      <attribute persist="false" config_key="[CrateDecks],deck4_menu">0</attribute>
+    <!-- Whether each deck's track has an artist and a genre, for the
+         "Artist · Genre" row: C++ sets them from the tracks
+         (crate/ui/skin/decktrackfields.h) -->
+      <attribute persist="false" config_key="[CrateDecks],deck1_has_artist">0</attribute>
+      <attribute persist="false" config_key="[CrateDecks],deck1_has_genre">0</attribute>
+      <attribute persist="false" config_key="[CrateDecks],deck2_has_artist">0</attribute>
+      <attribute persist="false" config_key="[CrateDecks],deck2_has_genre">0</attribute>
+      <attribute persist="false" config_key="[CrateDecks],deck3_has_artist">0</attribute>
+      <attribute persist="false" config_key="[CrateDecks],deck3_has_genre">0</attribute>
+      <attribute persist="false" config_key="[CrateDecks],deck4_has_artist">0</attribute>
+      <attribute persist="false" config_key="[CrateDecks],deck4_has_genre">0</attribute>
+    <!-- Rows that the GU1 mockups lay out and that wait for their data: the
+         phrase rule (plans F5 and F6), the Smart Mix line (F6) and Crate's
+         track state, profile and cache (F4). They are skin switches, not
+         data: the PR that brings the data binds the rows to it instead -->
+      <attribute persist="false" config_key="[CrateDecks],show_phrase_rule">0</attribute>
+      <attribute persist="false" config_key="[CrateDecks],show_smartmix_line">0</attribute>
+      <attribute persist="false" config_key="[CrateDecks],show_track_state">0</attribute>
+    <!-- The library's switch between the track list and the Compatibles
+         view (plans F5 and V3), whose slot the search row keeps -->
+      <attribute persist="false" config_key="[CrateDecks],show_library_views">0</attribute>
+
+    <!-- Decks -->
+      <!-- general -->
+      <attribute persist="true" config_key="[Skin],show_4decks">0</attribute>
+      <attribute persist="true" config_key="[Skin],show_hotcues">1</attribute>
+      <attribute persist="true" config_key="[Skin],show_8_hotcues">1</attribute>
+      <attribute persist="true" config_key="[Skin],show_intro_outro_cues">1</attribute>
+      <attribute persist="true" config_key="[Skin],show_loop_controls">1</attribute>
+      <attribute persist="true" config_key="[Skin],show_beatjump_controls">1</attribute>
+      <attribute persist="true" config_key="[Skin],show_spinnies">1</attribute>
+      <attribute persist="true" config_key="[Skin],show_coverart">1</attribute>
+      <attribute persist="true" config_key="[Skin],select_big_spinny_or_cover">0</attribute>
+      <attribute persist="true" config_key="[Skin],show_vinylcontrol">0</attribute>
+      <!-- Deck variant that is shown as soon as the mixer is hidden.
+          See deck.xml and /helpers/skin_helper_deck_size.xml for documentation.
+          0=mini 1=compact(default) 2=full deck -->
+      <attribute persist="true" config_key="[LateNight],deck_size_without_mixer">1</attribute>
+      <!-- Full deck -->
+      <attribute persist="true" config_key="[Skin],show_rate_controls">1</attribute>
+      <attribute persist="true" config_key="[Skin],show_rate_control_buttons">1</attribute>
+      <attribute persist="true" config_key="[Skin],show_beatgrid_controls">1</attribute>
+      <!-- Compact deck -->
+      <attribute persist="true" config_key="[Skin],show_rate_controls_compact">1</attribute>
+      <attribute persist="true" config_key="[Skin],show_loop_controls_compact">1</attribute>
+      <attribute persist="true" config_key="[Skin],show_beatjump_controls_compact">1</attribute>
+      <attribute persist="true" config_key="[Skin],show_sync_button_compact">1</attribute>
+      <attribute persist="true" config_key="[Skin],show_key_controls">1</attribute>
+      <attribute persist="true" config_key="[Skin],show_key_controls_compact">1</attribute>
+      <attribute persist="true" config_key="[Skin],show_vumeters_compact">1</attribute>
+
+    <!-- Mixer -->
+      <attribute persist="true" config_key="[Skin],show_mixer">1</attribute>
+      <attribute persist="true" config_key="[Skin],show_main_head_mixer">1</attribute>
+      <attribute persist="true" config_key="[Skin],show_eq_knobs">1</attribute>
+      <attribute persist="true" config_key="[Skin],show_eq_kill_buttons">1</attribute>
+      <attribute persist="true" config_key="[Skin],show_xfader">1</attribute>
+      <attribute persist="true" config_key="[LateNight],show_vumeters_compact">1</attribute>
+    <!-- Effects, samplers, mic and aux start folded, each with its toolbar
+         button (design 14.3). SkinControls creates their controls before
+         the skin loads; crate::applySkinDefaults() gives them these values
+         on a first start, and the user's choice persists from then on -->
+    <!-- Effects -->
+      <attribute persist="true" config_key="[Skin],show_effectrack">0</attribute>
+      <attribute persist="true" config_key="[Skin],show_4effectunits">0</attribute>
+      <attribute persist="true" config_key="[Skin],show_superknobs">0</attribute>
+    <!-- Samplers -->
+      <attribute persist="true" config_key="[Skin],show_samplers">0</attribute>
+      <attribute persist="true" config_key="[LateNight],sampler_rows">1</attribute>
+      <attribute persist="true" config_key="[LateNight],expand_samplers_1-4">0</attribute>
+      <attribute persist="true" config_key="[LateNight],expand_samplers_1-8">0</attribute>
+      <attribute persist="true" config_key="[LateNight],expand_samplers_9-16">0</attribute>
+    <!-- Mic / Aux -->
+      <attribute persist="true" config_key="[Skin],show_microphones">0</attribute>
+    <!-- Library -->
+      <attribute config_key="[Skin],show_maximized_library">0</attribute>
+      <attribute persist="true" config_key="[LateNight],max_lib_show_decks">1</attribute>
+      <attribute persist="true" config_key="[Skin],show_preview_decks">0</attribute>
+      <attribute persist="true" config_key="[Skin],show_library_coverart">1</attribute>
+
+    <!-- Disable hidden effect routing Buttons -->
+      <attribute persist="false" config_key="[EffectRack1_EffectUnit1],group_[MasterOutput]_enable">0</attribute>
+      <attribute persist="false" config_key="[EffectRack1_EffectUnit1],group_[BusLeft]_enable">0</attribute>
+      <attribute persist="false" config_key="[EffectRack1_EffectUnit1],group_[BusCenter]_enable">0</attribute>
+      <attribute persist="false" config_key="[EffectRack1_EffectUnit1],group_[BusRight]_enable">0</attribute>
+      <attribute persist="false" config_key="[EffectRack1_EffectUnit1],group_[BusTalkover]_enable">0</attribute>
+      <attribute persist="false" config_key="[EffectRack1_EffectUnit2],group_[MasterOutput]_enable">0</attribute>
+      <attribute persist="false" config_key="[EffectRack1_EffectUnit2],group_[BusLeft]_enable">0</attribute>
+      <attribute persist="false" config_key="[EffectRack1_EffectUnit2],group_[BusCenter]_enable">0</attribute>
+      <attribute persist="false" config_key="[EffectRack1_EffectUnit2],group_[BusRight]_enable">0</attribute>
+      <attribute persist="false" config_key="[EffectRack1_EffectUnit2],group_[BusTalkover]_enable">0</attribute>
+      <attribute persist="false" config_key="[EffectRack1_EffectUnit3],group_[MasterOutput]_enable">0</attribute>
+      <attribute persist="false" config_key="[EffectRack1_EffectUnit3],group_[BusLeft]_enable">0</attribute>
+      <attribute persist="false" config_key="[EffectRack1_EffectUnit3],group_[BusCenter]_enable">0</attribute>
+      <attribute persist="false" config_key="[EffectRack1_EffectUnit3],group_[BusRight]_enable">0</attribute>
+      <attribute persist="false" config_key="[EffectRack1_EffectUnit3],group_[BusTalkover]_enable">0</attribute>
+      <attribute persist="false" config_key="[EffectRack1_EffectUnit4],group_[MasterOutput]_enable">0</attribute>
+      <attribute persist="false" config_key="[EffectRack1_EffectUnit4],group_[BusLeft]_enable">0</attribute>
+      <attribute persist="false" config_key="[EffectRack1_EffectUnit4],group_[BusCenter]_enable">0</attribute>
+      <attribute persist="false" config_key="[EffectRack1_EffectUnit4],group_[BusRight]_enable">0</attribute>
+      <attribute persist="false" config_key="[EffectRack1_EffectUnit4],group_[BusTalkover]_enable">0</attribute>
+    </attributes>
+  </manifest>
+
+  <!-- A single scheme (plan V2.PR1): the admin is dark and solid only -->
+  <Schemes>
+    <Scheme>
+      <Name>Crate</Name>
+      <Style src="skins:CrateDecks/generated/style.qss"/>
+    </Scheme>
+  </Schemes>
+
+  <ObjectName>Mixxx</ObjectName>
+  <Style src="skins:CrateDecks/style.qss"
+         src-linux="skins:default-menu-styles-linux.qss"
+         src-windows="skins:default-menu-styles-windows.qss"/>
+  <SizePolicy>e,e</SizePolicy>
+  <Layout>vertical</Layout>
+  <Children>
+    <Template src="skins:CrateDecks/generated/vars.xml"/>
+  </Children>
+</skin>

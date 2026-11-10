@@ -1,0 +1,9 @@
+Solar Icons Set by 480 Design
+https://www.figma.com/community/file/1166831539721848736
+Licensed under CC BY 4.0: https://creativecommons.org/licenses/by/4.0/
+
+The SVG files in this directory were extracted from the npm package
+@solar-icons/react 2.3.3 by Hakim Saoudi (MIT, see LICENSE and
+LICENSE-THIRD-PARTY), https://github.com/saoudi-h/solar-icons.
+Changes: each icon was converted from a React module into a standalone SVG
+file; tools/crate-design/generate.py recolours them for each state.

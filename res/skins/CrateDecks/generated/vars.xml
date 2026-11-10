@@ -1,0 +1,300 @@
+<!--
+  Crate Decks skin variables, from res/crate-design/tokens.json.
+  Template for tools/crate-design/generate.py. Colours are #rrggbb, or
+  #aarrggbb when they have alpha; lengths are in pixels.
+
+  A <Template> keeps its variables to itself, so skin.xml instantiates this
+  file and this file instantiates the layout of the skin (main.xml) at its
+  end: every template of the skin then sees these variables. C++ reads the
+  layout breakpoints from here too (crate/ui/skin/).
+-->
+<Template>
+  <!-- Surfaces and text -->
+  <SetVariable name="CrateBgApp">#0a0a0f</SetVariable>
+  <SetVariable name="CrateBgPanel">#0d0e14</SetVariable>
+  <SetVariable name="CrateBgRaised">#0f1016</SetVariable>
+  <SetVariable name="CrateBorder">#1af1f5f9</SetVariable>
+  <SetVariable name="CrateTextPrimary">#f1f5f9</SetVariable>
+  <SetVariable name="CrateTextMuted">#999ca0</SetVariable>
+  <SetVariable name="CrateTextSubtle">#7e8084</SetVariable>
+  <SetVariable name="CrateAccent">#06b6d4</SetVariable>
+  <SetVariable name="CrateAccentHi">#67e8f9</SetVariable>
+  <SetVariable name="CrateWarning">#fbbf24</SetVariable>
+  <SetVariable name="CrateDanger">#ef4444</SetVariable>
+
+  <!-- Fonts -->
+  <SetVariable name="CrateFontBody">Roboto</SetVariable>
+  <SetVariable name="CrateFontDisplay">Bricolage Grotesque</SetVariable>
+  <SetVariable name="CrateFontMono">JetBrains Mono</SetVariable>
+  <SetVariable name="CrateDeckNumberFont">Bricolage Grotesque</SetVariable>
+  <SetVariable name="CrateDeckNumberWeight">700</SetVariable>
+  <SetVariable name="CrateDeckNumberSize">34</SetVariable>
+  <SetVariable name="CrateDeckNumberSizeCompact">26</SetVariable>
+  <SetVariable name="CrateHotcueRadius">10</SetVariable>
+
+  <!-- Deck colours (design 14.3): A and C cyan, B and D cold white -->
+  <SetVariable name="CrateDeckA">#67e8f9</SetVariable>
+  <SetVariable name="CrateDeckB">#f1f5f9</SetVariable>
+  <SetVariable name="CrateDeckC">#67e8f9</SetVariable>
+  <SetVariable name="CrateDeckD">#f1f5f9</SetVariable>
+  <SetVariable name="CrateDeckAC">#67e8f9</SetVariable>
+  <SetVariable name="CrateDeckBD">#f1f5f9</SetVariable>
+
+  <!-- Waveforms and overviews -->
+  <SetVariable name="CrateWaveBg">#0a0a0f</SetVariable>
+  <SetVariable name="CrateWaveLowAccent">#0e7490</SetVariable>
+  <SetVariable name="CrateWaveMidAccent">#06b6d4</SetVariable>
+  <SetVariable name="CrateWaveHighAccent">#67e8f9</SetVariable>
+  <SetVariable name="CrateWaveLowNeutral">#4a4c52</SetVariable>
+  <SetVariable name="CrateWaveMidNeutral">#999ca0</SetVariable>
+  <SetVariable name="CrateWaveHighNeutral">#f1f5f9</SetVariable>
+  <SetVariable name="CrateWavePlayhead">#f1f5f9</SetVariable>
+  <SetVariable name="CrateWaveBeat">#33f1f5f9</SetVariable>
+  <SetVariable name="CrateWaveDownbeat">#66f1f5f9</SetVariable>
+  <SetVariable name="CrateWaveOverviewBg">#0d0e14</SetVariable>
+  <SetVariable name="CrateWaveOverviewPlayed">#8c0a0a0f</SetVariable>
+  <!-- Bands per deck pair: wavePaletteDeckAC picks the logo bands
+       (Accent) or the reserve greys for decks A and C -->
+  <SetVariable name="CrateWaveLowAC">#0e7490</SetVariable>
+  <SetVariable name="CrateWaveMidAC">#06b6d4</SetVariable>
+  <SetVariable name="CrateWaveHighAC">#67e8f9</SetVariable>
+  <SetVariable name="CrateWaveLowBD">#4a4c52</SetVariable>
+  <SetVariable name="CrateWaveMidBD">#999ca0</SetVariable>
+  <SetVariable name="CrateWaveHighBD">#f1f5f9</SetVariable>
+
+  <!-- Level meters (crate/ui/skin/mixerstyle.cpp paints them): the deck
+       colour, warning from vuWarningDb on Mixxx's meter scale
+       (CrateVuWarningLevel), a 1 px peak hold -->
+  <SetVariable name="CrateVuLevel">#67e8f9</SetVariable>
+  <SetVariable name="CrateVuWarning">#fbbf24</SetVariable>
+  <SetVariable name="CrateVuClip">#ef4444</SetVariable>
+  <SetVariable name="CrateVuTrack">#0ff1f5f9</SetVariable>
+  <SetVariable name="CrateVuClipTrack">#2eef4444</SetVariable>
+  <SetVariable name="CrateVuWarningDb">-6</SetVariable>
+  <SetVariable name="CrateVuWarningLevel">0.7412</SetVariable>
+  <SetVariable name="CrateVuWarningRule">#0a0a0f</SetVariable>
+  <SetVariable name="CrateVuBarWidth">4</SetVariable>
+  <SetVariable name="CrateVuClipGap">2</SetVariable>
+  <SetVariable name="CrateVuPeakHold">1</SetVariable>
+  <SetVariable name="CrateVuPeakHoldTime">500</SetVariable>
+  <SetVariable name="CrateVuPeakFallTime">1000</SetVariable>
+  <SetVariable name="CrateLaneTrack">#1af1f5f9</SetVariable>
+
+  <!-- Knobs: knob-scale.svg and knob-dot.svg are drawn on a canvas of
+       40 px that each knob stretches; the arc of WKnobComposed
+       runs on the ring, so its radius follows the knob size. The arc takes
+       the colour of the deck (CrateDeckAC and CrateDeckBD) -->
+  <SetVariable name="CrateKnobSize">36</SetVariable>
+  <SetVariable name="CrateKnobSizeCompact">30</SetVariable>
+  <SetVariable name="CrateKnobSizeFourShort">26</SetVariable>
+  <SetVariable name="CrateKnobArcRadius">12.15</SetVariable>
+  <SetVariable name="CrateKnobArcRadiusCompact">10.125</SetVariable>
+  <SetVariable name="CrateKnobArcRadiusFourShort">8.775</SetVariable>
+  <SetVariable name="CrateKnobArcColor">#67e8f9</SetVariable>
+  <SetVariable name="CrateKnobArcWidth">1.5</SetVariable>
+  <SetVariable name="CrateKnobHalfSweep">135</SetVariable>
+  <SetVariable name="CrateKnobSweep">270</SetVariable>
+
+  <!-- Faders: the handle is fader-handle-*.svg; crate/ui/skin/mixerstyle.cpp
+       paints the rail and ticks at the fader's real length and fills the
+       handle in the fader's colour while it moves or syncs -->
+  <SetVariable name="CrateFaderRail">1</SetVariable>
+  <SetVariable name="CrateFaderRailColor">#33f1f5f9</SetVariable>
+  <SetVariable name="CrateFaderTickColor">#4a4c52</SetVariable>
+  <SetVariable name="CrateFaderCentreTickColor">#999ca0</SetVariable>
+  <SetVariable name="CrateFaderTickStep">10</SetVariable>
+  <SetVariable name="CrateFaderTickGap">2</SetVariable>
+  <SetVariable name="CrateFaderTickLong">7</SetVariable>
+  <SetVariable name="CrateFaderTickShort">3</SetVariable>
+  <SetVariable name="CrateFaderHandleWidth">18</SetVariable>
+  <SetVariable name="CrateFaderHandleHeight">10</SetVariable>
+  <SetVariable name="CrateFaderHandleLength">11</SetVariable>
+  <SetVariable name="CrateFaderHandleLine">8</SetVariable>
+  <SetVariable name="CrateFaderHandleRadius">2</SetVariable>
+  <SetVariable name="CrateFaderHandleLineActive">#0a0a0f</SetVariable>
+  <SetVariable name="CrateFaderActiveHold">250</SetVariable>
+  <SetVariable name="CrateFaderWidth">30</SetVariable>
+  <SetVariable name="CratePitchFaderWidth">34</SetVariable>
+
+  <!-- Layout: the 1366 x 768 breakpoints of the GU1 mockups (C++ sets
+       [CrateDecks],layout_narrow and layout_short from them) -->
+  <SetVariable name="CrateLayoutNarrowBelow">1500</SetVariable>
+  <SetVariable name="CrateLayoutShortBelow">800</SetVariable>
+  <!-- Toolbar readings -->
+  <SetVariable name="CrateReadingMinWidth">64</SetVariable>
+  <SetVariable name="CrateLaneMeter">1</SetVariable>
+
+  <!-- Cache and download level ring -->
+  <SetVariable name="CrateLevelRingRadius">7</SetVariable>
+  <SetVariable name="CrateLevelRingWidth">1.5</SetVariable>
+  <SetVariable name="CrateLevelRingTrackWidth">1</SetVariable>
+  <SetVariable name="CrateLevelRingMinimum">0.04</SetVariable>
+
+  <!-- Library: crate/ui/delegates/ paints its cells and its sidebar, and
+       crate/ui/skin/librarystyle.cpp its rows, column headers and deck
+       letters (GU1 mockups decks.css .tracks and .side) -->
+  <SetVariable name="CrateTextSecondary">#c7f1f5f9</SetVariable>
+  <SetVariable name="CrateTextFaint">#4a4c52</SetVariable>
+  <SetVariable name="CrateNavIdle">#6bffffff</SetVariable>
+  <SetVariable name="CrateBorderSubtle">#0ff1f5f9</SetVariable>
+  <SetVariable name="CrateRowHover">#0a06b6d4</SetVariable>
+  <SetVariable name="CrateRowSelected">#1406b6d4</SetVariable>
+  <SetVariable name="CrateAccentHiBorder">#6667e8f9</SetVariable>
+  <SetVariable name="CrateWarningText">#f9c94a</SetVariable>
+  <SetVariable name="CrateRule">1</SetVariable>
+  <SetVariable name="CrateActiveBarWidth">2</SetVariable>
+  <SetVariable name="CrateStatusDot">6</SetVariable>
+  <SetVariable name="CrateTrackingCaps">0.14</SetVariable>
+  <SetVariable name="CrateLineHeightLabel">1.4</SetVariable>
+  <SetVariable name="CrateLibRowHeight">30</SetVariable>
+  <SetVariable name="CrateLibHeaderHeight">32</SetVariable>
+  <SetVariable name="CrateLibCellPadding">10</SetVariable>
+  <SetVariable name="CrateLibDeckMarkWidth">34</SetVariable>
+  <SetVariable name="CrateLibColumnBpm">76</SetVariable>
+  <SetVariable name="CrateLibColumnKey">54</SetVariable>
+  <SetVariable name="CrateLibColumnTime">60</SetVariable>
+  <SetVariable name="CrateLibColumnEnergy">46</SetVariable>
+  <SetVariable name="CrateLibColumnProfile">108</SetVariable>
+  <SetVariable name="CrateLibColumnCache">58</SetVariable>
+  <SetVariable name="CrateLibColumnArtist">0.16</SetVariable>
+  <SetVariable name="CrateLibColumnGenre">0.13</SetVariable>
+  <SetVariable name="CrateLibFontSizeText">13</SetVariable>
+  <SetVariable name="CrateLibFontSizeMeta">11</SetVariable>
+  <SetVariable name="CrateLibFontSizeHeader">10.5</SetVariable>
+  <SetVariable name="CrateLibFontSizeMark">10</SetVariable>
+  <SetVariable name="CrateLibFontSizeNav">10.3125</SetVariable>
+  <SetVariable name="CrateLibStateGap">6</SetVariable>
+  <SetVariable name="CrateLibChipHeight">20</SetVariable>
+  <SetVariable name="CrateLibChipPadding">7</SetVariable>
+  <SetVariable name="CrateLibSmallIcon">12</SetVariable>
+  <!-- The Auto DJ and Analyze bars: the library's gutter, the buttons'
+       height inside the 44 px row and their gap -->
+  <SetVariable name="CrateLibBarGutter">20</SetVariable>
+  <SetVariable name="CrateLibBarPadding">6</SetVariable>
+  <SetVariable name="CrateLibBarGap">8</SetVariable>
+  <SetVariable name="CrateSidebarItemInset">8</SetVariable>
+  <SetVariable name="CrateSidebarItemPadding">10</SetVariable>
+  <SetVariable name="CrateSidebarIndent">20</SetVariable>
+  <SetVariable name="CrateSidebarIcon">16</SetVariable>
+  <SetVariable name="CrateSidebarIconGap">8</SetVariable>
+  <SetVariable name="CrateSidebarBarInset">6</SetVariable>
+  <SetVariable name="CrateSidebarSectionTop">14</SetVariable>
+  <SetVariable name="CrateSidebarSectionX">16</SetVariable>
+  <SetVariable name="CrateSidebarSectionBottom">6</SetVariable>
+
+  <!-- Dialogs, Preferences, first start and About (crate/ui/dialogs/):
+       the sizes C++ lays out with; QSS (generated/default.qss) has the rest -->
+  <!-- What dims the main window behind a blocking dialog (DialogScrim) -->
+  <SetVariable name="CrateScrim">#b80a0a0f</SetVariable>
+  <SetVariable name="CrateDlgDialogTitleHeight">44</SetVariable>
+  <SetVariable name="CrateDlgDialogPaddingX">16</SetVariable>
+  <SetVariable name="CrateDlgDialogFootPaddingY">12</SetVariable>
+  <SetVariable name="CrateDlgDialogTitleGap">12</SetVariable>
+  <SetVariable name="CrateDlgDialogButtonGap">8</SetVariable>
+  <SetVariable name="CrateDlgDialogLogoWidth">16</SetVariable>
+  <SetVariable name="CrateDlgDialogLogoHeight">17</SetVariable>
+  <SetVariable name="CrateDlgIconButtonSize">32</SetVariable>
+  <SetVariable name="CrateDlgPrefsWidth">1180</SetVariable>
+  <SetVariable name="CrateDlgPrefsHeight">940</SetVariable>
+  <SetVariable name="CrateDlgPrefsNavWidth">232</SetVariable>
+  <SetVariable name="CrateDlgPrefsNavPaddingY">10</SetVariable>
+  <SetVariable name="CrateDlgPrefsNavRowHeight">32</SetVariable>
+  <SetVariable name="CrateDlgPrefsNavLogoWidth">15</SetVariable>
+  <SetVariable name="CrateDlgPrefsNavLogoHeight">16</SetVariable>
+  <SetVariable name="CrateDlgPrefsPagePaddingY">22</SetVariable>
+  <SetVariable name="CrateDlgPrefsPagePaddingX">36</SetVariable>
+  <SetVariable name="CrateDlgFontWeightPrefsTitle">600</SetVariable>
+  <SetVariable name="CrateDlgTrackingPrefsTitle">-0.04</SetVariable>
+  <SetVariable name="CrateDlgPrefsTitleGap">6</SetVariable>
+  <SetVariable name="CrateDlgPrefsIntroGap">22</SetVariable>
+  <SetVariable name="CrateDlgPrefsIntroMaxWidth">680</SetVariable>
+  <SetVariable name="CrateDlgPrefsSectionPaddingTop">18</SetVariable>
+  <SetVariable name="CrateDlgPrefsSectionPaddingBottom">20</SetVariable>
+  <SetVariable name="CrateDlgPrefsSectionLabelGap">12</SetVariable>
+  <SetVariable name="CrateDlgPrefsRowLabelWidth">220</SetVariable>
+  <SetVariable name="CrateDlgPrefsRowLabelWidthColumn">96</SetVariable>
+  <SetVariable name="CrateDlgPrefsRowGap">18</SetVariable>
+  <SetVariable name="CrateDlgPrefsColumnGap">40</SetVariable>
+  <SetVariable name="CrateDlgPrefsHintGap">2</SetVariable>
+  <SetVariable name="CrateDlgServerGap">14</SetVariable>
+  <SetVariable name="CrateDlgServerPaddingY">12</SetVariable>
+  <SetVariable name="CrateDlgServerNameGap">3</SetVariable>
+  <SetVariable name="CrateDlgServerMetaGap">10</SetVariable>
+  <SetVariable name="CrateDlgFeatureBadgeHeight">22</SetVariable>
+  <SetVariable name="CrateDlgFeatureBadgePaddingX">8</SetVariable>
+  <SetVariable name="CrateDlgFeatureGap">6</SetVariable>
+  <SetVariable name="CrateDlgFeaturesTop">8</SetVariable>
+  <SetVariable name="CrateDlgStatusBadgePaddingX">9</SetVariable>
+  <SetVariable name="CrateDlgHelperGap">10</SetVariable>
+  <SetVariable name="CrateDlgAddServerTop">14</SetVariable>
+  <SetVariable name="CrateDlgSwitchWidth">32</SetVariable>
+  <SetVariable name="CrateDlgSwitchHeight">18</SetVariable>
+  <SetVariable name="CrateDlgSwitchKnob">14</SetVariable>
+  <SetVariable name="CrateDlgCacheGaugeSize">64</SetVariable>
+  <SetVariable name="CrateDlgCacheGaugeRadius">24</SetVariable>
+  <SetVariable name="CrateDlgCacheGaugeTickGap">3</SetVariable>
+  <SetVariable name="CrateDlgCacheGaugeTickLong">5</SetVariable>
+  <SetVariable name="CrateDlgCacheGaugeTickShort">2</SetVariable>
+  <SetVariable name="CrateDlgCacheLimitWidth">52</SetVariable>
+  <SetVariable name="CrateDlgCacheLimitMaximum">100</SetVariable>
+  <SetVariable name="CrateDlgFontSizeUsage">26</SetVariable>
+  <SetVariable name="CrateDlgUsageGap">16</SetVariable>
+  <SetVariable name="CrateDlgUsageBottom">12</SetVariable>
+  <SetVariable name="CrateDlgUsageNumberTop">4</SetVariable>
+  <SetVariable name="CrateDlgChipPaddingX">12</SetVariable>
+  <SetVariable name="CrateDlgChipPaddingY">4</SetVariable>
+  <SetVariable name="CrateDlgChipGap">8</SetVariable>
+  <SetVariable name="CrateDlgChipHeight">32</SetVariable>
+  <SetVariable name="CrateDlgTrackingChip">0.04</SetVariable>
+  <SetVariable name="CrateDlgSegmentLabelTop">4</SetVariable>
+  <SetVariable name="CrateDlgSegmentLabelBottom">10</SetVariable>
+  <SetVariable name="CrateDlgSegmentBottom">12</SetVariable>
+  <SetVariable name="CrateDlgFirstRunWidth">560</SetVariable>
+  <SetVariable name="CrateDlgFirstRunPaddingTop">32</SetVariable>
+  <SetVariable name="CrateDlgFirstRunPaddingX">36</SetVariable>
+  <SetVariable name="CrateDlgFirstRunPaddingBottom">28</SetVariable>
+  <SetVariable name="CrateDlgFirstRunGap">18</SetVariable>
+  <SetVariable name="CrateDlgFirstRunHeadGap">14</SetVariable>
+  <SetVariable name="CrateDlgFirstRunLogoWidth">40</SetVariable>
+  <SetVariable name="CrateDlgFirstRunLogoHeight">43</SetVariable>
+  <SetVariable name="CrateDlgFontSizeFirstRunTitle">34</SetVariable>
+  <SetVariable name="CrateDlgFirstRunActionsTop">4</SetVariable>
+  <!-- The Solar icon of message boxes (own brand: no platform or Mixxx icon) -->
+  <SetVariable name="CrateDlgMessageIconSize">32</SetVariable>
+  <SetVariable name="CrateDlgStepsGap">10</SetVariable>
+  <SetVariable name="CrateDlgStepGap">8</SetVariable>
+  <SetVariable name="CrateDlgFieldGap">8</SetVariable>
+  <SetVariable name="CrateDlgFieldPaddingX">12</SetVariable>
+  <SetVariable name="CrateDlgFieldIconGap">8</SetVariable>
+  <SetVariable name="CrateDlgButtonPaddingX">16</SetVariable>
+  <SetVariable name="CrateDlgButtonPaddingXSm">12</SetVariable>
+  <SetVariable name="CrateDlgButtonGapSm">6</SetVariable>
+  <SetVariable name="CrateDlgFontSizeButton">14</SetVariable>
+  <SetVariable name="CrateDlgFontWeightButton">500</SetVariable>
+  <SetVariable name="CrateDlgFontSizeHelper">11.5</SetVariable>
+  <SetVariable name="CrateDlgMenuPadding">4</SetVariable>
+  <SetVariable name="CrateDlgMenuItemPaddingX">8</SetVariable>
+  <SetVariable name="CrateDlgMenuSeparatorMargin">4</SetVariable>
+  <SetVariable name="CrateDlgTabPaddingX">14</SetVariable>
+  <SetVariable name="CrateDlgSplashLaneWidth">160</SetVariable>
+  <SetVariable name="CrateDlgSplashGap">18</SetVariable>
+  <SetVariable name="CrateDlgAboutWidth">560</SetVariable>
+  <SetVariable name="CrateDlgAboutMetaGap">6</SetVariable>
+  <SetVariable name="CrateDlgAboutTextHeight">160</SetVariable>
+  <SetVariable name="CrateDlgIconMd">18</SetVariable>
+  <SetVariable name="CrateDlgHeightControl">40</SetVariable>
+  <SetVariable name="CrateDlgHeightControlSm">32</SetVariable>
+  <SetVariable name="CrateDlgHeightControlLg">44</SetVariable>
+  <SetVariable name="CrateDlgStrokeHairline">1</SetVariable>
+  <SetVariable name="CrateDlgStrokeActive">1.5</SetVariable>
+  <SetVariable name="CrateDlgLineHeightBody">1.5</SetVariable>
+  <SetVariable name="CrateDlgFontSizeBody">15</SetVariable>
+  <SetVariable name="CrateDlgFontSizeCaption">13</SetVariable>
+  <SetVariable name="CrateDlgLineHeightLabel">1.4</SetVariable>
+  <SetVariable name="CrateDlgIconSm">16</SetVariable>
+  <SetVariable name="CrateDlgTickCount">48</SetVariable>
+  <SetVariable name="CrateDlgTickEvery">4</SetVariable>
+
+  <!-- The layout of the skin, with every variable above in scope -->
+  <Template src="skins:CrateDecks/main.xml"/>
+</Template>

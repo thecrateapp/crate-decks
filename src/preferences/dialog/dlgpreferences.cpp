@@ -42,6 +42,7 @@
 #ifdef __CRATE__
 // Crate Decks: the Crate page (F2.C-PR3).
 #include "crate/crateservers.h"
+#include "crate/ui/dialogs/preferenceschrome.h"
 #include "crate/ui/dlgprefcrate.h"
 #endif // __CRATE__
 
@@ -128,16 +129,6 @@ DlgPreferences::DlgPreferences(
                           new QTreeWidgetItem(contentsTreeWidget, QTreeWidgetItem::Type)),
             tr("Library"),
             "ic_preferences_library.svg");
-
-#ifdef __CRATE__
-    // Crate Decks: the Crate servers of this installation (F2.C-PR3).
-    if (crate::CrateServers* pCrateServers = crate::CrateServers::instance()) {
-        addPageWidget(PreferencesPage(new crate::DlgPrefCrate(this, pCrateServers),
-                              new QTreeWidgetItem(contentsTreeWidget, QTreeWidgetItem::Type)),
-                tr("Crate"),
-                "ic_preferences_library.svg");
-    }
-#endif // __CRATE__
 
     QTreeWidgetItem* pControllerRootItem =
             new QTreeWidgetItem(contentsTreeWidget, QTreeWidgetItem::Type);
@@ -267,6 +258,18 @@ DlgPreferences::DlgPreferences(
             "ic_preferences_modplug.svg");
 #endif // __MODPLUG__
 
+#ifdef __CRATE__
+    // Crate Decks: the Crate servers of this installation (F2.C-PR3), last,
+    // as in the approved GU1 mockups, with the Crate logo (V2.PR5).
+    if (crate::CrateServers* pCrateServers = crate::CrateServers::instance()) {
+        auto* pCrateItem = new QTreeWidgetItem(contentsTreeWidget, QTreeWidgetItem::Type);
+        pCrateItem->setData(0, crate::kPreferencesLogoRole, true);
+        addPageWidget(PreferencesPage(new crate::DlgPrefCrate(this, pCrateServers), pCrateItem),
+                tr("Crate"),
+                QString());
+    }
+#endif // __CRATE__
+
     // Find accept and apply buttons
     const auto buttons = buttonBox->buttons();
     for (QAbstractButton* button : buttons) {
@@ -292,6 +295,11 @@ DlgPreferences::DlgPreferences(
     // If we don't call this explicitly, then we default to showing the sound
     // hardware page but the tree item is not selected.
     showSoundHardwarePage();
+
+#ifdef __CRATE__
+    // Crate Decks: the dialog of the approved GU1 mockups (V2.PR5)
+    crate::stylePreferences(this);
+#endif // __CRATE__
 }
 
 DlgPreferences::~DlgPreferences() {

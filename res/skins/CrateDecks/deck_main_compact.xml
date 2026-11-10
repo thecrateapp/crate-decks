@@ -1,0 +1,88 @@
+<!--
+  A compact deck with four decks (GU1 mockups deck(compact)): header, track
+  row, overview, transport, and a row with the hotcue nodes and the stems
+  as chips, the last two in their own sizes below the 768 breakpoint; the
+  drop zone when it is empty. No phrase rule or Smart Mix
+  line, as in the mockups.
+Variables: ChanNum, Letter, Pair, and the deck's colours CrateDeck, WaveLow,
+  WaveMid and WaveHigh
+-->
+<Template>
+  <SetVariable name="Size">Four</SetVariable>
+  <SetVariable name="NumberSizeKey">[CrateDecks],layout_short</SetVariable>
+  <SetVariable name="CoverKey">[CrateDecks],layout_short</SetVariable>
+  <SetVariable name="CoverValue">0</SetVariable>
+  <WidgetGroup>
+    <ObjectName>CrateDeckMainFour</ObjectName>
+    <Layout>vertical</Layout>
+    <SizePolicy>me,me</SizePolicy>
+    <Children>
+      <Template src="skins:CrateDecks/deck_head.xml"/>
+      <Template src="skins:CrateDecks/deck_menu.xml">
+        <SetVariable name="Group">[Channel<Variable name="ChanNum"/>]</SetVariable>
+      </Template>
+      <WidgetGroup>
+        <ObjectName>CrateDeckBodyFour</ObjectName>
+        <Layout>vertical</Layout>
+        <SizePolicy>me,me</SizePolicy>
+        <Children>
+          <Template src="skins:CrateDecks/deck_track.xml"/>
+          <Template src="skins:CrateDecks/deck_overview.xml"/>
+          <!-- Transport and hotcues: 30 and 28 px, and 26 and 24 below the
+               768 breakpoint. Buttons have no highlight property to restyle
+               them with, so each size is its own set of widgets -->
+          <WidgetGroup>
+            <ObjectName>CrateDeckLowerFour</ObjectName>
+            <Layout>vertical</Layout>
+            <SizePolicy>me,max</SizePolicy>
+            <Children>
+              <Template src="skins:CrateDecks/deck_transport.xml">
+                <SetVariable name="InlineHotcues">5</SetVariable>
+              </Template>
+              <Template src="skins:CrateDecks/deck_cue_row.xml">
+                <SetVariable name="ChipsOff">0</SetVariable>
+              </Template>
+            </Children>
+            <Connection>
+              <ConfigKey>[CrateDecks],layout_short</ConfigKey>
+              <Transform><Not/></Transform>
+              <BindProperty>visible</BindProperty>
+            </Connection>
+          </WidgetGroup>
+          <WidgetGroup>
+            <ObjectName>CrateDeckLowerFourShort</ObjectName>
+            <Layout>vertical</Layout>
+            <SizePolicy>me,max</SizePolicy>
+            <Children>
+              <Template src="skins:CrateDecks/deck_transport.xml">
+                <SetVariable name="Size">FourShort</SetVariable>
+                <SetVariable name="InlineHotcues">5</SetVariable>
+              </Template>
+              <Template src="skins:CrateDecks/deck_cue_row.xml">
+                <SetVariable name="Size">FourShort</SetVariable>
+                <SetVariable name="ChipsOff">0</SetVariable>
+              </Template>
+            </Children>
+            <Connection>
+              <ConfigKey>[CrateDecks],layout_short</ConfigKey>
+              <BindProperty>visible</BindProperty>
+            </Connection>
+          </WidgetGroup>
+        </Children>
+        <Connection>
+          <ConfigKey>[Channel<Variable name="ChanNum"/>],track_loaded</ConfigKey>
+          <BindProperty>visible</BindProperty>
+        </Connection>
+        <Connection>
+          <ConfigKey>[CrateDecks],layout_short</ConfigKey>
+          <BindProperty>highlight</BindProperty>
+        </Connection>
+      </WidgetGroup>
+      <Template src="skins:CrateDecks/deck_empty.xml"/>
+    </Children>
+    <Connection>
+      <ConfigKey>[CrateDecks],layout_short</ConfigKey>
+      <BindProperty>highlight</BindProperty>
+    </Connection>
+  </WidgetGroup>
+</Template>

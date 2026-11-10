@@ -493,13 +493,13 @@ bool CmdlineArgs::parse(const QStringList& arguments, CmdlineArgs::ParseMode mod
     if (parser.isSet(logLevel)) {
         if (!parseLogLevel(parser.value(logLevel), &m_logLevel)) {
             fputs("\nlog-level wasn't 'trace', 'debug', 'info', 'warning', or 'critical'!\n"
-                  "Mixxx will only print warnings and critical messages to the console.\n",
+                  "Only warnings and critical messages will be printed to the console.\n",
                     stdout);
         }
     } else if (parser.isSet(logLevelDeprecated)) {
         if (!parseLogLevel(parser.value(logLevelDeprecated), &m_logLevel)) {
             fputs("\nlogLevel wasn't 'trace', 'debug', 'info', 'warning', or 'critical'!\n"
-                  "Mixxx will only print warnings and critical messages to the console.\n",
+                  "Only warnings and critical messages will be printed to the console.\n",
                     stdout);
         }
     } else {
@@ -511,13 +511,13 @@ bool CmdlineArgs::parse(const QStringList& arguments, CmdlineArgs::ParseMode mod
     if (parser.isSet(logFlushLevel)) {
         if (!parseLogLevel(parser.value(logFlushLevel), &m_logFlushLevel)) {
             fputs("\nlog-flush-level wasn't 'trace', 'debug', 'info', 'warning', or 'critical'!\n"
-                  "Mixxx will only flush output after a critical message.\n",
+                  "Output will only be flushed after a critical message.\n",
                     stdout);
         }
     } else if (parser.isSet(logFlushLevelDeprecated)) {
         if (!parseLogLevel(parser.value(logFlushLevelDeprecated), &m_logFlushLevel)) {
             fputs("\nlogFlushLevel wasn't 'trace', 'debug', 'info', 'warning', or 'critical'!\n"
-                  "Mixxx will only flush output after a critical message.\n",
+                  "Output will only be flushed after a critical message.\n",
                     stdout);
         }
     }

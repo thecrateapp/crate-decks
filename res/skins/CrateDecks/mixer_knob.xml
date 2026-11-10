@@ -1,0 +1,83 @@
+<!--
+  A mixer knob (GU1 mockups .knob, design 14.3): the instrument scale of
+  knob-scale.svg with its hairline ring and 24 ticks, the value arc of
+  WKnobComposed in the colour of the deck, the dot of knob-dot.svg, and a
+  MonoLabel under it. The scale and the dot are drawn on the mockups' canvas
+  and stretched to the knob; the arc runs on the ring, so its radius changes
+  with the knob size. Two knobs of the same control, one per size, show by
+  the 768 px layout class.
+Variables:
+  Group, Control, TooltipId, Label
+  Size        : "" (two decks: 36 and 30 px) or "Four" (four decks: 30 and 26 px)
+  ArcRadius, ArcRadiusShort : the arc radius at each size (generated/vars.xml)
+  ArcColor    : the deck colour, CrateDeckAC or CrateDeckBD; the main and
+                headphone knobs take CrateKnobArcColor
+  ArcUnipolar : false for EQ, gain and filter (the arc grows from the centre)
+-->
+<Template>
+  <WidgetGroup>
+    <ObjectName>CrateKnobBox</ObjectName>
+    <Layout>vertical</Layout>
+    <SizePolicy>min,max</SizePolicy>
+    <Children>
+      <WidgetGroup>
+        <Layout>horizontal</Layout>
+        <SizePolicy>min,max</SizePolicy>
+        <Children>
+          <WidgetGroup><SizePolicy>me,min</SizePolicy></WidgetGroup>
+          <KnobComposed>
+            <ObjectName>CrateKnob<Variable name="Size"/></ObjectName>
+            <TooltipId><Variable name="TooltipId"/></TooltipId>
+            <BackPath scalemode="STRETCH">skins:CrateDecks/generated/controls/knob-scale.svg</BackPath>
+            <Knob scalemode="STRETCH">skins:CrateDecks/generated/controls/knob-dot.svg</Knob>
+            <MinAngle>-<Variable name="CrateKnobHalfSweep"/></MinAngle>
+            <MaxAngle><Variable name="CrateKnobHalfSweep"/></MaxAngle>
+            <ArcRadius><Variable name="ArcRadius"/></ArcRadius>
+            <ArcThickness><Variable name="CrateKnobArcWidth"/></ArcThickness>
+            <ArcColor><Variable name="ArcColor"/></ArcColor>
+            <ArcUnipolar><Variable name="ArcUnipolar"/></ArcUnipolar>
+            <ArcRoundCaps>true</ArcRoundCaps>
+            <Connection>
+              <ConfigKey><Variable name="Group"/>,<Variable name="Control"/></ConfigKey>
+            </Connection>
+            <Connection>
+              <ConfigKey>[CrateDecks],layout_short</ConfigKey>
+              <Transform><Not/></Transform>
+              <BindProperty>visible</BindProperty>
+            </Connection>
+          </KnobComposed>
+          <KnobComposed>
+            <ObjectName>CrateKnob<Variable name="Size"/>Short</ObjectName>
+            <TooltipId><Variable name="TooltipId"/></TooltipId>
+            <BackPath scalemode="STRETCH">skins:CrateDecks/generated/controls/knob-scale.svg</BackPath>
+            <Knob scalemode="STRETCH">skins:CrateDecks/generated/controls/knob-dot.svg</Knob>
+            <MinAngle>-<Variable name="CrateKnobHalfSweep"/></MinAngle>
+            <MaxAngle><Variable name="CrateKnobHalfSweep"/></MaxAngle>
+            <ArcRadius><Variable name="ArcRadiusShort"/></ArcRadius>
+            <ArcThickness><Variable name="CrateKnobArcWidth"/></ArcThickness>
+            <ArcColor><Variable name="ArcColor"/></ArcColor>
+            <ArcUnipolar><Variable name="ArcUnipolar"/></ArcUnipolar>
+            <ArcRoundCaps>true</ArcRoundCaps>
+            <Connection>
+              <ConfigKey><Variable name="Group"/>,<Variable name="Control"/></ConfigKey>
+            </Connection>
+            <Connection>
+              <ConfigKey>[CrateDecks],layout_short</ConfigKey>
+              <BindProperty>visible</BindProperty>
+            </Connection>
+          </KnobComposed>
+          <WidgetGroup><SizePolicy>me,min</SizePolicy></WidgetGroup>
+        </Children>
+      </WidgetGroup>
+      <Label>
+        <ObjectName>MonoKnobLabel</ObjectName>
+        <Text><Variable name="Label"/></Text>
+        <Alignment>center</Alignment>
+        <Connection>
+          <ConfigKey>[CrateDecks],layout_short</ConfigKey>
+          <BindProperty>highlight</BindProperty>
+        </Connection>
+      </Label>
+    </Children>
+  </WidgetGroup>
+</Template>

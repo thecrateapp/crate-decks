@@ -17,6 +17,9 @@ namespace crate::db {
 ///   `account_id` is the user's id on that server.
 /// - `crateserver_models` (Smart Mix Stems ST4): the models crate::ModelStore
 ///   downloaded and checked.
+/// - `crateserver_tracks`, `crateserver_containers` and
+///   `crateserver_container_tracks` (design §6, plan F3.C-PR1): the Crate
+///   library as Decks synced it, written by crate::library::LibrarySync.
 ///
 /// Returns false, after rolling back, if any statement fails.
 bool createCrateServerSchema(const QSqlDatabase& database);

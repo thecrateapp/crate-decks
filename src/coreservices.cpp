@@ -13,6 +13,7 @@
 #endif
 #ifdef __CRATE__
 #include "crate/crateservers.h"
+#include "crate/ui/skin/librarystyle.h"
 #endif
 #include "control/controlindicatortimer.h"
 #include "controllers/controllermanager.h"
@@ -596,6 +597,9 @@ void CoreServices::initialize() {
         crate::CrateServers::setInstance(m_pCrateServers.get());
         m_pCrateServers->start();
     }
+    // Crate Decks' defaults of the library preferences, before the
+    // preferences dialog saves Mixxx's
+    crate::applyLibraryDefaults(pConfig);
 #endif
 
     OverviewCache* pOverviewCache = OverviewCache::createInstance(pConfig, m_pDbConnectionPool);
@@ -612,6 +616,9 @@ void CoreServices::initialize() {
 
     bool musicDirAdded = false;
 
+#ifndef __CRATE__
+    // Crate Decks: local folders are optional next to the Crate library, and
+    // the first start offers them in its own page (crate::offerFirstRun)
     if (m_pTrackCollectionManager->internalCollection()->loadRootDirs().isEmpty()) {
 #if defined(Q_OS_IOS) || defined(Q_OS_WASM)
         // On the web and iOS, we are running in a sandbox (a virtual file
@@ -683,6 +690,7 @@ void CoreServices::initialize() {
             musicDirAdded = true;
         }
     }
+#endif // __CRATE__
 
     emit initializationProgressUpdate(60, tr("controllers"));
     // Initialize controller sub-system,

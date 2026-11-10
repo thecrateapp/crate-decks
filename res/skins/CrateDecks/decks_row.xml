@@ -1,0 +1,142 @@
+<!--
+  The decks and the mixer (GU1 mockups .decks): deck, mixer, deck with two
+  decks; A over C and B over D, compact, with four. The columns share the
+  width left by the mixer equally (grid 1fr auto 1fr).
+-->
+<Template>
+  <WidgetGroup>
+    <ObjectName>CrateDecksRow</ObjectName>
+    <Layout>horizontal</Layout>
+    <SizePolicy>me,max</SizePolicy>
+    <Children>
+      <WidgetGroup>
+        <ObjectName>CrateDecksColumn</ObjectName>
+        <Layout>vertical</Layout>
+        <SizePolicy>i,me</SizePolicy>
+        <Children>
+          <WidgetGroup>
+            <Layout>vertical</Layout>
+            <SizePolicy>me,me</SizePolicy>
+            <Children>
+              <Template src="skins:CrateDecks/deck_left.xml">
+                <SetVariable name="ChanNum">1</SetVariable>
+                <SetVariable name="Letter">A</SetVariable>
+                <SetVariable name="Pair">AC</SetVariable>
+                <SetVariable name="CrateDeck"><Variable name="CrateDeckAC"/></SetVariable>
+                <SetVariable name="WaveLow"><Variable name="CrateWaveLowAC"/></SetVariable>
+                <SetVariable name="WaveMid"><Variable name="CrateWaveMidAC"/></SetVariable>
+                <SetVariable name="WaveHigh"><Variable name="CrateWaveHighAC"/></SetVariable>
+              </Template>
+            </Children>
+            <Connection>
+              <ConfigKey>[Skin],show_4decks</ConfigKey>
+              <Transform><Not/></Transform>
+              <BindProperty>visible</BindProperty>
+            </Connection>
+          </WidgetGroup>
+          <WidgetGroup>
+            <Layout>vertical</Layout>
+            <SizePolicy>me,me</SizePolicy>
+            <Children>
+              <Template src="skins:CrateDecks/deck_compact_left.xml">
+                <SetVariable name="ChanNum">1</SetVariable>
+                <SetVariable name="Letter">A</SetVariable>
+                <SetVariable name="Pair">AC</SetVariable>
+                <SetVariable name="CrateDeck"><Variable name="CrateDeckAC"/></SetVariable>
+                <SetVariable name="WaveLow"><Variable name="CrateWaveLowAC"/></SetVariable>
+                <SetVariable name="WaveMid"><Variable name="CrateWaveMidAC"/></SetVariable>
+                <SetVariable name="WaveHigh"><Variable name="CrateWaveHighAC"/></SetVariable>
+              </Template>
+              <WidgetGroup><ObjectName>CrateDeckRule</ObjectName></WidgetGroup>
+              <Template src="skins:CrateDecks/deck_compact_left.xml">
+                <SetVariable name="ChanNum">3</SetVariable>
+                <SetVariable name="Letter">C</SetVariable>
+                <SetVariable name="Pair">AC</SetVariable>
+                <SetVariable name="CrateDeck"><Variable name="CrateDeckAC"/></SetVariable>
+                <SetVariable name="WaveLow"><Variable name="CrateWaveLowAC"/></SetVariable>
+                <SetVariable name="WaveMid"><Variable name="CrateWaveMidAC"/></SetVariable>
+                <SetVariable name="WaveHigh"><Variable name="CrateWaveHighAC"/></SetVariable>
+              </Template>
+            </Children>
+            <Connection>
+              <ConfigKey>[Skin],show_4decks</ConfigKey>
+              <BindProperty>visible</BindProperty>
+            </Connection>
+          </WidgetGroup>
+        </Children>
+      </WidgetGroup>
+      <WidgetGroup>
+        <ObjectName>CrateMixerBox</ObjectName>
+        <Layout>horizontal</Layout>
+        <SizePolicy>max,me</SizePolicy>
+        <Children>
+          <!-- The mixer's 1 px rules (.mixer border-left and right): a
+               group's QSS border is covered by the child that fills it -->
+          <WidgetGroup><ObjectName>CrateMixerRule</ObjectName></WidgetGroup>
+          <Template src="skins:CrateDecks/mixer.xml"/>
+          <WidgetGroup><ObjectName>CrateMixerRule</ObjectName></WidgetGroup>
+        </Children>
+        <Connection>
+          <ConfigKey persist="true">[Skin],show_mixer</ConfigKey>
+          <BindProperty>visible</BindProperty>
+        </Connection>
+      </WidgetGroup>
+      <WidgetGroup>
+        <ObjectName>CrateDecksColumn</ObjectName>
+        <Layout>vertical</Layout>
+        <SizePolicy>i,me</SizePolicy>
+        <Children>
+          <WidgetGroup>
+            <Layout>vertical</Layout>
+            <SizePolicy>me,me</SizePolicy>
+            <Children>
+              <Template src="skins:CrateDecks/deck_right.xml">
+                <SetVariable name="ChanNum">2</SetVariable>
+                <SetVariable name="Letter">B</SetVariable>
+                <SetVariable name="Pair">BD</SetVariable>
+                <SetVariable name="CrateDeck"><Variable name="CrateDeckBD"/></SetVariable>
+                <SetVariable name="WaveLow"><Variable name="CrateWaveLowBD"/></SetVariable>
+                <SetVariable name="WaveMid"><Variable name="CrateWaveMidBD"/></SetVariable>
+                <SetVariable name="WaveHigh"><Variable name="CrateWaveHighBD"/></SetVariable>
+              </Template>
+            </Children>
+            <Connection>
+              <ConfigKey>[Skin],show_4decks</ConfigKey>
+              <Transform><Not/></Transform>
+              <BindProperty>visible</BindProperty>
+            </Connection>
+          </WidgetGroup>
+          <WidgetGroup>
+            <Layout>vertical</Layout>
+            <SizePolicy>me,me</SizePolicy>
+            <Children>
+              <Template src="skins:CrateDecks/deck_compact_right.xml">
+                <SetVariable name="ChanNum">2</SetVariable>
+                <SetVariable name="Letter">B</SetVariable>
+                <SetVariable name="Pair">BD</SetVariable>
+                <SetVariable name="CrateDeck"><Variable name="CrateDeckBD"/></SetVariable>
+                <SetVariable name="WaveLow"><Variable name="CrateWaveLowBD"/></SetVariable>
+                <SetVariable name="WaveMid"><Variable name="CrateWaveMidBD"/></SetVariable>
+                <SetVariable name="WaveHigh"><Variable name="CrateWaveHighBD"/></SetVariable>
+              </Template>
+              <WidgetGroup><ObjectName>CrateDeckRule</ObjectName></WidgetGroup>
+              <Template src="skins:CrateDecks/deck_compact_right.xml">
+                <SetVariable name="ChanNum">4</SetVariable>
+                <SetVariable name="Letter">D</SetVariable>
+                <SetVariable name="Pair">BD</SetVariable>
+                <SetVariable name="CrateDeck"><Variable name="CrateDeckBD"/></SetVariable>
+                <SetVariable name="WaveLow"><Variable name="CrateWaveLowBD"/></SetVariable>
+                <SetVariable name="WaveMid"><Variable name="CrateWaveMidBD"/></SetVariable>
+                <SetVariable name="WaveHigh"><Variable name="CrateWaveHighBD"/></SetVariable>
+              </Template>
+            </Children>
+            <Connection>
+              <ConfigKey>[Skin],show_4decks</ConfigKey>
+              <BindProperty>visible</BindProperty>
+            </Connection>
+          </WidgetGroup>
+        </Children>
+      </WidgetGroup>
+    </Children>
+  </WidgetGroup>
+</Template>

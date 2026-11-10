@@ -1,0 +1,75 @@
+<!--
+  The deck menu (design 14.3, simplicity): the controls of LateNight that a
+  set rarely needs, out of the default view. It opens from the deck's menu
+  button, as a row under the header: slip, vinyl control and the loop
+  extras.
+Variables: ChanNum, Group
+-->
+<Template>
+  <WidgetGroup>
+    <Layout>horizontal</Layout>
+    <SizePolicy>me,max</SizePolicy>
+    <Children>
+      <WidgetGroup><SizePolicy>me,min</SizePolicy></WidgetGroup>
+      <WidgetGroup>
+        <ObjectName>CrateDeckMenu</ObjectName>
+        <Layout>horizontal</Layout>
+        <SizePolicy>min,min</SizePolicy>
+        <Children>
+          <Template src="skins:CrateDecks/controls/deck_text_button.xml">
+            <SetVariable name="Text">Slip</SetVariable>
+            <SetVariable name="TooltipId">slip_mode</SetVariable>
+            <SetVariable name="Kind">Menu</SetVariable>
+            <SetVariable name="ConfigKey"><Variable name="Group"/>,slip_enabled</SetVariable>
+          </Template>
+          <Template src="skins:CrateDecks/controls/deck_text_button.xml">
+            <SetVariable name="Text">Vinyl</SetVariable>
+            <SetVariable name="TooltipId">vinylcontrol_enabled</SetVariable>
+            <SetVariable name="Kind">Menu</SetVariable>
+            <SetVariable name="ConfigKey"><Variable name="Group"/>,vinylcontrol_enabled</SetVariable>
+          </Template>
+          <Template src="skins:CrateDecks/controls/deck_text_button.xml">
+            <SetVariable name="Text">In</SetVariable>
+            <SetVariable name="TooltipId">loop_in</SetVariable>
+            <SetVariable name="Kind">Menu</SetVariable>
+            <SetVariable name="ConfigKey"><Variable name="Group"/>,loop_in</SetVariable>
+          </Template>
+          <Template src="skins:CrateDecks/controls/deck_text_button.xml">
+            <SetVariable name="Text">Out</SetVariable>
+            <SetVariable name="TooltipId">loop_out</SetVariable>
+            <SetVariable name="Kind">Menu</SetVariable>
+            <SetVariable name="ConfigKey"><Variable name="Group"/>,loop_out</SetVariable>
+          </Template>
+          <Template src="skins:CrateDecks/controls/deck_text_button.xml">
+            <SetVariable name="Text">Reloop</SetVariable>
+            <SetVariable name="TooltipId">reloop_toggle</SetVariable>
+            <SetVariable name="Kind">Menu</SetVariable>
+            <SetVariable name="ConfigKey"><Variable name="Group"/>,reloop_toggle</SetVariable>
+          </Template>
+          <Template src="skins:CrateDecks/controls/deck_text_button.xml">
+            <SetVariable name="Text">1/2</SetVariable>
+            <SetVariable name="TooltipId">loop_halve</SetVariable>
+            <SetVariable name="Kind">Menu</SetVariable>
+            <SetVariable name="ConfigKey"><Variable name="Group"/>,loop_halve</SetVariable>
+          </Template>
+          <Template src="skins:CrateDecks/controls/deck_text_button.xml">
+            <SetVariable name="Text">Exit</SetVariable>
+            <SetVariable name="TooltipId">loop_exit</SetVariable>
+            <SetVariable name="Kind">Menu</SetVariable>
+            <SetVariable name="ConfigKey"><Variable name="Group"/>,loop_remove</SetVariable>
+          </Template>
+          <Template src="skins:CrateDecks/controls/deck_text_button.xml">
+            <SetVariable name="Text">Eject</SetVariable>
+            <SetVariable name="TooltipId">eject</SetVariable>
+            <SetVariable name="Kind">Menu</SetVariable>
+            <SetVariable name="ConfigKey"><Variable name="Group"/>,eject</SetVariable>
+          </Template>
+        </Children>
+      </WidgetGroup>
+    </Children>
+    <Connection>
+      <ConfigKey>[CrateDecks],deck<Variable name="ChanNum"/>_menu</ConfigKey>
+      <BindProperty>visible</BindProperty>
+    </Connection>
+  </WidgetGroup>
+</Template>

@@ -17,7 +17,9 @@ https://github.com/awjackson/bsnes-classic/blob/038e2e051ffc8abe7c56a3bf27e3016c
 
 #include "util/screensaver.h"
 
+#include <QCoreApplication>
 #include <QDebug>
+#include <QGuiApplication>
 #include <QtGlobal>
 
 #include "util/assert.h"
@@ -79,8 +81,10 @@ void ScreenSaverHelper::triggerUserActivity()
      Available from 10.7.3 */
     if (&IOPMAssertionDeclareUserActivity)
     {
-        CFStringRef reasonForActivity = CFStringCreateWithCString(kCFAllocatorDefault, 
-                "Mixxx digital DJ software", kCFStringEncodingUTF8);
+        // Crate Decks: the reason names the application, not Mixxx
+        CFStringRef reasonForActivity = CFStringCreateWithCString(kCFAllocatorDefault,
+                qPrintable(QCoreApplication::applicationName()),
+                kCFStringEncodingUTF8);
         IOReturn success = IOPMAssertionDeclareUserActivity(reasonForActivity,
                                          kIOPMUserActiveLocal,
                                          &s_userActivityAssertionID);
@@ -103,8 +107,10 @@ void ScreenSaverHelper::inhibitInternal()
     }
 
     IOReturn success;
-    CFStringRef reasonForActivity = CFStringCreateWithCString(kCFAllocatorDefault, 
-            "Mixxx digital DJ software", kCFStringEncodingUTF8);
+    // Crate Decks: the reason names the application, not Mixxx
+    CFStringRef reasonForActivity = CFStringCreateWithCString(kCFAllocatorDefault,
+            qPrintable(QCoreApplication::applicationName()),
+            kCFStringEncodingUTF8);
     success = IOPMAssertionCreateWithName(kIOPMAssertionTypeNoDisplaySleep, kIOPMAssertionLevelOn, 
             reasonForActivity, &s_systemSleepAssertionID);
     CFRelease(reasonForActivity);
@@ -251,7 +257,11 @@ void ScreenSaverHelper::inhibitInternal()
         QDBusInterface iface(SCREENSAVERS[i][0], SCREENSAVERS[i][1], SCREENSAVERS[i][2], 
             QDBusConnection::sessionBus());
         if (iface.isValid()) {
-            QDBusReply<uint32_t> reply = iface.call(SCREENSAVERS[i][3], "org.mixxxdj","Mixxx active");
+            // Crate Decks: desktops list the inhibitor by these, so they name
+            // the application, not Mixxx
+            QDBusReply<uint32_t> reply = iface.call(SCREENSAVERS[i][3],
+                    QGuiApplication::desktopFileName(),
+                    QCoreApplication::applicationName());
             if (reply.isValid()) {
                 s_cookie = reply.value();
                 s_saverindex = i;

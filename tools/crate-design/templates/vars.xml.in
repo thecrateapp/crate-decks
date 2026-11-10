@@ -1,0 +1,300 @@
+<!--
+  Crate Decks skin variables, from res/crate-design/tokens.json.
+  Template for tools/crate-design/generate.py. Colours are #rrggbb, or
+  #aarrggbb when they have alpha; lengths are in pixels.
+
+  A <Template> keeps its variables to itself, so skin.xml instantiates this
+  file and this file instantiates the layout of the skin (main.xml) at its
+  end: every template of the skin then sees these variables. C++ reads the
+  layout breakpoints from here too (crate/ui/skin/).
+-->
+<Template>
+  <!-- Surfaces and text -->
+  <SetVariable name="CrateBgApp">{{bgApp}}</SetVariable>
+  <SetVariable name="CrateBgPanel">{{bgPanel}}</SetVariable>
+  <SetVariable name="CrateBgRaised">{{bgRaised}}</SetVariable>
+  <SetVariable name="CrateBorder">{{border}}</SetVariable>
+  <SetVariable name="CrateTextPrimary">{{textPrimary}}</SetVariable>
+  <SetVariable name="CrateTextMuted">{{textMuted}}</SetVariable>
+  <SetVariable name="CrateTextSubtle">{{textSubtle}}</SetVariable>
+  <SetVariable name="CrateAccent">{{accent}}</SetVariable>
+  <SetVariable name="CrateAccentHi">{{accentHi}}</SetVariable>
+  <SetVariable name="CrateWarning">{{warning}}</SetVariable>
+  <SetVariable name="CrateDanger">{{danger}}</SetVariable>
+
+  <!-- Fonts -->
+  <SetVariable name="CrateFontBody">{{fontBody}}</SetVariable>
+  <SetVariable name="CrateFontDisplay">{{fontDisplay}}</SetVariable>
+  <SetVariable name="CrateFontMono">{{fontMono}}</SetVariable>
+  <SetVariable name="CrateDeckNumberFont">{{deckNumberFont}}</SetVariable>
+  <SetVariable name="CrateDeckNumberWeight">{{deckNumberWeight}}</SetVariable>
+  <SetVariable name="CrateDeckNumberSize">{{fontSizeDeckNumber}}</SetVariable>
+  <SetVariable name="CrateDeckNumberSizeCompact">{{fontSizeDeckNumberCompact}}</SetVariable>
+  <SetVariable name="CrateHotcueRadius">{{hotcueRadius}}</SetVariable>
+
+  <!-- Deck colours (design 14.3): A and C cyan, B and D cold white -->
+  <SetVariable name="CrateDeckA">{{deckA}}</SetVariable>
+  <SetVariable name="CrateDeckB">{{deckB}}</SetVariable>
+  <SetVariable name="CrateDeckC">{{deckC}}</SetVariable>
+  <SetVariable name="CrateDeckD">{{deckD}}</SetVariable>
+  <SetVariable name="CrateDeckAC">{{deckA}}</SetVariable>
+  <SetVariable name="CrateDeckBD">{{deckB}}</SetVariable>
+
+  <!-- Waveforms and overviews -->
+  <SetVariable name="CrateWaveBg">{{waveBg}}</SetVariable>
+  <SetVariable name="CrateWaveLowAccent">{{waveLowAccent}}</SetVariable>
+  <SetVariable name="CrateWaveMidAccent">{{waveMidAccent}}</SetVariable>
+  <SetVariable name="CrateWaveHighAccent">{{waveHighAccent}}</SetVariable>
+  <SetVariable name="CrateWaveLowNeutral">{{waveLowNeutral}}</SetVariable>
+  <SetVariable name="CrateWaveMidNeutral">{{waveMidNeutral}}</SetVariable>
+  <SetVariable name="CrateWaveHighNeutral">{{waveHighNeutral}}</SetVariable>
+  <SetVariable name="CrateWavePlayhead">{{wavePlayhead}}</SetVariable>
+  <SetVariable name="CrateWaveBeat">{{waveBeat}}</SetVariable>
+  <SetVariable name="CrateWaveDownbeat">{{waveDownbeat}}</SetVariable>
+  <SetVariable name="CrateWaveOverviewBg">{{waveOverviewBg}}</SetVariable>
+  <SetVariable name="CrateWaveOverviewPlayed">{{waveOverviewPlayed}}</SetVariable>
+  <!-- Bands per deck pair: wavePaletteDeckAC picks the logo bands
+       ({{wavePaletteDeckAC}}) or the reserve greys for decks A and C -->
+  <SetVariable name="CrateWaveLowAC">{{waveLowDeckAC}}</SetVariable>
+  <SetVariable name="CrateWaveMidAC">{{waveMidDeckAC}}</SetVariable>
+  <SetVariable name="CrateWaveHighAC">{{waveHighDeckAC}}</SetVariable>
+  <SetVariable name="CrateWaveLowBD">{{waveLowDeckBD}}</SetVariable>
+  <SetVariable name="CrateWaveMidBD">{{waveMidDeckBD}}</SetVariable>
+  <SetVariable name="CrateWaveHighBD">{{waveHighDeckBD}}</SetVariable>
+
+  <!-- Level meters (crate/ui/skin/mixerstyle.cpp paints them): the deck
+       colour, warning from vuWarningDb on Mixxx's meter scale
+       (CrateVuWarningLevel), a 1 px peak hold -->
+  <SetVariable name="CrateVuLevel">{{vuLevel}}</SetVariable>
+  <SetVariable name="CrateVuWarning">{{vuWarning}}</SetVariable>
+  <SetVariable name="CrateVuClip">{{vuClip}}</SetVariable>
+  <SetVariable name="CrateVuTrack">{{vuTrack}}</SetVariable>
+  <SetVariable name="CrateVuClipTrack">{{vuClipTrack}}</SetVariable>
+  <SetVariable name="CrateVuWarningDb">{{vuWarningDb}}</SetVariable>
+  <SetVariable name="CrateVuWarningLevel">{{vuWarningLevel}}</SetVariable>
+  <SetVariable name="CrateVuWarningRule">{{bgApp}}</SetVariable>
+  <SetVariable name="CrateVuBarWidth">{{vuBarWidth}}</SetVariable>
+  <SetVariable name="CrateVuClipGap">{{vuClipGap}}</SetVariable>
+  <SetVariable name="CrateVuPeakHold">{{vuPeakHold}}</SetVariable>
+  <SetVariable name="CrateVuPeakHoldTime">{{vuPeakHoldTime}}</SetVariable>
+  <SetVariable name="CrateVuPeakFallTime">{{vuPeakFallTime}}</SetVariable>
+  <SetVariable name="CrateLaneTrack">{{border}}</SetVariable>
+
+  <!-- Knobs: knob-scale.svg and knob-dot.svg are drawn on a canvas of
+       {{knobCanvas}} px that each knob stretches; the arc of WKnobComposed
+       runs on the ring, so its radius follows the knob size. The arc takes
+       the colour of the deck (CrateDeckAC and CrateDeckBD) -->
+  <SetVariable name="CrateKnobSize">{{knobSize}}</SetVariable>
+  <SetVariable name="CrateKnobSizeCompact">{{knobSizeCompact}}</SetVariable>
+  <SetVariable name="CrateKnobSizeFourShort">{{knobSizeFourShort}}</SetVariable>
+  <SetVariable name="CrateKnobArcRadius">{{knobArcRadius}}</SetVariable>
+  <SetVariable name="CrateKnobArcRadiusCompact">{{knobArcRadiusCompact}}</SetVariable>
+  <SetVariable name="CrateKnobArcRadiusFourShort">{{knobArcRadiusFourShort}}</SetVariable>
+  <SetVariable name="CrateKnobArcColor">{{accentHi}}</SetVariable>
+  <SetVariable name="CrateKnobArcWidth">{{knobArcWidth}}</SetVariable>
+  <SetVariable name="CrateKnobHalfSweep">{{knobSweep.half.number}}</SetVariable>
+  <SetVariable name="CrateKnobSweep">{{knobSweep}}</SetVariable>
+
+  <!-- Faders: the handle is fader-handle-*.svg; crate/ui/skin/mixerstyle.cpp
+       paints the rail and ticks at the fader's real length and fills the
+       handle in the fader's colour while it moves or syncs -->
+  <SetVariable name="CrateFaderRail">{{faderRail}}</SetVariable>
+  <SetVariable name="CrateFaderRailColor">{{borderHover}}</SetVariable>
+  <SetVariable name="CrateFaderTickColor">{{textFaint}}</SetVariable>
+  <SetVariable name="CrateFaderCentreTickColor">{{textMuted}}</SetVariable>
+  <SetVariable name="CrateFaderTickStep">{{faderTickStep}}</SetVariable>
+  <SetVariable name="CrateFaderTickGap">{{faderTickGap}}</SetVariable>
+  <SetVariable name="CrateFaderTickLong">{{tickLong}}</SetVariable>
+  <SetVariable name="CrateFaderTickShort">{{tickShort}}</SetVariable>
+  <SetVariable name="CrateFaderHandleWidth">{{faderHandleWidth}}</SetVariable>
+  <SetVariable name="CrateFaderHandleHeight">{{faderHandleHeight}}</SetVariable>
+  <SetVariable name="CrateFaderHandleLength">{{faderHandleLength}}</SetVariable>
+  <SetVariable name="CrateFaderHandleLine">{{faderHandleLine}}</SetVariable>
+  <SetVariable name="CrateFaderHandleRadius">{{radiusSm}}</SetVariable>
+  <SetVariable name="CrateFaderHandleLineActive">{{onAccent}}</SetVariable>
+  <SetVariable name="CrateFaderActiveHold">{{motionNormal}}</SetVariable>
+  <SetVariable name="CrateFaderWidth">{{faderWidth}}</SetVariable>
+  <SetVariable name="CratePitchFaderWidth">{{pitchFaderWidth}}</SetVariable>
+
+  <!-- Layout: the 1366 x 768 breakpoints of the GU1 mockups (C++ sets
+       [CrateDecks],layout_narrow and layout_short from them) -->
+  <SetVariable name="CrateLayoutNarrowBelow">{{layoutNarrowBelow}}</SetVariable>
+  <SetVariable name="CrateLayoutShortBelow">{{layoutShortBelow}}</SetVariable>
+  <!-- Toolbar readings -->
+  <SetVariable name="CrateReadingMinWidth">{{readingMinWidth}}</SetVariable>
+  <SetVariable name="CrateLaneMeter">{{laneMeter}}</SetVariable>
+
+  <!-- Cache and download level ring -->
+  <SetVariable name="CrateLevelRingRadius">{{levelRingRadius}}</SetVariable>
+  <SetVariable name="CrateLevelRingWidth">{{strokeActive}}</SetVariable>
+  <SetVariable name="CrateLevelRingTrackWidth">{{strokeHairline}}</SetVariable>
+  <SetVariable name="CrateLevelRingMinimum">{{levelRingMinimum}}</SetVariable>
+
+  <!-- Library: crate/ui/delegates/ paints its cells and its sidebar, and
+       crate/ui/skin/librarystyle.cpp its rows, column headers and deck
+       letters (GU1 mockups decks.css .tracks and .side) -->
+  <SetVariable name="CrateTextSecondary">{{textSecondary}}</SetVariable>
+  <SetVariable name="CrateTextFaint">{{textFaint}}</SetVariable>
+  <SetVariable name="CrateNavIdle">{{navIdle}}</SetVariable>
+  <SetVariable name="CrateBorderSubtle">{{borderSubtle}}</SetVariable>
+  <SetVariable name="CrateRowHover">{{rowHover}}</SetVariable>
+  <SetVariable name="CrateRowSelected">{{rowSelected}}</SetVariable>
+  <SetVariable name="CrateAccentHiBorder">{{accentHiBorder}}</SetVariable>
+  <SetVariable name="CrateWarningText">{{warningText}}</SetVariable>
+  <SetVariable name="CrateRule">{{strokeHairline}}</SetVariable>
+  <SetVariable name="CrateActiveBarWidth">{{activeBarWidth}}</SetVariable>
+  <SetVariable name="CrateStatusDot">{{statusDot}}</SetVariable>
+  <SetVariable name="CrateTrackingCaps">{{trackingCaps}}</SetVariable>
+  <SetVariable name="CrateLineHeightLabel">{{lineHeightLabel}}</SetVariable>
+  <SetVariable name="CrateLibRowHeight">{{heightLibraryRow}}</SetVariable>
+  <SetVariable name="CrateLibHeaderHeight">{{heightTableHeader}}</SetVariable>
+  <SetVariable name="CrateLibCellPadding">{{libraryCellPadding}}</SetVariable>
+  <SetVariable name="CrateLibDeckMarkWidth">{{libraryDeckMarkWidth}}</SetVariable>
+  <SetVariable name="CrateLibColumnBpm">{{libraryColumnBpm}}</SetVariable>
+  <SetVariable name="CrateLibColumnKey">{{libraryColumnKey}}</SetVariable>
+  <SetVariable name="CrateLibColumnTime">{{libraryColumnTime}}</SetVariable>
+  <SetVariable name="CrateLibColumnEnergy">{{libraryColumnEnergy}}</SetVariable>
+  <SetVariable name="CrateLibColumnProfile">{{libraryColumnProfile}}</SetVariable>
+  <SetVariable name="CrateLibColumnCache">{{libraryColumnCache}}</SetVariable>
+  <SetVariable name="CrateLibColumnArtist">{{libraryColumnArtist}}</SetVariable>
+  <SetVariable name="CrateLibColumnGenre">{{libraryColumnGenre}}</SetVariable>
+  <SetVariable name="CrateLibFontSizeText">{{fontSizeCaption}}</SetVariable>
+  <SetVariable name="CrateLibFontSizeMeta">{{fontSizeTable}}</SetVariable>
+  <SetVariable name="CrateLibFontSizeHeader">{{fontSizeMeta}}</SetVariable>
+  <SetVariable name="CrateLibFontSizeMark">{{fontSizeBadge}}</SetVariable>
+  <SetVariable name="CrateLibFontSizeNav">{{fontSizeMonoLabel}}</SetVariable>
+  <SetVariable name="CrateLibStateGap">{{libraryStateGap}}</SetVariable>
+  <SetVariable name="CrateLibChipHeight">{{badgeHeight}}</SetVariable>
+  <SetVariable name="CrateLibChipPadding">{{badgePadding}}</SetVariable>
+  <SetVariable name="CrateLibSmallIcon">{{iconMicro}}</SetVariable>
+  <!-- The Auto DJ and Analyze bars: the library's gutter, the buttons'
+       height inside the 44 px row and their gap -->
+  <SetVariable name="CrateLibBarGutter">{{gutter}}</SetVariable>
+  <SetVariable name="CrateLibBarPadding">{{heightSearchTall - heightControlSm.half}}</SetVariable>
+  <SetVariable name="CrateLibBarGap">{{iconTextGap}}</SetVariable>
+  <SetVariable name="CrateSidebarItemInset">{{sidebarItemInset}}</SetVariable>
+  <SetVariable name="CrateSidebarItemPadding">{{sidebarItemPadding}}</SetVariable>
+  <SetVariable name="CrateSidebarIndent">{{sidebarIndent}}</SetVariable>
+  <SetVariable name="CrateSidebarIcon">{{iconSm}}</SetVariable>
+  <SetVariable name="CrateSidebarIconGap">{{iconTextGap}}</SetVariable>
+  <SetVariable name="CrateSidebarBarInset">{{sidebarBarInset}}</SetVariable>
+  <SetVariable name="CrateSidebarSectionTop">{{sidebarSectionPaddingTop}}</SetVariable>
+  <SetVariable name="CrateSidebarSectionX">{{sidebarSectionPaddingX}}</SetVariable>
+  <SetVariable name="CrateSidebarSectionBottom">{{sidebarSectionPaddingBottom}}</SetVariable>
+
+  <!-- Dialogs, Preferences, first start and About (crate/ui/dialogs/):
+       the sizes C++ lays out with; QSS (generated/default.qss) has the rest -->
+  <!-- What dims the main window behind a blocking dialog (DialogScrim) -->
+  <SetVariable name="CrateScrim">{{scrim}}</SetVariable>
+  <SetVariable name="CrateDlgDialogTitleHeight">{{dialogTitleHeight}}</SetVariable>
+  <SetVariable name="CrateDlgDialogPaddingX">{{dialogPaddingX}}</SetVariable>
+  <SetVariable name="CrateDlgDialogFootPaddingY">{{dialogFootPaddingY}}</SetVariable>
+  <SetVariable name="CrateDlgDialogTitleGap">{{dialogTitleGap}}</SetVariable>
+  <SetVariable name="CrateDlgDialogButtonGap">{{dialogButtonGap}}</SetVariable>
+  <SetVariable name="CrateDlgDialogLogoWidth">{{dialogLogoWidth}}</SetVariable>
+  <SetVariable name="CrateDlgDialogLogoHeight">{{dialogLogoHeight}}</SetVariable>
+  <SetVariable name="CrateDlgIconButtonSize">{{iconButtonSize}}</SetVariable>
+  <SetVariable name="CrateDlgPrefsWidth">{{prefsWidth}}</SetVariable>
+  <SetVariable name="CrateDlgPrefsHeight">{{prefsHeight}}</SetVariable>
+  <SetVariable name="CrateDlgPrefsNavWidth">{{prefsNavWidth}}</SetVariable>
+  <SetVariable name="CrateDlgPrefsNavPaddingY">{{prefsNavPaddingY}}</SetVariable>
+  <SetVariable name="CrateDlgPrefsNavRowHeight">{{prefsNavRowHeight}}</SetVariable>
+  <SetVariable name="CrateDlgPrefsNavLogoWidth">{{prefsNavLogoWidth}}</SetVariable>
+  <SetVariable name="CrateDlgPrefsNavLogoHeight">{{prefsNavLogoHeight}}</SetVariable>
+  <SetVariable name="CrateDlgPrefsPagePaddingY">{{prefsPagePaddingY}}</SetVariable>
+  <SetVariable name="CrateDlgPrefsPagePaddingX">{{prefsPagePaddingX}}</SetVariable>
+  <SetVariable name="CrateDlgFontWeightPrefsTitle">{{fontWeightPrefsTitle}}</SetVariable>
+  <SetVariable name="CrateDlgTrackingPrefsTitle">{{trackingPrefsTitle}}</SetVariable>
+  <SetVariable name="CrateDlgPrefsTitleGap">{{prefsTitleGap}}</SetVariable>
+  <SetVariable name="CrateDlgPrefsIntroGap">{{prefsIntroGap}}</SetVariable>
+  <SetVariable name="CrateDlgPrefsIntroMaxWidth">{{prefsIntroMaxWidth}}</SetVariable>
+  <SetVariable name="CrateDlgPrefsSectionPaddingTop">{{prefsSectionPaddingTop}}</SetVariable>
+  <SetVariable name="CrateDlgPrefsSectionPaddingBottom">{{prefsSectionPaddingBottom}}</SetVariable>
+  <SetVariable name="CrateDlgPrefsSectionLabelGap">{{prefsSectionLabelGap}}</SetVariable>
+  <SetVariable name="CrateDlgPrefsRowLabelWidth">{{prefsRowLabelWidth}}</SetVariable>
+  <SetVariable name="CrateDlgPrefsRowLabelWidthColumn">{{prefsRowLabelWidthColumn}}</SetVariable>
+  <SetVariable name="CrateDlgPrefsRowGap">{{prefsRowGap}}</SetVariable>
+  <SetVariable name="CrateDlgPrefsColumnGap">{{prefsColumnGap}}</SetVariable>
+  <SetVariable name="CrateDlgPrefsHintGap">{{prefsHintGap}}</SetVariable>
+  <SetVariable name="CrateDlgServerGap">{{serverGap}}</SetVariable>
+  <SetVariable name="CrateDlgServerPaddingY">{{serverPaddingY}}</SetVariable>
+  <SetVariable name="CrateDlgServerNameGap">{{serverNameGap}}</SetVariable>
+  <SetVariable name="CrateDlgServerMetaGap">{{serverMetaGap}}</SetVariable>
+  <SetVariable name="CrateDlgFeatureBadgeHeight">{{featureBadgeHeight}}</SetVariable>
+  <SetVariable name="CrateDlgFeatureBadgePaddingX">{{featureBadgePaddingX}}</SetVariable>
+  <SetVariable name="CrateDlgFeatureGap">{{featureGap}}</SetVariable>
+  <SetVariable name="CrateDlgFeaturesTop">{{featuresTop}}</SetVariable>
+  <SetVariable name="CrateDlgStatusBadgePaddingX">{{statusBadgePaddingX}}</SetVariable>
+  <SetVariable name="CrateDlgHelperGap">{{helperGap}}</SetVariable>
+  <SetVariable name="CrateDlgAddServerTop">{{addServerTop}}</SetVariable>
+  <SetVariable name="CrateDlgSwitchWidth">{{switchWidth}}</SetVariable>
+  <SetVariable name="CrateDlgSwitchHeight">{{switchHeight}}</SetVariable>
+  <SetVariable name="CrateDlgSwitchKnob">{{switchKnob}}</SetVariable>
+  <SetVariable name="CrateDlgCacheGaugeSize">{{cacheGaugeSize}}</SetVariable>
+  <SetVariable name="CrateDlgCacheGaugeRadius">{{cacheGaugeRadius}}</SetVariable>
+  <SetVariable name="CrateDlgCacheGaugeTickGap">{{cacheGaugeTickGap}}</SetVariable>
+  <SetVariable name="CrateDlgCacheGaugeTickLong">{{cacheGaugeTickLong}}</SetVariable>
+  <SetVariable name="CrateDlgCacheGaugeTickShort">{{cacheGaugeTickShort}}</SetVariable>
+  <SetVariable name="CrateDlgCacheLimitWidth">{{cacheLimitWidth}}</SetVariable>
+  <SetVariable name="CrateDlgCacheLimitMaximum">{{cacheLimitMaximum}}</SetVariable>
+  <SetVariable name="CrateDlgFontSizeUsage">{{fontSizeUsage}}</SetVariable>
+  <SetVariable name="CrateDlgUsageGap">{{usageGap}}</SetVariable>
+  <SetVariable name="CrateDlgUsageBottom">{{usageBottom}}</SetVariable>
+  <SetVariable name="CrateDlgUsageNumberTop">{{usageNumberTop}}</SetVariable>
+  <SetVariable name="CrateDlgChipPaddingX">{{chipPaddingX}}</SetVariable>
+  <SetVariable name="CrateDlgChipPaddingY">{{chipPaddingY}}</SetVariable>
+  <SetVariable name="CrateDlgChipGap">{{chipGap}}</SetVariable>
+  <SetVariable name="CrateDlgChipHeight">{{chipHeight}}</SetVariable>
+  <SetVariable name="CrateDlgTrackingChip">{{trackingChip}}</SetVariable>
+  <SetVariable name="CrateDlgSegmentLabelTop">{{segmentLabelTop}}</SetVariable>
+  <SetVariable name="CrateDlgSegmentLabelBottom">{{segmentLabelBottom}}</SetVariable>
+  <SetVariable name="CrateDlgSegmentBottom">{{segmentBottom}}</SetVariable>
+  <SetVariable name="CrateDlgFirstRunWidth">{{firstRunWidth}}</SetVariable>
+  <SetVariable name="CrateDlgFirstRunPaddingTop">{{firstRunPaddingTop}}</SetVariable>
+  <SetVariable name="CrateDlgFirstRunPaddingX">{{firstRunPaddingX}}</SetVariable>
+  <SetVariable name="CrateDlgFirstRunPaddingBottom">{{firstRunPaddingBottom}}</SetVariable>
+  <SetVariable name="CrateDlgFirstRunGap">{{firstRunGap}}</SetVariable>
+  <SetVariable name="CrateDlgFirstRunHeadGap">{{firstRunHeadGap}}</SetVariable>
+  <SetVariable name="CrateDlgFirstRunLogoWidth">{{firstRunLogoWidth}}</SetVariable>
+  <SetVariable name="CrateDlgFirstRunLogoHeight">{{firstRunLogoHeight}}</SetVariable>
+  <SetVariable name="CrateDlgFontSizeFirstRunTitle">{{fontSizeFirstRunTitle}}</SetVariable>
+  <SetVariable name="CrateDlgFirstRunActionsTop">{{firstRunActionsTop}}</SetVariable>
+  <!-- The Solar icon of message boxes (own brand: no platform or Mixxx icon) -->
+  <SetVariable name="CrateDlgMessageIconSize">{{messageIconSize}}</SetVariable>
+  <SetVariable name="CrateDlgStepsGap">{{stepsGap}}</SetVariable>
+  <SetVariable name="CrateDlgStepGap">{{stepGap}}</SetVariable>
+  <SetVariable name="CrateDlgFieldGap">{{fieldGap}}</SetVariable>
+  <SetVariable name="CrateDlgFieldPaddingX">{{fieldPaddingX}}</SetVariable>
+  <SetVariable name="CrateDlgFieldIconGap">{{fieldIconGap}}</SetVariable>
+  <SetVariable name="CrateDlgButtonPaddingX">{{buttonPaddingX}}</SetVariable>
+  <SetVariable name="CrateDlgButtonPaddingXSm">{{buttonPaddingXSm}}</SetVariable>
+  <SetVariable name="CrateDlgButtonGapSm">{{buttonGapSm}}</SetVariable>
+  <SetVariable name="CrateDlgFontSizeButton">{{fontSizeButton}}</SetVariable>
+  <SetVariable name="CrateDlgFontWeightButton">{{fontWeightButton}}</SetVariable>
+  <SetVariable name="CrateDlgFontSizeHelper">{{fontSizeHelper}}</SetVariable>
+  <SetVariable name="CrateDlgMenuPadding">{{menuPadding}}</SetVariable>
+  <SetVariable name="CrateDlgMenuItemPaddingX">{{menuItemPaddingX}}</SetVariable>
+  <SetVariable name="CrateDlgMenuSeparatorMargin">{{menuSeparatorMargin}}</SetVariable>
+  <SetVariable name="CrateDlgTabPaddingX">{{tabPaddingX}}</SetVariable>
+  <SetVariable name="CrateDlgSplashLaneWidth">{{splashLaneWidth}}</SetVariable>
+  <SetVariable name="CrateDlgSplashGap">{{splashGap}}</SetVariable>
+  <SetVariable name="CrateDlgAboutWidth">{{aboutWidth}}</SetVariable>
+  <SetVariable name="CrateDlgAboutMetaGap">{{aboutMetaGap}}</SetVariable>
+  <SetVariable name="CrateDlgAboutTextHeight">{{aboutTextHeight}}</SetVariable>
+  <SetVariable name="CrateDlgIconMd">{{iconMd}}</SetVariable>
+  <SetVariable name="CrateDlgHeightControl">{{heightControl}}</SetVariable>
+  <SetVariable name="CrateDlgHeightControlSm">{{heightControlSm}}</SetVariable>
+  <SetVariable name="CrateDlgHeightControlLg">{{heightControlLg}}</SetVariable>
+  <SetVariable name="CrateDlgStrokeHairline">{{strokeHairline}}</SetVariable>
+  <SetVariable name="CrateDlgStrokeActive">{{strokeActive}}</SetVariable>
+  <SetVariable name="CrateDlgLineHeightBody">{{lineHeightBody}}</SetVariable>
+  <SetVariable name="CrateDlgFontSizeBody">{{fontSizeBody}}</SetVariable>
+  <SetVariable name="CrateDlgFontSizeCaption">{{fontSizeCaption}}</SetVariable>
+  <SetVariable name="CrateDlgLineHeightLabel">{{lineHeightLabel}}</SetVariable>
+  <SetVariable name="CrateDlgIconSm">{{iconSm}}</SetVariable>
+  <SetVariable name="CrateDlgTickCount">{{tickCount}}</SetVariable>
+  <SetVariable name="CrateDlgTickEvery">{{tickEvery}}</SetVariable>
+
+  <!-- The layout of the skin, with every variable above in scope -->
+  <Template src="skins:CrateDecks/main.xml"/>
+</Template>

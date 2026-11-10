@@ -2055,8 +2055,15 @@ target_include_directories(
   mixxx-lib
   PUBLIC src "${CMAKE_CURRENT_BINARY_DIR}/src"
 )
-# Crate Decks: application identity (src/crate/appidentity.cpp)
-target_sources(mixxx-lib PRIVATE src/crate/appidentity.cpp)
+# Crate Decks: application identity (src/crate/appidentity.cpp) and the brand
+# layer that keeps Mixxx's name out of the interface (src/crate/brand/)
+target_sources(
+  mixxx-lib
+  PRIVATE
+    src/crate/appidentity.cpp
+    src/crate/brand/brandtext.cpp
+    src/crate/brand/brandtranslator.cpp
+)
 
 if(UNIX AND NOT APPLE)
   target_sources(mixxx-lib PRIVATE src/util/rlimit.cpp)
@@ -2611,6 +2618,19 @@ if(APPLE OR WIN32)
     DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/res/fonts"
     DESTINATION "${MIXXX_INSTALL_DATADIR}"
   )
+else()
+  # Crate Decks: the fonts of the Crate admin are not packaged by most
+  # distributions, so they are installed everywhere.
+  install(
+    FILES
+      "${CMAKE_CURRENT_SOURCE_DIR}/res/fonts/BricolageGrotesque-Variable.ttf"
+      "${CMAKE_CURRENT_SOURCE_DIR}/res/fonts/BricolageGrotesque.OFL.txt"
+      "${CMAKE_CURRENT_SOURCE_DIR}/res/fonts/JetBrainsMono-Variable.ttf"
+      "${CMAKE_CURRENT_SOURCE_DIR}/res/fonts/JetBrainsMono.OFL.txt"
+      "${CMAKE_CURRENT_SOURCE_DIR}/res/fonts/Roboto-Variable.ttf"
+      "${CMAKE_CURRENT_SOURCE_DIR}/res/fonts/Roboto.OFL.txt"
+    DESTINATION "${MIXXX_INSTALL_DATADIR}/fonts"
+  )
 endif()
 
 # Keyboard mapping(s)
@@ -3026,6 +3046,9 @@ if(BUILD_TESTING)
     src-mixxx-test
     ${src-mixxx-test}
     src/test/crate/brandingtest.cpp
+    src/test/crate/brandtest.cpp
+    src/test/crate/fontstest.cpp
+    src/test/crate/dbwritelocktest.cpp
     src/test/crate/visiblestringstest.cpp
   )
 
@@ -5322,16 +5345,41 @@ if(CRATE)
       src/crate/db/crateserverprofiles.cpp
       src/crate/db/crateserverschema.cpp
       src/crate/inference/modelstore.cpp
+      src/crate/library/crateeventsubscriber.cpp
+      src/crate/library/cratelibraryjson.cpp
+      src/crate/library/cratelibrarystore.cpp
+      src/crate/library/cratelibrarysync.cpp
       src/crate/session/crateloopbackserver.cpp
       src/crate/session/cratesecretstore.cpp
       src/crate/session/cratesession.cpp
       src/crate/stems/resampler.cpp
       src/crate/stems/stemdsp.cpp
       src/crate/crateaddserverflow.cpp
+      src/crate/crateserverrows.cpp
       src/crate/crateservers.cpp
       src/crate/ui/crateaddserverwidget.cpp
+      src/crate/ui/crateprefsections.cpp
       src/crate/ui/cratefirstrun.cpp
       src/crate/ui/dlgprefcrate.cpp
+      src/crate/ui/delegates/camelotdelegate.cpp
+      src/crate/ui/delegates/celldelegate.cpp
+      src/crate/ui/delegates/delegatestyle.cpp
+      src/crate/ui/delegates/sidebardelegate.cpp
+      src/crate/ui/delegates/statedelegates.cpp
+      src/crate/ui/dialogs/aboutstyle.cpp
+      src/crate/ui/dialogs/dialogchrome.cpp
+      src/crate/ui/dialogs/dialogscrim.cpp
+      src/crate/ui/dialogs/dialogstyle.cpp
+      src/crate/ui/dialogs/levelgauge.cpp
+      src/crate/ui/dialogs/preferenceschrome.cpp
+      src/crate/ui/skin/crateserverstatus.cpp
+      src/crate/ui/skin/crateskin.cpp
+      src/crate/ui/skin/decktrackfields.cpp
+      src/crate/ui/skin/librarystyle.cpp
+      src/crate/ui/skin/mixerstyle.cpp
+      src/crate/ui/skin/preferencescontrol.cpp
+      src/library/crateserver/crateserverfeature.cpp
+      src/library/crateserver/crateservertrackmodel.cpp
   )
   # The tests of the Crate integration are added here and not in the list of
   # mixxx-test sources, which comes before this option.
@@ -5341,16 +5389,25 @@ if(CRATE)
       PRIVATE
         src/test/crate/cratecapabilities_test.cpp
         src/test/crate/crateclient_test.cpp
+        src/test/crate/crateeventsubscriber_test.cpp
         src/test/crate/cratejson_test.cpp
+        src/test/crate/cratelibrarysync_test.cpp
         src/test/crate/crateloopbackserver_test.cpp
         src/test/crate/cratesecretstore_test.cpp
         src/test/crate/crateserverprofiles_test.cpp
+        src/test/crate/crateserverfeature_test.cpp
         src/test/crate/crateserverschema_test.cpp
         src/test/crate/crateservers_test.cpp
         src/test/crate/dlgprefcrate_test.cpp
         src/test/crate/cratesession_test.cpp
         src/test/crate/modelstore_test.cpp
         src/test/crate/stemdsp_test.cpp
+        src/test/crate/skinloadtest.cpp
+        src/test/crate/mixerstyletest.cpp
+        src/test/crate/delegatestest.cpp
+        src/test/crate/dialogstest.cpp
+        src/test/crate/decktrackfieldstest.cpp
+        src/test/crate/brandvisibletest.cpp
     )
   endif()
 

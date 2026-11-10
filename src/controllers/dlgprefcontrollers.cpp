@@ -84,7 +84,7 @@ DlgPrefControllers::DlgPrefControllers(DlgPreferences* pPreferences,
             "\"User Mapping Folder\" then click the Reload button.")
                     .arg(coloredLinkString(
                             m_pLinkColor,
-                            QStringLiteral("Mixxx Controller Forums"),
+                            tr("Mixxx Controller Forums"),
                             MIXXX_CONTROLLER_FORUMS_URL)));
 
     txtHardwareCompatibility->setText(coloredLinkString(
@@ -94,7 +94,7 @@ DlgPrefControllers::DlgPrefControllers(DlgPreferences* pPreferences,
 
     txtControllerForums->setText(coloredLinkString(
             m_pLinkColor,
-            QStringLiteral("Mixxx Controller Forums"),
+            tr("Mixxx Controller Forums"),
             MIXXX_CONTROLLER_FORUMS_URL));
 
     txtControllerMappingFormat->setText(coloredLinkString(

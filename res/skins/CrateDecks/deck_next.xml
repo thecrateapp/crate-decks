@@ -1,0 +1,33 @@
+<!--
+  Smart Mix line of a deck (GU1 proposal): the next transition, its kind and
+  the countdown on a 1 px lane in the deck colour. Laid out until the Smart
+  Mix director of plan F6 feeds it. Below the 768 px breakpoint the mockups
+  leave it out.
+Variables: ChanNum, Pair
+-->
+<Template>
+  <WidgetGroup>
+    <ObjectName>CrateNext</ObjectName>
+    <Layout>horizontal</Layout>
+    <SizePolicy>me,f</SizePolicy>
+    <Children>
+      <Label><ObjectName>CrateNextIcon</ObjectName></Label>
+      <Label>
+        <ObjectName>MonoNext</ObjectName>
+        <Text>Smart Mix · next</Text>
+      </Label>
+      <WidgetGroup>
+        <ObjectName>CrateNextLane</ObjectName>
+        <SizePolicy>me,f</SizePolicy>
+      </WidgetGroup>
+      <Label>
+        <ObjectName>CrateNextCountdown</ObjectName>
+        <Text>0:00</Text>
+      </Label>
+    </Children>
+    <Connection>
+      <ConfigKey>[CrateDecks],show_smartmix_line</ConfigKey>
+      <BindProperty>visible</BindProperty>
+    </Connection>
+  </WidgetGroup>
+</Template>

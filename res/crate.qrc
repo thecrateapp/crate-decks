@@ -3,5 +3,12 @@
     <qresource prefix="/">
       <!-- Crate Decks application icon for windows and dialogs (MIXXX_ICON_PATH) -->
         <file>images/icons/256x256/apps/app.cratemusic.decks.png</file>
+      <!-- Icon of the Crate library feature (LibraryFeature looks it up by its
+           icon name, crateserver); the CrateDecks skin paints its own -->
+        <file alias="images/library/ic_library_crateserver.svg">skins/CrateDecks/generated/icons/server_idle.svg</file>
+      <!-- What names Mixxx in the sources and how it is branded (src/crate/brand/) -->
+        <file>crate-brand/mixxx-strings.json</file>
+      <!-- The Crate logo where Mixxx showed its own: built-in skins and mappings in Preferences -->
+        <file alias="images/crate-logo.svg">skins/CrateDecks/generated/crate-logo.svg</file>
     </qresource>
 </RCC>

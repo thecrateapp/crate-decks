@@ -1,0 +1,36 @@
+<!--
+  A level meter of the mixer (GU1 mockups .vu, design 14.3): the clip
+  segment, lit by the peak indicator, over a 4 px bar. The bar is a
+  SliderComposed connected to the level that crate/ui/skin/mixerstyle.cpp
+  paints: the meter's colour (its QSS color), warning from -6 dB, a 1 px
+  rule there and a 1 px peak hold. It ignores the mouse.
+Variables:
+  Group, VuKey (vu_meter, vu_meter_left...), PeakKey (peak_indicator...)
+  Colour : AC, BD or Main
+-->
+<Template>
+  <WidgetGroup>
+    <ObjectName>CrateVu</ObjectName>
+    <Layout>vertical</Layout>
+    <SizePolicy>f,me</SizePolicy>
+    <Children>
+      <WidgetGroup>
+        <ObjectName>CrateVuClip</ObjectName>
+        <SizePolicy>f,f</SizePolicy>
+        <Connection>
+          <ConfigKey><Variable name="Group"/>,<Variable name="PeakKey"/></ConfigKey>
+          <BindProperty>highlight</BindProperty>
+        </Connection>
+      </WidgetGroup>
+      <SliderComposed>
+        <ObjectName>CrateMeterVu<Variable name="Colour"/></ObjectName>
+        <SizePolicy>f,me</SizePolicy>
+        <Horizontal>false</Horizontal>
+        <Connection>
+          <ConfigKey><Variable name="Group"/>,<Variable name="VuKey"/></ConfigKey>
+          <ConnectValueFromWidget>false</ConnectValueFromWidget>
+        </Connection>
+      </SliderComposed>
+    </Children>
+  </WidgetGroup>
+</Template>

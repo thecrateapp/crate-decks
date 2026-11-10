@@ -1,0 +1,77 @@
+<!--
+  Overview of a deck with the palette of design 14.3 (logo bands on A and C,
+  greys on B and D), the played part dimmed and cues in the deck colour.
+Variables: ChanNum, Size, plus the colours CrateDeck, WaveLow, WaveMid and
+  WaveHigh of the deck's pair
+-->
+<Template>
+  <SetVariable name="Group">[Channel<Variable name="ChanNum"/>]</SetVariable>
+  <WidgetGroup>
+    <ObjectName>CrateOverviewBox<Variable name="Size"/></ObjectName>
+    <Layout>horizontal</Layout>
+    <SizePolicy>me,me</SizePolicy>
+    <Children>
+      <Overview>
+        <ObjectName>CrateOverview</ObjectName>
+        <TooltipId>waveform_overview</TooltipId>
+        <SizePolicy>me,me</SizePolicy>
+        <Group><Variable name="Group"/></Group>
+        <Connection>
+          <ConfigKey><Variable name="Group"/>,playposition</ConfigKey>
+        </Connection>
+        <BgColor><Variable name="CrateWaveOverviewBg"/></BgColor>
+        <SignalColor><Variable name="WaveMid"/></SignalColor>
+        <SignalLowColor><Variable name="WaveLow"/></SignalLowColor>
+        <SignalMidColor><Variable name="WaveMid"/></SignalMidColor>
+        <SignalHighColor><Variable name="WaveHigh"/></SignalHighColor>
+        <SignalRGBLowColor><Variable name="WaveLow"/></SignalRGBLowColor>
+        <SignalRGBMidColor><Variable name="WaveMid"/></SignalRGBMidColor>
+        <SignalRGBHighColor><Variable name="WaveHigh"/></SignalRGBHighColor>
+        <PlayedOverlayColor><Variable name="CrateWaveOverviewPlayed"/></PlayedOverlayColor>
+        <PlayPosColor><Variable name="CrateWavePlayhead"/></PlayPosColor>
+        <EndOfTrackColor><Variable name="CrateWarning"/></EndOfTrackColor>
+        <SlipBorderOutlineColor><Variable name="CrateWarning"/></SlipBorderOutlineColor>
+        <PassthroughLabelColor><Variable name="CrateTextMuted"/></PassthroughLabelColor>
+        <DefaultMark>
+          <Align>top|left</Align>
+          <Color><Variable name="CrateDeck"/></Color>
+          <TextColor><Variable name="CrateBgApp"/></TextColor>
+          <Text> %1 </Text>
+        </DefaultMark>
+        <Mark>
+          <Control>cue_point</Control>
+          <Align>bottom|left</Align>
+          <Color><Variable name="CrateDeck"/></Color>
+          <TextColor><Variable name="CrateBgApp"/></TextColor>
+        </Mark>
+        <MarkRange>
+          <StartControl>loop_start_position</StartControl>
+          <EndControl>loop_end_position</EndControl>
+          <EnabledControl>loop_enabled</EnabledControl>
+          <Color><Variable name="CrateDeck"/></Color>
+          <Opacity>0.25</Opacity>
+          <DisabledColor><Variable name="CrateTextPrimary"/></DisabledColor>
+          <DisabledOpacity>0.08</DisabledOpacity>
+        </MarkRange>
+        <MarkRange>
+          <StartControl>intro_start_position</StartControl>
+          <EndControl>intro_end_position</EndControl>
+          <VisibilityControl>[Skin],show_intro_outro_cues</VisibilityControl>
+          <Color><Variable name="CrateDeck"/></Color>
+          <Opacity>0.12</Opacity>
+        </MarkRange>
+        <MarkRange>
+          <StartControl>outro_start_position</StartControl>
+          <EndControl>outro_end_position</EndControl>
+          <VisibilityControl>[Skin],show_intro_outro_cues</VisibilityControl>
+          <Color><Variable name="CrateDeck"/></Color>
+          <Opacity>0.12</Opacity>
+        </MarkRange>
+      </Overview>
+    </Children>
+    <Connection>
+      <ConfigKey>[CrateDecks],layout_short</ConfigKey>
+      <BindProperty>highlight</BindProperty>
+    </Connection>
+  </WidgetGroup>
+</Template>

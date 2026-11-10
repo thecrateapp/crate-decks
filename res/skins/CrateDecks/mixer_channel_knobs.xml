@@ -1,0 +1,50 @@
+<!--
+  The knobs of a channel strip (GU1 mockups .strip-knobs): gain, the three
+  EQ bands and the quick effect filter, in the deck colour, their arcs
+  growing from the centre.
+Variables: ChanNum, Size ("" or "Four"), ArcColor, ArcRadius, ArcRadiusShort
+-->
+<Template>
+  <SetVariable name="Group">[Channel<Variable name="ChanNum"/>]</SetVariable>
+  <SetVariable name="ArcUnipolar">false</SetVariable>
+  <WidgetGroup>
+    <ObjectName>CrateStripKnobs<Variable name="Size"/></ObjectName>
+    <Layout>vertical</Layout>
+    <SizePolicy>min,max</SizePolicy>
+    <Children>
+      <Template src="skins:CrateDecks/mixer_knob.xml">
+        <SetVariable name="Control">pregain</SetVariable>
+        <SetVariable name="TooltipId">pregain</SetVariable>
+        <SetVariable name="Label">Gain</SetVariable>
+      </Template>
+      <Template src="skins:CrateDecks/mixer_knob.xml">
+        <SetVariable name="Group">[EqualizerRack1_[Channel<Variable name="ChanNum"/>]_Effect1]</SetVariable>
+        <SetVariable name="Control">parameter3</SetVariable>
+        <SetVariable name="TooltipId">filterHigh</SetVariable>
+        <SetVariable name="Label">Hi</SetVariable>
+      </Template>
+      <Template src="skins:CrateDecks/mixer_knob.xml">
+        <SetVariable name="Group">[EqualizerRack1_[Channel<Variable name="ChanNum"/>]_Effect1]</SetVariable>
+        <SetVariable name="Control">parameter2</SetVariable>
+        <SetVariable name="TooltipId">filterMid</SetVariable>
+        <SetVariable name="Label">Mid</SetVariable>
+      </Template>
+      <Template src="skins:CrateDecks/mixer_knob.xml">
+        <SetVariable name="Group">[EqualizerRack1_[Channel<Variable name="ChanNum"/>]_Effect1]</SetVariable>
+        <SetVariable name="Control">parameter1</SetVariable>
+        <SetVariable name="TooltipId">filterLow</SetVariable>
+        <SetVariable name="Label">Low</SetVariable>
+      </Template>
+      <Template src="skins:CrateDecks/mixer_knob.xml">
+        <SetVariable name="Group">[QuickEffectRack1_[Channel<Variable name="ChanNum"/>]]</SetVariable>
+        <SetVariable name="Control">super1</SetVariable>
+        <SetVariable name="TooltipId">QuickEffectRack_super1</SetVariable>
+        <SetVariable name="Label">Filter</SetVariable>
+      </Template>
+    </Children>
+    <Connection>
+      <ConfigKey>[CrateDecks],layout_short</ConfigKey>
+      <BindProperty>highlight</BindProperty>
+    </Connection>
+  </WidgetGroup>
+</Template>

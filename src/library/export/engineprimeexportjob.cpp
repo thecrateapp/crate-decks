@@ -7,6 +7,7 @@
 #include <memory>
 #include <stdexcept>
 
+#include "crate/appidentity.h"
 #include "library/export/engineprimeexportrequest.h"
 #include "library/trackcollection.h"
 #include "library/trackcollectionmanager.h"
@@ -22,8 +23,10 @@ namespace mixxx {
 
 namespace {
 
-const std::string kMixxxRootCrateName = "Mixxx Crates";
-const std::string kMixxxRootPlaylistName = "Mixxx Playlists";
+// Crate Decks: Engine DJ shows these folders, so they are named after the
+// application, not Mixxx
+const std::string kMixxxRootCrateName = std::string(crate::kApplicationName) + " Crates";
+const std::string kMixxxRootPlaylistName = std::string(crate::kApplicationName) + " Playlists";
 
 constexpr int kMaxHotCuesOrLoops = 8;
 

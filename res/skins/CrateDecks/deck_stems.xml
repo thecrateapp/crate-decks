@@ -1,0 +1,72 @@
+<!--
+  Stems of a deck with two decks (GU1 proposal "Stems"): drums, bass, other
+  and vocals, the four stems of Crate's separation (the stems plan), with
+  volume rail and mute. One row of four; two rows of two below the 1366
+  breakpoint. Hidden until the deck plays a track with stems
+  ([ChannelN],stem_count, the stems plan's ST6).
+Variables: ChanNum, Pair
+-->
+<Template>
+  <WidgetGroup>
+    <ObjectName>CrateStems</ObjectName>
+    <Layout>horizontal</Layout>
+    <SizePolicy>me,max</SizePolicy>
+    <Children>
+      <Label>
+        <ObjectName>MonoStemsLabel</ObjectName>
+        <Text>Stems</Text>
+      </Label>
+      <!-- Wide: one row of four -->
+      <WidgetGroup>
+        <ObjectName>CrateStemsRow</ObjectName>
+        <Layout>horizontal</Layout>
+        <SizePolicy>me,min</SizePolicy>
+        <Children>
+          <Template src="skins:CrateDecks/controls/stem_rail.xml"><SetVariable name="Stem">1</SetVariable><SetVariable name="Name">Drums</SetVariable></Template>
+          <Template src="skins:CrateDecks/controls/stem_rail.xml"><SetVariable name="Stem">2</SetVariable><SetVariable name="Name">Bass</SetVariable></Template>
+          <Template src="skins:CrateDecks/controls/stem_rail.xml"><SetVariable name="Stem">3</SetVariable><SetVariable name="Name">Other</SetVariable></Template>
+          <Template src="skins:CrateDecks/controls/stem_rail.xml"><SetVariable name="Stem">4</SetVariable><SetVariable name="Name">Vocals</SetVariable></Template>
+        </Children>
+        <Connection>
+          <ConfigKey>[CrateDecks],layout_narrow</ConfigKey>
+          <Transform><Not/></Transform>
+          <BindProperty>visible</BindProperty>
+        </Connection>
+      </WidgetGroup>
+      <!-- Narrow: two rows of two -->
+      <WidgetGroup>
+        <ObjectName>CrateStemsGrid</ObjectName>
+        <Layout>vertical</Layout>
+        <SizePolicy>me,min</SizePolicy>
+        <Children>
+          <WidgetGroup>
+            <ObjectName>CrateStemsRow</ObjectName>
+            <Layout>horizontal</Layout>
+            <SizePolicy>me,min</SizePolicy>
+            <Children>
+              <Template src="skins:CrateDecks/controls/stem_rail.xml"><SetVariable name="Stem">1</SetVariable><SetVariable name="Name">Drums</SetVariable></Template>
+              <Template src="skins:CrateDecks/controls/stem_rail.xml"><SetVariable name="Stem">2</SetVariable><SetVariable name="Name">Bass</SetVariable></Template>
+            </Children>
+          </WidgetGroup>
+          <WidgetGroup>
+            <ObjectName>CrateStemsRow</ObjectName>
+            <Layout>horizontal</Layout>
+            <SizePolicy>me,min</SizePolicy>
+            <Children>
+              <Template src="skins:CrateDecks/controls/stem_rail.xml"><SetVariable name="Stem">3</SetVariable><SetVariable name="Name">Other</SetVariable></Template>
+              <Template src="skins:CrateDecks/controls/stem_rail.xml"><SetVariable name="Stem">4</SetVariable><SetVariable name="Name">Vocals</SetVariable></Template>
+            </Children>
+          </WidgetGroup>
+        </Children>
+        <Connection>
+          <ConfigKey>[CrateDecks],layout_narrow</ConfigKey>
+          <BindProperty>visible</BindProperty>
+        </Connection>
+      </WidgetGroup>
+    </Children>
+    <Connection>
+      <ConfigKey>[Channel<Variable name="ChanNum"/>],stem_count</ConfigKey>
+      <BindProperty>visible</BindProperty>
+    </Connection>
+  </WidgetGroup>
+</Template>

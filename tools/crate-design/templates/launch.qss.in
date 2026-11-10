@@ -1,0 +1,45 @@
+/*
+  Crate Decks: the splash screen (Mixxx's LaunchImage) with the Crate Decks
+  brand instead of the Mixxx logo (plan V2.PR5), for every skin: the logo,
+  the name in display type and a 1 px progress lane, as the admin draws
+  progress. crate/ui/dialogs/applicationstyle.h applies it, with the
+  skins: URLs made absolute.
+
+  Template for tools/crate-design/generate.py: the placeholders in double
+  braces come from res/crate-design/tokens.json.
+*/
+
+LaunchImage {
+  background-color: {{bgApp}};
+}
+#CrateSplashLogo {
+  image: url(skins:CrateDecks/generated/crate-logo.svg);
+  padding: 0;
+  margin: 0;
+  border: 0;
+  min-width: {{firstRunLogoWidth}};
+  max-width: {{firstRunLogoWidth}};
+  min-height: {{firstRunLogoHeight}};
+  max-height: {{firstRunLogoHeight}};
+}
+#CrateSplashName {
+  padding: 0;
+  margin: 0;
+  border: 0;
+  color: {{textPrimary}};
+  font-family: "{{fontDisplay}}";
+  font-size: {{fontSizeFirstRunTitle}};
+  font-weight: {{fontWeightTitle}};
+  letter-spacing: {{trackingTitle * fontSizeFirstRunTitle}};
+}
+QProgressBar {
+  border: 0;
+  background-color: {{border}};
+  min-width: {{splashLaneWidth}};
+  max-width: {{splashLaneWidth}};
+  min-height: {{strokeHairline}};
+  max-height: {{strokeHairline}};
+}
+QProgressBar::chunk {
+  background-color: {{accentHi}};
+}

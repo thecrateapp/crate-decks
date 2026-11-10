@@ -5,6 +5,9 @@
 #include <QLocale>
 
 #include "crate/appidentity.h"
+#ifdef __CRATE__
+#include "crate/ui/dialogs/aboutstyle.h"
+#endif
 #include "defs_urls.h"
 #include "moc_dlgabout.cpp"
 #include "util/color/color.h"
@@ -60,6 +63,14 @@ DlgAbout::DlgAbout()
                                     .toString(),
                             tr("Source code of this version")));
     verticalLayout->insertWidget(2, pBasedOn);
+    // Crate Decks: credits of the Solar icons (CC BY 4.0) and of the fonts
+    auto* pAttribution = new QLabel(this);
+    pAttribution->setObjectName(QStringLiteral("crate_attribution"));
+    pAttribution->setWordWrap(true);
+    pAttribution->setTextFormat(Qt::RichText);
+    pAttribution->setOpenExternalLinks(true);
+    pAttribution->setText(crate::attributionText(linkStyle));
+    verticalLayout->insertWidget(3, pAttribution);
 
     QFile licenseFile(":/LICENSE");
     if (!licenseFile.open(QIODevice::ReadOnly)) {
@@ -539,20 +550,15 @@ DlgAbout::DlgAbout()
                                     .name(),
                             crate::kHomepageUrl, // Crate Decks
                             tr("Official Website")));
-    if (std::rand() % 6) {
-        if (!Color::isDimColor(palette().text().color())) {
-            btnDonate->setIcon(QIcon(":/images/heart_icon_light.svg"));
-        } else {
-            btnDonate->setIcon(QIcon(":/images/heart_icon_dark.svg"));
-        }
-    } else {
-        btnDonate->setIcon(QIcon(":/images/heart_icon_rainbow.svg"));
-    }
-    btnDonate->setText(tr("Donate to Mixxx")); // Crate Decks: it goes to Mixxx
-    connect(btnDonate, &QPushButton::clicked, this, [] {
-        mixxx::DesktopHelper::openUrl(QUrl(MIXXX_DONATE_URL));
-    });
+    // Crate Decks: of Mixxx, About keeps only the legal line, the credits
+    // and the licence; it asks for no donations (D2)
+    btnDonate->hide();
 
     connect(buttonBox, &QDialogButtonBox::accepted, this, &DlgAbout::accept);
     connect(buttonBox, &QDialogButtonBox::rejected, this, &DlgAbout::reject);
+
+#ifdef __CRATE__
+    // Crate Decks: the look of the first-start dialog (V2.PR5)
+    crate::styleAbout(this);
+#endif
 }

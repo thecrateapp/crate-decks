@@ -8,6 +8,7 @@
 #include <QStandardPaths>
 #include <djinterop/djinterop.hpp>
 
+#include "crate/appidentity.h"
 #include "library/export/engineprimeexportrequest.h"
 #include "library/trackcollection.h"
 #include "library/trackcollectionmanager.h"
@@ -21,7 +22,12 @@ namespace e = djinterop::engine;
 namespace mixxx {
 
 namespace {
-const QString kDefaultMixxxExportDirName = QStringLiteral("mixxx-export");
+// Crate Decks: the default folder is named after the application, not Mixxx
+const QString kDefaultMixxxExportDirName =
+        QString::fromLatin1(crate::kApplicationName)
+                .toLower()
+                .replace(QLatin1Char(' '), QLatin1Char('-')) +
+        QStringLiteral("-export");
 const QString kLastDirConfigItemName = QStringLiteral("LastLibraryExportDirectory");
 
 void populateCrates(

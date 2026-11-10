@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonValue>
@@ -38,8 +39,16 @@ class ObjectReader {
     /// A JSON number without a fractional part.
     qint64 requiredInteger(QStringView key);
     std::optional<qint64> optionalInteger(QStringView key);
+    /// Any JSON number, such as a BPM.
+    std::optional<double> optionalDouble(QStringView key);
+    /// An identifier the server may send as a string or as a JSON integer,
+    /// as text.
+    QString requiredId(QStringView key);
+    /// Empty if the field is missing.
+    QString optionalId(QStringView key);
     QJsonObject requiredObject(QStringView key);
     std::optional<QJsonObject> optionalObject(QStringView key);
+    QJsonArray requiredArray(QStringView key);
     /// An array whose items are all strings; empty if the field is missing.
     QStringList optionalStringList(QStringView key);
 
@@ -50,6 +59,7 @@ class ObjectReader {
     Error error() const;
 
   private:
+    QString id(QStringView key, bool required);
     /// The value of `key`, or Undefined once the read has failed. Records a
     /// problem if a required field is missing.
     QJsonValue field(QStringView key, bool required);

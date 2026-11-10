@@ -1,0 +1,92 @@
+<!--
+  The scrolling waveform of a deck with the palette of design 14.3: the
+  logo's bands on A and C, cold greys on B and D (wavePaletteDeckAC keeps
+  the reserve, greys everywhere, one token away), beats at 20 % and bars at
+  40 % of textPrimary (the beat grid opacity is a preference), playhead in
+  textPrimary and cues in the deck colour.
+Variables:
+  ChanNum : deck number, 1 to 4
+  Pair    : AC or BD
+-->
+<Template>
+  <SetVariable name="DeckColor"><Variable name="CrateDeck"/></SetVariable>
+  <WidgetGroup>
+    <ObjectName>CrateWaveformBox</ObjectName>
+    <Layout>horizontal</Layout>
+    <SizePolicy>me,me</SizePolicy>
+    <Children>
+      <Visual>
+        <TooltipId>waveform_display</TooltipId>
+        <Channel><Variable name="ChanNum"/></Channel>
+        <BgColor><Variable name="CrateWaveBg"/></BgColor>
+        <SignalColor><Variable name="WaveMid"/></SignalColor>
+        <SignalLowColor><Variable name="WaveLow"/></SignalLowColor>
+        <SignalMidColor><Variable name="WaveMid"/></SignalMidColor>
+        <SignalHighColor><Variable name="WaveHigh"/></SignalHighColor>
+        <SignalRGBLowColor><Variable name="WaveLow"/></SignalRGBLowColor>
+        <SignalRGBMidColor><Variable name="WaveMid"/></SignalRGBMidColor>
+        <SignalRGBHighColor><Variable name="WaveHigh"/></SignalRGBHighColor>
+        <BeatColor><Variable name="CrateTextPrimary"/></BeatColor>
+        <AxesColor><Variable name="CrateWaveBg"/></AxesColor>
+        <PlayPosColor><Variable name="CrateWavePlayhead"/></PlayPosColor>
+        <EndOfTrackColor><Variable name="CrateWarning"/></EndOfTrackColor>
+        <SlipBorderOutlineColor><Variable name="CrateWarning"/></SlipBorderOutlineColor>
+        <PassthroughLabelColor><Variable name="CrateTextMuted"/></PassthroughLabelColor>
+        <!-- Hotcues: Mixxx paints them in their own colour -->
+        <DefaultMark>
+          <Align>top|left</Align>
+          <Color><Variable name="DeckColor"/></Color>
+          <TextColor><Variable name="CrateTextPrimary"/></TextColor>
+          <DisabledOpacity>0.25</DisabledOpacity>
+          <Text> %1 </Text>
+        </DefaultMark>
+        <Mark>
+          <Control>cue_point</Control>
+          <Text>CUE</Text>
+          <Align>bottom|right</Align>
+          <Color><Variable name="DeckColor"/></Color>
+          <TextColor><Variable name="CrateBgApp"/></TextColor>
+        </Mark>
+        <MarkRange>
+          <StartControl>loop_start_position</StartControl>
+          <EndControl>loop_end_position</EndControl>
+          <EnabledControl>loop_enabled</EnabledControl>
+          <Color><Variable name="DeckColor"/></Color>
+          <Opacity>0.2</Opacity>
+          <DisabledColor><Variable name="CrateTextPrimary"/></DisabledColor>
+          <DisabledOpacity>0.08</DisabledOpacity>
+        </MarkRange>
+        <MarkRange>
+          <StartControl>intro_start_position</StartControl>
+          <EndControl>intro_end_position</EndControl>
+          <VisibilityControl>[Skin],show_intro_outro_cues</VisibilityControl>
+          <Color><Variable name="DeckColor"/></Color>
+          <Opacity>0.06</Opacity>
+        </MarkRange>
+        <Mark>
+          <Control>intro_start_position</Control>
+          <VisibilityControl>[Skin],show_intro_outro_cues</VisibilityControl>
+          <Text>INTRO</Text>
+          <Align>bottom|right</Align>
+          <Color><Variable name="DeckColor"/></Color>
+          <TextColor><Variable name="CrateBgApp"/></TextColor>
+        </Mark>
+        <MarkRange>
+          <StartControl>outro_start_position</StartControl>
+          <EndControl>outro_end_position</EndControl>
+          <VisibilityControl>[Skin],show_intro_outro_cues</VisibilityControl>
+          <Color><Variable name="DeckColor"/></Color>
+          <Opacity>0.06</Opacity>
+        </MarkRange>
+        <Mark>
+          <Control>outro_start_position</Control>
+          <VisibilityControl>[Skin],show_intro_outro_cues</VisibilityControl>
+          <Text>OUTRO</Text>
+          <Align>bottom|right</Align>
+          <Color><Variable name="DeckColor"/></Color>
+          <TextColor><Variable name="CrateBgApp"/></TextColor>
+        </Mark>
+      </Visual>
+    </Children>
+  </WidgetGroup>
+</Template>
