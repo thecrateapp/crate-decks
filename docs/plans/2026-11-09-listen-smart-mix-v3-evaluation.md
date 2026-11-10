@@ -1,7 +1,8 @@
 # Listen on Smart Mix v3 · LV0 evaluation report
 
 > **Input for Diego's gate LV-G1: whether `smart-mix-v3` is good enough for Listen offline.**
-> This report proposes a verdict (§7); it does not decide the gate.
+> **Decided (Diego, 2026-11-10): go, caps 10/20** (§7). Bass on bass and the beat clash in metal
+> and punk crossfades are known risks to watch at LV-G2.
 
 - **Date:** 2026-11-10 (measured 2026-11-09 and 2026-11-10)
 - **Plan:** LV0 of [Listen on Smart Mix v3](2026-11-09-listen-smart-mix-v3-plan.md), with Diego's
@@ -355,6 +356,9 @@ not an HTTP request against the dev stack the plan names (Task 2, step 5): HTTP,
 serialisation are left out.
 
 ## 7. Verdict proposal for LV-G1
+
+**Decided (Diego, 2026-11-10): go, caps 10/20.** The proposal below was approved as written; its
+flags 1 and 2 are known risks to watch at LV-G2 (plan, Risks).
 
 **Proposal: go, with caps of 10 s of skipped intro and 20 s of cut outro.** For Task 5b that is
 `listen_max_skipped_intro_ms = 10000` and `listen_max_unplayed_outro_ms = 20000`, the plan's

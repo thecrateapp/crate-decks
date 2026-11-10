@@ -336,6 +336,11 @@ git commit -m "docs(plans): measure Smart Mix v3 in Listen's contexts" -- docs/p
 - **Go** otherwise, with the caps' values for Task 5b, tuned from the data.
 - The uncached p95 for 32 edges must stay under 1 s. Above the 150 ms budget, the report says by how much.
 
+**Decided (Diego, 2026-11-10): go, caps 10/20.** Task 5b uses 10,000 ms of skipped intro and 20,000 ms of cut outro. The [LV0 report](2026-11-09-listen-smart-mix-v3-evaluation.md) found v3 with these caps not worse than v2 on net or on the dip in any of the 12 set and context cells. Two flags outside the rule are known risks to watch at LV-G2 (Risks):
+
+- bass on bass is worse in 10 of the 12 cells (industrial: 2/10 with crossfade, 2/9 with beatmatch), about 0.1–0.3 s more per transition on average;
+- beat clash is worse in metal and punk with crossfade (13 better, 26 worse, p 0.053).
+
 ---
 
 ## LV1 · Server: capability, switch and v3 continuation
@@ -950,6 +955,8 @@ PR: `feat(smart-mix): recommend smart-mix-v3 to Listen by default`.
 | The phone stays invisible to adb | Task 10, step 2 | Wireless debugging; otherwise LV-G2 waits |
 | A rollback reaches a client only at its next app start | Long sessions stay on v3 | Accepted; the server keeps accepting v3 |
 | ST3.PR6 is not merged when LV1 starts | Task 2, step 3 counts stems | Do not start LV1 |
+| v3 with the caps plays both basses at full level longer than v2: worse in 10 of 12 LV0 cells, about 0.1–0.3 s more per transition | LV0 report §4.2; Diego's ear in the phone sessions | Watch at LV-G2 (pairs 12, 16, 17, 32–34 of the LV0 list); if confirmed, a bass term for non-Decks sources gets its own plan |
+| More beat clash in metal and punk crossfades (13/26, p 0.053) | LV0 report §4.2; phone sessions on fast guitar music | Watch at LV-G2 (pairs 02, 18, 19, 21, 35 of the LV0 list) |
 
 ## Out of scope
 
@@ -965,3 +972,5 @@ PR: `feat(smart-mix): recommend smart-mix-v3 to Listen by default`.
 ## Decisions taken
 
 Diego answered every open decision on 2026-11-09 ("sí a todo"); they are LV-D8 to LV-D12 in §2, with the production flags.
+
+- **LV-G1. Decided (Diego, 2026-11-10): go, caps 10/20.** v3 with caps of 10 s of skipped intro and 20 s of cut outro goes on to LV1; Task 5b uses these values. Bass on bass and the beat clash in metal and punk crossfades are known risks to watch at LV-G2 (Risks).
