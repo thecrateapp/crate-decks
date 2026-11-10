@@ -321,7 +321,9 @@ TEST_F(AnalysisImporterTest, DoesNotOverwriteUserCues) {
     // No record: the Intro is the user's. The Outro is missing, so Crate's
     // goes in.
     ImportOutcome outcome = AnalysisImporter::apply(pTrack, profile, Policy());
-    EXPECT_NEAR(2000 * perMs, pTrack->findCueByType(mixxx::CueType::Intro)->getPosition().value(), 1.0);
+    EXPECT_NEAR(2000 * perMs,
+            pTrack->findCueByType(mixxx::CueType::Intro)->getPosition().value(),
+            1.0);
     ASSERT_NE(nullptr, pTrack->findCueByType(mixxx::CueType::Outro));
     EXPECT_NEAR(165802 * perMs,
             pTrack->findCueByType(mixxx::CueType::Outro)->getPosition().value(),
@@ -339,7 +341,9 @@ TEST_F(AnalysisImporterTest, DoesNotOverwriteUserCues) {
     newer.introCueMs = 30000;
     newer.outroCueMs = 160000;
     outcome = AnalysisImporter::apply(pTrack, newer, Policy(), outcome.appliedCues);
-    EXPECT_NEAR(2000 * perMs, pTrack->findCueByType(mixxx::CueType::Intro)->getPosition().value(), 1.0);
+    EXPECT_NEAR(2000 * perMs,
+            pTrack->findCueByType(mixxx::CueType::Intro)->getPosition().value(),
+            1.0);
     EXPECT_NEAR(150000 * perMs,
             pTrack->findCueByType(mixxx::CueType::Outro)->getPosition().value(),
             1.0);
@@ -363,7 +367,8 @@ TEST_F(AnalysisImporterTest, ReappliesCratesCuesOnNewRevision) {
     newer.introCueMs = 30000;
     newer.outroCueMs = 160000;
     newer.activeEndMs = 195000;
-    const ImportOutcome second = AnalysisImporter::apply(pTrack, newer, Policy(), first.appliedCues);
+    const ImportOutcome second =
+            AnalysisImporter::apply(pTrack, newer, Policy(), first.appliedCues);
 
     const CuePointer pIntro = pTrack->findCueByType(mixxx::CueType::Intro);
     const CuePointer pOutro = pTrack->findCueByType(mixxx::CueType::Outro);
