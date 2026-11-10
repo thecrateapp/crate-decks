@@ -23,6 +23,16 @@ const QStringList kStatements = {
                        "display_name TEXT NOT NULL DEFAULT '', "
                        "last_capabilities_json TEXT NOT NULL DEFAULT '', "
                        "created_at TEXT NOT NULL)"),
+        // Smart Mix Stems ST4: the models crate::ModelStore installed and
+        // checked, one version per model. file_name is inside the models
+        // directory of the data directory.
+        QStringLiteral("CREATE TABLE IF NOT EXISTS crateserver_models ("
+                       "name TEXT PRIMARY KEY NOT NULL, "
+                       "version TEXT NOT NULL, "
+                       "file_name TEXT NOT NULL, "
+                       "sha256 TEXT NOT NULL, "
+                       "bytes INTEGER NOT NULL, "
+                       "installed_at TEXT NOT NULL)"),
 };
 
 } // namespace

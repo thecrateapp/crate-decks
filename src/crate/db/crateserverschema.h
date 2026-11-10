@@ -15,6 +15,8 @@ namespace crate::db {
 ///   signed in to. `id` is a random UUID that also names the server's
 ///   keychain entry; `origin` is the server's scheme, host and port;
 ///   `account_id` is the user's id on that server.
+/// - `crateserver_models` (Smart Mix Stems ST4): the models crate::ModelStore
+///   downloaded and checked.
 ///
 /// Returns false, after rolling back, if any statement fails.
 bool createCrateServerSchema(const QSqlDatabase& database);
