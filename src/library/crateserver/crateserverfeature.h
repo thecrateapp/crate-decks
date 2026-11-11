@@ -12,12 +12,15 @@
 
 #include "crate/library/cratelibrarystore.h"
 #include "crate/library/crateloadcoordinator.h"
+#include "crate/ui/cachestatusmodel.h"
 #include "library/libraryfeature.h"
 #include "util/db/dbconnectionpool.h"
 #include "util/parented_ptr.h"
 
+class KeyboardEventFilter;
 class TrackCollectionManager;
 class TreeItem;
+class WLibrary;
 class WLibrarySidebar;
 
 namespace crate {
@@ -45,6 +48,11 @@ class CrateServerTrackModel;
 /// checked and, if they announce `library_cursor`, its tree is fetched and
 /// its cache invalidations are listened to. Activating a container shows
 /// its stored tracks at once and fetches them if they need a sync.
+///
+/// Last comes Cache, with the audio cache's use as its count: it shows the
+/// cache's view (CacheStatusView) in the library pane. The Crate
+/// preferences drive the loads: Auto DJ's prefetch and the import policy of
+/// Crate's analysis (CratePreferences).
 class CrateServerFeature : public LibraryFeature {
     Q_OBJECT
   public:
@@ -69,6 +77,14 @@ class CrateServerFeature : public LibraryFeature {
         return true;
     }
     void bindSidebarWidget(WLibrarySidebar* pSidebarWidget) override;
+    void bindLibraryWidget(WLibrary* pLibraryWidget, KeyboardEventFilter* pKeyboard) override;
+
+    /// The name of the cache's view in the library pane.
+    static const QString kCacheViewName;
+    /// What the cache's view shows.
+    CacheStatusModel* cacheStatus() const {
+        return m_pCacheStatus;
+    }
 
     void activate() override;
     void activateChild(const QModelIndex& index) override;
@@ -112,6 +128,7 @@ class CrateServerFeature : public LibraryFeature {
             Library,
             Section,
             Container,
+            Cache,
         };
         Kind kind = Kind::None;
         QString serverId;
@@ -135,6 +152,14 @@ class CrateServerFeature : public LibraryFeature {
     /// The coordinator and the prefetcher, once there is a server.
     void startLoading();
     void stopLoading();
+    void onPrefetchAutoDjChanged(bool enabled);
+    /// The Cache item's label, with the cache's use.
+    QString cacheLabel() const;
+    void updateCacheItem();
+    /// The titles of cached tracks, for the cache's view.
+    void lookUpTitles(const QList<cache::TrackKey>& tracks,
+            std::function<void(const QHash<QString, CacheTrackTitle>&)> ready);
+    QString offlineSetName(const QString& serverId, const QString& reason) const;
     /// Applies the server's mix profile of a track to it, once fetched.
     void applyAnalysis(const TrackPointer& pTrack,
             const QString& serverId,
@@ -185,6 +210,7 @@ class CrateServerFeature : public LibraryFeature {
     QHash<qint64, StoredContainer> m_containers;
     std::unique_ptr<CrateLoadCoordinator> m_pLoadCoordinator;
     std::unique_ptr<CratePrefetcher> m_pPrefetcher;
+    parented_ptr<CacheStatusModel> m_pCacheStatus;
     QThreadPool m_pool;
 };
 

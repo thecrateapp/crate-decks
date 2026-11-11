@@ -29,6 +29,8 @@ namespace crate::library {
 /// It also answers Auto DJ's pending track hook
 /// (AutoDJProcessor::setPendingTrackHook) while it lives: a queued Crate
 /// track whose file is missing is on its way while the cache downloads it.
+/// It does so also while the prefetch is off (setEnabled(false), the "Prefetch
+/// Auto DJ" preference): Auto DJ then waits for each Crate track as it comes.
 class CratePrefetcher : public QObject {
     Q_OBJECT
   public:
@@ -44,6 +46,8 @@ class CratePrefetcher : public QObject {
         std::chrono::milliseconds settleTime{250};
         /// Whether to answer Auto DJ's pending track hook.
         bool answerPendingTrackHook = true;
+        /// Whether the queue's first places are downloaded ahead.
+        bool enabled = true;
         /// Milliseconds since the epoch. Defaults to the clock.
         std::function<qint64()> nowMs;
     };
@@ -53,6 +57,13 @@ class CratePrefetcher : public QObject {
 
     /// Reads the queue again soon.
     void scheduleRefresh();
+
+    /// Off, the queue's downloads stop and the queue is not read; on, it is
+    /// read again.
+    void setEnabled(bool enabled);
+    bool isEnabled() const {
+        return m_enabled;
+    }
 
     /// Whether the missing file at `location` is a Crate track on its way:
     /// the cache downloads it now (starting the download if needed). A track
@@ -87,6 +98,7 @@ class CratePrefetcher : public QObject {
     /// When the download of a track failed, by key.
     QHash<QString, qint64> m_failedAtMs;
     bool m_hookInstalled = false;
+    bool m_enabled = true;
 };
 
 } // namespace crate::library

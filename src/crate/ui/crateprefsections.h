@@ -33,9 +33,9 @@ class PrefsSection : public QFrame {
 };
 
 /// The cache section of the Crate page, laid out as the GU1 mockups show it
-/// (level ring, use, size limit, location, prewarm and progressive play).
-/// The cache is plan F4 (F4.C-PR4 brings its preferences, F4b progressive
-/// playback): until then the page keeps it hidden, and F4 connects it.
+/// (level ring, use, size limit, location, prewarm and progressive play),
+/// with the Auto DJ prefetch under the location (F4.C-PR4). Prewarm is plan
+/// F5 and progressive playback F4b: their rows stay hidden until then.
 class CacheSection : public PrefsSection {
     Q_OBJECT
   public:
@@ -44,14 +44,40 @@ class CacheSection : public PrefsSection {
     /// What the cache holds: `usedBytes` of `limitBytes`, `tracks` tracks,
     /// `downloading` of them on their way.
     void setUsage(qint64 usedBytes, qint64 limitBytes, int tracks, int downloading);
-    void setLocation(const QString& path);
+    /// The directory of the cache, and whether it takes effect only at the
+    /// next start.
+    void setLocation(const QString& path, bool atNextStart = false);
+    /// The size limit's slider starts at `bytes`.
+    void setMinimumLimit(qint64 bytes);
 
+    QSlider* limit() const {
+        return m_pLimit;
+    }
+    QLineEdit* location() const {
+        return m_pLocation;
+    }
+    QLabel* locationHint() const {
+        return m_pLocationHint;
+    }
+    QPushButton* chooseLocation() const {
+        return m_pChoose;
+    }
+    QPushButton* clear() const {
+        return m_pClear;
+    }
+    QCheckBox* prefetchAutoDj() const {
+        return m_pPrefetch;
+    }
     QCheckBox* prewarm() const {
         return m_pPrewarm;
     }
     QCheckBox* progressivePlayback() const {
         return m_pProgressive;
     }
+
+  signals:
+    /// The user let go of the size limit at `limitBytes`.
+    void limitChosen(qint64 limitBytes);
 
   private:
     LevelGauge* m_pGauge;
@@ -61,8 +87,32 @@ class CacheSection : public PrefsSection {
     QSlider* m_pLimit;
     QLabel* m_pLimitValue;
     QLineEdit* m_pLocation;
+    QLabel* m_pLocationHint;
+    QPushButton* m_pChoose;
+    QPushButton* m_pClear;
+    QCheckBox* m_pPrefetch;
     QCheckBox* m_pPrewarm;
     QCheckBox* m_pProgressive;
+};
+
+/// What of Crate's analysis replaces the local one (plan F4.C-PR2 and
+/// F4.C-PR4): the key, and the gain from Crate's loudness. Crate's beat grid
+/// waits for the S8 analyzer and has no switch yet.
+class AnalysisSection : public PrefsSection {
+    Q_OBJECT
+  public:
+    explicit AnalysisSection(QWidget* pParent);
+
+    QCheckBox* keyFromCrate() const {
+        return m_pKey;
+    }
+    QCheckBox* gainFromLufs() const {
+        return m_pGain;
+    }
+
+  private:
+    QCheckBox* m_pKey;
+    QCheckBox* m_pGain;
 };
 
 /// The Auto DJ and Smart Mix section of the Crate page, as the GU1 mockups

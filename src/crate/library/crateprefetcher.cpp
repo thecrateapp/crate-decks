@@ -66,7 +66,8 @@ CratePrefetcher::CratePrefetcher(Options options, QObject* parent)
         : QObject(parent),
           m_pCache(options.pCache),
           m_pDbConnectionPool(options.pDbConnectionPool),
-          m_options(std::move(options)) {
+          m_options(std::move(options)),
+          m_enabled(m_options.enabled) {
     m_pool.setMaxThreadCount(1);
     m_settleTimer.setSingleShot(true);
     m_settleTimer.setInterval(m_options.settleTime);
@@ -100,8 +101,21 @@ qint64 CratePrefetcher::now() const {
     return m_options.nowMs ? m_options.nowMs() : QDateTime::currentMSecsSinceEpoch();
 }
 
+void CratePrefetcher::setEnabled(bool enabled) {
+    if (enabled == m_enabled) {
+        return;
+    }
+    m_enabled = enabled;
+    if (enabled) {
+        scheduleRefresh();
+        return;
+    }
+    m_settleTimer.stop();
+    apply({});
+}
+
 void CratePrefetcher::scheduleRefresh() {
-    if (!m_settleTimer.isActive()) {
+    if (m_enabled && !m_settleTimer.isActive()) {
         m_settleTimer.start();
     }
 }
@@ -113,7 +127,8 @@ void CratePrefetcher::refresh() {
     auto* pWatcher = new QFutureWatcher<QStringList>(this);
     connect(pWatcher, &QFutureWatcherBase::finished, this, [this, pWatcher] {
         pWatcher->deleteLater();
-        apply(pWatcher->result());
+        // Switched off while the queue was read
+        apply(m_enabled ? pWatcher->result() : QStringList());
     });
     pWatcher->setFuture(QtConcurrent::run(&m_pool,
             [pPool = m_pDbConnectionPool, count = m_options.count]() {
@@ -130,7 +145,8 @@ void CratePrefetcher::apply(const QStringList& locations) {
     // The tracks that left the first places stop their downloads, unless
     // Auto DJ waits for them
     for (auto it = m_tickets.cbegin(); it != m_tickets.cend(); ++it) {
-        if (!tickets.contains(it.key()) && it.value()) {
+        if (!tickets.contains(it.key()) && it.value() &&
+                m_pendingTickets.value(it.key()) != it.value()) {
             it.value()->cancel();
         }
     }

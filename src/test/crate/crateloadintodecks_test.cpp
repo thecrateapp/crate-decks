@@ -8,14 +8,18 @@
 #include <QAction>
 #include <QFile>
 #include <QItemSelectionModel>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QMenu>
 #include <QSignalSpy>
+#include <QSqlError>
 #include <QTemporaryDir>
 #include <QTest>
 #include <memory>
 
 #include "control/controlindicatortimer.h"
 #include "control/controlobject.h"
+#include "crate/cratepreferences.h"
 #include "crate/crateservers.h"
 #include "crate/db/crateserverprofiles.h"
 #include "crate/db/crateserverschema.h"
@@ -353,6 +357,65 @@ TEST_F(CrateLoadIntoDecksTest, TrackMenuLoadsAnUncachedTrackIntoDeck2) {
     pDeck2->trigger();
     ASSERT_TRUE(serveDownload(QStringLiteral("e2")));
     ASSERT_TRUE(deckHasLoaded(kDeck2, QStringLiteral("e2")));
+}
+
+// The Crate preferences choose what of Crate's analysis the loaded track
+// takes (plan F4.C-PR4): here the key and the gain from loudness.
+TEST_F(CrateLoadIntoDecksTest, LoadedTrackTakesTheAnalysisThePreferencesChoose) {
+    m_pServers->preferences()->setKeyFromCrate(true);
+    m_pServers->preferences()->setGainFromLufs(true);
+    QFile file(getTestDir().filePath(
+            QStringLiteral("crate/data/mix-profiles/full-constant-124.json")));
+    ASSERT_TRUE(file.open(QIODevice::ReadOnly));
+    QJsonObject profile = QJsonDocument::fromJson(file.readAll()).object();
+    profile.insert(QStringLiteral("trackEntityUid"), QStringLiteral("e1"));
+    // The library lists the track with a profile
+    QSqlQuery listed(dbConnection());
+    listed.prepare(QStringLiteral(
+            "UPDATE crateserver_tracks SET profile_revision = :revision "
+            "WHERE server_id = :server AND entity_uid = 'e1'"));
+    listed.bindValue(QStringLiteral(":revision"),
+            profile.value(QStringLiteral("profileRevision")).toString());
+    listed.bindValue(QStringLiteral(":server"), kServer);
+    // Again while the library's workers hold the database
+    ASSERT_TRUE(QTest::qWaitFor([&] { return listed.exec(); }, kWaitMs))
+            << listed.lastError().text().toStdString();
+    CrateServerTrackModel* pModel = showPlaylist();
+    ASSERT_NE(nullptr, pModel);
+    m_pView->selectionModel()->select(pModel->index(0, 0),
+            QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
+    m_pView->loadSelectedTrackToGroup(kDeck1,
+#ifdef __STEM__
+            mixxx::StemChannelSelection(),
+#endif
+            false);
+    ASSERT_TRUE(serveDownload(QStringLiteral("e1")));
+    ASSERT_TRUE(deckHasLoaded(kDeck1, QStringLiteral("e1")));
+
+    // Its mix profile (a full one, in 8A at -8.6 LUFS), once asked for
+    const QString path = QStringLiteral("/api/tracks/by-entity/e1/mix-profile");
+    crate::test::FakeReply* pReply = nullptr;
+    ASSERT_TRUE(QTest::qWaitFor(
+            [&] {
+                for (const auto& request : std::as_const(m_network.sent)) {
+                    if (request.request.url().path() == path && request.pReply &&
+                            !request.pReply->isFinished()) {
+                        pReply = request.pReply.data();
+                    }
+                }
+                return pReply != nullptr;
+            },
+            kWaitMs));
+    pReply->respond(200, QJsonDocument(profile).toJson());
+
+    const TrackPointer pTrack = m_pPlayerManager->getDeck(0)->getLoadedTrack();
+    ASSERT_NE(nullptr, pTrack);
+    EXPECT_TRUE(QTest::qWaitFor(
+            [&] {
+                return pTrack->getKey() == mixxx::track::io::key::A_MINOR &&
+                        pTrack->getReplayGain().hasRatio();
+            },
+            kWaitMs));
 }
 
 } // namespace

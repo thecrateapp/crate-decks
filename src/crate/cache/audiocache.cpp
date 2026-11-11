@@ -5,6 +5,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QFutureWatcher>
+#include <QSet>
 #include <QStandardPaths>
 #include <QStorageInfo>
 #include <QTimer>
@@ -977,6 +978,83 @@ Usage AudioCache::usage() const {
         }
     }
     return usage;
+}
+
+QList<DownloadInfo> AudioCache::downloads() const {
+    QList<DownloadInfo> downloads;
+    for (const DownloadPtr& pDownload : m_downloads) {
+        DownloadInfo download;
+        download.serverId = pDownload->serverId;
+        download.entityUid = pDownload->entityUid;
+        download.priority = pDownload->priority;
+        download.active = pDownload->phase != Download::Phase::Queued;
+        download.bytesReceived = pDownload->offset + pDownload->received;
+        download.bytesTotal = pDownload->expected;
+        downloads.append(download);
+    }
+    // On their way first, then as pump() takes them
+    std::stable_sort(downloads.begin(),
+            downloads.end(),
+            [](const DownloadInfo& a, const DownloadInfo& b) {
+                if (a.active != b.active) {
+                    return a.active;
+                }
+                return a.priority > b.priority;
+            });
+    return downloads;
+}
+
+QList<PinnedSet> AudioCache::pinnedSets(const QString& reasonPrefix) const {
+    QList<PinnedSet> sets;
+    QHash<QString, qsizetype> indexOf;
+    for (const CacheEntry& entry : m_entries) {
+        for (const QString& reason : entry.pinnedReasons) {
+            if (!reason.startsWith(reasonPrefix)) {
+                continue;
+            }
+            const QString key = entry.serverId + QLatin1Char('\n') + reason;
+            const auto found = indexOf.constFind(key);
+            qsizetype index = 0;
+            if (found == indexOf.cend()) {
+                index = sets.size();
+                indexOf.insert(key, index);
+                sets.append(PinnedSet{entry.serverId, reason});
+            } else {
+                index = found.value();
+            }
+            PinnedSet& set = sets[index];
+            ++set.tracks;
+            if (entry.state == CacheEntry::State::Ready) {
+                ++set.readyTracks;
+                set.readyBytes += entry.bytes;
+            }
+        }
+    }
+    std::sort(sets.begin(), sets.end(), [](const PinnedSet& a, const PinnedSet& b) {
+        return a.serverId != b.serverId ? a.serverId < b.serverId : a.reason < b.reason;
+    });
+    return sets;
+}
+
+int AudioCache::clear() {
+    QSet<Key> downloading;
+    for (const DownloadPtr& pDownload : m_downloads) {
+        downloading.insert(pDownload->key);
+    }
+    QList<Key> keys;
+    for (auto it = m_entries.cbegin(); it != m_entries.cend(); ++it) {
+        if (it->state == CacheEntry::State::Ready && !it->isPinned() &&
+                !downloading.contains(it.key())) {
+            keys.append(it.key());
+        }
+    }
+    for (const Key& key : std::as_const(keys)) {
+        evict(key);
+    }
+    if (!keys.isEmpty()) {
+        emit usageChanged();
+    }
+    return static_cast<int>(keys.size());
 }
 
 bool AudioCache::makeRoom(qint64 incomingBytes) {

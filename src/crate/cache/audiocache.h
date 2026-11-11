@@ -85,6 +85,30 @@ struct TrackState {
     qint64 bytesTotal = -1;
 };
 
+/// A download of the cache's queue, for its view (F4.C-PR4).
+struct DownloadInfo {
+    QString serverId;
+    QString entityUid;
+    Priority priority = Priority::Prefetch;
+    /// On its way; otherwise waiting for its turn.
+    bool active = false;
+    /// Bytes of the file there are so far.
+    qint64 bytesReceived = 0;
+    /// The size of the whole file; -1 if unknown.
+    qint64 bytesTotal = -1;
+};
+
+/// The tracks of a server that one pin reason keeps, such as an offline set
+/// ("offline-set:<kind>:<id>"), for the cache's view.
+struct PinnedSet {
+    QString serverId;
+    QString reason;
+    int tracks = 0;
+    /// The ones whose file is complete, and their size.
+    int readyTracks = 0;
+    qint64 readyBytes = 0;
+};
+
 /// A track of the cache.
 struct TrackKey {
     QString serverId;
@@ -239,6 +263,15 @@ class AudioCache : public QObject {
         return m_options.limitBytes;
     }
     Usage usage() const;
+    /// The downloads on their way, then the ones waiting, the most urgent
+    /// first.
+    QList<DownloadInfo> downloads() const;
+    /// The tracks pinned for reasons that start with `reasonPrefix`, by
+    /// server and reason, in the order of the reasons.
+    QList<PinnedSet> pinnedSets(const QString& reasonPrefix) const;
+    /// Deletes every complete file that is not pinned, for "Clear cache".
+    /// Downloads and pinned files stay. Returns how many files went.
+    int clear();
 
   signals:
     void loaded();

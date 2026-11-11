@@ -196,4 +196,36 @@ TEST_F(CratePrefetcherTest, AnswersAutoDjForCrateTracksOnly) {
     EXPECT_FALSE(m_pPrefetcher->isOnItsWay(crateFile(1)));
 }
 
+// "Prefetch Auto DJ" off (plan F4.C-PR4): the queue's downloads stop and
+// nothing is fetched ahead, but a track Auto DJ waits for still comes.
+TEST_F(CratePrefetcherTest, SwitchedOffFetchesOnlyWhatAutoDjWaitsFor) {
+    PlaylistDAO& playlists = internalCollection()->getPlaylistDAO();
+    for (int number = 1; number <= 2; ++number) {
+        playlists.appendTrackToPlaylist(addMissingTrack(crateFile(number)), m_autoDj);
+    }
+    makePrefetcher();
+    waitForRefresh();
+    ASSERT_EQ((QStringList{key(1), key(2)}), m_pPrefetcher->prefetchedTracks());
+
+    m_pPrefetcher->setEnabled(false);
+    EXPECT_FALSE(m_pPrefetcher->isEnabled());
+    EXPECT_TRUE(m_pPrefetcher->prefetchedTracks().isEmpty());
+    EXPECT_EQ(crate::cache::TrackState::Kind::None, m_pCache->trackState(kServer, uidOf(1)).kind);
+    EXPECT_EQ(crate::cache::TrackState::Kind::None, m_pCache->trackState(kServer, uidOf(2)).kind);
+    // The queue changes: still nothing ahead
+    playlists.appendTrackToPlaylist(addMissingTrack(crateFile(3)), m_autoDj);
+    QTest::qWait(50);
+    EXPECT_TRUE(m_pPrefetcher->prefetchedTracks().isEmpty());
+    EXPECT_EQ(crate::cache::TrackState::Kind::None, m_pCache->trackState(kServer, uidOf(3)).kind);
+
+    // Auto DJ reaches a Crate track: it is on its way all the same
+    EXPECT_TRUE(m_pPrefetcher->isOnItsWay(crateFile(1)));
+    EXPECT_NE(crate::cache::TrackState::Kind::None, m_pCache->trackState(kServer, uidOf(1)).kind);
+
+    // Back on: the queue's first places again
+    m_pPrefetcher->setEnabled(true);
+    waitForRefresh();
+    EXPECT_EQ((QStringList{key(1), key(2), key(3)}), m_pPrefetcher->prefetchedTracks());
+}
+
 } // namespace

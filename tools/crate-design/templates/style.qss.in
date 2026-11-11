@@ -1417,6 +1417,63 @@ WTrackPropertyEditor {
   background: none;
 }
 
+/* ── Cache view of the Crate section (plan F4.C-PR4) ───────────────────
+   No mockup of its own: the Crate page's cache header (decks.css .usage)
+   over tables in the track table's style. C++ paints the rows' rules and
+   cells (crate/ui/cachestatusview.cpp and crate/ui/delegates/). */
+#CrateCacheView {
+  background-color: {{bgApp}};
+}
+#CrateCacheViewUsage {
+  color: {{textPrimary}};
+  font-family: "{{fontMono}}";
+  font-size: {{fontSizeUsage}};
+  letter-spacing: {{trackingNumeral * fontSizeUsage}};
+}
+#CrateCacheViewOf {
+  color: {{textSubtle}};
+  font-family: "{{fontMono}}";
+  font-size: {{fontSizeCaption}};
+}
+#CrateCacheViewCaption {
+  color: {{textSubtle}};
+  font-family: "{{fontMono}}";
+  font-size: {{fontSizeMeta.fontsize}};
+}
+#MonoCacheViewSection {
+  color: {{accentHi}};
+}
+#CrateCacheViewEmpty {
+  color: {{textMuted}};
+  font-family: "{{fontBody}}";
+  font-size: {{fontSizeCaption}};
+}
+#CrateCacheViewDownloads,
+#CrateCacheViewOfflineSets {
+  font-family: "{{fontBody}}";
+  font-size: {{fontSizeCaption}};
+  color: {{textMuted}};
+  background-color: {{bgApp}};
+  alternate-background-color: {{bgApp}};
+  selection-background-color: transparent;
+  border: 0;
+  outline: none;
+}
+#CrateCacheViewDownloads QHeaderView,
+#CrateCacheViewOfflineSets QHeaderView,
+#CrateCacheViewDownloads QHeaderView::section,
+#CrateCacheViewOfflineSets QHeaderView::section {
+  font-family: "{{fontMono}}";
+  font-size: {{fontSizeMeta.fontsize}};
+  text-transform: uppercase;
+  letter-spacing: {{trackingCaps * fontSizeMeta}};
+  color: {{textSubtle}};
+  background-color: {{bgApp}};
+  border: 0;
+  border-bottom: {{strokeHairline}} solid {{border}};
+  padding: 0 {{libraryCellPadding}};
+}
+
 /* ── Auto DJ and Analyze: the button bars of the library (plan V2.PR5) ─ */
 
 /* The admin's small buttons, outlined and neutral, with Solar icons; the

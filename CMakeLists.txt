@@ -5364,8 +5364,11 @@ if(CRATE)
       src/crate/stems/resampler.cpp
       src/crate/stems/stemdsp.cpp
       src/crate/crateaddserverflow.cpp
+      src/crate/cratepreferences.cpp
       src/crate/crateserverrows.cpp
       src/crate/crateservers.cpp
+      src/crate/ui/cachestatusmodel.cpp
+      src/crate/ui/cachestatusview.cpp
       src/crate/ui/crateaddserverwidget.cpp
       src/crate/ui/crateprefsections.cpp
       src/crate/ui/cratefirstrun.cpp
@@ -5399,6 +5402,7 @@ if(CRATE)
         src/test/crate/analysisimporter_test.cpp
         src/test/crate/audiocache_test.cpp
         src/test/crate/autodjcratepending_test.cpp
+        src/test/crate/cachestatusview_test.cpp
         src/test/crate/profilestore_test.cpp
         src/test/crate/cratecapabilities_test.cpp
         src/test/crate/crateclient_test.cpp

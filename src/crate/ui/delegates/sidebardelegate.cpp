@@ -13,12 +13,15 @@
 namespace crate::delegates {
 
 LabelAndCount splitCount(const QString& text) {
-    static const QRegularExpression kCount(QStringLiteral("^(.*\\S) \\((\\d+)\\)(?: (\\S.*))?$"));
+    // A count, or a size in decimal units ("18.4 GB", the Cache item)
+    static const QRegularExpression kCount(QStringLiteral(
+            "^(.*\\S) \\((\\d+|\\d+(?:\\.\\d+)? [KMGT]?B)\\)(?: (\\S.*))?$"));
     const QRegularExpressionMatch match = kCount.match(text);
     if (!match.hasMatch()) {
         return {text, QString()};
     }
-    QString count = groupThousands(match.captured(2));
+    const QString number = match.captured(2);
+    QString count = number.endsWith(QLatin1Char('B')) ? number : groupThousands(number);
     if (!match.captured(3).isEmpty()) {
         count += QStringLiteral(" · ") + match.captured(3);
     }
