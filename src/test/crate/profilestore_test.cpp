@@ -126,6 +126,16 @@ class ProfileStoreTest : public MixxxDbTest {
         return query.next() ? query.value(0).toInt() : -1;
     }
 
+    /// The uid of the profile of `quality` in a batch answer's profiles.
+    static QString uidOfQuality(const QJsonObject& profiles, const QString& quality) {
+        for (auto it = profiles.constBegin(); it != profiles.constEnd(); ++it) {
+            if (it.value().toObject().value(QStringLiteral("quality")).toString() == quality) {
+                return it.key();
+            }
+        }
+        return QString();
+    }
+
     static QJsonObject bodyOf(const FakeNetworkAccessManager::Sent& sent) {
         return QJsonDocument::fromJson(sent.body).object();
     }
@@ -162,6 +172,64 @@ TEST_F(ProfileStoreTest, UsesBatchWhenAvailable) {
     EXPECT_TRUE(results.failed.isEmpty());
     EXPECT_EQ(1, m_network.sent.size());
     EXPECT_EQ(2, storedRows());
+}
+
+// The S4 answer of the dev stack, anonymised (real-batch-response.json, from
+// export_real_mix_profiles.py): a full profile, a partial one and a uid the
+// server does not know.
+TEST_F(ProfileStoreTest, ParsesRealBatchAnswer) {
+    const QJsonObject answer = QJsonDocument::fromJson(fixture(QStringLiteral(
+                                                               "real-batch-response.json")))
+                                       .object();
+    const QJsonObject profiles = answer.value(QStringLiteral("profiles")).toObject();
+    const QJsonArray missing = answer.value(QStringLiteral("missing")).toArray();
+    ASSERT_EQ(2, profiles.size());
+    ASSERT_EQ(1, missing.size());
+    const QString full = uidOfQuality(profiles, QStringLiteral("full"));
+    const QString partial = uidOfQuality(profiles, QStringLiteral("partial"));
+    const QString unknown = missing.first().toString();
+    ASSERT_FALSE(full.isEmpty());
+    ASSERT_FALSE(partial.isEmpty());
+    for (const QString& uid : {full, partial}) {
+        catalogue(uid,
+                profiles.value(uid)
+                        .toObject()
+                        .value(QStringLiteral("profileRevision"))
+                        .toString());
+    }
+    catalogue(unknown, QStringLiteral("gone"));
+
+    ProfileStore* pStore = makeStore(true);
+    QSignalSpy finished(pStore->get({full, partial, unknown}), &ProfileFetch::finished);
+    ASSERT_TRUE(waitForRequests(1));
+    EXPECT_EQ(kBatchPath, m_network.last().request.url().path());
+    m_network.last().pReply->respond(200, fixture(QStringLiteral("real-batch-response.json")));
+
+    const ProfileResults results = resultOf(finished);
+    EXPECT_TRUE(results.failed.isEmpty());
+    EXPECT_EQ(QStringList{unknown}, results.missing);
+    ASSERT_TRUE(results.profiles.contains(full));
+    const auto& fullProfile = results.profiles.value(full).profile;
+    EXPECT_TRUE(fullProfile.isFull());
+    EXPECT_EQ(QStringLiteral("smart-mix-audio-v10"), fullProfile.analyzerVersion);
+    EXPECT_EQ(profiles.value(full)
+                      .toObject()
+                      .value(QStringLiteral("beatGridMs"))
+                      .toArray()
+                      .size(),
+            fullProfile.beatGridMs.size());
+    EXPECT_TRUE(fullProfile.bpm.has_value());
+    EXPECT_FALSE(fullProfile.camelot.isEmpty());
+    EXPECT_TRUE(fullProfile.integratedLufs.has_value());
+    ASSERT_TRUE(results.profiles.contains(partial));
+    EXPECT_EQ(crate::analysis::MixProfile::Quality::Partial,
+            results.profiles.value(partial).profile.quality);
+    EXPECT_EQ(2, storedRows());
+
+    // The batch serves the same profile as the single endpoint.
+    const QJsonObject single =
+            QJsonDocument::fromJson(fixture(QStringLiteral("real-full-whole-bpm.json"))).object();
+    EXPECT_EQ(single, profiles.value(full).toObject());
 }
 
 TEST_F(ProfileStoreTest, UsesSingleRequestsWithoutBatch) {
