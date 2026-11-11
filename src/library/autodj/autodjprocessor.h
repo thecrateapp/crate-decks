@@ -2,6 +2,8 @@
 
 #include <QObject>
 #include <QString>
+#include <QTimer>
+#include <functional>
 #include <memory>
 #include <vector>
 
@@ -13,7 +15,9 @@
 #include "library/playlisttablemodel.h"
 #include "preferences/usersettings.h"
 #include "track/track_decl.h"
+#include "track/trackid.h"
 #include "util/class.h"
+#include "util/duration.h"
 #include "util/parented_ptr.h"
 
 class TrackCollectionManager;
@@ -202,6 +206,16 @@ class AutoDJProcessor : public QObject {
 
     void setTransitionMode(TransitionMode newMode);
 
+    /// Asked about a queued track whose file is missing, before Auto DJ
+    /// skips it: true if the file is on its way (a download, for example).
+    /// Auto DJ then waits for it, asking again until the file is there, the
+    /// hook says no or kPendingTrackTimeout passes, and only then goes on
+    /// with the next track. Without a hook, a missing track is skipped at
+    /// once.
+    using PendingTrackHook = std::function<bool(const TrackPointer& pTrack)>;
+    static void setPendingTrackHook(PendingTrackHook hook);
+    static constexpr mixxx::Duration kPendingTrackTimeout = mixxx::Duration::fromSeconds(30);
+
     AutoDJError shufflePlaylist(const QModelIndexList& selectedIndices);
     AutoDJError skipNext();
     void fadeNow();
@@ -235,6 +249,7 @@ class AutoDJProcessor : public QObject {
     void playerRateChanged(DeckAttributes* pDeck);
     void playerOrientationChanged(DeckAttributes* pDeck);
     void playlistFirstTrackChanged();
+    void checkPendingTrack();
 
     void controlEnableChangeRequest(double value);
     void controlFadeNow(double value);
@@ -277,6 +292,11 @@ class AutoDJProcessor : public QObject {
 
     TrackPointer getNextTrackFromQueue();
     bool loadNextTrackFromQueue(const DeckAttributes& pDeck, bool play = false);
+    /// Whether to wait for the missing file of a queued track (PendingTrackHook).
+    bool waitForPendingTrack(const TrackPointer& pTrack);
+    /// Loads `pTrack`, or the queue's first track once its file is there.
+    void loadTrackOrWaitForIt(const TrackPointer& pTrack, const QString& group, bool play);
+    void stopWaitingForPendingTrack();
     void calculateTransition(DeckAttributes* pFromDeck,
             DeckAttributes* pToDeck,
             bool seekToStartPoint);
@@ -319,6 +339,14 @@ class AutoDJProcessor : public QObject {
     ControlPushButton m_addRandomTrack;
     ControlPushButton m_fadeNow;
     ControlPushButton m_enabledAutoDJ;
+
+    /// The queued track whose file Auto DJ waits for, since when, and the
+    /// deck it goes to.
+    TrackId m_pendingTrackId;
+    mixxx::Duration m_pendingTrackSince;
+    QString m_pendingTrackGroup;
+    bool m_pendingTrackPlay = false;
+    QTimer m_pendingTrackTimer;
 
     DISALLOW_COPY_AND_ASSIGN(AutoDJProcessor);
 };

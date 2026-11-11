@@ -7,6 +7,7 @@
 #include "track/track.h"
 #include "util/logger.h"
 #include "util/math.h"
+#include "util/time.h"
 
 namespace {
 const mixxx::Logger kLogger("AutoDJ");
@@ -51,6 +52,12 @@ bool fromDeckReachedFadeOrEnd(
     return durationSec > 0.0 &&
             (1.0 - playPosition) * durationSec <= kMinimumTrackDurationSec;
 }
+
+// How often Auto DJ looks for the file of a pending track
+constexpr int kPendingTrackPollMillis = 250;
+
+AutoDJProcessor::PendingTrackHook s_pendingTrackHook;
+
 } // anonymous namespace
 
 DeckAttributes::DeckAttributes(int index,
@@ -198,6 +205,16 @@ AutoDJProcessor::AutoDJProcessor(
     m_transitionMode = m_pConfig->getValue(
             ConfigKey(kPreferenceGroup, kTransitionModePreferenceName),
             TransitionMode::FullIntroOutro);
+
+    m_pendingTrackTimer.setInterval(kPendingTrackPollMillis);
+    connect(&m_pendingTrackTimer,
+            &QTimer::timeout,
+            this,
+            &AutoDJProcessor::checkPendingTrack);
+}
+
+void AutoDJProcessor::setPendingTrackHook(PendingTrackHook hook) {
+    s_pendingTrackHook = std::move(hook);
 }
 
 void AutoDJProcessor::slotNumberOfDecksChanged(int decks) {
@@ -467,7 +484,8 @@ AutoDJProcessor::AutoDJError AutoDJProcessor::toggleAutoDJ(bool enable) {
         }
 
         TrackPointer nextTrack = getNextTrackFromQueue();
-        if (!nextTrack) {
+        // A first track whose file is on its way is not an empty queue
+        if (!nextTrack && !m_pendingTrackId.isValid()) {
             qDebug() << "Queue is empty now, disable Auto DJ";
             m_enabledAutoDJ.setAndConfirm(0.0);
             emitAutoDJStateChanged(m_eState);
@@ -600,25 +618,26 @@ AutoDJProcessor::AutoDJError AutoDJProcessor::toggleAutoDJ(bool enable) {
             // Load track into the left deck and play. Once it starts playing,
             // we will receive a playerPositionChanged update for deck 1 which
             // will load a track into the right deck and switch to IDLE mode.
-            emitLoadTrackToPlayer(nextTrack, pLeftDeck->group, true);
+            loadTrackOrWaitForIt(nextTrack, pLeftDeck->group, true);
         } else {
             // One of the two decks is playing. Switch into IDLE mode and wait
             // until the playing deck crosses posThreshold to start fading.
             m_eState = ADJ_IDLE;
             if (leftDeckPlaying) {
                 // Load track into the right deck.
-                emitLoadTrackToPlayer(nextTrack, pRightDeck->group, false);
+                loadTrackOrWaitForIt(nextTrack, pRightDeck->group, false);
                 // Move crossfader to the left.
                 setCrossfader(-1.0);
             } else {
                 // Load track into the left deck.
-                emitLoadTrackToPlayer(nextTrack, pLeftDeck->group, false);
+                loadTrackOrWaitForIt(nextTrack, pLeftDeck->group, false);
                 // Move crossfader to the right.
                 setCrossfader(1.0);
             }
         }
         emitAutoDJStateChanged(m_eState);
     } else { // Disable Auto DJ
+        stopWaitingForPendingTrack();
         m_enabledAutoDJ.setAndConfirm(0.0);
         qDebug() << "Auto DJ disabled";
         m_eState = ADJ_DISABLED;
@@ -1000,7 +1019,15 @@ TrackPointer AutoDJProcessor::getNextTrackFromQueue() {
 
         if (pNextTrack) {
             if (pNextTrack->getFileInfo().checkFileExists()) {
+                if (m_pendingTrackId.isValid()) {
+                    // The file it waited for is there, or another track
+                    // went first
+                    stopWaitingForPendingTrack();
+                }
                 return pNextTrack;
+            } else if (waitForPendingTrack(pNextTrack)) {
+                // Its file is on its way: nothing to load yet
+                return TrackPointer();
             } else {
                 // Remove missing track from auto DJ playlist.
                 qWarning() << "Auto DJ: Skip missing track" << pNextTrack->getLocation();
@@ -1019,6 +1046,13 @@ TrackPointer AutoDJProcessor::getNextTrackFromQueue() {
 bool AutoDJProcessor::loadNextTrackFromQueue(const DeckAttributes& deck, bool play) {
     TrackPointer nextTrack = getNextTrackFromQueue();
 
+    if (!nextTrack && m_pendingTrackId.isValid()) {
+        // Loaded once its file is there (checkPendingTrack())
+        m_pendingTrackGroup = deck.group;
+        m_pendingTrackPlay = play;
+        return true;
+    }
+
     // We ran out of tracks in the queue.
     if (!nextTrack) {
         // Disable AutoDJ.
@@ -1031,6 +1065,61 @@ bool AutoDJProcessor::loadNextTrackFromQueue(const DeckAttributes& deck, bool pl
 
     emitLoadTrackToPlayer(nextTrack, deck.group, play);
     return true;
+}
+
+bool AutoDJProcessor::waitForPendingTrack(const TrackPointer& pTrack) {
+    const TrackId trackId = pTrack->getId();
+    if (!s_pendingTrackHook || !trackId.isValid() || !s_pendingTrackHook(pTrack)) {
+        if (trackId == m_pendingTrackId) {
+            stopWaitingForPendingTrack();
+        }
+        return false;
+    }
+    if (trackId != m_pendingTrackId) {
+        kLogger.info() << "Waiting for the file of" << pTrack->getLocation();
+        m_pendingTrackId = trackId;
+        m_pendingTrackSince = mixxx::Time::elapsed();
+    } else if (mixxx::Time::elapsed() - m_pendingTrackSince >= kPendingTrackTimeout) {
+        qWarning() << "Auto DJ: Skip track whose file did not arrive in time"
+                   << pTrack->getLocation();
+        stopWaitingForPendingTrack();
+        return false;
+    }
+    if (!m_pendingTrackTimer.isActive()) {
+        m_pendingTrackTimer.start();
+    }
+    return true;
+}
+
+void AutoDJProcessor::loadTrackOrWaitForIt(
+        const TrackPointer& pTrack, const QString& group, bool play) {
+    if (pTrack) {
+        emitLoadTrackToPlayer(pTrack, group, play);
+        return;
+    }
+    m_pendingTrackGroup = group;
+    m_pendingTrackPlay = play;
+}
+
+void AutoDJProcessor::stopWaitingForPendingTrack() {
+    m_pendingTrackTimer.stop();
+    m_pendingTrackId = TrackId();
+    m_pendingTrackGroup.clear();
+    m_pendingTrackPlay = false;
+}
+
+void AutoDJProcessor::checkPendingTrack() {
+    const QString group = m_pendingTrackGroup;
+    const bool play = m_pendingTrackPlay;
+    const auto it = std::find_if(m_decks.cbegin(), m_decks.cend(), [&group](const auto& pDeck) {
+        return pDeck && pDeck->group == group;
+    });
+    if (m_eState == ADJ_DISABLED || !m_pendingTrackId.isValid() || it == m_decks.cend()) {
+        stopWaitingForPendingTrack();
+        return;
+    }
+    // Loads it once its file is there, or the next track once it is late
+    loadNextTrackFromQueue(**it, play);
 }
 
 bool AutoDJProcessor::removeLoadedTrackFromTopOfQueue(const DeckAttributes& deck) {

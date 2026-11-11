@@ -5396,6 +5396,7 @@ if(CRATE)
       PRIVATE
         src/test/crate/analysisimporter_test.cpp
         src/test/crate/audiocache_test.cpp
+        src/test/crate/autodjcratepending_test.cpp
         src/test/crate/profilestore_test.cpp
         src/test/crate/cratecapabilities_test.cpp
         src/test/crate/crateclient_test.cpp
