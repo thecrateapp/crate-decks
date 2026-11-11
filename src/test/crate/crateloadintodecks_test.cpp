@@ -510,7 +510,9 @@ TEST_F(CrateLoadIntoDecksTest, AutoDjPlaysUncachedTracksAddedFromTheTrackMenu) {
 
     // Auto DJ on: the first track is on its way, then deck 1 plays it
     ControlObject::set(ConfigKey(QStringLiteral("[AutoDJ]"), QStringLiteral("enabled")), 1.0);
-    EXPECT_EQ(1.0, ControlObject::get(ConfigKey(QStringLiteral("[AutoDJ]"), QStringLiteral("enabled"))));
+    EXPECT_EQ(1.0,
+            ControlObject::get(ConfigKey(
+                    QStringLiteral("[AutoDJ]"), QStringLiteral("enabled"))));
     ASSERT_TRUE(serveDownload(QStringLiteral("e1")));
     ASSERT_TRUE(deckHasLoaded(kDeck1, QStringLiteral("e1")));
     const TrackPointer pTrack = m_pPlayerManager->getDeck(0)->getLoadedTrack();
