@@ -184,4 +184,31 @@ TEST_F(CrateServerSchemaTest, CreatesLibraryTablesWithTheirIndexes) {
     EXPECT_FALSE(steps.contains(QStringLiteral("TEMP B-TREE"))) << steps.toStdString();
 }
 
+TEST_F(CrateServerSchemaTest, CreatesProfilesTable) {
+    ASSERT_TRUE(crate::db::createCrateServerSchema(dbConnection()));
+    QSqlQuery insert(dbConnection());
+    ASSERT_TRUE(insert.exec(QStringLiteral(
+            "INSERT INTO crateserver_profiles (server_id, entity_uid, profile_revision, "
+            "json, fetched_at) VALUES ('5b0c', 'e1', 'r1', '{}', '2026-11-11T10:00:00Z')")));
+
+    ASSERT_TRUE(crate::db::createCrateServerSchema(dbConnection()));
+
+    // Design §6, plus the cues Decks set from a profile (plan F4.C-PR2)
+    EXPECT_EQ(QStringList({QStringLiteral("server_id"),
+                      QStringLiteral("entity_uid"),
+                      QStringLiteral("profile_revision"),
+                      QStringLiteral("json"),
+                      QStringLiteral("fetched_at"),
+                      QStringLiteral("applied_cues")}),
+            columns(QStringLiteral("crateserver_profiles")));
+    QSqlQuery count(dbConnection());
+    ASSERT_TRUE(count.exec(QStringLiteral("SELECT COUNT(*) FROM crateserver_profiles")));
+    ASSERT_TRUE(count.next());
+    EXPECT_EQ(1, count.value(0).toInt());
+    QSqlQuery duplicate(dbConnection());
+    EXPECT_FALSE(duplicate.exec(QStringLiteral(
+            "INSERT INTO crateserver_profiles (server_id, entity_uid, profile_revision, "
+            "json, fetched_at) VALUES ('5b0c', 'e1', 'r2', '{}', '2026-11-11T10:00:00Z')")));
+}
+
 } // namespace
