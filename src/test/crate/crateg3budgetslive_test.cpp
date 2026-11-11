@@ -198,6 +198,15 @@ class CountingNetworkAccessManager : public QNetworkAccessManager {
         int total = 0;
     };
 
+    ~CountingNetworkAccessManager() override {
+        // The base class deletes the replies it still owns once this
+        // class's members are gone: they must not reach close() any more
+        const QList<QNetworkReply*> replies = findChildren<QNetworkReply*>();
+        for (QNetworkReply* pReply : replies) {
+            QObject::disconnect(pReply, nullptr, this, nullptr);
+        }
+    }
+
     static QString classOf(const QString& path) {
         if (path.startsWith(QLatin1String("/api/tracks/by-entity/")) &&
                 path.endsWith(QLatin1String("/stream"))) {
