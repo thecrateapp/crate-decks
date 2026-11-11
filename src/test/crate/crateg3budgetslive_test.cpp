@@ -273,6 +273,7 @@ class MainThreadStalls {
     void pause() {
         m_timer.stop();
         m_clock.invalidate();
+        m_excludedMs = 0.0;
     }
     void resume() {
         m_timer.start();
@@ -280,6 +281,12 @@ class MainThreadStalls {
 
     double longestMs() const {
         return m_longestMs;
+    }
+
+    /// Leaves `ms` of the test's own work on the main thread out of the
+    /// current gap.
+    void exclude(double ms) {
+        m_excludedMs += ms;
     }
 
     /// What the test is doing, recorded with each stall over 16 ms.
@@ -341,7 +348,9 @@ class MainThreadStalls {
             m_clock.start();
             return;
         }
-        const double gapMs = static_cast<double>(m_clock.nsecsElapsed()) / 1e6;
+        const double gapMs =
+                std::max(0.0, static_cast<double>(m_clock.nsecsElapsed()) / 1e6 - m_excludedMs);
+        m_excludedMs = 0.0;
         m_clock.restart();
         m_longestMs = std::max(m_longestMs, gapMs);
         if (gapMs <= kStallBudgetMs) {
@@ -388,6 +397,7 @@ class MainThreadStalls {
     QTimer m_timer;
     QElapsedTimer m_clock;
     QString m_phase;
+    double m_excludedMs = 0.0;
     std::vector<std::pair<double, QString>> m_stalls;
     double m_longestMs = 0.0;
     std::array<int, 5> m_buckets{};
@@ -681,7 +691,16 @@ class CrateG3BudgetsLive : public MixxxDbTest, SoundSourceProviderRegistration {
             QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
             if (m_driveEngine && m_enginePump.elapsed() >= 5) {
                 m_enginePump.restart();
+                // The engine runs on its own thread in the application: its
+                // time here is not a main-thread stall
+                QElapsedTimer engine;
+                engine.start();
                 m_pEngine->process(512);
+                const double engineMs = static_cast<double>(engine.nsecsElapsed()) / 1e6;
+                m_longestEngineMs = std::max(m_longestEngineMs, engineMs);
+                if (m_pStalls) {
+                    m_pStalls->exclude(engineMs);
+                }
             }
         }
         return true;
@@ -1243,6 +1262,17 @@ class CrateG3BudgetsLive : public MixxxDbTest, SoundSourceProviderRegistration {
         file.write(QJsonDocument(root).toJson());
     }
 
+    /// The stalls of a test, with the engine calls it left out of them.
+    QJsonObject mainThread(const MainThreadStalls& stalls) const {
+        QJsonObject json = stalls.toJson();
+        json.insert(QStringLiteral("engine_callback_longest_ms"),
+                std::round(m_longestEngineMs * 10.0) / 10.0);
+        json.insert(QStringLiteral("engine_callbacks"),
+                QStringLiteral("left out: the test drives the engine on the main thread, as a "
+                               "sound card does on the engine's own thread"));
+        return json;
+    }
+
     QString outPath(const QString& name) const {
         return QDir(m_outDir).filePath(name);
     }
@@ -1256,6 +1286,8 @@ class CrateG3BudgetsLive : public MixxxDbTest, SoundSourceProviderRegistration {
     bool m_driveEngine = false;
     /// The test's stall detector, for the phases.
     MainThreadStalls* m_pStalls = nullptr;
+    /// The longest call of the engine that the test makes as a sound card.
+    double m_longestEngineMs = 0.0;
     /// When each deck was last loaded, by deck index.
     QHash<int, qint64> m_lastClickNs;
     bool m_started = false;
@@ -1399,7 +1431,7 @@ TEST_F(CrateG3BudgetsLive, OpenContainer) {
                             QJsonObject{{QStringLiteral("cold"), maximum(cold) < kColdOpenBudgetMs},
                                     {QStringLiteral("warm"),
                                             maximum(warm) < kWarmOpenBudgetMs}}},
-                    {QStringLiteral("main_thread"), stalls.toJson()},
+                    {QStringLiteral("main_thread"), mainThread(stalls)},
             });
 }
 
@@ -1541,7 +1573,7 @@ TEST_F(CrateG3BudgetsLive, LoadIntoDeck) {
                             QJsonObject{{QStringLiteral("uncached"),
                                     uncachedWaveform >= 0.0 &&
                                             uncachedWaveform < kUncachedLoadBudgetMs}}},
-                    {QStringLiteral("main_thread"), stalls.toJson()},
+                    {QStringLiteral("main_thread"), mainThread(stalls)},
             });
 }
 
@@ -1575,7 +1607,7 @@ TEST_F(CrateG3BudgetsLive, Q10) {
     record(QStringLiteral("Q10"),
             QJsonObject{
                     {QStringLiteral("formats"), formats},
-                    {QStringLiteral("main_thread"), stalls.toJson()},
+                    {QStringLiteral("main_thread"), mainThread(stalls)},
             });
 }
 
@@ -1833,7 +1865,7 @@ TEST_F(CrateG3BudgetsLive, Concurrency) {
                                                 apiPeak <= kApiBudget},
                                     {QStringLiteral("downloads"),
                                             streamPeak <= kDownloadBudget}}},
-                    {QStringLiteral("main_thread"), stalls.toJson()},
+                    {QStringLiteral("main_thread"), mainThread(stalls)},
             });
 }
 
@@ -2018,7 +2050,7 @@ TEST_F(CrateG3BudgetsLive, KeepsTwoGiBFree) {
                     {QStringLiteral("failed_storage_uids"), storageUids},
                     {QStringLiteral("budget"), QStringLiteral("never below 2 GiB free")},
                     {QStringLiteral("within_budget"), lowest >= 2 * kGiB},
-                    {QStringLiteral("main_thread"), stalls.toJson()},
+                    {QStringLiteral("main_thread"), mainThread(stalls)},
             });
 }
 
@@ -2159,7 +2191,7 @@ TEST_F(CrateG3BudgetsLive, GridQualityReport) {
                                                     kGridMaxDeviationMs},
                                     {QStringLiteral("max_drift_ms"),
                                             crate::analysis::kGridMaxDriftMs}}},
-                    {QStringLiteral("main_thread"), stalls.toJson()},
+                    {QStringLiteral("main_thread"), mainThread(stalls)},
             });
 }
 
