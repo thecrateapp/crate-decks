@@ -5341,6 +5341,9 @@ if(CRATE)
       src/crate/analysis/analysisimporter.cpp
       src/crate/analysis/mixprofile.cpp
       src/crate/analysis/profilestore.cpp
+      src/crate/cache/audiocache.cpp
+      src/crate/cache/audiocacheindex.cpp
+      src/crate/cache/cachepaths.cpp
       src/crate/client/cratecapabilities.cpp
       src/crate/client/crateclient.cpp
       src/crate/client/crateserveraddress.cpp
@@ -5392,6 +5395,7 @@ if(CRATE)
       mixxx-test
       PRIVATE
         src/test/crate/analysisimporter_test.cpp
+        src/test/crate/audiocache_test.cpp
         src/test/crate/profilestore_test.cpp
         src/test/crate/cratecapabilities_test.cpp
         src/test/crate/crateclient_test.cpp

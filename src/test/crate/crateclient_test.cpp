@@ -632,4 +632,120 @@ TEST_F(CrateClientTest, OpensAnEventStreamWithTheSessionHeaders) {
     EXPECT_EQ(5, m_network.sent.size());
 }
 
+TEST_F(CrateClientTest, StreamsTheBodyAsItArrives) {
+    const auto pClient = makeClient();
+    RequestOptions stream;
+    stream.streamBody = true;
+    stream.headers = {{QByteArrayLiteral("Range"), QByteArrayLiteral("bytes=4-")}};
+    Reply* pReply = pClient->get(QStringLiteral("/api/tracks/by-entity/t1/stream"), stream);
+    Outcome outcome(pReply);
+    int statusAtHeaders = 0;
+    QByteArray etagAtHeaders;
+    QByteArray received;
+    QObject::connect(pReply,
+            &Reply::headersReceived,
+            pReply,
+            [pReply, pStatus = &statusAtHeaders, pEtag = &etagAtHeaders] {
+                *pStatus = pReply->httpStatus();
+                *pEtag = pReply->rawHeader("ETag");
+            });
+    QObject::connect(pReply,
+            &Reply::bodyReceived,
+            pReply,
+            [pStatus = &statusAtHeaders, pReceived = &received](const QByteArray& chunk) {
+                EXPECT_EQ(206, *pStatus);
+                *pReceived += chunk;
+            });
+
+    const QNetworkRequest& request = m_network.last().request;
+    EXPECT_EQ(QByteArrayLiteral("Bearer access-1"), request.rawHeader("Authorization"));
+    EXPECT_EQ(QByteArrayLiteral("bytes=4-"), request.rawHeader("Range"));
+    EXPECT_EQ(QByteArrayLiteral("*/*"), request.rawHeader("Accept"));
+    FakeReply* pFake = lastReply();
+    pFake->respondHeaders(206, {{QByteArrayLiteral("ETag"), QByteArrayLiteral("\"e1\"")}});
+    pFake->sendBody(QByteArrayLiteral("4567"));
+    EXPECT_EQ(QByteArrayLiteral("4567"), received);
+    // Nothing is kept: what was handed over is gone from the network reply
+    EXPECT_EQ(0, pFake->bytesAvailable());
+    pFake->sendBody(QByteArrayLiteral("89"));
+    pFake->finishBody();
+
+    EXPECT_EQ(206, statusAtHeaders);
+    EXPECT_EQ(QByteArrayLiteral("\"e1\""), etagAtHeaders);
+    EXPECT_EQ(QByteArrayLiteral("456789"), received);
+    ASSERT_TRUE(outcome.finished());
+    ASSERT_TRUE(outcome.result->ok());
+    EXPECT_TRUE(outcome.result->value().isNull());
+}
+
+TEST_F(CrateClientTest, StreamsAreNeitherSharedNorLimited) {
+    const auto pClient = makeClient();
+    for (int i = 0; i < 4; ++i) {
+        pClient->get(QStringLiteral("/api/items/%1").arg(i));
+    }
+    ASSERT_EQ(4, m_network.sent.size());
+    RequestOptions stream;
+    stream.streamBody = true;
+
+    pClient->get(QStringLiteral("/api/tracks/by-entity/t1/stream"), stream);
+    pClient->get(QStringLiteral("/api/tracks/by-entity/t1/stream"), stream);
+
+    // Two downloads of their own, although the four API slots are taken
+    EXPECT_EQ(6, m_network.sent.size());
+    m_network.sent[4].pReply->respond(200, QByteArrayLiteral("audio"));
+    // ...and a finished stream frees no API slot
+    EXPECT_EQ(6, m_network.sent.size());
+    pClient->get(QStringLiteral("/api/items/4"));
+    EXPECT_EQ(6, m_network.sent.size());
+}
+
+TEST_F(CrateClientTest, StreamRenewsTheTokenAndStreamsNoErrorBody) {
+    const auto pClient = makeClient();
+    RequestOptions stream;
+    stream.streamBody = true;
+    Reply* pReply = pClient->get(QStringLiteral("/api/tracks/by-entity/t1/stream"), stream);
+    Outcome outcome(pReply);
+    QByteArray received;
+    int headers = 0;
+    QObject::connect(pReply, &Reply::headersReceived, pReply, [pHeaders = &headers] {
+        ++*pHeaders;
+    });
+    QObject::connect(pReply,
+            &Reply::bodyReceived,
+            pReply,
+            [pReceived = &received](const QByteArray& chunk) {
+                *pReceived += chunk;
+            });
+
+    lastReply()->respond(401, QByteArrayLiteral(R"({"detail": "expired"})"));
+    m_tokens.finishRenewal(true, QStringLiteral("access-2"));
+    ASSERT_EQ(2, m_network.sent.size());
+    EXPECT_EQ(QByteArrayLiteral("Bearer access-2"),
+            lastReply()->request().rawHeader("Authorization"));
+    lastReply()->respond(200, QByteArray());
+
+    EXPECT_TRUE(received.isEmpty());
+    // An empty body still tells its headers
+    EXPECT_EQ(1, headers);
+    ASSERT_TRUE(outcome.finished());
+    EXPECT_TRUE(outcome.result->ok());
+}
+
+TEST_F(CrateClientTest, CancellingAStreamFromItsBodyIsSafe) {
+    const auto pClient = makeClient();
+    RequestOptions stream;
+    stream.streamBody = true;
+    Reply* pReply = pClient->get(QStringLiteral("/api/tracks/by-entity/t1/stream"), stream);
+    Outcome outcome(pReply);
+    QObject::connect(pReply, &Reply::bodyReceived, pReply, [pReply] { pReply->cancel(); });
+    FakeReply* pFake = lastReply();
+
+    pFake->respondHeaders(200);
+    pFake->sendBody(QByteArrayLiteral("01"));
+
+    EXPECT_TRUE(pFake->aborted());
+    ASSERT_TRUE(outcome.finished());
+    EXPECT_EQ(Error::Kind::Cancelled, outcome.result->error().kind);
+}
+
 } // namespace

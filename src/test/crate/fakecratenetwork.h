@@ -76,6 +76,52 @@ class FakeReply : public QNetworkReply {
         emit finished();
     }
 
+    /// The status and headers of an answer whose body comes later, with
+    /// sendBody(), until finishBody() or breakOff().
+    void respondHeaders(int status, const Headers& headers = {}) {
+        if (isFinished()) {
+            return;
+        }
+        setAttribute(QNetworkRequest::HttpStatusCodeAttribute, status);
+        for (const auto& [name, value] : headers) {
+            setRawHeader(name, value);
+        }
+        if (status >= 400) {
+            setError(status >= 500 ? UnknownServerError : UnknownContentError,
+                    QStringLiteral("HTTP %1").arg(status));
+        }
+        emit metaDataChanged();
+    }
+
+    void sendBody(const QByteArray& chunk) {
+        if (isFinished()) {
+            return;
+        }
+        m_body.append(chunk);
+        m_sent += chunk.size();
+        emit downloadProgress(m_sent, -1);
+        emit readyRead();
+    }
+
+    void finishBody() {
+        if (isFinished()) {
+            return;
+        }
+        setFinished(true);
+        emit finished();
+    }
+
+    /// The connection closes in the middle of the body.
+    void breakOff() {
+        if (isFinished()) {
+            return;
+        }
+        setError(RemoteHostClosedError, QStringLiteral("Remote host closed the connection"));
+        emit errorOccurred(RemoteHostClosedError);
+        setFinished(true);
+        emit finished();
+    }
+
     void failNetwork() {
         if (isFinished()) {
             return;
@@ -116,6 +162,7 @@ class FakeReply : public QNetworkReply {
   private:
     QByteArray m_body;
     qint64 m_position = 0;
+    qint64 m_sent = 0;
     bool m_aborted = false;
 };
 
