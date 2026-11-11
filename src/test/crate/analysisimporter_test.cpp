@@ -5,6 +5,9 @@
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <algorithm>
+#include <cmath>
+#include <limits>
 
 #include "analyzer/analyzerbeats.h"
 #include "analyzer/analyzertrack.h"
@@ -35,6 +38,12 @@ using mixxx::track::io::key::ChromaticKey;
 const QString kConstantFixture = QStringLiteral("full-constant-124.json");
 const QString kDriftingFixture = QStringLiteral("full-drifting-128.json");
 const QString kPartialFixture = QStringLiteral("partial.json");
+// Real profiles of the dev stack's analyzer (smart-mix-audio-v10),
+// anonymised by export_real_mix_profiles.py in the same directory.
+const QString kRealWholeFixture = QStringLiteral("real-full-whole-bpm.json");
+const QString kRealFractionalFixture = QStringLiteral("real-full-fractional-bpm.json");
+const QString kRealTrackedFixture = QStringLiteral("real-full-tracked.json");
+const QString kRealPartialFixture = QStringLiteral("real-partial.json");
 
 const QString kAudioFile = QStringLiteral("id3-test-data/cover-test-øé~ł€˚.flac");
 
@@ -188,9 +197,9 @@ TEST_F(AnalysisImporterTest, LeavesBeatsToMixxxByDefault) {
     EXPECT_FALSE(pTrack->getReplayGain().hasRatio());
 }
 
-// TEST_GAP: the limits of checkBeatGrid() are not calibrated on real profiles
-// of the current analyzer: the dev stack was not running and production is
-// off limits. G3 checks on the waveform which grids pass.
+// TEST_GAP: whether the grids that pass checkBeatGrid() fit the music is
+// checked on the waveform at G3 (F0 Q3 and Q5). The Real* tests below show
+// what the current analyzer writes.
 TEST_F(AnalysisImporterTest, RejectsDriftingGrid) {
     const MixProfile profile = fixture(kDriftingFixture);
     const GridCheck grid = crate::analysis::checkBeatGrid(profile);
@@ -443,6 +452,164 @@ TEST_F(AnalysisImporterTest, AnalyzerSkipsBeatsForCrateGrid) {
             mixxx::audio::ChannelCount::stereo(),
             static_cast<SINT>(10 * pLocal->getSampleRate().toDouble())));
     localAnalyzer.cleanup();
+}
+
+// A real `full` profile at a whole BPM: the analyzer's grid is constant, its
+// beats rounded to whole ms, and it imports at the file's sample rate.
+TEST_F(AnalysisImporterTest, RealFullProfileImportsAtFileSampleRate) {
+    const MixProfile profile = fixture(kRealWholeFixture);
+    ASSERT_TRUE(profile.isFull());
+    ASSERT_TRUE(profile.bpm.has_value());
+    const GridCheck grid = crate::analysis::checkBeatGrid(profile);
+    ASSERT_TRUE(grid.passed) << grid.reason.toStdString();
+    EXPECT_DOUBLE_EQ(*profile.bpm, grid.bpm);
+    // Only the rounding to whole ms: the grid is constant
+    EXPECT_LE(grid.maxDeviationMs, 0.5);
+    EXPECT_LE(std::abs(grid.driftMs), 0.5);
+
+    for (const mixxx::audio::SampleRate::value_t sampleRate : {44100u, 48000u}) {
+        CrateBeatsImporter importer(grid, profile.profileRevision);
+        const mixxx::BeatsPointer pBeats = importer.importBeatsAndApplyTimingOffset(
+                QString(), QString(), streamInfo(sampleRate));
+        ASSERT_NE(nullptr, pBeats) << sampleRate;
+        EXPECT_EQ(mixxx::audio::SampleRate(sampleRate), pBeats->getSampleRate());
+        EXPECT_TRUE(pBeats->hasConstantTempo());
+        EXPECT_NEAR(*profile.bpm,
+                pBeats->getBpmInRange(mixxx::audio::kStartFramePos,
+                              mixxx::audio::FramePos(60.0 * sampleRate))
+                        .value(),
+                1e-6);
+        const double framesPerMs = sampleRate / 1000.0;
+        for (const qint64 beatMs : profile.beatGridMs) {
+            const auto position = mixxx::audio::FramePos(beatMs * framesPerMs);
+            ASSERT_NEAR(position.value(), pBeats->findClosestBeat(position).value(), framesPerMs)
+                    << beatMs << " ms at " << sampleRate;
+        }
+    }
+
+    TrackPointer pTrack = unopenedTrack();
+    const ImportOutcome outcome = AnalysisImporter::apply(pTrack, profile, crateEverything());
+    EXPECT_TRUE(outcome.beatsImported);
+    EXPECT_TRUE(outcome.keySet);
+    EXPECT_TRUE(outcome.gainSet);
+    open(pTrack);
+    EXPECT_EQ(Track::ImportStatus::Complete, pTrack->getBeatsImportStatus());
+    const mixxx::BeatsPointer pBeats = pTrack->getBeats();
+    ASSERT_NE(nullptr, pBeats);
+    EXPECT_EQ(pTrack->getSampleRate(), pBeats->getSampleRate());
+    EXPECT_TRUE(pTrack->isBpmLocked());
+    ASSERT_TRUE(profile.downbeatAnchorMs.has_value());
+    const auto downbeat = mixxx::audio::FramePos(*profile.downbeatAnchorMs * framesPerMs(pTrack));
+    EXPECT_NEAR(downbeat.value(), pBeats->findClosestBeat(downbeat).value(), framesPerMs(pTrack));
+    EXPECT_EQ(crate::analysis::keyFromCamelot(profile.camelot), pTrack->getKey());
+
+    // The analyzer's introCueMs is a mix-in point (the first beat after the
+    // musical start), so the Intro it gives is that short; its outroCueMs is
+    // the last beat 4 s before the musical end.
+    ASSERT_TRUE(outcome.appliedCues.has_value());
+    ASSERT_TRUE(outcome.appliedCues->intro.has_value());
+    EXPECT_EQ((AppliedCues::Range{static_cast<double>(*profile.activeStartMs),
+                      static_cast<double>(*profile.introCueMs)}),
+            outcome.appliedCues->intro);
+    ASSERT_TRUE(outcome.appliedCues->outro.has_value());
+    EXPECT_EQ((AppliedCues::Range{static_cast<double>(*profile.outroCueMs),
+                      static_cast<double>(*profile.activeEndMs)}),
+            outcome.appliedCues->outro);
+}
+
+// A real `full` profile at a BPM that is neither whole nor half, with a
+// steady tempo: its grid is constant at that BPM, and the check refuses it
+// for the BPM alone. At the nearest half BPM the same beats drift away.
+TEST_F(AnalysisImporterTest, RealFractionalBpmProfileFailsGridCheck) {
+    const MixProfile profile = fixture(kRealFractionalFixture);
+    ASSERT_TRUE(profile.isFull());
+    ASSERT_TRUE(profile.bpm.has_value());
+    ASSERT_TRUE(profile.tempoStability.has_value());
+    EXPECT_GE(*profile.tempoStability, 0.99);
+    const double halfBpm = std::round(*profile.bpm * 2.0) / 2.0;
+    ASSERT_GT(std::abs(*profile.bpm - halfBpm), 0.01);
+
+    const double periodMs = 60000.0 / *profile.bpm;
+    for (int i = 1; i < profile.beatGridMs.size(); ++i) {
+        ASSERT_NEAR(periodMs,
+                static_cast<double>(profile.beatGridMs[i] - profile.beatGridMs[i - 1]),
+                1.0)
+                << i;
+    }
+
+    const GridCheck grid = crate::analysis::checkBeatGrid(profile);
+    EXPECT_FALSE(grid.passed);
+    EXPECT_TRUE(grid.reason.contains(QStringLiteral("not quantised")))
+            << grid.reason.toStdString();
+
+    MixProfile quantised = profile;
+    quantised.bpm = halfBpm;
+    const GridCheck atHalf = crate::analysis::checkBeatGrid(quantised);
+    EXPECT_FALSE(atHalf.passed);
+    EXPECT_GT(atHalf.maxDeviationMs, crate::analysis::kGridMaxDeviationMs);
+
+    // Mixxx analyses the beats; the rest of the profile still applies.
+    TrackPointer pTrack = openedTrack();
+    const ImportOutcome outcome = AnalysisImporter::apply(pTrack, profile, crateEverything());
+    EXPECT_TRUE(outcome.usedProfile);
+    EXPECT_FALSE(outcome.beatsImported);
+    EXPECT_FALSE(outcome.beatsSkipped.isEmpty());
+    EXPECT_EQ(nullptr, pTrack->getBeats());
+    EXPECT_FALSE(pTrack->isBpmLocked());
+    EXPECT_TRUE(outcome.keySet);
+    EXPECT_TRUE(outcome.appliedCues.has_value());
+}
+
+// A real `full` profile whose tempo is not steady (tempoStability 0): the
+// analyzer tracked its beats, some of them two beats apart. Neither its own
+// BPM nor the nearest half one makes a constant grid of them.
+TEST_F(AnalysisImporterTest, RealTrackedProfileFailsGridCheck) {
+    const MixProfile profile = fixture(kRealTrackedFixture);
+    ASSERT_TRUE(profile.isFull());
+    ASSERT_TRUE(profile.bpm.has_value());
+    ASSERT_TRUE(profile.tempoStability.has_value());
+    EXPECT_LT(*profile.tempoStability, 0.5);
+    qint64 shortest = std::numeric_limits<qint64>::max();
+    qint64 longest = 0;
+    for (int i = 1; i < profile.beatGridMs.size(); ++i) {
+        const qint64 interval = profile.beatGridMs[i] - profile.beatGridMs[i - 1];
+        shortest = std::min(shortest, interval);
+        longest = std::max(longest, interval);
+    }
+    EXPECT_GT(longest - shortest, 10 * crate::analysis::kGridMaxDeviationMs);
+
+    EXPECT_FALSE(crate::analysis::checkBeatGrid(profile).passed);
+    MixProfile quantised = profile;
+    quantised.bpm = std::round(*profile.bpm * 2.0) / 2.0;
+    const GridCheck atHalf = crate::analysis::checkBeatGrid(quantised);
+    EXPECT_FALSE(atHalf.passed);
+    EXPECT_FALSE(atHalf.reason.isEmpty());
+
+    TrackPointer pTrack = openedTrack();
+    const ImportOutcome outcome = AnalysisImporter::apply(pTrack, profile, crateEverything());
+    EXPECT_FALSE(outcome.beatsImported);
+    EXPECT_EQ(nullptr, pTrack->getBeats());
+    EXPECT_FALSE(pTrack->isBpmLocked());
+}
+
+// A real `partial` profile carries a grid and a key, but Decks takes nothing
+// from it: Mixxx analyses the track.
+TEST_F(AnalysisImporterTest, RealPartialProfileLeavesTrackForLocalAnalysis) {
+    const MixProfile profile = fixture(kRealPartialFixture);
+    ASSERT_EQ(MixProfile::Quality::Partial, profile.quality);
+    EXPECT_FALSE(profile.beatGridMs.isEmpty());
+
+    TrackPointer pTrack = openedTrack();
+    const ImportOutcome outcome = AnalysisImporter::apply(pTrack, profile, crateEverything());
+
+    EXPECT_FALSE(outcome.usedProfile);
+    EXPECT_FALSE(outcome.beatsImported);
+    EXPECT_FALSE(outcome.keySet);
+    EXPECT_FALSE(outcome.gainSet);
+    EXPECT_FALSE(outcome.appliedCues.has_value());
+    EXPECT_EQ(nullptr, pTrack->getBeats());
+    EXPECT_EQ(mixxx::track::io::key::INVALID, pTrack->getKey());
+    EXPECT_TRUE(pTrack->getCuePoints().isEmpty());
 }
 
 } // namespace
