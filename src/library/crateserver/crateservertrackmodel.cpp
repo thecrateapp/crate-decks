@@ -692,6 +692,31 @@ TrackId CrateServerTrackModel::getTrackId(const QModelIndex& index) const {
     return pTrack ? pTrack->getId() : TrackId();
 }
 
+QList<TrackId> CrateServerTrackModel::getTrackIdsForAutoDJ(const QModelIndexList& indices) {
+    // Uncached tracks too (F4.C-PR3 decision 1): Auto DJ waits for their
+    // files when their turn comes
+    if (!m_pCoordinator) {
+        return {};
+    }
+    QList<CrateQueuedTrack> tracks;
+    tracks.reserve(indices.size());
+    for (const QModelIndex& index : indices) {
+        if (!index.isValid() || index.row() >= m_rows.size()) {
+            continue;
+        }
+        const Row& row = m_rows[index.row()];
+        CrateQueuedTrack queued;
+        queued.track = trackRef(index.row());
+        queued.tags.title = row.title;
+        queued.tags.artist = row.artist;
+        queued.tags.album = row.album;
+        queued.tags.genre = row.genre;
+        queued.tags.durationMs = row.durationMs;
+        tracks.append(queued);
+    }
+    return m_pCoordinator->trackIdsForAutoDj(tracks);
+}
+
 CoverInfo CrateServerTrackModel::getCoverInfo(const QModelIndex& index) const {
     Q_UNUSED(index);
     return CoverInfo();
@@ -755,8 +780,8 @@ TrackModel::Capabilities CrateServerTrackModel::getCapabilities() const {
     if (!m_pCoordinator) {
         return Capability::Sorting;
     }
-    // Uncached tracks load through requestTrackLoad(); Auto DJ takes cached
-    // ones, which have a track of Mixxx's library
+    // Uncached tracks load through requestTrackLoad() and go to Auto DJ
+    // through getTrackIdsForAutoDJ()
     return Capability::Sorting | Capability::LoadToDeck | Capability::LoadToSampler |
             Capability::LoadToPreviewDeck | Capability::AddToAutoDJ;
 }

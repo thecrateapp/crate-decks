@@ -18,6 +18,7 @@
 #include "util/parented_ptr.h"
 
 class KeyboardEventFilter;
+class PlayerInfo;
 class TrackCollectionManager;
 class TreeItem;
 class WLibrary;
@@ -62,6 +63,9 @@ class CrateServerFeature : public LibraryFeature {
         /// Not owned. Without one, CrateServers::instance() once there is
         /// one: CoreServices creates it after the library.
         CrateServers* pServers = nullptr;
+        /// The players' tracks, so that a Crate track loaded some other way
+        /// (Auto DJ) takes Crate's analysis. Optional; not owned.
+        PlayerInfo* pPlayerInfo = nullptr;
     };
 
     /// The library's track collection and database.

@@ -31,8 +31,10 @@ struct CrateTrackRef;
 /// Read-only. A track whose file is in the audio cache is a track of Mixxx's
 /// library (getTrack(), getTrackId(), dragging); any other loads into a deck
 /// through the asynchronous hook (requestTrackLoad(), plan F4.C-PR3), which
-/// downloads it first, and the Cache column shows its download. The track
-/// menu adds "Download" and "Remove from cache".
+/// downloads it first, and the Cache column shows its download. "Add to Auto
+/// DJ" takes both (getTrackIdsForAutoDJ()): an uncached track gets a library
+/// track for its future file, which Auto DJ waits for. The track menu adds
+/// "Download" and "Remove from cache".
 class CrateServerTrackModel : public QAbstractTableModel, public TrackModel {
     Q_OBJECT
   public:
@@ -129,6 +131,7 @@ class CrateServerTrackModel : public QAbstractTableModel, public TrackModel {
     QUrl getTrackUrl(const QModelIndex& index) const override;
     QString getTrackLocation(const QModelIndex& index) const override;
     TrackId getTrackId(const QModelIndex& index) const override;
+    QList<TrackId> getTrackIdsForAutoDJ(const QModelIndexList& indices) override;
     CoverInfo getCoverInfo(const QModelIndex& index) const override;
     const QVector<int> getTrackRows(TrackId trackId) const override;
     void search(const QString& searchText) override;

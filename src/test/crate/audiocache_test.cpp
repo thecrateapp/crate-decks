@@ -533,3 +533,21 @@ TEST_F(AudioCacheTest, ReportsTrackStateFindsFilesAndRemoves) {
     EXPECT_TRUE(QTest::qWaitFor([&] { return !QFileInfo::exists(finalPath(kUid1)); }, kWaitMs));
     EXPECT_EQ(0, pCache->usage().pinnedBytes);
 }
+
+// The file a track will have, for a library track made before it downloads
+// (F4.C-PR3 decision 1): the one its download writes, then its cached file.
+TEST_F(AudioCacheTest, FilePathForNamesTheFileItsDownloadWrites) {
+    const auto pCache = makeCache();
+    EXPECT_EQ(finalPath(kUid1), pCache->filePathFor(kServer, kUid1, QStringLiteral("FLAC")));
+    EXPECT_EQ(finalPath(kUid2, QStringLiteral("m4a")),
+            pCache->filePathFor(kServer, kUid2, QStringLiteral("alac")));
+    // No format, no name: the decoders go by the extension
+    EXPECT_FALSE(pCache->filePathFor(kServer, kUid1, QString()).has_value());
+    EXPECT_FALSE(pCache->filePathFor(kServer, QStringLiteral("../up"), QStringLiteral("flac"))
+                    .has_value());
+
+    download(pCache.get(), kUid1, QByteArrayLiteral("fLaC-audio"));
+    EXPECT_EQ(finalPath(kUid1), pCache->cachedPath(kServer, kUid1));
+    // Its file, whatever the format says now
+    EXPECT_EQ(finalPath(kUid1), pCache->filePathFor(kServer, kUid1, QString()));
+}

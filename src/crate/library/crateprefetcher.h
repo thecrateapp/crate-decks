@@ -28,7 +28,8 @@ namespace crate::library {
 ///
 /// It also answers Auto DJ's pending track hook
 /// (AutoDJProcessor::setPendingTrackHook) while it lives: a queued Crate
-/// track whose file is missing is on its way while the cache downloads it.
+/// track whose file is missing (evicted, or never cached: "Add to Auto DJ"
+/// takes uncached tracks) is on its way while the cache downloads it.
 /// It does so also while the prefetch is off (setEnabled(false), the "Prefetch
 /// Auto DJ" preference): Auto DJ then waits for each Crate track as it comes.
 class CratePrefetcher : public QObject {

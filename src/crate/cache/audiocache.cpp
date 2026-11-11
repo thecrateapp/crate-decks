@@ -851,6 +851,23 @@ std::optional<QString> AudioCache::cachedPath(
     return absolutePath(it->path);
 }
 
+std::optional<QString> AudioCache::filePathFor(
+        const QString& serverId, const QString& entityUid, const QString& format) const {
+    if (!isSafePathId(serverId) || !isSafePathId(entityUid)) {
+        return std::nullopt;
+    }
+    // A file the cache has, or a part file a download resumes into
+    const auto it = m_entries.constFind(keyOf(serverId, entityUid));
+    if (it != m_entries.cend() && !it->path.isEmpty()) {
+        return absolutePath(it->path);
+    }
+    const QString extension = extensionFor(format, QByteArray());
+    if (extension.isEmpty()) {
+        return std::nullopt;
+    }
+    return absolutePath(relativeAudioPath(serverId, entityUid, extension));
+}
+
 TrackState AudioCache::trackState(const QString& serverId, const QString& entityUid) const {
     TrackState state;
     const Key key = keyOf(serverId, entityUid);

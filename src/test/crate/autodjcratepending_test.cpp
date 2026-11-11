@@ -1,6 +1,9 @@
 // Auto DJ's pending track hook (plan F4.C-PR3), on the fixture of upstream's
 // autodjprocessor_test.cpp: Crate tracks whose file is still downloading stay
-// in the queue for a while instead of being skipped as missing.
+// in the queue for a while instead of being skipped as missing. Uncached
+// Crate tracks added to the queue (F4.C-PR3 decision 1) download when their
+// turn comes, through the real cache, prefetcher and load coordinator with
+// the network faked.
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -9,10 +12,15 @@
 #include <QScopedPointer>
 #include <QTemporaryDir>
 #include <QTest>
+#include <memory>
 
 #include "control/controllinpotmeter.h"
 #include "control/controlpotmeter.h"
 #include "control/controlpushbutton.h"
+#include "crate/cache/audiocache.h"
+#include "crate/client/crateclient.h"
+#include "crate/library/crateloadcoordinator.h"
+#include "crate/library/crateprefetcher.h"
 #include "library/autodj/autodjprocessor.h"
 #include "library/dao/playlistdao.h"
 #include "library/dao/trackschema.h"
@@ -21,6 +29,7 @@
 #include "mixer/basetrackplayer.h"
 #include "mixer/playerinfo.h"
 #include "mixer/playermanager.h"
+#include "test/crate/fakecratenetwork.h"
 #include "test/librarytest.h"
 #include "track/track.h"
 #include "util/time.h"
@@ -33,7 +42,15 @@ using ::testing::Return;
 const QString kTrackFile = QStringLiteral("id3-test-data/cover-test-øé~ł€˚-png.mp3");
 const QString kAppGroup = QStringLiteral("[App]");
 const QString kDeck1 = QStringLiteral("[Channel1]");
+const QString kServer = QStringLiteral("srv-1");
 constexpr int kWaitMs = 5000;
+
+class FakeStorageInfo : public crate::cache::StorageInfo {
+  public:
+    qint64 bytesAvailable(const QString&) const override {
+        return 100 * crate::cache::AudioCache::kGiB;
+    }
+};
 
 class FakeMixer {
   public:
@@ -187,10 +204,92 @@ class AutoDJCratePendingTest : public LibraryTest {
     }
 
     ~AutoDJCratePendingTest() override {
+        m_pPrefetcher.reset();
+        m_pCoordinator.reset();
+        m_pCache.reset();
         AutoDJProcessor::setPendingTrackHook(nullptr);
         mixxx::Time::setTestMode(false);
         pProcessor.reset();
         PlayerInfo::destroy();
+    }
+
+    /// The application's audio cache, Auto DJ prefetcher (which answers the
+    /// pending track hook) and load coordinator, for the tracks of kServer.
+    void makeCrate(bool prefetch) {
+        ASSERT_TRUE(m_cacheDir.isValid());
+        crate::ClientOptions clientOptions;
+        clientOptions.deviceFingerprint = QStringLiteral("install-1");
+        clientOptions.schedule = m_scheduler.function();
+        clientOptions.random = [] { return 0.5; };
+        m_pClient = std::make_unique<crate::Client>(
+                QUrl(QStringLiteral("https://crate.test")), &m_network, clientOptions);
+        m_pClient->setTokenSource(&m_tokens);
+        crate::cache::AudioCache::Options cacheOptions;
+        cacheOptions.directory = m_cacheDir.path();
+        cacheOptions.clientFor = [this](const QString& serverId) {
+            return serverId == kServer ? m_pClient.get() : nullptr;
+        };
+        cacheOptions.pStorageInfo = std::make_shared<FakeStorageInfo>();
+        m_pCache = std::make_unique<crate::cache::AudioCache>(std::move(cacheOptions));
+        ASSERT_TRUE(QTest::qWaitFor([this] { return m_pCache->isLoaded(); }, kWaitMs));
+
+        crate::library::CratePrefetcher::Options prefetchOptions;
+        prefetchOptions.pCache = m_pCache.get();
+        prefetchOptions.pDbConnectionPool = dbConnectionPooler();
+        prefetchOptions.pPlaylistDao = &internalCollection()->getPlaylistDAO();
+        prefetchOptions.settleTime = std::chrono::milliseconds(1);
+        prefetchOptions.enabled = prefetch;
+        m_pPrefetcher =
+                std::make_unique<crate::library::CratePrefetcher>(std::move(prefetchOptions));
+
+        crate::library::CrateLoadCoordinator::Options coordinatorOptions;
+        coordinatorOptions.pCache = m_pCache.get();
+        coordinatorOptions.pConfig = config();
+        coordinatorOptions.trackOfFile = [this](const QString& path) {
+            return trackCollectionManager()->getOrAddTrack(TrackRef::fromFilePath(path));
+        };
+        coordinatorOptions.trackIdsOfFiles =
+                crate::library::CrateLoadCoordinator::trackIdsOfFilesIn(trackCollectionManager());
+        coordinatorOptions.trackById = [this](TrackId trackId) {
+            return trackCollectionManager()->getTrackById(trackId);
+        };
+        m_pCoordinator = std::make_unique<crate::library::CrateLoadCoordinator>(
+                std::move(coordinatorOptions));
+    }
+
+    /// The file the cache downloads the Crate track `uid` to.
+    QString cratePath(const QString& uid) const {
+        return m_cacheDir.filePath(kServer + QLatin1Char('/') + uid.left(2) + QLatin1Char('/') +
+                uid + QStringLiteral(".mp3"));
+    }
+
+    /// Adds the uncached Crate track `uid` to the end of the queue, as "Add
+    /// to Auto DJ" does.
+    TrackId queueUncached(const QString& uid) {
+        crate::library::CrateQueuedTrack queued;
+        queued.track.serverId = kServer;
+        queued.track.entityUid = uid;
+        queued.track.hints.format = QStringLiteral("mp3");
+        queued.tags.title = QStringLiteral("Track ") + uid;
+        queued.tags.artist = QStringLiteral("Ondine Varga");
+        queued.tags.durationMs = 300000;
+        const QList<TrackId> ids = m_pCoordinator->trackIdsForAutoDj({queued});
+        EXPECT_EQ(1, ids.size());
+        if (ids.isEmpty()) {
+            return TrackId();
+        }
+        pProcessor->getTableModel()->appendTrack(ids.first());
+        return ids.first();
+    }
+
+    crate::test::FakeReply* downloadOf(const QString& uid) const {
+        const QString path = QStringLiteral("/api/tracks/by-entity/%1/stream").arg(uid);
+        for (const auto& sent : m_network.sent) {
+            if (sent.request.url().path() == path && sent.pReply && !sent.pReply->isFinished()) {
+                return sent.pReply.data();
+            }
+        }
+        return nullptr;
     }
 
     /// A library track whose file is in the temporary directory.
@@ -219,6 +318,14 @@ class AutoDJCratePendingTest : public LibraryTest {
     }
 
     QTemporaryDir m_dir;
+    QTemporaryDir m_cacheDir;
+    crate::test::FakeNetworkAccessManager m_network;
+    crate::test::FakeScheduler m_scheduler;
+    crate::test::FakeTokenSource m_tokens;
+    std::unique_ptr<crate::Client> m_pClient;
+    std::unique_ptr<crate::cache::AudioCache> m_pCache;
+    std::unique_ptr<crate::library::CrateLoadCoordinator> m_pCoordinator;
+    std::unique_ptr<crate::library::CratePrefetcher> m_pPrefetcher;
     FakeMixer mixer;
     FakeDeck deck1;
     FakeDeck deck2;
@@ -312,6 +419,77 @@ TEST_F(AutoDJCratePendingTest, NonCrateBehaviourUnchanged) {
     pProcessor->getTableModel()->appendTrack(addMissingTrack(QStringLiteral("gone.mp3")));
     EXPECT_EQ(AutoDJProcessor::ADJ_QUEUE_EMPTY, pProcessor->toggleAutoDJ(true));
     EXPECT_FALSE(queueTop().isValid());
+}
+
+// "Add to Auto DJ" on an uncached Crate track (F4.C-PR3 decision 1, Diego,
+// 2026-11-11): with the prefetch off, nothing downloads until the track's turn;
+// then the hook starts its download with Auto DJ's priority and Auto DJ loads
+// the track once its file is there.
+TEST_F(AutoDJCratePendingTest, DownloadsQueuedUncachedTrackWhenItsTurnComes) {
+    makeCrate(false);
+    const TrackId uncached = queueUncached(QStringLiteral("e1"));
+    ASSERT_TRUE(uncached.isValid());
+    const TrackId next = addTrack(QStringLiteral("next.mp3"));
+    pProcessor->getTableModel()->appendTrack(next);
+    QTest::qWait(50);
+    EXPECT_EQ(nullptr, downloadOf(QStringLiteral("e1")));
+
+    EXPECT_EQ(AutoDJProcessor::ADJ_OK, pProcessor->toggleAutoDJ(true));
+
+    // Its turn: Auto DJ waits for its file, which downloads now
+    EXPECT_TRUE(pProcessor->loads.isEmpty());
+    EXPECT_EQ(uncached, queueTop());
+    ASSERT_TRUE(QTest::qWaitFor([this] { return downloadOf(QStringLiteral("e1")); }, kWaitMs));
+    const QList<crate::cache::DownloadInfo> downloads = m_pCache->downloads();
+    ASSERT_EQ(1, downloads.size());
+    EXPECT_EQ(crate::cache::Priority::AutoDj, downloads[0].priority);
+    EXPECT_TRUE(pProcessor->loads.isEmpty());
+
+    QFile audio(getTestDir().filePath(kTrackFile));
+    ASSERT_TRUE(audio.open(QIODevice::ReadOnly));
+    const QByteArray bytes = audio.readAll();
+    downloadOf(QStringLiteral("e1"))
+            ->respond(200,
+                    bytes,
+                    {{QByteArrayLiteral("Content-Length"), QByteArray::number(bytes.size())},
+                            {QByteArrayLiteral("Content-Type"), QByteArrayLiteral("audio/mpeg")}});
+    ASSERT_TRUE(QTest::qWaitFor([this] { return !pProcessor->loads.isEmpty(); }, kWaitMs));
+    ASSERT_EQ(1, pProcessor->loads.size());
+    EXPECT_EQ(cratePath(QStringLiteral("e1")), pProcessor->loads[0].location);
+    EXPECT_EQ(kDeck1, pProcessor->loads[0].group);
+    EXPECT_TRUE(pProcessor->loads[0].play);
+    EXPECT_EQ(uncached, queueTop());
+    // The queued library track is the cached one
+    const TrackPointer pCached = m_pCoordinator->cachedTrack(kServer, QStringLiteral("e1"));
+    ASSERT_NE(nullptr, pCached);
+    EXPECT_EQ(uncached, pCached->getId());
+}
+
+// The file of a queued uncached track does not come in time: Auto DJ goes on
+// with the next track after kPendingTrackTimeout, as for any late Crate
+// track.
+TEST_F(AutoDJCratePendingTest, SkipsQueuedUncachedTrackAfterTimeout) {
+    mixxx::Time::setTestMode(true);
+    makeCrate(true);
+    const TrackId uncached = queueUncached(QStringLiteral("e1"));
+    ASSERT_TRUE(uncached.isValid());
+    const TrackId next = addTrack(QStringLiteral("next.mp3"));
+    pProcessor->getTableModel()->appendTrack(next);
+    // The prefetch asks for it as soon as it is queued
+    ASSERT_TRUE(QTest::qWaitFor([this] { return downloadOf(QStringLiteral("e1")); }, kWaitMs));
+
+    EXPECT_EQ(AutoDJProcessor::ADJ_OK, pProcessor->toggleAutoDJ(true));
+    EXPECT_TRUE(pProcessor->loads.isEmpty());
+    EXPECT_EQ(uncached, queueTop());
+
+    // The server never answers
+    mixxx::Time::addTestTime(std::chrono::milliseconds(
+            AutoDJProcessor::kPendingTrackTimeout.toIntegerMillis() + 1000));
+    ASSERT_TRUE(QTest::qWaitFor([this] { return !pProcessor->loads.isEmpty(); }, kWaitMs));
+    ASSERT_EQ(1, pProcessor->loads.size());
+    EXPECT_EQ(m_dir.filePath(QStringLiteral("next.mp3")), pProcessor->loads[0].location);
+    EXPECT_TRUE(pProcessor->loads[0].play);
+    EXPECT_EQ(next, queueTop());
 }
 
 } // namespace crate_autodj_pending
