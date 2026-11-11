@@ -228,6 +228,10 @@ kicker, display title, paragraph, fields and Crate buttons) and only tokens and 
 
 ### BR.PR7 · Help and documentation links (decided in §7.1: Crate's own docs)
 
+**Decided (Diego, 2026-11-11):** bug reports stay in `thecrateapp/crate`'s issues; `thecrateapp/crate-decks` does not
+open GitHub issues. The bug tracker links lead to the docs page `decks/community#reporting-bugs`, which sends
+reports there, as the docs pages already say.
+
 - One table, `crate::helpUrl(kind)`, for the 21 URL macros of `src/defs_urls.h`, pointing at Crate's own
   documentation pages (manual, community, wiki and controller mappings).
 - **Separate follow-up PR** (`feat/decks-help-links`), not part of the brand PR: the pages ship with the next
