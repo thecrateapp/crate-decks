@@ -66,6 +66,31 @@ struct Usage {
     int queuedDownloads = 0;
 };
 
+/// Where a track's audio is, for the track tables (plan F4.C-PR3).
+struct TrackState {
+    enum class Kind {
+        /// Not in the cache, and nobody asked for it.
+        None,
+        /// Waiting for its turn to download.
+        Queued,
+        Downloading,
+        Ready,
+        /// The last download failed.
+        Failed,
+    };
+    Kind kind = Kind::None;
+    /// Bytes of the file there are so far, while it downloads.
+    qint64 bytesReceived = 0;
+    /// The size of the whole file; -1 if unknown.
+    qint64 bytesTotal = -1;
+};
+
+/// A track of the cache.
+struct TrackKey {
+    QString serverId;
+    QString entityUid;
+};
+
 /// One caller's interest in a track. AudioCache::ensure() returns it; it
 /// emits ready() or failed() once, always after ensure() has returned, and
 /// then deletes itself (deleteLater). Deleting it earlier, or cancel(),
@@ -189,6 +214,19 @@ class AudioCache : public QObject {
     /// download (for TrackModel::getTrack(), F4.C-PR3).
     std::optional<QString> cachedPath(const QString& serverId, const QString& entityUid) const;
 
+    /// Where the track's audio is: cached, on its way or neither.
+    TrackState trackState(const QString& serverId, const QString& entityUid) const;
+
+    /// The track whose cached file `path` is (absolute, or relative to the
+    /// cache directory), whether the file is there or not; nullopt for any
+    /// other path.
+    std::optional<TrackKey> trackOfFile(const QString& path) const;
+
+    /// Deletes the track's file and its pins, for the "Remove from cache"
+    /// entry of the track menu. A track that is downloading stays. Returns
+    /// whether there was a file to delete.
+    bool remove(const QString& serverId, const QString& entityUid);
+
     /// Keeps the track from being evicted while any reason holds, such as
     /// "deck" or "offline-set:<id>". Pins are kept in the index across
     /// restarts, also for a track that is not cached yet.
@@ -206,6 +244,9 @@ class AudioCache : public QObject {
     void loaded();
     void usageChanged();
     void evicted(const QString& serverId, const QString& entityUid);
+    /// trackState() of the track changed: its download was queued, moved on
+    /// or ended, or its file went. Sent for every chunk that arrives.
+    void trackChanged(const QString& serverId, const QString& entityUid);
 
   private:
     friend class CacheTicket;

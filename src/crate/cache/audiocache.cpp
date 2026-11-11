@@ -388,6 +388,7 @@ void AudioCache::resolve(CacheTicket* pTicket) {
     m_downloads.push_back(pDownload);
     pump();
     emit usageChanged();
+    emit trackChanged(pDownload->serverId, pDownload->entityUid);
 }
 
 void AudioCache::detach(CacheTicket* pTicket) {
@@ -622,6 +623,7 @@ void AudioCache::onHeaders(const DownloadPtr& pDownload, Reply* pReply) {
         worker.parts.emplace(id, std::move(pFile));
     });
     emit usageChanged();
+    emit trackChanged(pDownload->serverId, pDownload->entityUid);
 }
 
 void AudioCache::onBody(const DownloadPtr& pDownload, const QByteArray& chunk) {
@@ -652,6 +654,7 @@ void AudioCache::onBody(const DownloadPtr& pDownload, const QByteArray& chunk) {
             emit pTicket->progress(bytesReceived, pDownload->expected);
         }
     }
+    emit trackChanged(pDownload->serverId, pDownload->entityUid);
 }
 
 void AudioCache::onWriteFailed(quint64 downloadId) {
@@ -791,6 +794,7 @@ void AudioCache::finish(const DownloadPtr& pDownload, const std::optional<Error>
     }
     pump();
     emit usageChanged();
+    emit trackChanged(pDownload->serverId, pDownload->entityUid);
 }
 
 void AudioCache::stop(const DownloadPtr& pDownload) {
@@ -801,9 +805,12 @@ void AudioCache::stop(const DownloadPtr& pDownload) {
         it->state = CacheEntry::State::Pending;
         store(*it);
     }
+    const QString serverId = pDownload->serverId;
+    const QString entityUid = pDownload->entityUid;
     forget(pDownload);
     pump();
     emit usageChanged();
+    emit trackChanged(serverId, entityUid);
 }
 
 void AudioCache::dropReply(const DownloadPtr& pDownload) {
@@ -841,6 +848,70 @@ std::optional<QString> AudioCache::cachedPath(
         return std::nullopt;
     }
     return absolutePath(it->path);
+}
+
+TrackState AudioCache::trackState(const QString& serverId, const QString& entityUid) const {
+    TrackState state;
+    const Key key = keyOf(serverId, entityUid);
+    for (const DownloadPtr& pDownload : m_downloads) {
+        if (pDownload->key == key) {
+            state.kind = pDownload->phase == Download::Phase::Queued
+                    ? TrackState::Kind::Queued
+                    : TrackState::Kind::Downloading;
+            state.bytesReceived = pDownload->offset + pDownload->received;
+            state.bytesTotal = pDownload->expected;
+            return state;
+        }
+    }
+    const auto it = m_entries.constFind(key);
+    if (it == m_entries.cend()) {
+        return state;
+    }
+    switch (it->state) {
+    case CacheEntry::State::Ready:
+        state.kind = TrackState::Kind::Ready;
+        state.bytesReceived = it->bytes;
+        state.bytesTotal = it->bytes;
+        break;
+    case CacheEntry::State::Failed:
+        state.kind = TrackState::Kind::Failed;
+        break;
+    case CacheEntry::State::Pending:
+    case CacheEntry::State::Downloading:
+        break;
+    }
+    return state;
+}
+
+std::optional<TrackKey> AudioCache::trackOfFile(const QString& path) const {
+    const QString relativePath = QDir::isAbsolutePath(path)
+            ? QDir(m_options.directory).relativeFilePath(path)
+            : path;
+    if (relativePath.startsWith(QStringLiteral(".."))) {
+        return std::nullopt;
+    }
+    const auto track = trackOfRelativePath(QDir::fromNativeSeparators(relativePath));
+    if (!track) {
+        return std::nullopt;
+    }
+    return TrackKey{track->first, track->second};
+}
+
+bool AudioCache::remove(const QString& serverId, const QString& entityUid) {
+    const Key key = keyOf(serverId, entityUid);
+    for (const DownloadPtr& pDownload : m_downloads) {
+        if (pDownload->key == key) {
+            return false;
+        }
+    }
+    const auto it = m_entries.find(key);
+    if (it == m_entries.end()) {
+        return false;
+    }
+    const bool hadFile = it->state == CacheEntry::State::Ready;
+    evict(key);
+    emit usageChanged();
+    return hadFile;
 }
 
 void AudioCache::pin(const QString& serverId, const QString& entityUid, const QString& reason) {
@@ -971,6 +1042,7 @@ void AudioCache::evict(const Key& key) {
         worker.index.remove(entry.serverId, entry.entityUid);
     });
     emit evicted(entry.serverId, entry.entityUid);
+    emit trackChanged(entry.serverId, entry.entityUid);
 }
 
 } // namespace crate::cache

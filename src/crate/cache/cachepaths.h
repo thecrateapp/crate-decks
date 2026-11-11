@@ -2,6 +2,8 @@
 
 #include <QByteArray>
 #include <QString>
+#include <optional>
+#include <utility>
 
 /// Where the audio cache keeps each track (design D4): a stable path that
 /// depends only on the server and the track, so that a file is found again
@@ -24,6 +26,10 @@ QString extensionFor(const QString& format, const QByteArray& contentType);
 /// directory. Both ids must pass isSafePathId().
 QString relativeAudioPath(
         const QString& serverId, const QString& entityUid, const QString& extension);
+
+/// The server id and entity uid of a path made by relativeAudioPath(), with
+/// or without the ".part"; nullopt for anything else.
+std::optional<std::pair<QString, QString>> trackOfRelativePath(const QString& relativePath);
 
 /// The file a download writes to before it is complete: the final path plus
 /// ".part".
