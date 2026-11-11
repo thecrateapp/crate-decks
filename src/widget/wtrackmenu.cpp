@@ -2789,7 +2789,10 @@ void WTrackMenu::slotAddToAutoDJReplace() {
 }
 
 void WTrackMenu::addToAutoDJ(PlaylistDAO::AutoDJSendLoc loc) {
-    const TrackIdList trackIds = getTrackIds();
+    // The model may add library tracks for rows that have none yet
+    const TrackIdList trackIds = m_pTrackModel
+            ? m_pTrackModel->getTrackIdsForAutoDJ(m_trackIndexList)
+            : getTrackIds();
     if (trackIds.empty()) {
         qWarning() << "No tracks selected for AutoDJ";
         return;
