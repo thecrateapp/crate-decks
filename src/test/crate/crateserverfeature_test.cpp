@@ -249,6 +249,25 @@ class CrateServerFeatureTest : public LibraryTest {
                 kServer + QLatin1Char('/') + uid.left(2) + QLatin1Char('/') + uid + ".flac");
     }
 
+    /// The library track of the file at `path`, if there is one.
+    TrackId libraryTrackOf(const QString& path) const {
+        QSqlQuery query(dbConnection());
+        query.prepare(QStringLiteral(
+                "SELECT library.id FROM library JOIN track_locations "
+                "ON library.location = track_locations.id WHERE track_locations.location = :path"));
+        query.bindValue(QStringLiteral(":path"), path);
+        return query.exec() && query.next() ? TrackId(query.value(0)) : TrackId();
+    }
+
+    int libraryTracksAt(const QString& path) const {
+        QSqlQuery query(dbConnection());
+        query.prepare(QStringLiteral(
+                "SELECT COUNT(*) FROM library JOIN track_locations "
+                "ON library.location = track_locations.id WHERE track_locations.location = :path"));
+        query.bindValue(QStringLiteral(":path"), path);
+        return query.exec() && query.next() ? query.value(0).toInt() : -1;
+    }
+
     QTemporaryDir m_cacheDir;
     FakeNetworkAccessManager m_network;
     FakeSecretStore m_store;
@@ -440,6 +459,87 @@ TEST_F(CrateServerFeatureTest, UncachedTrackLoadsIntoTheDeckOnceDownloaded) {
     EXPECT_TRUE(pModel->flags(row).testFlag(Qt::ItemIsDragEnabled));
     EXPECT_EQ(static_cast<int>(crate::delegates::CacheState::Ready),
             cacheCell.data(crate::delegates::CacheStateRole).toInt());
+}
+
+// "Add to Auto DJ" takes uncached Crate tracks (F4.C-PR3 decision 1, Diego,
+// 2026-11-11): each gets a library track for the file the cache will download
+// it to, with Crate's metadata for the queue. Selecting rows never adds one.
+TEST_F(CrateServerFeatureTest, AddToAutoDjAcceptsUncachedTracks) {
+    storeTree();
+    auto unknown = remoteTrack(QStringLiteral("e3"), QStringLiteral("Static"), 0.5, QString());
+    // As a track found only through the DJ search
+    unknown.format.clear();
+    storeContainerTracks(containerId(QStringLiteral("playlist"), QStringLiteral("7")),
+            {remoteTrack(QStringLiteral("e1"), QStringLiteral("Lattice"), 0.7, QString()),
+                    remoteTrack(QStringLiteral("e2"), QStringLiteral("Glass"), 0.5, QString()),
+                    unknown});
+    CrateServerFeature* pFeature = makeFeature();
+    CrateServerTrackModel* pModel = showWarmUp(pFeature);
+    ASSERT_NE(nullptr, pModel);
+    ASSERT_EQ(3, pModel->rowCount());
+    const QModelIndexList rows = {pModel->index(0, 0), pModel->index(1, 0), pModel->index(2, 0)};
+
+    // Selecting rows and building menus
+    for (const QModelIndex& row : rows) {
+        EXPECT_FALSE(pModel->getTrackId(row).isValid());
+    }
+    EXPECT_FALSE(libraryTrackOf(cachedPathOf(QStringLiteral("e1"))).isValid());
+
+    const QList<TrackId> ids = pModel->getTrackIdsForAutoDJ(rows);
+    // The track of unknown format is left out: its file has no name before
+    // it downloads
+    ASSERT_EQ(2, ids.size());
+    EXPECT_TRUE(ids[0].isValid());
+    EXPECT_EQ(ids[0], libraryTrackOf(cachedPathOf(QStringLiteral("e1"))));
+    EXPECT_EQ(ids[1], libraryTrackOf(cachedPathOf(QStringLiteral("e2"))));
+    EXPECT_FALSE(QFileInfo::exists(cachedPathOf(QStringLiteral("e1"))));
+    const TrackPointer pFirst = trackCollectionManager()->getTrackById(ids[0]);
+    ASSERT_NE(nullptr, pFirst);
+    EXPECT_EQ(QStringLiteral("Lattice"), pFirst->getTitle());
+    EXPECT_EQ(QStringLiteral("Ondine Varga"), pFirst->getArtist());
+    EXPECT_EQ(QStringLiteral("Night"), pFirst->getAlbum());
+    EXPECT_EQ(QStringLiteral("Melodic Techno"), pFirst->getGenre());
+    EXPECT_DOUBLE_EQ(372.0, pFirst->getDuration());
+    // Nothing downloads yet: Auto DJ's prefetch takes the queue's first ones
+    EXPECT_EQ(0, sentTo(QStringLiteral("/api/tracks/by-entity/e1/stream")));
+
+    // Again, the same library tracks
+    EXPECT_EQ(ids, pModel->getTrackIdsForAutoDJ({rows[0], rows[1]}));
+    EXPECT_EQ(1, libraryTracksAt(cachedPathOf(QStringLiteral("e1"))));
+    // Still no track of the table: its file is not there
+    EXPECT_FALSE(pModel->getTrackId(rows[0]).isValid());
+    EXPECT_EQ(nullptr, pModel->getTrack(rows[0]));
+}
+
+// Downloading a queued track later fills the library track it has: no other
+// one comes.
+TEST_F(CrateServerFeatureTest, CachingAQueuedTrackKeepsItsLibraryTrack) {
+    storeTree();
+    storeContainerTracks(containerId(QStringLiteral("playlist"), QStringLiteral("7")),
+            {remoteTrack(QStringLiteral("e1"), QStringLiteral("Lattice"), 0.7, QString())});
+    CrateServerFeature* pFeature = makeFeature();
+    CrateServerTrackModel* pModel = showWarmUp(pFeature);
+    ASSERT_NE(nullptr, pModel);
+    const QModelIndex row = pModel->index(0, 0);
+    const QList<TrackId> ids = pModel->getTrackIdsForAutoDJ({row});
+    ASSERT_EQ(1, ids.size());
+    ASSERT_TRUE(ids[0].isValid());
+
+    // "Download" from the track menu
+    QObject parent;
+    const QList<QAction*> actions = pModel->trackMenuActions({row}, &parent);
+    ASSERT_FALSE(actions.isEmpty());
+    actions[0]->trigger();
+    const QString stream = QStringLiteral("/api/tracks/by-entity/e1/stream");
+    ASSERT_TRUE(QTest::qWaitFor([&] { return lastTo(stream) != nullptr; }, 5000));
+    lastTo(stream)->pReply->respond(200,
+            QByteArrayLiteral("fLaC-audio"),
+            {{QByteArrayLiteral("Content-Type"), QByteArrayLiteral("audio/flac")}});
+    ASSERT_TRUE(QTest::qWaitFor([&] { return pModel->getTrack(row) != nullptr; }, 5000));
+
+    EXPECT_EQ(ids[0], pModel->getTrackId(row));
+    EXPECT_EQ(1, libraryTracksAt(cachedPathOf(QStringLiteral("e1"))));
+    EXPECT_EQ(ids, pModel->getTrackIdsForAutoDJ({row}));
 }
 
 TEST_F(CrateServerFeatureTest, TrackMenuDownloadsAndRemovesFromTheCache) {
@@ -896,6 +996,45 @@ TEST_F(CrateServerFeatureTest, PrefetchFollowsThePreferences) {
     m_pServers->preferences()->setPrefetchAutoDj(false);
     m_pFeature.reset();
     EXPECT_FALSE(makeFeature()->prefetcher()->isEnabled());
+}
+
+// What "Add to Auto DJ" costs the main thread with uncached tracks: the
+// library tracks are added there, through Mixxx's track collection.
+TEST_F(CrateServerFeatureTest, MeasureAddToAutoDj) {
+    if (qEnvironmentVariableIntValue("CRATE_DECKS_MEASURE") != 1) {
+        GTEST_SKIP() << "Measurement; run with CRATE_DECKS_MEASURE=1";
+    }
+    storeTree();
+    QList<crate::library::RemoteTrack> tracks;
+    for (int i = 0; i < 100; ++i) {
+        tracks.append(remoteTrack(QStringLiteral("q%1").arg(i),
+                QStringLiteral("Track %1").arg(i),
+                0.5,
+                QStringLiteral("full")));
+    }
+    storeContainerTracks(containerId(QStringLiteral("playlist"), QStringLiteral("7")), tracks);
+    CrateServerFeature* pFeature = makeFeature();
+    CrateServerTrackModel* pModel = showWarmUp(pFeature);
+    ASSERT_NE(nullptr, pModel);
+    ASSERT_TRUE(QTest::qWaitFor([&] { return pModel->rowCount() == 100; }, 5000));
+    QModelIndexList rows;
+    for (const int count : {1, 10, 50}) {
+        rows.clear();
+        const int first = count == 1 ? 0 : (count == 10 ? 1 : 11);
+        for (int row = first; row < first + count; ++row) {
+            rows.append(pModel->index(row, 0));
+        }
+        QElapsedTimer clock;
+        clock.start();
+        const QList<TrackId> ids = pModel->getTrackIdsForAutoDJ(rows);
+        const qint64 newMs = clock.elapsed();
+        clock.restart();
+        EXPECT_EQ(ids, pModel->getTrackIdsForAutoDJ(rows));
+        const qint64 againMs = clock.elapsed();
+        EXPECT_EQ(count, ids.size());
+        std::cout << "[ MEASURE  ] Add to Auto DJ, " << count << " uncached tracks: " << newMs
+                  << " ms new, " << againMs << " ms again\n";
+    }
 }
 
 TEST_F(CrateServerFeatureTest, MeasureLargePlaylistAndSearch) {

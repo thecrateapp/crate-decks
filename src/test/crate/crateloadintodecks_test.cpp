@@ -33,7 +33,9 @@
 #include "library/coverartcache.h"
 #include "library/crateserver/crateserverfeature.h"
 #include "library/crateserver/crateservertrackmodel.h"
+#include "library/dao/playlistdao.h"
 #include "library/library.h"
+#include "library/trackcollection.h"
 #include "library/trackcollectionmanager.h"
 #include "library/treeitem.h"
 #include "library/treeitemmodel.h"
@@ -175,6 +177,7 @@ class CrateLoadIntoDecksTest : public MixxxDbTest, SoundSourceProviderRegistrati
         featureDependencies.pTrackCollectionManager = m_pTrackCollectionManager.get();
         featureDependencies.pDbConnectionPool = dbConnectionPooler();
         featureDependencies.pServers = m_pServers.get();
+        featureDependencies.pPlayerInfo = &PlayerInfo::instance();
         // Owned by the Library, which wires its loads to the PlayerManager
         m_pFeature = new CrateServerFeature(m_pLibrary.get(), m_pConfig, featureDependencies);
         m_pLibrary->addFeature(m_pFeature);
@@ -264,6 +267,56 @@ class CrateLoadIntoDecksTest : public MixxxDbTest, SoundSourceProviderRegistrati
                 {{QByteArrayLiteral("Content-Length"), QByteArray::number(m_audio.size())},
                         {QByteArrayLiteral("Content-Type"), QByteArrayLiteral("audio/mpeg")}});
         return true;
+    }
+
+    /// Answers the request for the mix profile of `uid` with a full one, in
+    /// 8A (A minor).
+    bool serveProfile(const QString& uid) {
+        QFile file(getTestDir().filePath(
+                QStringLiteral("crate/data/mix-profiles/full-constant-124.json")));
+        if (!file.open(QIODevice::ReadOnly)) {
+            return false;
+        }
+        QJsonObject profile = QJsonDocument::fromJson(file.readAll()).object();
+        profile.insert(QStringLiteral("trackEntityUid"), uid);
+        const QString path = QStringLiteral("/api/tracks/by-entity/%1/mix-profile").arg(uid);
+        crate::test::FakeReply* pReply = nullptr;
+        const bool sent = QTest::qWaitFor(
+                [&] {
+                    for (const auto& request : std::as_const(m_network.sent)) {
+                        if (request.request.url().path() == path && request.pReply &&
+                                !request.pReply->isFinished()) {
+                            pReply = request.pReply.data();
+                        }
+                    }
+                    return pReply != nullptr;
+                },
+                kWaitMs);
+        if (!sent) {
+            return false;
+        }
+        pReply->respond(200, QJsonDocument(profile).toJson());
+        return true;
+    }
+
+    /// Lists `uid` in the library with the revision of the profile
+    /// serveProfile() answers.
+    void listProfileOf(const QString& uid) {
+        QFile file(getTestDir().filePath(
+                QStringLiteral("crate/data/mix-profiles/full-constant-124.json")));
+        ASSERT_TRUE(file.open(QIODevice::ReadOnly));
+        const QJsonObject profile = QJsonDocument::fromJson(file.readAll()).object();
+        QSqlQuery listed(dbConnection());
+        listed.prepare(QStringLiteral(
+                "UPDATE crateserver_tracks SET profile_revision = :revision "
+                "WHERE server_id = :server AND entity_uid = :uid"));
+        listed.bindValue(QStringLiteral(":revision"),
+                profile.value(QStringLiteral("profileRevision")).toString());
+        listed.bindValue(QStringLiteral(":server"), kServer);
+        listed.bindValue(QStringLiteral(":uid"), uid);
+        // Again while the library's workers hold the database
+        ASSERT_TRUE(QTest::qWaitFor([&] { return listed.exec(); }, kWaitMs))
+                << listed.lastError().text().toStdString();
     }
 
     QString cachedPathOf(const QString& uid) const {
@@ -416,6 +469,61 @@ TEST_F(CrateLoadIntoDecksTest, LoadedTrackTakesTheAnalysisThePreferencesChoose) 
                         pTrack->getReplayGain().hasRatio();
             },
             kWaitMs));
+}
+
+// "Add to Auto DJ Queue (bottom)" on two uncached Crate tracks, then Auto DJ
+// (F4.C-PR3 decision 1, Diego, 2026-11-11): the queue shows them with Crate's
+// metadata, the first one downloads when its turn comes, the real deck 1
+// plays it, and it takes Crate's analysis once loaded, as a cached track does.
+TEST_F(CrateLoadIntoDecksTest, AutoDjPlaysUncachedTracksAddedFromTheTrackMenu) {
+    m_pServers->preferences()->setKeyFromCrate(true);
+    listProfileOf(QStringLiteral("e1"));
+    CrateServerTrackModel* pModel = showPlaylist();
+    ASSERT_NE(nullptr, pModel);
+
+    WTrackMenu menu(nullptr, m_pConfig, m_pLibrary.get(), WTrackMenu::Feature::AutoDJ, pModel);
+    menu.loadTrackModelIndices({pModel->index(0, 0), pModel->index(1, 0)});
+    menu.updateMenus();
+    QAction* pBottom = nullptr;
+    const QList<QAction*> actions = menu.actions();
+    for (QAction* pAction : actions) {
+        if (pAction->text() == QStringLiteral("Add to Auto DJ Queue (bottom)")) {
+            pBottom = pAction;
+        }
+    }
+    ASSERT_NE(nullptr, pBottom);
+    ASSERT_TRUE(pBottom->isEnabled());
+    pBottom->trigger();
+
+    PlaylistDAO& playlists =
+            m_pTrackCollectionManager->internalCollection()->getPlaylistDAO();
+    const QList<TrackId> queue = playlists.getAutoDJTrackIds();
+    ASSERT_EQ(2, queue.size());
+    {
+        const TrackPointer pFirst = m_pTrackCollectionManager->getTrackById(queue[0]);
+        ASSERT_NE(nullptr, pFirst);
+        EXPECT_EQ(cachedPathOf(QStringLiteral("e1")), pFirst->getLocation());
+        EXPECT_EQ(QStringLiteral("Track e1"), pFirst->getTitle());
+        EXPECT_EQ(QStringLiteral("Ondine Varga"), pFirst->getArtist());
+    }
+    EXPECT_FALSE(QFile::exists(cachedPathOf(QStringLiteral("e1"))));
+
+    // Auto DJ on: the first track is on its way, then deck 1 plays it
+    ControlObject::set(ConfigKey(QStringLiteral("[AutoDJ]"), QStringLiteral("enabled")), 1.0);
+    EXPECT_EQ(1.0,
+            ControlObject::get(ConfigKey(
+                    QStringLiteral("[AutoDJ]"), QStringLiteral("enabled"))));
+    ASSERT_TRUE(serveDownload(QStringLiteral("e1")));
+    ASSERT_TRUE(deckHasLoaded(kDeck1, QStringLiteral("e1")));
+    const TrackPointer pTrack = m_pPlayerManager->getDeck(0)->getLoadedTrack();
+    ASSERT_NE(nullptr, pTrack);
+    EXPECT_EQ(queue[0], pTrack->getId());
+
+    // Crate's analysis, once loaded: here its key
+    ASSERT_TRUE(serveProfile(QStringLiteral("e1")));
+    EXPECT_TRUE(QTest::qWaitFor(
+            [&] { return pTrack->getKey() == mixxx::track::io::key::A_MINOR; }, kWaitMs));
+    ControlObject::set(ConfigKey(QStringLiteral("[AutoDJ]"), QStringLiteral("enabled")), 0.0);
 }
 
 } // namespace

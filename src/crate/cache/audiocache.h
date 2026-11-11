@@ -238,6 +238,15 @@ class AudioCache : public QObject {
     /// download (for TrackModel::getTrack(), F4.C-PR3).
     std::optional<QString> cachedPath(const QString& serverId, const QString& entityUid) const;
 
+    /// The file of a track whether it is there or not: its cached file, else
+    /// the one its download writes, for a download that names the track's
+    /// `format` (TrackHints::format). A library track made with it now is the
+    /// track of that file once it comes (F4.C-PR3 decision 1). nullopt if the
+    /// format names no extension the decoders know, or for an id that cannot
+    /// be part of a path.
+    std::optional<QString> filePathFor(
+            const QString& serverId, const QString& entityUid, const QString& format) const;
+
     /// Where the track's audio is: cached, on its way or neither.
     TrackState trackState(const QString& serverId, const QString& entityUid) const;
 

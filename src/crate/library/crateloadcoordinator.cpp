@@ -1,6 +1,10 @@
 #include "crate/library/crateloadcoordinator.h"
 
+#include <QFileInfo>
+
 #include "control/controlobject.h"
+#include "library/trackcollectionmanager.h"
+#include "mixer/playerinfo.h"
 #include "mixer/playermanager.h"
 #include "preferences/dialog/dlgprefdeck.h"
 #include "track/track.h"
@@ -19,6 +23,26 @@ bool isPlaying(const QString& group) {
     return pPlay && pPlay->get() > 0.0;
 }
 
+/// Gives a library track whose file is not there yet what Crate knows of
+/// it; what the track has already stays.
+void fillInTags(Track* pTrack, const CrateTrackTags& tags) {
+    if (pTrack->getTitle().isEmpty() && !tags.title.isEmpty()) {
+        pTrack->setTitle(tags.title);
+    }
+    if (pTrack->getArtist().isEmpty() && !tags.artist.isEmpty()) {
+        pTrack->setArtist(tags.artist);
+    }
+    if (pTrack->getAlbum().isEmpty() && !tags.album.isEmpty()) {
+        pTrack->setAlbum(tags.album);
+    }
+    if (pTrack->getGenre().isEmpty() && !tags.genre.isEmpty()) {
+        pTrack->updateGenre(tags.genre);
+    }
+    if (pTrack->getDuration() <= 0.0 && tags.durationMs && *tags.durationMs > 0) {
+        pTrack->setDuration(static_cast<double>(*tags.durationMs) / 1000.0);
+    }
+}
+
 } // namespace
 
 CrateLoadCoordinator::CrateLoadCoordinator(Options options, QObject* parent)
@@ -26,7 +50,94 @@ CrateLoadCoordinator::CrateLoadCoordinator(Options options, QObject* parent)
           m_pCache(options.pCache),
           m_pConfig(std::move(options.pConfig)),
           m_trackOfFile(std::move(options.trackOfFile)),
+          m_trackIdsOfFiles(std::move(options.trackIdsOfFiles)),
+          m_trackById(std::move(options.trackById)),
           m_applyAnalysis(std::move(options.applyAnalysis)) {
+    if (options.pPlayerInfo) {
+        connect(options.pPlayerInfo,
+                &PlayerInfo::trackChanged,
+                this,
+                [this](const QString& group, TrackPointer pNewTrack, TrackPointer pOldTrack) {
+                    Q_UNUSED(group);
+                    Q_UNUSED(pOldTrack);
+                    onPlayerTrackChanged(pNewTrack);
+                });
+    }
+}
+
+std::function<QList<TrackId>(const QStringList& paths)> CrateLoadCoordinator::trackIdsOfFilesIn(
+        TrackCollectionManager* pCollection) {
+    return [pCollection](const QStringList& paths) {
+        if (!pCollection || paths.isEmpty()) {
+            return QList<TrackId>();
+        }
+        // Adds the files the library does not have yet in one transaction
+        QList<TrackId> trackIds = pCollection->resolveTrackIdsFromLocations(paths);
+        if (trackIds.size() != paths.size()) {
+            // The library did not take one of them: which, one at a time
+            trackIds.clear();
+            for (const QString& path : paths) {
+                const QList<TrackId> found = pCollection->resolveTrackIdsFromLocations({path});
+                trackIds.append(found.isEmpty() ? TrackId() : found.first());
+            }
+        }
+        return trackIds;
+    };
+}
+
+QList<TrackId> CrateLoadCoordinator::trackIdsForAutoDj(const QList<CrateQueuedTrack>& tracks) {
+    if (!m_pCache || !m_trackIdsOfFiles) {
+        return {};
+    }
+    QStringList paths;
+    QList<const CrateQueuedTrack*> taken;
+    paths.reserve(tracks.size());
+    taken.reserve(tracks.size());
+    for (const CrateQueuedTrack& queued : tracks) {
+        const CrateTrackRef& track = queued.track;
+        const std::optional<QString> path =
+                m_pCache->filePathFor(track.serverId, track.entityUid, track.hints.format);
+        if (!path) {
+            kLogger.info() << "Not adding" << track.entityUid
+                           << "to Auto DJ: its file has no name until it downloads";
+            continue;
+        }
+        paths.append(*path);
+        taken.append(&queued);
+    }
+    const QList<TrackId> libraryIds = m_trackIdsOfFiles(paths);
+    QList<TrackId> trackIds;
+    trackIds.reserve(libraryIds.size());
+    for (qsizetype i = 0; i < libraryIds.size() && i < taken.size(); ++i) {
+        const TrackId& trackId = libraryIds[i];
+        if (!trackId.isValid()) {
+            kLogger.warning() << "The library does not take" << paths[i];
+            continue;
+        }
+        trackIds.append(trackId);
+        if (!m_trackById || m_tagged.contains(trackId) || QFileInfo::exists(paths[i])) {
+            // Cached, so its file has the tags, or tagged before
+            continue;
+        }
+        if (const TrackPointer pTrack = m_trackById(trackId)) {
+            // Saved as the pointer goes; the file's own tags replace them
+            // once it is there
+            fillInTags(pTrack.get(), taken[i]->tags);
+            m_tagged.insert(trackId);
+        }
+    }
+    return trackIds;
+}
+
+void CrateLoadCoordinator::onPlayerTrackChanged(const TrackPointer& pTrack) {
+    if (!pTrack || !m_pCache) {
+        return;
+    }
+    // A Crate track that a player loaded some other way than requestLoad()
+    const std::optional<cache::TrackKey> track = m_pCache->trackOfFile(pTrack->getLocation());
+    if (track) {
+        analyseOnce(pTrack, track->serverId, track->entityUid);
+    }
 }
 
 CrateLoadCoordinator::~CrateLoadCoordinator() {
@@ -67,12 +178,17 @@ TrackPointer CrateLoadCoordinator::trackOf(
         kLogger.warning() << "The library does not take the cached file" << path;
         return pTrack;
     }
+    analyseOnce(pTrack, serverId, entityUid);
+    return pTrack;
+}
+
+void CrateLoadCoordinator::analyseOnce(
+        const TrackPointer& pTrack, const QString& serverId, const QString& entityUid) {
     const QString key = keyOf(serverId, entityUid);
     if (m_applyAnalysis && !m_analysed.contains(key)) {
         m_analysed.insert(key);
         m_applyAnalysis(pTrack, serverId, entityUid);
     }
-    return pTrack;
 }
 
 void CrateLoadCoordinator::requestLoad(

@@ -1674,7 +1674,8 @@ void WTrackTableView::addToAutoDJ(PlaylistDAO::AutoDJSendLoc loc) {
         return;
     }
 
-    const QList<TrackId> trackIds = getSelectedTrackIds();
+    // The model may add library tracks for rows that have none yet
+    const QList<TrackId> trackIds = pTrackModel->getTrackIdsForAutoDJ(getSelectedRows());
     if (trackIds.isEmpty()) {
         qWarning() << "No tracks selected for AutoDJ";
         return;

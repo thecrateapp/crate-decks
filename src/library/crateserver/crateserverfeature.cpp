@@ -33,6 +33,7 @@
 #include "library/trackcollectionmanager.h"
 #include "library/treeitem.h"
 #include "library/treeitemmodel.h"
+#include "mixer/playerinfo.h"
 #include "track/track.h"
 #include "util/db/dbconnectionpooled.h"
 #include "util/db/dbconnectionpooler.h"
@@ -214,7 +215,9 @@ CrateServerFeature::CrateServerFeature(Library* pLibrary, UserSettingsPointer pC
                   pConfig,
                   Dependencies{pLibrary->trackCollectionManager(),
                           pLibrary->dbConnectionPool(),
-                          nullptr}) {
+                          nullptr,
+                          // CoreServices creates it before the library
+                          &PlayerInfo::instance()}) {
 }
 
 CrateServerFeature::CrateServerFeature(Library* pLibrary,
@@ -400,6 +403,11 @@ void CrateServerFeature::startLoading() {
     options.trackOfFile = [pCollection](const QString& path) {
         return pCollection->getOrAddTrack(TrackRef::fromFilePath(path));
     };
+    options.trackIdsOfFiles = CrateLoadCoordinator::trackIdsOfFilesIn(pCollection);
+    options.trackById = [pCollection](TrackId trackId) {
+        return pCollection->getTrackById(trackId);
+    };
+    options.pPlayerInfo = m_dependencies.pPlayerInfo;
     options.applyAnalysis =
             [this](const TrackPointer& pTrack, const QString& serverId, const QString& entityUid) {
                 applyAnalysis(pTrack, serverId, entityUid);
