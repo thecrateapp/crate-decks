@@ -312,7 +312,11 @@ class MainThreadStalls {
         const QJsonArray stalls = stallsJson();
         for (qsizetype i = 0; i < stalls.size() && i < 3; ++i) {
             const QJsonObject stall = stalls[i].toObject();
-            longest.append(QStringLiteral("%1 ms in %2").arg(number(stall.value(QStringLiteral("ms")).toDouble()), stall.value(QStringLiteral("phase")).toString()));
+            longest.append(QStringLiteral("%1 ms in %2")
+                            .arg(number(stall.value(QStringLiteral("ms"))
+                                                 .toDouble()),
+                                    stall.value(QStringLiteral("phase"))
+                                            .toString()));
         }
         return QStringLiteral("longest main-thread stall %1 ms; over 16 ms: %2 (%3)%4")
                 .arg(number(m_longestMs),
@@ -1109,7 +1113,8 @@ class CrateG3BudgetsLive : public MixxxDbTest, SoundSourceProviderRegistration {
         std::vector<double> emptyCache;
         std::vector<double> fullCache;
         for (const bool first : {true, false}) {
-            const QString pass = first ? QStringLiteral("empty-cache") : QStringLiteral("full-cache");
+            const QString pass = first ? QStringLiteral("empty-cache")
+                                       : QStringLiteral("full-cache");
             for (int i = 0; i < uids.size(); ++i) {
                 const QString& uid = uids[i];
                 const TrackInfo info = trackInfo(uid);
@@ -1591,9 +1596,11 @@ TEST_F(CrateG3BudgetsLive, Concurrency) {
     ASSERT_TRUE(waitForApiQuiet(300, kNetworkWaitMs));
     std::optional<CrateServerFeature::OfflineSet> set;
     auto* pSet = &set;
-    m_pFeature->readOfflineSet(m_serverId, offline, [pSet](const CrateServerFeature::OfflineSet& read) {
-        *pSet = read;
-    });
+    m_pFeature->readOfflineSet(m_serverId,
+            offline,
+            [pSet](const CrateServerFeature::OfflineSet& read) {
+                *pSet = read;
+            });
     ASSERT_TRUE(wait(
             [&set] {
                 return set.has_value();
@@ -1791,29 +1798,39 @@ TEST_F(CrateG3BudgetsLive, Concurrency) {
     record(QStringLiteral("Concurrency"),
             QJsonObject{
                     {QStringLiteral("client"),
-                            QJsonObject{{QStringLiteral("api"), client(QStringLiteral("api"))},
-                                    {QStringLiteral("stream"), client(QStringLiteral("stream"))},
+                            QJsonObject{{QStringLiteral("api"),
+                                                client(QStringLiteral("api"))},
+                                    {QStringLiteral("stream"),
+                                            client(QStringLiteral("stream"))},
                                     {QStringLiteral("events"),
                                             client(QStringLiteral("events"))}}},
                     {QStringLiteral("proxy_summary_before"), before.summary},
                     {QStringLiteral("proxy_summary_after"), after.summary},
                     {QStringLiteral("proxy_window"), windowPeaks},
                     {QStringLiteral("offline_set"),
-                            QJsonObject{{QStringLiteral("tracks"), static_cast<int>(setUids.size())},
+                            QJsonObject{
+                                    {QStringLiteral("tracks"),
+                                            static_cast<int>(setUids.size())},
                                     {QStringLiteral("ready"), ready},
                                     {QStringLiteral("seconds"),
-                                            std::round(totalMs / 100.0) / 10.0}}},
+                                            std::round(totalMs / 100.0) /
+                                                    10.0}}},
                     {QStringLiteral("burst"),
-                            QJsonObject{{QStringLiteral("playlists_opened"), opened},
+                            QJsonObject{{QStringLiteral("playlists_opened"),
+                                                opened},
                                     {QStringLiteral("searches"), searchesDone},
-                                    {QStringLiteral("profile_fetches"), fetchesDone},
+                                    {QStringLiteral("profile_fetches"),
+                                            fetchesDone},
                                     {QStringLiteral("profiles_asked"),
-                                            static_cast<int>(withProfile.size())}}},
+                                            static_cast<int>(
+                                                    withProfile.size())}}},
                     {QStringLiteral("budget"),
                             QJsonObject{{QStringLiteral("api"), kApiBudget},
-                                    {QStringLiteral("downloads"), kDownloadBudget}}},
+                                    {QStringLiteral("downloads"),
+                                            kDownloadBudget}}},
                     {QStringLiteral("within_budget"),
-                            QJsonObject{{QStringLiteral("api"), apiPeak <= kApiBudget},
+                            QJsonObject{{QStringLiteral("api"),
+                                                apiPeak <= kApiBudget},
                                     {QStringLiteral("downloads"),
                                             streamPeak <= kDownloadBudget}}},
                     {QStringLiteral("main_thread"), stalls.toJson()},
@@ -1836,9 +1853,11 @@ TEST_F(CrateG3BudgetsLive, KeepsTwoGiBFree) {
             kNetworkWaitMs));
     std::optional<CrateServerFeature::OfflineSet> set;
     auto* pSet = &set;
-    m_pFeature->readOfflineSet(m_serverId, offline, [pSet](const CrateServerFeature::OfflineSet& read) {
-        *pSet = read;
-    });
+    m_pFeature->readOfflineSet(m_serverId,
+            offline,
+            [pSet](const CrateServerFeature::OfflineSet& read) {
+                *pSet = read;
+            });
     ASSERT_TRUE(wait(
             [&set] {
                 return set.has_value();
@@ -2133,9 +2152,11 @@ TEST_F(CrateG3BudgetsLive, GridQualityReport) {
                     {QStringLiteral("local_within_0_05_bpm"), localMatches},
                     {QStringLiteral("local_at_half_or_double"), localOctaves},
                     {QStringLiteral("limits"),
-                            QJsonObject{{QStringLiteral("min_beats"), crate::analysis::kGridMinBeats},
+                            QJsonObject{{QStringLiteral("min_beats"),
+                                                crate::analysis::kGridMinBeats},
                                     {QStringLiteral("max_deviation_ms"),
-                                            crate::analysis::kGridMaxDeviationMs},
+                                            crate::analysis::
+                                                    kGridMaxDeviationMs},
                                     {QStringLiteral("max_drift_ms"),
                                             crate::analysis::kGridMaxDriftMs}}},
                     {QStringLiteral("main_thread"), stalls.toJson()},
