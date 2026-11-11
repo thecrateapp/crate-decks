@@ -154,7 +154,8 @@ class CrateLoadIntoDecksTest : public MixxxDbTest, SoundSourceProviderRegistrati
 
         // The application's Library without its own Crate section: this
         // test adds one that uses the fake network
-        m_pConfig->setValue(ConfigKey(QStringLiteral("[Library]"), QStringLiteral("ShowCrateServer")),
+        m_pConfig->setValue(ConfigKey(QStringLiteral("[Library]"),
+                                    QStringLiteral("ShowCrateServer")),
                 false);
         m_pLibrary = std::make_shared<Library>(nullptr,
                 m_pConfig,
@@ -200,8 +201,9 @@ class CrateLoadIntoDecksTest : public MixxxDbTest, SoundSourceProviderRegistrati
   protected:
     qint64 playlistId() const {
         QSqlQuery query(dbConnection());
-        query.prepare(QStringLiteral(
-                "SELECT id FROM crateserver_containers WHERE kind = 'playlist' AND remote_id = '7'"));
+        query.prepare(
+                QStringLiteral("SELECT id FROM crateserver_containers WHERE "
+                               "kind = 'playlist' AND remote_id = '7'"));
         return query.exec() && query.next() ? query.value(0).toLongLong() : 0;
     }
 
@@ -281,7 +283,8 @@ class CrateLoadIntoDecksTest : public MixxxDbTest, SoundSourceProviderRegistrati
     QTemporaryDir m_cacheDir;
     QByteArray m_audio;
     /// What the main window's timer drives; the track table reads it.
-    ControlObject m_guiTick{ConfigKey(QStringLiteral("[App]"), QStringLiteral("gui_tick_50ms_period_s"))};
+    ControlObject m_guiTick{ConfigKey(
+            QStringLiteral("[App]"), QStringLiteral("gui_tick_50ms_period_s"))};
     FakeNetworkAccessManager m_network;
     FakeSecretStore m_store;
     std::shared_ptr<EffectsManager> m_pEffectsManager;

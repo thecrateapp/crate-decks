@@ -212,7 +212,8 @@ TEST_F(CrateLoadCoordinatorTest, CancelsPendingLoadWhenDeckGetsAnotherTrack) {
 
 TEST_F(CrateLoadCoordinatorTest, DoesNotInterruptPlayingDeckWithoutConfirmation) {
     // Mixxx's default: a playing deck rejects new tracks
-    config()->setValue(kConfigKeyLoadWhenDeckPlaying, static_cast<int>(LoadWhenDeckPlaying::Reject));
+    config()->setValue(kConfigKeyLoadWhenDeckPlaying,
+            static_cast<int>(LoadWhenDeckPlaying::Reject));
     m_pCoordinator->requestLoad(trackRef(kUid1), kDeck1, false);
     FakeReply* pReply = waitForDownload(kUid1);
     ASSERT_NE(nullptr, pReply);
@@ -238,7 +239,8 @@ TEST_F(CrateLoadCoordinatorTest, DoesNotInterruptPlayingDeckWithoutConfirmation)
 
     // The preview deck always takes it
     EXPECT_TRUE(CrateLoadCoordinator::mayLoadInto(QStringLiteral("[PreviewDeck1]"), config()));
-    config()->setValue(kConfigKeyLoadWhenDeckPlaying, static_cast<int>(LoadWhenDeckPlaying::Reject));
+    config()->setValue(kConfigKeyLoadWhenDeckPlaying,
+            static_cast<int>(LoadWhenDeckPlaying::Reject));
     EXPECT_FALSE(CrateLoadCoordinator::mayLoadInto(kDeck1, config()));
     EXPECT_TRUE(CrateLoadCoordinator::mayLoadInto(kDeck2, config()));
 }

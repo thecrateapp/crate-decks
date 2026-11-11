@@ -2,12 +2,12 @@
 
 #include <gtest/gtest.h>
 
+#include <QAction>
 #include <QElapsedTimer>
+#include <QFileInfo>
 #include <QIcon>
 #include <QItemSelectionModel>
 #include <QSignalSpy>
-#include <QAction>
-#include <QFileInfo>
 #include <QSqlQuery>
 #include <QTemporaryDir>
 #include <QTest>
@@ -402,7 +402,8 @@ TEST_F(CrateServerFeatureTest, UncachedTrackLoadsIntoTheDeckOnceDownloaded) {
 #endif
                     bool play) { loads.append({pTrack, group, play}); });
     const QModelIndex row = pModel->index(0, 0);
-    const QModelIndex cacheCell = pModel->index(0, pModel->fieldIndex(QStringLiteral("crate_cache")));
+    const QModelIndex cacheCell =
+            pModel->index(0, pModel->fieldIndex(QStringLiteral("crate_cache")));
 
     // "Load to Deck 2": the model takes it, as the track has no file yet
     ASSERT_TRUE(pModel->requestTrackLoad(row, QStringLiteral("[Channel2]"), false));
