@@ -272,8 +272,10 @@ mixxx::BeatsPointer CrateBeatsImporter::importBeatsAndApplyTimingOffset(const QS
         return nullptr;
     }
     m_imported = true;
+    // Beats keeps its markers on whole frames
     const auto firstBeat = mixxx::audio::FramePos(
-            m_grid.firstBeatMs * sampleRate.toDouble() / 1000.0);
+            m_grid.firstBeatMs * sampleRate.toDouble() / 1000.0)
+                                   .toNearestFrameBoundary();
     kLogger.debug() << "Crate grid for" << filePath << "at" << m_grid.bpm << "BPM from"
                     << m_grid.firstBeatMs << "ms," << sampleRate;
     return mixxx::Beats::fromConstTempo(
