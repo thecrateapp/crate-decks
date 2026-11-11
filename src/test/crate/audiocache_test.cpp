@@ -486,3 +486,50 @@ TEST(CachePathsTest, PathIsStableAndExtensionComesFromFormatOrContentType) {
 }
 
 } // namespace
+
+TEST_F(AudioCacheTest, ReportsTrackStateFindsFilesAndRemoves) {
+    const auto pCache = makeCache();
+    QStringList changed;
+    QObject::connect(pCache.get(),
+            &AudioCache::trackChanged,
+            pCache.get(),
+            [pChanged = &changed](const QString&, const QString& entityUid) {
+                pChanged->append(entityUid);
+            });
+    EXPECT_EQ(crate::cache::TrackState::Kind::None, pCache->trackState(kServer, kUid1).kind);
+
+    Outcome outcome(pCache->ensure(kServer, kUid1, Priority::Deck, flacHints(10)));
+    ASSERT_TRUE(waitForRequests(1));
+    replyOf(0)->respondHeaders(200, audioHeaders(10));
+    replyOf(0)->sendBody(QByteArrayLiteral("0123"));
+    ASSERT_TRUE(waitForPartSize(kUid1, 4));
+    const crate::cache::TrackState downloading = pCache->trackState(kServer, kUid1);
+    EXPECT_EQ(crate::cache::TrackState::Kind::Downloading, downloading.kind);
+    EXPECT_EQ(4, downloading.bytesReceived);
+    EXPECT_EQ(10, downloading.bytesTotal);
+    // A downloading track stays
+    EXPECT_FALSE(pCache->remove(kServer, kUid1));
+    replyOf(0)->sendBody(QByteArrayLiteral("456789"));
+    replyOf(0)->finishBody();
+    ASSERT_TRUE(outcome.waitForReady());
+    EXPECT_EQ(crate::cache::TrackState::Kind::Ready, pCache->trackState(kServer, kUid1).kind);
+    EXPECT_TRUE(changed.contains(kUid1));
+
+    // The file of a track, and nothing else, names it
+    const auto track = pCache->trackOfFile(finalPath(kUid1));
+    ASSERT_TRUE(track.has_value());
+    EXPECT_EQ(kServer, track->serverId);
+    EXPECT_EQ(kUid1, track->entityUid);
+    EXPECT_FALSE(pCache->trackOfFile(QStringLiteral("/music/") + kUid1 + QStringLiteral(".flac"))
+                    .has_value());
+    EXPECT_FALSE(pCache->trackOfFile(m_dir.filePath(QStringLiteral("index.sqlite"))).has_value());
+
+    pCache->pin(kServer, kUid1, QStringLiteral("offline-set:7"));
+    changed.clear();
+    EXPECT_TRUE(pCache->remove(kServer, kUid1));
+    EXPECT_EQ(QStringList{kUid1}, changed);
+    EXPECT_EQ(crate::cache::TrackState::Kind::None, pCache->trackState(kServer, kUid1).kind);
+    EXPECT_FALSE(pCache->cachedPath(kServer, kUid1).has_value());
+    EXPECT_TRUE(QTest::qWaitFor([&] { return !QFileInfo::exists(finalPath(kUid1)); }, kWaitMs));
+    EXPECT_EQ(0, pCache->usage().pinnedBytes);
+}

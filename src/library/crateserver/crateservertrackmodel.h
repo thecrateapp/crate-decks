@@ -1,8 +1,11 @@
 #pragma once
 
 #include <QAbstractTableModel>
+#include <QPointer>
+#include <QSet>
 #include <QString>
 #include <QThreadPool>
+#include <QTimer>
 #include <QVector>
 #include <functional>
 #include <optional>
@@ -11,6 +14,9 @@
 #include "util/db/dbconnectionpool.h"
 
 namespace crate::library {
+
+class CrateLoadCoordinator;
+struct CrateTrackRef;
 
 /// The tracks of a Crate container, or every track Decks has synced from a
 /// server, for Mixxx's track table (plan F3.C-PR2).
@@ -22,8 +28,11 @@ namespace crate::library {
 /// thread and swapped in at once: the main thread never waits for SQLite
 /// (design §9).
 ///
-/// Read-only. Its tracks are not in Mixxx's library yet, so getTrack() and
-/// getTrackId() give nothing and the track menu offers no loading until F4.
+/// Read-only. A track whose file is in the audio cache is a track of Mixxx's
+/// library (getTrack(), getTrackId(), dragging); any other loads into a deck
+/// through the asynchronous hook (requestTrackLoad(), plan F4.C-PR3), which
+/// downloads it first, and the Cache column shows its download. The track
+/// menu adds "Download" and "Remove from cache".
 class CrateServerTrackModel : public QAbstractTableModel, public TrackModel {
     Q_OBJECT
   public:
@@ -81,6 +90,10 @@ class CrateServerTrackModel : public QAbstractTableModel, public TrackModel {
         return m_loading;
     }
 
+    /// Where the rows' tracks come from and go to; without one, no track
+    /// loads. Not owned.
+    void setLoadCoordinator(CrateLoadCoordinator* pCoordinator);
+
     /// Called first when the user searches, with the search box's text: true
     /// when it takes the search (the Crate section's DJ search, F3.C-PR3), so
     /// the rows are not filtered here. Without one, or when it returns false,
@@ -105,10 +118,14 @@ class CrateServerTrackModel : public QAbstractTableModel, public TrackModel {
             int role = Qt::DisplayRole) const override;
     Qt::ItemFlags flags(const QModelIndex& index) const override;
     void sort(int column, Qt::SortOrder order) override;
+    QStringList mimeTypes() const override;
+    QMimeData* mimeData(const QModelIndexList& indexes) const override;
 
     // TrackModel
     TrackPointer getTrack(const QModelIndex& index) const override;
     TrackPointer getTrackByRef(const TrackRef& trackRef) const override;
+    bool requestTrackLoad(const QModelIndex& index, const QString& group, bool play) override;
+    QList<QAction*> trackMenuActions(const QModelIndexList& indices, QObject* pParent) override;
     QUrl getTrackUrl(const QModelIndex& index) const override;
     QString getTrackLocation(const QModelIndex& index) const override;
     TrackId getTrackId(const QModelIndex& index) const override;
@@ -133,10 +150,13 @@ class CrateServerTrackModel : public QAbstractTableModel, public TrackModel {
 
     /// The entity uid of the track in `row`.
     QString entityUid(int row) const;
+    /// The track of `row`, with what the library knows of its file.
+    CrateTrackRef trackRef(int row) const;
 
     struct Row {
         qint64 id = 0;
         int position = 0;
+        QString serverId;
         QString entityUid;
         QString title;
         QString artist;
@@ -150,6 +170,8 @@ class CrateServerTrackModel : public QAbstractTableModel, public TrackModel {
         std::optional<qint64> bitrate;
         QString format;
         std::optional<qint64> sampleRate;
+        std::optional<qint64> byteLength;
+        QString sourceRevision;
     };
 
   signals:
@@ -159,6 +181,12 @@ class CrateServerTrackModel : public QAbstractTableModel, public TrackModel {
   private:
     void load();
     void swapRowsKeepingSelection(QVector<Row>&& rows);
+    /// The cached file of a row's track, if any.
+    std::optional<QString> cachedPathOf(const Row& row) const;
+    /// Repaints the Cache column of the tracks whose state changed.
+    void onTrackChanged(const QString& serverId, const QString& entityUid);
+    void repaintChangedTracks();
+    void repaintCacheColumn();
 
     const Source m_source;
     const mixxx::DbConnectionPoolPtr m_pDbConnectionPool;
@@ -178,6 +206,11 @@ class CrateServerTrackModel : public QAbstractTableModel, public TrackModel {
     QVector<Row> m_rows;
     /// modelKey() of the rows shown.
     QString m_rowsKey;
+    QPointer<CrateLoadCoordinator> m_pCoordinator;
+    /// Tracks whose cache state changed since the last repaint, by
+    /// "<server>\n<uid>"; repainted at most every kRepaintIntervalMs.
+    QSet<QString> m_changedTracks;
+    QTimer m_repaintTimer;
 };
 
 } // namespace crate::library

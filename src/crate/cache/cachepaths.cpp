@@ -1,6 +1,7 @@
 #include "crate/cache/cachepaths.h"
 
 #include <QHash>
+#include <QStringList>
 
 #include "util/assert.h"
 
@@ -97,6 +98,24 @@ QString relativeAudioPath(
 
 QString partPathOf(const QString& path) {
     return path + kPartSuffix;
+}
+
+std::optional<std::pair<QString, QString>> trackOfRelativePath(const QString& relativePath) {
+    QString path = relativePath;
+    if (isPartFile(path)) {
+        path.chop(kPartSuffix.size());
+    }
+    const QStringList parts = path.split(QLatin1Char('/'));
+    if (parts.size() != 3) {
+        return std::nullopt;
+    }
+    const QString& serverId = parts[0];
+    const QString entityUid = parts[2].section(QLatin1Char('.'), 0, 0);
+    if (!isSafePathId(serverId) || !isSafePathId(entityUid) ||
+            parts[1] != entityUid.left(2).toLower()) {
+        return std::nullopt;
+    }
+    return std::pair(serverId, entityUid);
 }
 
 bool isPartFile(const QString& fileName) {

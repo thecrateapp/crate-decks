@@ -435,6 +435,10 @@ void WTrackTableView::slotMouseDoubleClicked(const QModelIndex& index) {
     if (doubleClickAction == DlgPrefLibrary::TrackDoubleClickAction::LoadToDeck &&
             pTrackModel->hasCapabilities(
                     TrackModel::Capability::LoadToDeck)) {
+        if (pTrackModel->requestTrackLoad(index, QString(), false)) {
+            // The model loads it once it can
+            return;
+        }
         TrackPointer pTrack = pTrackModel->getTrack(index);
         if (pTrack) {
             emit loadTrack(pTrack);
@@ -1529,6 +1533,10 @@ void WTrackTableView::loadSelectedTrackToGroup(const QString& group,
     }
     auto index = indices.at(0);
     auto* pTrackModel = getTrackModel();
+    if (pTrackModel && pTrackModel->requestTrackLoad(index, group, play)) {
+        // The model loads it once it can
+        return;
+    }
     TrackPointer pTrack;
     if (pTrackModel && (pTrack = pTrackModel->getTrack(index))) {
 #ifdef __STEM__
