@@ -5338,6 +5338,9 @@ if(CRATE)
   target_sources(
     mixxx-lib
     PRIVATE
+      src/crate/cache/audiocache.cpp
+      src/crate/cache/audiocacheindex.cpp
+      src/crate/cache/cachepaths.cpp
       src/crate/client/cratecapabilities.cpp
       src/crate/client/crateclient.cpp
       src/crate/client/crateserveraddress.cpp
@@ -5388,6 +5391,7 @@ if(CRATE)
     target_sources(
       mixxx-test
       PRIVATE
+        src/test/crate/audiocache_test.cpp
         src/test/crate/cratecapabilities_test.cpp
         src/test/crate/crateclient_test.cpp
         src/test/crate/crateeventsubscriber_test.cpp
