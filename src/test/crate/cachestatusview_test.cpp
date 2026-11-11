@@ -273,7 +273,10 @@ TEST_F(CacheStatusViewTest, ChangingLimitTriggersEviction) {
 TEST_F(CacheStatusViewTest, CaptionShowsTracksInUse) {
     download(kUid1, 300);
     download(kUid2, 300);
-    m_pCache->pin(kServer, kUid1, AudioCache::kSessionPinPrefix + QStringLiteral("player:[Channel1]"));
+    m_pCache->pin(kServer,
+            kUid1,
+            AudioCache::kSessionPinPrefix +
+                    QStringLiteral("player:[Channel1]"));
     makeView();
 
     m_pModel->setLimitBytes(100);
