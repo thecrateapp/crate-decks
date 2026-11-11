@@ -19,6 +19,7 @@
 
 #include "control/controlindicatortimer.h"
 #include "control/controlobject.h"
+#include "crate/cache/audiocache.h"
 #include "crate/cratepreferences.h"
 #include "crate/crateservers.h"
 #include "crate/db/crateserverprofiles.h"
@@ -524,6 +525,48 @@ TEST_F(CrateLoadIntoDecksTest, AutoDjPlaysUncachedTracksAddedFromTheTrackMenu) {
     EXPECT_TRUE(QTest::qWaitFor(
             [&] { return pTrack->getKey() == mixxx::track::io::key::A_MINOR; }, kWaitMs));
     ControlObject::set(ConfigKey(QStringLiteral("[AutoDJ]"), QStringLiteral("enabled")), 0.0);
+}
+
+// Design §9: the LRU never evicts what is loaded (session pins, decided by
+// Diego on 2026-11-11). A track playing in the real deck 1 keeps its file when
+// the limit drops to nothing and the cache is cleared; once ejected, it goes.
+TEST_F(CrateLoadIntoDecksTest, TrackInADeckSurvivesClearCacheAndALowerLimit) {
+    CrateServerTrackModel* pModel = showPlaylist();
+    ASSERT_NE(nullptr, pModel);
+    m_pView->selectionModel()->select(pModel->index(0, 0),
+            QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
+    m_pView->loadSelectedTrackToGroup(kDeck1,
+#ifdef __STEM__
+            mixxx::StemChannelSelection(),
+#endif
+            false);
+    ASSERT_TRUE(serveDownload(QStringLiteral("e1")));
+    ASSERT_TRUE(deckHasLoaded(kDeck1, QStringLiteral("e1")));
+    crate::cache::AudioCache* pCache = m_pServers->audioCache();
+    ASSERT_TRUE(pCache->cachedPath(kServer, QStringLiteral("e1")).has_value());
+
+    // Preferences: the lowest limit, then "Clear cache"
+    pCache->setLimitBytes(0);
+    EXPECT_EQ(0, pCache->clear());
+    EXPECT_TRUE(pCache->cachedPath(kServer, QStringLiteral("e1")).has_value());
+    EXPECT_TRUE(QFile::exists(cachedPathOf(QStringLiteral("e1"))));
+    EXPECT_EQ(m_audio.size(), pCache->usage().inUseBytes);
+
+    // Ejected (later than Mixxx's double press, which would reload the
+    // last ejected track instead): the limit takes it
+    QTest::qWait(600);
+    ControlObject::set(ConfigKey(kDeck1, QStringLiteral("eject")), 1.0);
+    ControlObject::set(ConfigKey(kDeck1, QStringLiteral("eject")), 0.0);
+    Deck* pDeck = m_pPlayerManager->getDeck(0);
+    ASSERT_TRUE(QTest::qWaitFor(
+            [&] {
+                m_pEngine->process(1024);
+                return pDeck->getLoadedTrack() == nullptr;
+            },
+            kWaitMs));
+    EXPECT_FALSE(pCache->cachedPath(kServer, QStringLiteral("e1")).has_value());
+    EXPECT_TRUE(QTest::qWaitFor(
+            [&] { return !QFile::exists(cachedPathOf(QStringLiteral("e1"))); }, kWaitMs));
 }
 
 } // namespace

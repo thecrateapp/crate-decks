@@ -5358,6 +5358,7 @@ if(CRATE)
       src/crate/library/crateloadcoordinator.cpp
       src/crate/library/crateprefetcher.cpp
       src/crate/library/cratesearch.cpp
+      src/crate/library/cratesessionpins.cpp
       src/crate/session/crateloopbackserver.cpp
       src/crate/session/cratesecretstore.cpp
       src/crate/session/cratesession.cpp
@@ -5413,6 +5414,7 @@ if(CRATE)
         src/test/crate/crateloadintodecks_test.cpp
         src/test/crate/crateprefetcher_test.cpp
         src/test/crate/cratesearch_test.cpp
+        src/test/crate/cratesessionpins_test.cpp
         src/test/crate/crateloopbackserver_test.cpp
         src/test/crate/cratesecretstore_test.cpp
         src/test/crate/crateserverprofiles_test.cpp

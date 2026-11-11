@@ -23,6 +23,7 @@
 #include "crate/library/cratelibrarysync.h"
 #include "crate/library/crateprefetcher.h"
 #include "crate/library/cratesearch.h"
+#include "crate/library/cratesessionpins.h"
 #include "crate/ui/cachestatusview.h"
 #include "library/crateserver/crateservertrackmodel.h"
 #include "library/library.h"
@@ -440,6 +441,13 @@ void CrateServerFeature::startLoading() {
     prefetch.pPlaylistDao = &pCollection->internalCollection()->getPlaylistDAO();
     prefetch.enabled = pPreferences->prefetchAutoDj();
     m_pPrefetcher = std::make_unique<CratePrefetcher>(std::move(prefetch));
+    // The LRU never evicts what is loaded or queued (design §9)
+    CrateSessionPins::Options pins;
+    pins.pCache = m_pServers->audioCache();
+    pins.pDbConnectionPool = m_dependencies.pDbConnectionPool;
+    pins.pPlaylistDao = &pCollection->internalCollection()->getPlaylistDAO();
+    pins.pPlayerInfo = m_dependencies.pPlayerInfo;
+    m_pSessionPins = std::make_unique<CrateSessionPins>(std::move(pins));
     connect(pPreferences,
             &CratePreferences::prefetchAutoDjChanged,
             this,
@@ -472,6 +480,7 @@ void CrateServerFeature::stopLoading() {
             {m_pContainerModel.get(), m_pLibraryModel.get(), m_pSearchModel.get()}) {
         pModel->setLoadCoordinator(nullptr);
     }
+    m_pSessionPins.reset();
     m_pPrefetcher.reset();
     m_pLoadCoordinator.reset();
     m_pCacheStatus->setSources(nullptr, nullptr);
