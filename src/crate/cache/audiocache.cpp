@@ -1013,12 +1013,16 @@ QList<PinnedSet> AudioCache::pinnedSets(const QString& reasonPrefix) const {
                 continue;
             }
             const QString key = entry.serverId + QLatin1Char('\n') + reason;
-            auto it = indexOf.constFind(key);
-            if (it == indexOf.cend()) {
-                it = indexOf.insert(key, sets.size());
+            const auto found = indexOf.constFind(key);
+            qsizetype index = 0;
+            if (found == indexOf.cend()) {
+                index = sets.size();
+                indexOf.insert(key, index);
                 sets.append(PinnedSet{entry.serverId, reason});
+            } else {
+                index = found.value();
             }
-            PinnedSet& set = sets[it.value()];
+            PinnedSet& set = sets[index];
             ++set.tracks;
             if (entry.state == CacheEntry::State::Ready) {
                 ++set.readyTracks;
