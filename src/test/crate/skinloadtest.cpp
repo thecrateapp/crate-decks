@@ -61,6 +61,7 @@
 #include "crate/ui/skin/preferencescontrol.h"
 #include "database/mixxxdb.h"
 #include "dialog/dlgabout.h"
+#include "library/crateserver/crateserverfeature.h"
 #include "library/library.h"
 #include "library/sidebarmodel.h"
 #include "library/trackcollectionmanager.h"
@@ -1959,12 +1960,15 @@ TEST_F(CrateSkinScreenshots, Dialogs) {
     }
     application()->removeEventFilter(&lastMenu);
 
-    // The Auto DJ and Analyze views of the library, with their button bars
+    // The Auto DJ and Analyze views of the library, with their button bars,
+    // and the Crate section's cache view (F4.C-PR4), here without a cache
     if (auto* pLibraryWidget = decks.skin()->findChild<WLibrary*>()) {
         for (const auto& [view, name] :
                 {std::pair{Library::kAutoDJViewName, QStringLiteral("crate-library-autodj")},
                         std::pair{QStringLiteral("Analysis"),
-                                QStringLiteral("crate-library-analyze")}}) {
+                                QStringLiteral("crate-library-analyze")},
+                        std::pair{crate::library::CrateServerFeature::kCacheViewName,
+                                QStringLiteral("crate-library-cache")}}) {
             pLibraryWidget->switchToView(view);
             save(mainWindow(), name);
         }

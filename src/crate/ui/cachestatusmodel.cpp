@@ -193,7 +193,8 @@ QVariant CacheOfflineSetsModel::data(const QModelIndex& index, int role) const {
         break;
     case Tracks:
         if (role == Qt::DisplayRole) {
-            return tr("%1 of %2 tracks").arg(row.set.readyTracks).arg(row.set.tracks);
+            return tr("%1 of %2 tracks")
+                    .arg(QString::number(row.set.readyTracks), QString::number(row.set.tracks));
         }
         break;
     case Size:
@@ -321,7 +322,7 @@ void CacheStatusModel::refresh() {
     m_refreshTimer.stop();
     if (!m_pCache) {
         m_usage = cache::Usage();
-        m_limitBytes = 0;
+        m_limitBytes = m_pPreferences ? m_pPreferences->cacheLimitBytes() : 0;
         m_pDownloads->setDownloads({});
         m_pOfflineSets->setRows({});
         emit changed();
