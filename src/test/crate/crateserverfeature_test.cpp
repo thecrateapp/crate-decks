@@ -395,12 +395,12 @@ TEST_F(CrateServerFeatureTest, UncachedTrackLoadsIntoTheDeckOnceDownloaded) {
     QObject::connect(pFeature,
             &LibraryFeature::loadTrackToPlayer,
             pFeature,
-            [&loads](TrackPointer pTrack,
+            [pLoads = &loads](TrackPointer pTrack,
                     const QString& group,
 #ifdef __STEM__
                     mixxx::StemChannelSelection,
 #endif
-                    bool play) { loads.append({pTrack, group, play}); });
+                    bool play) { pLoads->append({pTrack, group, play}); });
     const QModelIndex row = pModel->index(0, 0);
     const QModelIndex cacheCell =
             pModel->index(0, pModel->fieldIndex(QStringLiteral("crate_cache")));

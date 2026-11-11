@@ -27,9 +27,11 @@ CrateLoadCoordinator::CrateLoadCoordinator(Options options, QObject* parent)
 }
 
 CrateLoadCoordinator::~CrateLoadCoordinator() {
-    const QStringList groups = m_pending.keys();
-    for (const QString& group : groups) {
-        cancel(group);
+    // The downloads nobody waits for any more stop
+    for (auto it = m_pending.cbegin(); it != m_pending.cend(); ++it) {
+        if (it->pTicket) {
+            it->pTicket->cancel();
+        }
     }
 }
 

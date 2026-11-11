@@ -120,7 +120,7 @@ class CrateLoadCoordinatorTest : public MixxxTest {
     FakeReply* waitForDownload(const QString& uid) {
         const QString path = QStringLiteral("/api/tracks/by-entity/%1/stream").arg(uid);
         FakeReply* pFound = nullptr;
-        QTest::qWaitFor(
+        const bool sent = QTest::qWaitFor(
                 [&] {
                     for (const auto& sent : std::as_const(m_network.sent)) {
                         if (sent.request.url().path() == path && sent.pReply) {
@@ -130,7 +130,7 @@ class CrateLoadCoordinatorTest : public MixxxTest {
                     return pFound != nullptr;
                 },
                 kWaitMs);
-        return pFound;
+        return sent ? pFound : nullptr;
     }
 
     QString cachedPathOf(const QString& uid) const {

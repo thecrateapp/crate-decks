@@ -493,7 +493,9 @@ TEST_F(AudioCacheTest, ReportsTrackStateFindsFilesAndRemoves) {
     QObject::connect(pCache.get(),
             &AudioCache::trackChanged,
             pCache.get(),
-            [&changed](const QString&, const QString& entityUid) { changed.append(entityUid); });
+            [pChanged = &changed](const QString&, const QString& entityUid) {
+                pChanged->append(entityUid);
+            });
     EXPECT_EQ(crate::cache::TrackState::Kind::None, pCache->trackState(kServer, kUid1).kind);
 
     Outcome outcome(pCache->ensure(kServer, kUid1, Priority::Deck, flacHints(10)));

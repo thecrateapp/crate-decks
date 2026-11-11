@@ -186,6 +186,7 @@ class CrateServerTrackModel : public QAbstractTableModel, public TrackModel {
     /// Repaints the Cache column of the tracks whose state changed.
     void onTrackChanged(const QString& serverId, const QString& entityUid);
     void repaintChangedTracks();
+    void repaintCacheColumn();
 
     const Source m_source;
     const mixxx::DbConnectionPoolPtr m_pDbConnectionPool;

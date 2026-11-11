@@ -252,7 +252,16 @@ void CrateServerTrackModel::setLoadCoordinator(CrateLoadCoordinator* pCoordinato
                 &cache::AudioCache::trackChanged,
                 this,
                 &CrateServerTrackModel::onTrackChanged);
+        // The cache knows its files once its index is read
+        connect(m_pCoordinator->cache(),
+                &cache::AudioCache::loaded,
+                this,
+                &CrateServerTrackModel::repaintCacheColumn);
     }
+    repaintCacheColumn();
+}
+
+void CrateServerTrackModel::repaintCacheColumn() {
     if (!m_rows.isEmpty()) {
         emit dataChanged(index(0, kCacheColumn), index(rowCount() - 1, kCacheColumn));
     }
