@@ -12,8 +12,11 @@ namespace {
 
 const mixxx::Logger kLogger("crate::library::CrateLoadCoordinator");
 
+/// Whether the deck `group` plays; false for a deck that does not exist.
 bool isPlaying(const QString& group) {
-    return ControlObject::get(ConfigKey(group, QStringLiteral("play"))) > 0.0;
+    const ControlObject* pPlay = ControlObject::getControl(
+            ConfigKey(group, QStringLiteral("play")), ControlFlag::NoAssertIfMissing);
+    return pPlay && pPlay->get() > 0.0;
 }
 
 } // namespace
