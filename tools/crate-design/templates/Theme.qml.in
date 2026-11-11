@@ -436,6 +436,7 @@ QtObject {
     readonly property real prefsNavLogoHeight: {{prefsNavLogoHeight}}
     readonly property real prefsPagePaddingY: {{prefsPagePaddingY}}
     readonly property real prefsPagePaddingX: {{prefsPagePaddingX}}
+    readonly property real cacheViewPaddingX: {{cacheViewPaddingX}}
     readonly property real fontWeightPrefsTitle: {{fontWeightPrefsTitle}}
     readonly property real trackingPrefsTitle: {{trackingPrefsTitle}}
     readonly property real prefsTitleGap: {{prefsTitleGap}}
