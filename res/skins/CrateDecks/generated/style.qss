@@ -1417,6 +1417,63 @@ WTrackPropertyEditor {
   background: none;
 }
 
+/* ── Cache view of the Crate section (plan F4.C-PR4) ───────────────────
+   No mockup of its own: the Crate page's cache header (decks.css .usage)
+   over tables in the track table's style. C++ paints the rows' rules and
+   cells (crate/ui/cachestatusview.cpp and crate/ui/delegates/). */
+#CrateCacheView {
+  background-color: #0a0a0f;
+}
+#CrateCacheViewUsage {
+  color: #f1f5f9;
+  font-family: "JetBrains Mono";
+  font-size: 26px;
+  letter-spacing: -1.3px;
+}
+#CrateCacheViewOf {
+  color: #7e8084;
+  font-family: "JetBrains Mono";
+  font-size: 13px;
+}
+#CrateCacheViewCaption {
+  color: #7e8084;
+  font-family: "JetBrains Mono";
+  font-size: 7.875pt;
+}
+#MonoCacheViewSection {
+  color: #67e8f9;
+}
+#CrateCacheViewEmpty {
+  color: #999ca0;
+  font-family: "Roboto";
+  font-size: 13px;
+}
+#CrateCacheViewDownloads,
+#CrateCacheViewOfflineSets {
+  font-family: "Roboto";
+  font-size: 13px;
+  color: #999ca0;
+  background-color: #0a0a0f;
+  alternate-background-color: #0a0a0f;
+  selection-background-color: transparent;
+  border: 0;
+  outline: none;
+}
+#CrateCacheViewDownloads QHeaderView,
+#CrateCacheViewOfflineSets QHeaderView,
+#CrateCacheViewDownloads QHeaderView::section,
+#CrateCacheViewOfflineSets QHeaderView::section {
+  font-family: "JetBrains Mono";
+  font-size: 7.875pt;
+  text-transform: uppercase;
+  letter-spacing: 1.47px;
+  color: #7e8084;
+  background-color: #0a0a0f;
+  border: 0;
+  border-bottom: 1px solid rgba(241, 245, 249, 26);
+  padding: 0 10px;
+}
+
 /* ── Auto DJ and Analyze: the button bars of the library (plan V2.PR5) ─ */
 
 /* The admin's small buttons, outlined and neutral, with Solar icons; the

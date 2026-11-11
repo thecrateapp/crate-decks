@@ -18,12 +18,15 @@
 #include <memory>
 
 #include "crate/cache/audiocache.h"
+#include "crate/cratepreferences.h"
 #include "crate/crateservers.h"
 #include "crate/db/crateserverprofiles.h"
 #include "crate/db/crateserverschema.h"
 #include "crate/library/cratelibraryjson.h"
 #include "crate/library/cratelibrarystore.h"
 #include "crate/library/crateloadcoordinator.h"
+#include "crate/library/crateprefetcher.h"
+#include "crate/ui/cachestatusmodel.h"
 #include "crate/ui/delegates/delegateroles.h"
 #include "library/crateserver/crateservertrackmodel.h"
 #include "library/trackcollection.h"
@@ -277,11 +280,13 @@ TEST_F(CrateServerFeatureTest, SidebarShowsServerAndSections) {
                       QStringLiteral("Playlists (2)"),
                       QStringLiteral("Crates (1)"),
                       QStringLiteral("Genres"),
-                      QStringLiteral("Likes (2)")}),
+                      QStringLiteral("Likes (2)"),
+                      QStringLiteral("Cache")}),
             labels(root()));
     // Their Solar icons, by name, for the CrateDecks sidebar
     EXPECT_EQ(QStringLiteral("crate-library"), root()->child(0)->getIcon().name());
     EXPECT_EQ(QStringLiteral("crate-likes"), root()->child(4)->getIcon().name());
+    EXPECT_EQ(QStringLiteral("crate-cache"), root()->child(5)->getIcon().name());
     // The server's order, and its count when there is one
     EXPECT_EQ(QStringList({QStringLiteral("Peak hour"), QStringLiteral("Warm-up (52)")}),
             labels(root()->child(1)));
@@ -655,7 +660,8 @@ TEST_F(CrateServerFeatureTest, LazyExpansionFetchesOnce) {
     // Nothing synced yet: the sections Crate always serves
     EXPECT_EQ(QStringList({QStringLiteral("Library"),
                       QStringLiteral("Playlists"),
-                      QStringLiteral("Crates")}),
+                      QStringLiteral("Crates"),
+                      QStringLiteral("Cache")}),
             labels(root()));
 
     TreeItem* pPlaylists = childLabelled(root(), QStringLiteral("Playlists"));
@@ -666,7 +672,7 @@ TEST_F(CrateServerFeatureTest, LazyExpansionFetchesOnce) {
     const QString tree = QStringLiteral("/api/decks/containers");
     ASSERT_TRUE(QTest::qWaitFor([&] { return sentTo(tree) == 1; }, 5000));
     lastTo(tree)->pReply->respond(200, kTree);
-    ASSERT_TRUE(QTest::qWaitFor([&] { return labels(root()).size() == 5; }, 5000));
+    ASSERT_TRUE(QTest::qWaitFor([&] { return labels(root()).size() == 6; }, 5000));
     EXPECT_EQ(QStringLiteral("Library (136512)"), root()->child(0)->getLabel());
     pPlaylists = childLabelled(root(), QStringLiteral("Playlists"));
     EXPECT_EQ(QStringLiteral("Playlists (2)"), pPlaylists->getLabel());
@@ -786,7 +792,7 @@ TEST_F(CrateServerFeatureTest, SearchInTheCrateSectionAsksTheServer) {
     EXPECT_EQ(QStringLiteral("bpm:120-128 key:8A"), pResults->currentSearch());
     // Not a sidebar node
     EXPECT_EQ(2, labels(childLabelled(root(), QStringLiteral("Playlists"))).size());
-    EXPECT_EQ(5, labels(root()).size());
+    EXPECT_EQ(6, labels(root()).size());
 
     // Clearing the search shows the playlist again, unfiltered
     pResults->search(QString());
@@ -832,6 +838,66 @@ class MainThreadStalls {
 // local fakes, so it measures the client's own work only. Opt-in, since
 // timings vary with the machine: CRATE_DECKS_MEASURE=1.
 // TEST_GAP: the dev stack's latency is not in it (G3 session).
+// The Cache item (plan F4.C-PR4): the cache's use as its count, and the
+// cache's view in the library pane, with the tracks' titles
+TEST_F(CrateServerFeatureTest, CacheItemShowsTheCacheView) {
+    storeTree();
+    storeContainerTracks(containerId(QStringLiteral("likes"), QStringLiteral("me")),
+            {remoteTrack(QStringLiteral("e1"), QStringLiteral("Lattice"), 0.7, QString())});
+    CrateServerFeature* pFeature = makeFeature();
+    TreeItem* pCache = childLabelled(root(), QStringLiteral("Cache"));
+    ASSERT_NE(nullptr, pCache);
+    EXPECT_EQ(QStringLiteral("Cache"), pCache->getLabel());
+
+    QSignalSpy switched(pFeature, &LibraryFeature::switchToView);
+    QSignalSpy searchDisabled(pFeature, &LibraryFeature::disableSearch);
+    pFeature->activateChild(indexOf(pCache));
+    ASSERT_EQ(1, switched.size());
+    EXPECT_EQ(CrateServerFeature::kCacheViewName, switched.first().first().toString());
+    EXPECT_EQ(1, searchDisabled.size());
+
+    // A download: on the view with its title, then in the item's count
+    crate::cache::AudioCache* pAudioCache = m_pServers->audioCache();
+    ASSERT_TRUE(QTest::qWaitFor([&] { return pAudioCache->isLoaded(); }, 5000));
+    crate::cache::CacheTicket* pTicket =
+            pAudioCache->ensure(kServer, QStringLiteral("e1"), crate::cache::Priority::Deck);
+    QSignalSpy ready(pTicket, &crate::cache::CacheTicket::ready);
+    const QString stream = QStringLiteral("/api/tracks/by-entity/e1/stream");
+    ASSERT_TRUE(QTest::qWaitFor([&] { return sentTo(stream) == 1; }, 5000));
+    QAbstractItemModel* pDownloads = pFeature->cacheStatus()->downloads();
+    ASSERT_TRUE(QTest::qWaitFor(
+            [&] {
+                return pDownloads->rowCount() == 1 &&
+                        pDownloads->index(0, crate::CacheDownloadsModel::Title).data() ==
+                        QStringLiteral("Lattice");
+            },
+            5000));
+    lastTo(stream)->pReply->respond(200,
+            QByteArray(1600, 'x'),
+            {{QByteArrayLiteral("Content-Length"), QByteArrayLiteral("1600")},
+                    {QByteArrayLiteral("Content-Type"), QByteArrayLiteral("audio/flac")}});
+    ASSERT_TRUE(ready.wait(5000));
+    EXPECT_TRUE(QTest::qWaitFor(
+            [&] { return pCache->getLabel() == QStringLiteral("Cache (2 KB)"); }, 5000));
+}
+
+// The Crate preferences switch Auto DJ's prefetch off and on (F4.C-PR4)
+TEST_F(CrateServerFeatureTest, PrefetchFollowsThePreferences) {
+    CrateServerFeature* pFeature = makeFeature();
+    ASSERT_NE(nullptr, pFeature->prefetcher());
+    EXPECT_TRUE(pFeature->prefetcher()->isEnabled());
+
+    m_pServers->preferences()->setPrefetchAutoDj(false);
+    EXPECT_FALSE(pFeature->prefetcher()->isEnabled());
+    m_pServers->preferences()->setPrefetchAutoDj(true);
+    EXPECT_TRUE(pFeature->prefetcher()->isEnabled());
+
+    // A feature created with it off starts off
+    m_pServers->preferences()->setPrefetchAutoDj(false);
+    m_pFeature.reset();
+    EXPECT_FALSE(makeFeature()->prefetcher()->isEnabled());
+}
+
 TEST_F(CrateServerFeatureTest, MeasureLargePlaylistAndSearch) {
     if (qEnvironmentVariableIntValue("CRATE_DECKS_MEASURE") != 1) {
         GTEST_SKIP() << "Measurement; run with CRATE_DECKS_MEASURE=1";

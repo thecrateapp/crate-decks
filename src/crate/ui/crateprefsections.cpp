@@ -8,8 +8,10 @@
 #include <QLineEdit>
 #include <QPushButton>
 #include <QSlider>
+#include <QSignalBlocker>
 #include <QVBoxLayout>
 #include <algorithm>
+#include <cmath>
 
 #include "crate/ui/delegates/delegatestyle.h"
 #include "crate/ui/dialogs/dialogstyle.h"
@@ -171,7 +173,8 @@ CacheSection::CacheSection(QWidget* pParent)
           m_pCaption(textLabel(QString(), "CrateCacheCaption", this)),
           m_pLimit(new QSlider(Qt::Horizontal, this)),
           m_pLimitValue(textLabel(QString(), "CrateCacheLimitValue", this)),
-          m_pLocation(new QLineEdit(this)) {
+          m_pLocation(new QLineEdit(this)),
+          m_pLocationHint(textLabel(QString(), "CratePrefsHint", this)) {
     const DialogMetrics& metrics = DialogMetrics::installed();
 
     // Level ring, use and the clear button (decks.css .usage)
@@ -192,10 +195,10 @@ CacheSection::CacheSection(QWidget* pParent)
     pText->addWidget(m_pCaption);
     pUsage->addLayout(pText);
     pUsage->addStretch(1);
-    auto* pClear = new QPushButton(tr("Clear cache"), this);
-    pClear->setObjectName(QStringLiteral("crateClearCache"));
-    setButtonVariant(pClear, "danger");
-    pUsage->addWidget(pClear, 0, Qt::AlignVCenter);
+    m_pClear = new QPushButton(tr("Clear cache"), this);
+    m_pClear->setObjectName(QStringLiteral("crateClearCache"));
+    setButtonVariant(m_pClear, "danger");
+    pUsage->addWidget(m_pClear, 0, Qt::AlignVCenter);
     rows()->addLayout(pUsage);
 
     QHBoxLayout* pLimit = addLabelledRow(rows(), tr("Size limit"), this);
@@ -205,21 +208,39 @@ CacheSection::CacheSection(QWidget* pParent)
     m_pLimitValue->setMinimumWidth(metrics.px("cacheLimitWidth"));
     // Gigabytes, as the mockups show the limit
     m_pLimit->setRange(0, metrics.px("cacheLimitMaximum"));
+    // Chosen when the slider is let go: every step on the way would evict
+    m_pLimit->setTracking(false);
     pLimit->addWidget(m_pLimitValue);
+    connect(m_pLimit, &QSlider::sliderMoved, this, [this](int gigabytes) {
+        m_pLimitValue->setText(cacheLimitText(static_cast<qint64>(gigabytes * kBytesPerGigabyte)));
+    });
+    connect(m_pLimit, &QSlider::valueChanged, this, [this](int gigabytes) {
+        emit limitChosen(static_cast<qint64>(gigabytes * kBytesPerGigabyte));
+    });
 
     QHBoxLayout* pLocation = addLabelledRow(rows(), tr("Location"), this);
     m_pLocation->setObjectName(QStringLiteral("crateCacheLocation"));
     m_pLocation->setReadOnly(true);
     pLocation->addWidget(m_pLocation, 1);
-    auto* pChoose = new QPushButton(tr("Choose…"), this);
-    pChoose->setObjectName(QStringLiteral("crateChooseCache"));
-    setButtonVariant(pChoose, "ghost");
-    pLocation->addWidget(pChoose);
+    m_pChoose = new QPushButton(tr("Choose…"), this);
+    m_pChoose->setObjectName(QStringLiteral("crateChooseCache"));
+    setButtonVariant(m_pChoose, "ghost");
+    pLocation->addWidget(m_pChoose);
+    m_pLocationHint->setText(tr("takes effect the next time Crate Decks starts"));
+    m_pLocationHint->setContentsMargins(
+            metrics.px("prefsRowLabelWidthColumn") + metrics.px("prefsRowGap"), 0, 0, 0);
+    m_pLocationHint->hide();
+    rows()->addWidget(m_pLocationHint);
 
+    m_pPrefetch = addToggle(tr("Prefetch Auto DJ"),
+            tr("keeps the next 3 tracks of the Auto DJ queue downloaded"));
     m_pPrewarm = addToggle(
             tr("Prewarm compatibles"), tr("downloads the top 5 of the Compatibles view"));
     m_pProgressive = addToggle(tr("Progressive playback"),
             tr("FLAC, AAC, ALAC, Opus · plays before the download ends"));
+    // Plans F5 and F4b
+    m_pPrewarm->parentWidget()->hide();
+    m_pProgressive->parentWidget()->hide();
 }
 
 void CacheSection::setUsage(qint64 usedBytes, qint64 limitBytes, int tracks, int downloading) {
@@ -229,12 +250,30 @@ void CacheSection::setUsage(qint64 usedBytes, qint64 limitBytes, int tracks, int
     m_pCaption->setText(tr("%1 tracks · %2 downloading")
                     .arg(delegates::groupThousands(QString::number(tracks)),
                             delegates::groupThousands(QString::number(downloading))));
-    m_pLimit->setValue(static_cast<int>(limitBytes / kBytesPerGigabyte));
-    m_pLimitValue->setText(cacheLimitText(limitBytes));
+    if (!m_pLimit->isSliderDown()) {
+        // Showing the limit does not choose it
+        const QSignalBlocker blocker(m_pLimit);
+        m_pLimit->setValue(static_cast<int>(std::lround(limitBytes / kBytesPerGigabyte)));
+        m_pLimitValue->setText(cacheLimitText(limitBytes));
+    }
 }
 
-void CacheSection::setLocation(const QString& path) {
+void CacheSection::setLocation(const QString& path, bool atNextStart) {
     m_pLocation->setText(path);
+    m_pLocationHint->setVisible(atNextStart);
+}
+
+void CacheSection::setMinimumLimit(qint64 bytes) {
+    const QSignalBlocker blocker(m_pLimit);
+    m_pLimit->setMinimum(static_cast<int>(std::ceil(bytes / kBytesPerGigabyte)));
+}
+
+AnalysisSection::AnalysisSection(QWidget* pParent)
+        : PrefsSection(tr("Crate analysis"), pParent),
+          m_pKey(addToggle(tr("Key from Crate"),
+                  tr("instead of the key detection of Crate Decks"))),
+          m_pGain(addToggle(tr("Gain from loudness"),
+                  tr("ReplayGain from Crate's LUFS for tracks without one"))) {
 }
 
 SmartMixSection::SmartMixSection(QWidget* pParent)

@@ -12,6 +12,7 @@
 #include "crate/client/cratecapabilities.h"
 #include "crate/client/crateclient.h"
 #include "crate/client/crateserveraddress.h"
+#include "crate/cratepreferences.h"
 #include "crate/db/crateserverprofiles.h"
 #include "crate/db/crateserverschema.h"
 #include "crate/session/cratesecretstore.h"
@@ -43,7 +44,8 @@ struct CrateServers::Server {
 
 CrateServers::CrateServers(const Dependencies& dependencies, QObject* parent)
         : QObject(parent),
-          m_dependencies(dependencies) {
+          m_dependencies(dependencies),
+          m_pPreferences(std::make_unique<CratePreferences>(dependencies.pConfig)) {
     if (!m_dependencies.pNetworkAccessManager) {
         m_pOwnNetworkAccessManager = std::make_unique<QNetworkAccessManager>();
         m_dependencies.pNetworkAccessManager = m_pOwnNetworkAccessManager.get();
@@ -181,13 +183,24 @@ void CrateServers::rememberCapabilities(
 cache::AudioCache* CrateServers::audioCache() {
     if (!m_pAudioCache) {
         cache::AudioCache::Options options;
-        options.directory = m_dependencies.audioCacheDirectory.isEmpty()
-                ? cache::AudioCache::defaultDirectory()
-                : m_dependencies.audioCacheDirectory;
+        options.directory = m_dependencies.audioCacheDirectory;
+        if (options.directory.isEmpty()) {
+            options.directory = m_pPreferences->cacheDirectory();
+        }
+        if (options.directory.isEmpty()) {
+            options.directory = cache::AudioCache::defaultDirectory();
+        }
         options.clientFor = [this](const QString& serverId) {
             return client(serverId);
         };
+        options.limitBytes = m_pPreferences->cacheLimitBytes();
         m_pAudioCache = std::make_unique<cache::AudioCache>(std::move(options));
+        // A new directory waits for the next start: the cache is in use
+        connect(m_pPreferences.get(),
+                &CratePreferences::cacheLimitChanged,
+                m_pAudioCache.get(),
+                &cache::AudioCache::setLimitBytes);
+        emit audioCacheCreated();
     }
     return m_pAudioCache.get();
 }

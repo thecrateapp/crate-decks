@@ -239,6 +239,7 @@
   <SetVariable name="CrateDlgCacheLimitMaximum">100</SetVariable>
   <SetVariable name="CrateDlgFontSizeUsage">26</SetVariable>
   <SetVariable name="CrateDlgUsageGap">16</SetVariable>
+  <SetVariable name="CrateDlgCacheViewPaddingX">20</SetVariable>
   <SetVariable name="CrateDlgUsageBottom">12</SetVariable>
   <SetVariable name="CrateDlgUsageNumberTop">4</SetVariable>
   <SetVariable name="CrateDlgChipPaddingX">12</SetVariable>

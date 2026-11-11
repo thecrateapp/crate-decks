@@ -2,6 +2,7 @@
 
 #include <gtest/gtest.h>
 
+#include <QCheckBox>
 #include <QComboBox>
 #include <QDialog>
 #include <QFrame>
@@ -14,19 +15,25 @@
 #include <QPushButton>
 #include <QScopeGuard>
 #include <QSignalSpy>
+#include <QSlider>
 #include <QSqlQuery>
 #include <QStackedWidget>
 #include <QString>
+#include <QTemporaryDir>
+#include <QTest>
 #include <QTimer>
 #include <QUrl>
 #include <memory>
 
+#include "crate/cache/audiocache.h"
 #include "crate/client/crateserveraddress.h"
 #include "crate/crateaddserverflow.h"
+#include "crate/cratepreferences.h"
 #include "crate/crateserverrows.h"
 #include "crate/crateservers.h"
 #include "crate/db/crateserverprofiles.h"
 #include "crate/ui/cratefirstrun.h"
+#include "crate/ui/crateprefsections.h"
 #include "crate/ui/dialogs/dialogscrim.h"
 #include "crate/ui/dialogs/dialogstyle.h"
 #include "skin/legacy/launchimage.h"
@@ -131,6 +138,8 @@ class CrateAddServerFlowTest : public MixxxDbTest {
         dependencies.pDbConnectionPool = dbConnectionPooler();
         dependencies.pNetworkAccessManager = &m_network;
         dependencies.pSecretStore = &m_store;
+        ASSERT_TRUE(m_cacheDir.isValid());
+        dependencies.audioCacheDirectory = m_cacheDir.path();
         m_pServers = std::make_unique<CrateServers>(dependencies);
         m_pServers->start();
         m_pFlow = std::make_unique<AddServerFlow>(m_pServers.get());
@@ -145,6 +154,7 @@ class CrateAddServerFlowTest : public MixxxDbTest {
         return m_network.last();
     }
 
+    QTemporaryDir m_cacheDir;
     FakeNetworkAccessManager m_network;
     FakeSecretStore m_store;
     std::unique_ptr<CrateServers> m_pServers;
@@ -654,6 +664,152 @@ TEST_F(CrateAddServerFlowTest, ServerTextIsShownAsPlainText) {
         ASSERT_TRUE(pLabel) << name;
         EXPECT_EQ(Qt::PlainText, pLabel->textFormat()) << name;
     }
+}
+
+// The cache section of the page sets the preferences that the audio cache
+// follows (plan F4.C-PR4): its limit at once, and design §9's 20 GiB until
+// the user chooses another.
+TEST_F(CrateAddServerFlowTest, CacheLimitDrivesTheAudioCache) {
+    crate::DlgPrefCrate page(nullptr, m_pServers.get());
+    crate::CacheSection* pCache = page.cacheSection();
+    ASSERT_NE(nullptr, pCache);
+    EXPECT_FALSE(pCache->isHidden());
+    crate::CratePreferences* pPreferences = m_pServers->preferences();
+    EXPECT_EQ(20 * crate::cache::AudioCache::kGiB, pPreferences->cacheLimitBytes());
+    // Gigabytes on the slider, from 1 GB up
+    EXPECT_EQ(21, pCache->limit()->value());
+    EXPECT_EQ(1, pCache->limit()->minimum());
+    // Showing the page chose nothing
+    EXPECT_TRUE(config()->getValueString(
+                                ConfigKey(QStringLiteral("[Crate]"),
+                                        QStringLiteral("CacheLimitBytes")))
+                        .isEmpty());
+
+    crate::cache::AudioCache* pAudioCache = m_pServers->audioCache();
+    ASSERT_NE(nullptr, pAudioCache);
+    EXPECT_EQ(20 * crate::cache::AudioCache::kGiB, pAudioCache->limitBytes());
+    ASSERT_TRUE(QTest::qWaitFor([&] { return pAudioCache->isLoaded(); }, 5000));
+
+    // Let go at 40 GB: the cache takes it at once and the settings keep it
+    pCache->limit()->setValue(40);
+    EXPECT_EQ(40'000'000'000, pAudioCache->limitBytes());
+    EXPECT_EQ(40'000'000'000, pPreferences->cacheLimitBytes());
+    EXPECT_QSTRING_EQ(QStringLiteral("40000000000"),
+            config()->getValueString(ConfigKey(
+                    QStringLiteral("[Crate]"), QStringLiteral("CacheLimitBytes"))));
+    EXPECT_EQ(40'000'000'000, crate::CratePreferences(config()).cacheLimitBytes());
+    EXPECT_EQ(QStringLiteral("40 GB"),
+            pCache->findChild<QLabel*>(QStringLiteral("CrateCacheLimitValue"))->text());
+    // What the cache holds, on the ring
+    EXPECT_EQ(QStringLiteral("of 40 GB"),
+            pCache->findChild<QLabel*>(QStringLiteral("CrateCacheOf"))->text());
+}
+
+// TEST_GAP: "Choose…" opens a modal folder dialog; the test sets the
+// preference it sets.
+TEST_F(CrateAddServerFlowTest, CacheLocationTakesEffectAtTheNextStart) {
+    crate::DlgPrefCrate page(nullptr, m_pServers.get());
+    crate::CacheSection* pCache = page.cacheSection();
+    crate::cache::AudioCache* pAudioCache = m_pServers->audioCache();
+    EXPECT_QSTRING_EQ(QDir::toNativeSeparators(m_cacheDir.path()), pCache->location()->text());
+    EXPECT_TRUE(pCache->locationHint()->isHidden());
+
+    QTemporaryDir chosen;
+    ASSERT_TRUE(chosen.isValid());
+    m_pServers->preferences()->setCacheDirectory(chosen.path());
+
+    // The cache in use stays where it is until the next start
+    EXPECT_QSTRING_EQ(m_cacheDir.path(), pAudioCache->directory());
+    EXPECT_QSTRING_EQ(QDir::toNativeSeparators(chosen.path()), pCache->location()->text());
+    EXPECT_FALSE(pCache->locationHint()->isHidden());
+    EXPECT_QSTRING_EQ(QDir::cleanPath(chosen.path()),
+            config()->getValueString(
+                    ConfigKey(QStringLiteral("[Crate]"), QStringLiteral("CacheDirectory"))));
+
+    // The next start creates the cache there
+    CrateServers::Dependencies dependencies;
+    dependencies.pConfig = config();
+    dependencies.pDbConnectionPool = dbConnectionPooler();
+    dependencies.pNetworkAccessManager = &m_network;
+    dependencies.pSecretStore = &m_store;
+    CrateServers nextStart(dependencies);
+    ASSERT_NE(nullptr, nextStart.audioCache());
+    EXPECT_QSTRING_EQ(QDir::cleanPath(chosen.path()), nextStart.audioCache()->directory());
+}
+
+TEST_F(CrateAddServerFlowTest, PrefetchAndAnalysisSwitchesSetThePreferences) {
+    crate::DlgPrefCrate page(nullptr, m_pServers.get());
+    crate::CratePreferences* pPreferences = m_pServers->preferences();
+    QCheckBox* pPrefetch = page.cacheSection()->prefetchAutoDj();
+    QCheckBox* pKey = page.analysisSection()->keyFromCrate();
+    QCheckBox* pGain = page.analysisSection()->gainFromLufs();
+    EXPECT_FALSE(page.analysisSection()->isHidden());
+    // Defaults: prefetch on; beats, key and gain from the local analysis
+    EXPECT_TRUE(pPrefetch->isChecked());
+    EXPECT_FALSE(pKey->isChecked());
+    EXPECT_FALSE(pGain->isChecked());
+    const crate::analysis::Policy defaults = pPreferences->analysisPolicy();
+    EXPECT_FALSE(defaults.crateBeats);
+    EXPECT_FALSE(defaults.crateKey);
+    EXPECT_FALSE(defaults.gainFromLufs);
+    // Prewarm (F5) and progressive playback (F4b) wait for their plans
+    EXPECT_TRUE(page.cacheSection()->prewarm()->parentWidget()->isHidden());
+    EXPECT_TRUE(page.cacheSection()->progressivePlayback()->parentWidget()->isHidden());
+
+    QSignalSpy prefetchChanged(pPreferences, &crate::CratePreferences::prefetchAutoDjChanged);
+    QSignalSpy policyChanged(pPreferences, &crate::CratePreferences::analysisPolicyChanged);
+    pPrefetch->click();
+    pKey->click();
+    pGain->click();
+
+    EXPECT_FALSE(pPreferences->prefetchAutoDj());
+    ASSERT_EQ(1, prefetchChanged.size());
+    EXPECT_EQ(2, policyChanged.size());
+    const crate::analysis::Policy policy = pPreferences->analysisPolicy();
+    EXPECT_FALSE(policy.crateBeats);
+    EXPECT_TRUE(policy.crateKey);
+    EXPECT_TRUE(policy.gainFromLufs);
+    // Kept in the settings for the next start
+    const crate::CratePreferences saved(config());
+    EXPECT_FALSE(saved.prefetchAutoDj());
+    EXPECT_TRUE(saved.keyFromCrate());
+    EXPECT_TRUE(saved.gainFromLufs());
+
+    // And a page opened later shows them
+    crate::DlgPrefCrate again(nullptr, m_pServers.get());
+    EXPECT_FALSE(again.cacheSection()->prefetchAutoDj()->isChecked());
+    EXPECT_TRUE(again.analysisSection()->keyFromCrate()->isChecked());
+
+    // Reset to defaults puts everything back
+    page.slotResetToDefaults();
+    EXPECT_TRUE(pPreferences->prefetchAutoDj());
+    EXPECT_FALSE(pPreferences->keyFromCrate());
+    EXPECT_FALSE(pPreferences->gainFromLufs());
+    EXPECT_TRUE(pPrefetch->isChecked());
+    EXPECT_FALSE(pKey->isChecked());
+}
+
+TEST_F(CrateAddServerFlowTest, CacheSectionShowsTheCacheUse) {
+    crate::DlgPrefCrate page(nullptr, m_pServers.get());
+    auto* pUsage = page.cacheSection()->findChild<QLabel*>(QStringLiteral("CrateCacheCaption"));
+    ASSERT_NE(nullptr, pUsage);
+    EXPECT_EQ(QStringLiteral("0 tracks · 0 downloading"), pUsage->text());
+
+    // The cache comes once there is a server; the page follows it
+    m_pFlow->setAddress(QStringLiteral("https://crate.test"));
+    lastSent().pReply->respond(200, kDecksCapabilities);
+    m_pFlow->loginWithPassword(QStringLiteral("dj@crate.test"), QStringLiteral("right"));
+    lastSent().pReply->respond(200, kLoginAnswer);
+    ASSERT_EQ(1, m_pServers->sessions().size());
+    const QString serverId = m_pServers->sessions().first()->profile().id;
+    crate::cache::AudioCache* pAudioCache = m_pServers->audioCache();
+    ASSERT_TRUE(QTest::qWaitFor([&] { return pAudioCache->isLoaded(); }, 5000));
+    pAudioCache->ensure(serverId,
+            QStringLiteral("0f6b3d9e-5a1c-4e2b-8d7f-1a2b3c4d5e61"),
+            crate::cache::Priority::Deck);
+    EXPECT_TRUE(QTest::qWaitFor(
+            [&] { return pUsage->text() == QStringLiteral("0 tracks · 1 downloading"); },
+            5000));
 }
 
 } // namespace

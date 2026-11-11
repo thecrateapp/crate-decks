@@ -321,6 +321,17 @@ TEST_F(CrateDelegatesTest, PaintsSidebarSectionsAndActiveItem) {
     EXPECT_GT(strongestShade(image, right, m_style.textFaint, m_background), 0.5);
 }
 
+// The Cache item writes its use as its count (GU1 mockups sidebar)
+TEST(CrateSidebarCountTest, SizesAreCountsToo) {
+    const auto size = crate::delegates::splitCount(QStringLiteral("Cache (18.4 GB)"));
+    EXPECT_EQ(QStringLiteral("Cache"), size.label);
+    EXPECT_EQ(QStringLiteral("18.4 GB"), size.count);
+    const auto count = crate::delegates::splitCount(QStringLiteral("Library (136512)"));
+    EXPECT_EQ(QStringLiteral("Library"), count.label);
+    EXPECT_EQ(QStringLiteral("136 512"), count.count);
+    EXPECT_TRUE(crate::delegates::splitCount(QStringLiteral("Mix (1.5)")).count.isEmpty());
+}
+
 // The Crate feature's root (plan F3.C-PR2): its title is the section's
 // header and its children are painted as top-level items with their icons
 TEST_F(CrateDelegatesTest, PaintsSectionRootAsHeaderAndItsChildrenAtTheTop) {

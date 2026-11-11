@@ -16,12 +16,14 @@
 #include "crate/cache/audiocache.h"
 #include "crate/client/cratecapabilities.h"
 #include "crate/client/crateclient.h"
+#include "crate/cratepreferences.h"
 #include "crate/crateservers.h"
 #include "crate/library/crateeventsubscriber.h"
 #include "crate/library/cratelibraryjson.h"
 #include "crate/library/cratelibrarysync.h"
 #include "crate/library/crateprefetcher.h"
 #include "crate/library/cratesearch.h"
+#include "crate/ui/cachestatusview.h"
 #include "library/crateserver/crateservertrackmodel.h"
 #include "library/library.h"
 #include "library/library_prefs.h"
@@ -35,6 +37,7 @@
 #include "util/db/dbconnectionpooled.h"
 #include "util/db/dbconnectionpooler.h"
 #include "util/logger.h"
+#include "widget/wlibrary.h"
 #include "widget/wlibrarysidebar.h"
 
 namespace crate::library {
@@ -162,6 +165,13 @@ QString sectionData(const QString& serverId, Section section) {
 QString containerData(const QString& serverId, qint64 containerId) {
     return QStringLiteral("container\n%1\n%2").arg(serverId).arg(containerId);
 }
+QString cacheData() {
+    return QStringLiteral("cache\n");
+}
+
+QIcon cacheIcon() {
+    return namedIcon(QStringLiteral("crate-cache"), QStringLiteral("tracks"));
+}
 
 /// Likes and Recent are one container each: their item is the container.
 bool isSingleContainer(Section section, const QList<StoredContainer>& containers) {
@@ -177,6 +187,8 @@ QStringList childData(const TreeItem* pItem) {
 }
 
 } // namespace
+
+const QString CrateServerFeature::kCacheViewName = QStringLiteral("CRATE_CACHE");
 
 struct CrateServerFeature::Server {
     QString id;
@@ -225,6 +237,17 @@ CrateServerFeature::CrateServerFeature(Library* pLibrary,
                   CrateServerTrackModel::Source::Container,
                   dependencies.pTrackCollectionManager->internalCollection()->database(),
                   dependencies.pDbConnectionPool,
+                  this)),
+          m_pCacheStatus(make_parented<CacheStatusModel>(
+                  CacheStatusModel::Options{nullptr,
+                          nullptr,
+                          [this](const QList<cache::TrackKey>& tracks,
+                                  const CacheStatusModel::TitlesReady& ready) {
+                              lookUpTitles(tracks, ready);
+                          },
+                          [this](const QString& serverId, const QString& reason) {
+                              return offlineSetName(serverId, reason);
+                          }},
                   this)) {
     m_pool.setMaxThreadCount(1);
     for (CrateServerTrackModel* pModel :
@@ -350,6 +373,10 @@ void CrateServerFeature::updateServers() {
             appendDefaultSections(pServerItem, id);
         }
     }
+    if (!ids.isEmpty()) {
+        // Last, as in the GU1 mockups: one cache for every server
+        pRoot->appendChild(cacheLabel(), cacheData())->setIcon(cacheIcon());
+    }
     m_pSidebarModel->setRootItem(std::move(pRoot));
     // The title changed with the servers
     emit featureIsLoading(this, false);
@@ -398,11 +425,38 @@ void CrateServerFeature::startLoading() {
         pModel->setLoadCoordinator(m_pLoadCoordinator.get());
     }
 
+    CratePreferences* const pPreferences = m_pServers->preferences();
     CratePrefetcher::Options prefetch;
     prefetch.pCache = m_pServers->audioCache();
     prefetch.pDbConnectionPool = m_dependencies.pDbConnectionPool;
     prefetch.pPlaylistDao = &pCollection->internalCollection()->getPlaylistDAO();
+    prefetch.enabled = pPreferences->prefetchAutoDj();
     m_pPrefetcher = std::make_unique<CratePrefetcher>(std::move(prefetch));
+    connect(pPreferences,
+            &CratePreferences::prefetchAutoDjChanged,
+            this,
+            &CrateServerFeature::onPrefetchAutoDjChanged,
+            Qt::UniqueConnection);
+
+    cache::AudioCache* const pCache = m_pServers->audioCache();
+    m_pCacheStatus->setSources(pCache, pPreferences);
+    connect(pCache,
+            &cache::AudioCache::usageChanged,
+            this,
+            &CrateServerFeature::updateCacheItem,
+            Qt::UniqueConnection);
+    connect(pCache,
+            &cache::AudioCache::loaded,
+            this,
+            &CrateServerFeature::updateCacheItem,
+            Qt::UniqueConnection);
+    updateCacheItem();
+}
+
+void CrateServerFeature::onPrefetchAutoDjChanged(bool enabled) {
+    if (m_pPrefetcher) {
+        m_pPrefetcher->setEnabled(enabled);
+    }
 }
 
 void CrateServerFeature::stopLoading() {
@@ -412,6 +466,97 @@ void CrateServerFeature::stopLoading() {
     }
     m_pPrefetcher.reset();
     m_pLoadCoordinator.reset();
+    m_pCacheStatus->setSources(nullptr, nullptr);
+}
+
+QString CrateServerFeature::cacheLabel() const {
+    const cache::AudioCache* pCache = m_pServers ? m_pServers->existingAudioCache() : nullptr;
+    const qint64 bytes = pCache ? pCache->usage().readyBytes : 0;
+    if (bytes <= 0) {
+        return tr("Cache");
+    }
+    // The use as the item's count (GU1 mockups: "Cache  18.4 GB")
+    return QStringLiteral("%1 (%2)").arg(tr("Cache"), formatCacheBytes(bytes));
+}
+
+void CrateServerFeature::updateCacheItem() {
+    TreeItem* pRoot = m_pSidebarModel->getRootItem();
+    for (TreeItem* pChild : pRoot->children()) {
+        if (pChild->getData().toString() == cacheData()) {
+            const QString label = cacheLabel();
+            if (pChild->getLabel() != label) {
+                pChild->setLabel(label);
+                m_pSidebarModel->triggerRepaint(indexOf(pChild));
+            }
+            return;
+        }
+    }
+}
+
+void CrateServerFeature::bindLibraryWidget(
+        WLibrary* pLibraryWidget, KeyboardEventFilter* pKeyboard) {
+    Q_UNUSED(pKeyboard);
+    auto* pView = new CacheStatusView(m_pCacheStatus, pLibraryWidget);
+    pLibraryWidget->registerView(kCacheViewName, pView);
+}
+
+void CrateServerFeature::lookUpTitles(const QList<cache::TrackKey>& tracks,
+        std::function<void(const QHash<QString, CacheTrackTitle>&)> ready) {
+    using Titles = QHash<QString, CacheTrackTitle>;
+    auto* pWatcher = new QFutureWatcher<Titles>(this);
+    connect(pWatcher,
+            &QFutureWatcherBase::finished,
+            this,
+            [pWatcher, ready = std::move(ready)] {
+                pWatcher->deleteLater();
+                ready(pWatcher->result());
+            });
+    pWatcher->setFuture(QtConcurrent::run(&m_pool,
+            [pPool = m_dependencies.pDbConnectionPool, tracks]() {
+                const mixxx::DbConnectionPooler pooler(pPool);
+                const QSqlDatabase database = mixxx::DbConnectionPooled(pPool);
+                Titles titles;
+                for (const cache::TrackKey& track : tracks) {
+                    for (int attempt = 0; attempt < 4; ++attempt) {
+                        if (attempt > 0) {
+                            QThread::msleep(25);
+                        }
+                        QSqlQuery query(database);
+                        query.prepare(QStringLiteral(
+                                "SELECT title, artist FROM crateserver_tracks "
+                                "WHERE server_id = :server AND entity_uid = :uid"));
+                        query.bindValue(QStringLiteral(":server"), track.serverId);
+                        query.bindValue(QStringLiteral(":uid"), track.entityUid);
+                        if (!query.exec()) {
+                            continue;
+                        }
+                        if (query.next()) {
+                            titles.insert(track.serverId + QLatin1Char('/') + track.entityUid,
+                                    CacheTrackTitle{query.value(0).toString(),
+                                            query.value(1).toString()});
+                        }
+                        break;
+                    }
+                }
+                return titles;
+            }));
+}
+
+QString CrateServerFeature::offlineSetName(const QString& serverId, const QString& reason) const {
+    // "offline-set:<kind>:<remote id>", or "offline-set:<container id>"
+    // (downloadOfflineSet())
+    const QStringList parts = reason.mid(CacheStatusModel::kOfflineSetPrefix.size())
+                                      .split(QLatin1Char(':'));
+    for (const StoredContainer& container : m_containers) {
+        if (container.serverId != serverId) {
+            continue;
+        }
+        if ((parts.size() == 2 && container.kind == parts[0] && container.remoteId == parts[1]) ||
+                (parts.size() == 1 && QString::number(container.id) == parts[0])) {
+            return container.name;
+        }
+    }
+    return QString();
 }
 
 void CrateServerFeature::applyAnalysis(
@@ -422,20 +567,20 @@ void CrateServerFeature::applyAnalysis(
         return;
     }
     const QString uid = entityUid.toLower();
+    // What the Crate preferences say when the track is taken
+    const analysis::Policy policy = m_pServers->preferences()->analysisPolicy();
     analysis::ProfileFetch* pFetch = pStore->get({uid});
     connect(pFetch,
             &analysis::ProfileFetch::finished,
             this,
-            [pTrack, pStore = QPointer<analysis::ProfileStore>(pStore), uid](
+            [pTrack, pStore = QPointer<analysis::ProfileStore>(pStore), uid, policy](
                     const analysis::ProfileResults& results) {
                 const auto it = results.profiles.constFind(uid);
                 if (it == results.profiles.cend()) {
                     return;
                 }
-                // Beats and key stay Mixxx's until the preferences say
-                // otherwise (F4.C-PR4)
                 const analysis::ImportOutcome outcome = analysis::AnalysisImporter::apply(
-                        pTrack, it->profile, analysis::Policy(), it->appliedCues);
+                        pTrack, it->profile, policy, it->appliedCues);
                 if (outcome.appliedCues && pStore) {
                     pStore->recordAppliedCues(uid, *outcome.appliedCues);
                 }
@@ -671,6 +816,11 @@ void CrateServerFeature::applySidebar(const QString& serverId, const SidebarData
         items.append(item);
     }
 
+    if (m_serverIds.size() == 1) {
+        // The server's items are the feature's: the cache's stays last
+        items.append({cacheLabel(), cacheData(), cacheIcon(), {}});
+    }
+
     // Replace what changed: the selection and the expanded items stay
     QStringList wanted;
     for (const Item& item : std::as_const(items)) {
@@ -758,6 +908,8 @@ CrateServerFeature::Node CrateServerFeature::nodeOf(const QModelIndex& index) co
     } else if (parts[0] == QLatin1String("container") && parts.size() == 3) {
         node.kind = Node::Kind::Container;
         node.containerId = parts[2].toLongLong();
+    } else if (parts[0] == QLatin1String("cache")) {
+        node.kind = Node::Kind::Cache;
     }
     return node;
 }
@@ -868,6 +1020,13 @@ void CrateServerFeature::activateChild(const QModelIndex& index) {
     case Node::Kind::Server:
     case Node::Kind::Section:
         whenReady(node.serverId, nullptr);
+        return;
+    case Node::Kind::Cache:
+        endSearch();
+        m_pCacheStatus->refresh();
+        emit switchToView(kCacheViewName);
+        emit disableSearch();
+        emit enableCoverArtDisplay(false);
         return;
     case Node::Kind::None:
         return;

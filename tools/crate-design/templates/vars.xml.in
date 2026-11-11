@@ -239,6 +239,7 @@
   <SetVariable name="CrateDlgCacheLimitMaximum">{{cacheLimitMaximum}}</SetVariable>
   <SetVariable name="CrateDlgFontSizeUsage">{{fontSizeUsage}}</SetVariable>
   <SetVariable name="CrateDlgUsageGap">{{usageGap}}</SetVariable>
+  <SetVariable name="CrateDlgCacheViewPaddingX">{{cacheViewPaddingX}}</SetVariable>
   <SetVariable name="CrateDlgUsageBottom">{{usageBottom}}</SetVariable>
   <SetVariable name="CrateDlgUsageNumberTop">{{usageNumberTop}}</SetVariable>
   <SetVariable name="CrateDlgChipPaddingX">{{chipPaddingX}}</SetVariable>
