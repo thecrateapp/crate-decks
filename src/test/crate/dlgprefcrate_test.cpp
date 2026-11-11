@@ -683,7 +683,7 @@ TEST_F(CrateAddServerFlowTest, CacheLimitDrivesTheAudioCache) {
     EXPECT_TRUE(config()->getValueString(
                                 ConfigKey(QStringLiteral("[Crate]"),
                                         QStringLiteral("CacheLimitBytes")))
-                        .isEmpty());
+                    .isEmpty());
 
     crate::cache::AudioCache* pAudioCache = m_pServers->audioCache();
     ASSERT_NE(nullptr, pAudioCache);

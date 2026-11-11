@@ -1,5 +1,7 @@
 #include "crate/ui/dlgprefcrate.h"
 
+#include <QCheckBox>
+#include <QDir>
 #include <QFileDialog>
 #include <QFrame>
 #include <QHBoxLayout>
@@ -8,8 +10,6 @@
 #include <QListWidget>
 #include <QMessageBox>
 #include <QPushButton>
-#include <QCheckBox>
-#include <QDir>
 #include <QStringList>
 #include <QVBoxLayout>
 

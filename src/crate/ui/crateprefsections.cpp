@@ -7,8 +7,8 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
-#include <QSlider>
 #include <QSignalBlocker>
+#include <QSlider>
 #include <QVBoxLayout>
 #include <algorithm>
 #include <cmath>

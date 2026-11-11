@@ -106,8 +106,9 @@ QVariant CacheDownloadsModel::data(const QModelIndex& index, int role) const {
                 return tr("Queued");
             }
             if (download.bytesTotal > 0) {
-                return tr("%1 of %2").arg(formatCacheBytes(download.bytesReceived),
-                        formatCacheBytes(download.bytesTotal));
+                return tr("%1 of %2")
+                        .arg(formatCacheBytes(download.bytesReceived),
+                                formatCacheBytes(download.bytesTotal));
             }
             return formatCacheBytes(download.bytesReceived);
         case delegates::CacheStateRole:

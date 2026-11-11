@@ -374,7 +374,8 @@ TEST_F(CrateLoadIntoDecksTest, LoadedTrackTakesTheAnalysisThePreferencesChoose) 
     listed.prepare(QStringLiteral(
             "UPDATE crateserver_tracks SET profile_revision = :revision "
             "WHERE server_id = :server AND entity_uid = 'e1'"));
-    listed.bindValue(QStringLiteral(":revision"), profile.value(QStringLiteral("profileRevision")).toString());
+    listed.bindValue(QStringLiteral(":revision"),
+            profile.value(QStringLiteral("profileRevision")).toString());
     listed.bindValue(QStringLiteral(":server"), kServer);
     // Again while the library's workers hold the database
     ASSERT_TRUE(QTest::qWaitFor([&] { return listed.exec(); }, kWaitMs))

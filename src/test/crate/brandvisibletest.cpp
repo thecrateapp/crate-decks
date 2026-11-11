@@ -30,8 +30,8 @@
 #include <memory>
 
 #include "control/controlobject.h"
-#include "crate/brand/brandtext.h"
 #include "crate/appidentity.h"
+#include "crate/brand/brandtext.h"
 #include "crate/brand/brandtranslator.h"
 #include "crate/crateservers.h"
 #include "crate/ui/cratefirstrun.h"
