@@ -72,7 +72,7 @@ El [informe del spike](2026-11-03-crate-decks-spike-report.md) mide Q1, Q3–Q5,
 
 | Antes de | Pruebas |
 | --- | --- |
-| F4 | Q3 y Q5 en la forma de onda (qué grid va con la música) y Q10 en la LAN |
+| F4 | Q3 y Q5 en la forma de onda (qué grid va con la música) y Q10 en la LAN. **Decided (Diego, 2026-11-11):** F4 went ahead without them; they run in the G3 session (see the G3 gate at the end of F4) |
 | F6 | Q6 (EQ) y Q7 (10 transiciones con audio) |
 | V1/V2 y GU1 | Q13–Q16 |
 
@@ -636,6 +636,15 @@ Si F0/Q9 recomendó `library.cpp` en lugar de `ExternalTrackCollection`, se usa 
 
 ## F4 · Caché de audio, análisis y carga en decks
 
+**Built (2026-11-11):** F4.C-PR1 to C-PR4 are merged (crate-decks #16 to #19); F4.S-PR1 is crate #421, not yet deployed, and until it is live Decks falls back to single profile requests.
+
+**Decided (Diego, 2026-11-11), before G3.** The open points of F4 are closed. Each task below records the choices that belong to it; these four have their own PRs:
+
+- **Uncached Crate tracks in AutoDJ** (F4.C-PR3): AutoDJ accepts them. A generic hook creates the library row with the future cache path, so the track has a library id before its file exists, and the "pending track" logic of `autodjprocessor.cpp` downloads it. "Add to Auto DJ" no longer drops uncached tracks. Its own PR, which adds its row to design §5.2.
+- **Tracks in use are never evicted** (design §9): a track loaded in a deck or queued in AutoDJ is pinned for the session. Lowering the limit or "Clear cache" never deletes it. Its own PR.
+- **DJ search payload** (F3.C-PR3 finding): the search results gain `format`, `bitrate`, `sample_rate`, `profile_quality` and `source_revision`, like the S3 browse payload. It is a small addition to S3 in a monorepo PR and ships with a later Crate release; until then the cache falls back to the HTTP headers.
+- **Real profile fixtures** (F4.C-PR2): the schema-faithful fixtures of `src/test/crate/data/` are replaced or extended with real anonymised profiles from the dev stack, never from production, in a small test PR.
+
 ### F4.S-PR1 · Servidor: perfiles en lote (S4)
 
 - **Endpoint:** `POST /api/decks/mix-profiles` con `{entity_uids: [...≤200], detail: "full"}`. Devuelve `{profiles: {uid: MixProfile}, missing: [uid]}` con el **mismo esquema** que `GET /api/tracks/by-entity/{uid}/mix-profile?detail=full` (reutilizar el serializador).
@@ -668,6 +677,13 @@ Si F0/Q9 recomendó `library.cpp` en lugar de `ExternalTrackCollection`, se usa 
 - `ReconcilesIndexOnStartup`
 - `ConcurrentEnsureForSameUidSharesDownload`
 
+**Decided (Diego, 2026-11-11):**
+
+- The cache's default directory is `QStandardPaths::CacheLocation/crate-audio`, which on Linux is `~/.cache/Crate/Crate Decks/crate-audio`.
+- 20 GiB is a soft limit: pinned tracks may exceed it, and LRU eviction removes only unpinned ones. 2 GiB free on the volume is a hard limit: a download that would break it fails with `Storage`.
+- Pins persist across restarts, because offline sets need them.
+- No prefetch preemption: a deck load has the highest priority in the queue, but it waits its turn behind the 2 downloads already running.
+
 ### F4.C-PR2 · `crate::AnalysisImporter` y `ProfileStore`
 
 | Fichero | Contenido |
@@ -685,6 +701,12 @@ Si F0/Q9 recomendó `library.cpp` en lugar de `ExternalTrackCollection`, se usa 
 - `ReappliesCratesCuesOnNewRevision`
 - `PartialProfileLeavesTrackForLocalAnalysis`
 - `AnalyzerSkipsBeatsForCrateGrid` (integración con `AnalyzerBeats::shouldAnalyze`)
+
+**Decided (Diego, 2026-11-11):**
+
+- `crateserver_profiles` gains the column `applied_cues` (design §6): where Decks put Intro and Outro. It is the only way to tell Crate's cues from the user's when a new profile revision arrives; `apply()` takes that record and returns the new one.
+- With "key from Crate" on, Crate's key overwrites the track's key, also one the user set: Mixxx does not record where a key came from.
+- The fixtures were schema-faithful, not real profiles (the dev stack was down and production is off limits). A small test PR replaces or extends them with real anonymised profiles from the dev stack, never from production.
 
 ### F4.C-PR3 · Cargar en deck y AutoDJ
 
@@ -707,6 +729,12 @@ Si F0/Q9 recomendó `library.cpp` en lugar de `ExternalTrackCollection`, se usa 
   - `SkipsToNextAvailableAfterTimeout`
   - `NonCrateBehaviourUnchanged`
 
+**Decided (Diego, 2026-11-11):**
+
+- AutoDJ waits up to N = 30 s for a pending Crate track. After that it removes the track from the queue and goes on with the next available one.
+- The `WTrackMenu` patches that were not in design §5.2 are accepted and added to its closed list: the menu is also built for a row without a `Track` (with null checks of the track for BPM and "Find on Web"), so that "Load to Deck N" works with uncached tracks, and `TrackModel::trackMenuActions()` adds a model's own entries at the end of the menu. Both are generic and described in `CRATE_PATCHES.md`.
+- Uncached tracks in AutoDJ and the session pin of tracks in use: see the decisions at the start of F4.
+
 ### F4.C-PR4 · Vista de caché y preferencias
 
 - `src/crate/ui/cachestatusview.{h,cpp}` (vista registrada con `WLibrary::registerView`): uso, límite, descargas en curso y sets offline.
@@ -717,12 +745,23 @@ Si F0/Q9 recomendó `library.cpp` en lugar de `ExternalTrackCollection`, se usa 
   - `ShowsUsageAndQueue`
   - `ChangingLimitTriggersEviction`
 
+**Decided (Diego, 2026-11-11):**
+
+- The cache view has no mockup: it uses the library's styling.
+- The mockup of the Crate preferences page has no switches for prefetch, key or gain. Prefetch goes in the Cache section, and the key from Crate and the LUFS gain go in a new "Crate analysis" section under Smart Mix.
+- The limit slider shows decimal GB, like the mockup, so the 20 GiB default reads "21 GB".
+
 **Gate G3 (Diego):** sesión de 1 h con el stack dev, o con un servidor real si Diego lo autoriza:
 - Cargar desde playlists y búsqueda.
 - Un set offline de 50 pistas.
 - AutoDJ clásico (sin Smart Mix) con pistas Crate.
 
 Medir contra los presupuestos de §9 del diseño.
+
+**Decided (Diego, 2026-11-11):**
+
+- The session also runs the F0.4 tests that were listed before F4: Q3 and Q5 on the waveform (which grid fits the music) and Q10 (download-and-load times on the LAN). They need a desktop, not DJ gear.
+- Before the session, an agent measures design §9's budgets automatically: a synced 500-track container opened from disk and from the LAN, a 40 MB FLAC loaded from the LAN from click to waveform, a cached load against a local track, request and download concurrency per server, main thread stalls over 16 ms, and the cache's limit and free space. Diego gets the numbers with a checklist of what is left to see and hear in the session.
 
 ---
 

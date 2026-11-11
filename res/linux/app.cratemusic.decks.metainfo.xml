@@ -22,7 +22,7 @@
   </developer>
   <update_contact>hello@cratemusic.app</update_contact>
   <url type="homepage">https://cratemusic.app</url>
-  <url type="bugtracker">https://github.com/thecrateapp/crate-decks/issues</url>
+  <url type="bugtracker">https://github.com/thecrateapp/crate/issues</url>
   <url type="vcs-browser">https://github.com/thecrateapp/crate-decks</url>
   <provides>
     <binary>crate-decks</binary>
