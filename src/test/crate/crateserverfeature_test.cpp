@@ -1017,8 +1017,9 @@ TEST_F(CrateServerFeatureTest, MeasureAddToAutoDj) {
     CrateServerTrackModel* pModel = showWarmUp(pFeature);
     ASSERT_NE(nullptr, pModel);
     ASSERT_TRUE(QTest::qWaitFor([&] { return pModel->rowCount() == 100; }, 5000));
+    QModelIndexList rows;
     for (const int count : {1, 10, 50}) {
-        QModelIndexList rows;
+        rows.clear();
         const int first = count == 1 ? 0 : (count == 10 ? 1 : 11);
         for (int row = first; row < first + count; ++row) {
             rows.append(pModel->index(row, 0));
