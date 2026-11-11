@@ -990,8 +990,20 @@ void WTrackMenu::updateMenus() {
     const bool singleTrackSelected = getTrackCount() == 1;
 
     auto pTrack = getFirstTrackPointer();
-    VERIFY_OR_DEBUG_ASSERT(pTrack) {
+    // A model that loads tracks itself (TrackModel::requestTrackLoad) may
+    // have no Track yet for the selection: the menu still loads it
+    VERIFY_OR_DEBUG_ASSERT(pTrack || m_pTrackModel) {
         return;
+    }
+
+    // The model's own entries, for this selection
+    qDeleteAll(std::exchange(m_modelActions, {}));
+    if (m_pTrackModel) {
+        m_modelActions = m_pTrackModel->trackMenuActions(m_trackIndexList, this);
+        if (!m_modelActions.isEmpty()) {
+            m_modelActions.prepend(addSeparator());
+            addActions(m_modelActions);
+        }
     }
 
     if (featureIsEnabled(Feature::SearchRelated)) {
@@ -1153,7 +1165,7 @@ void WTrackMenu::updateMenus() {
             // Append scaled BPM preview for single selection
             // TODO ... and multiple tracks with same BPM.
             // See DlgTrackInfoMulti
-            if (singleTrackSelected) {
+            if (singleTrackSelected && pTrack) {
                 const double bpm = pTrack->getBpm();
                 appendBpmPreviewtoBpmAction(m_pBpmHalveAction, bpm);
                 appendBpmPreviewtoBpmAction(m_pBpmTwoThirdsAction, bpm);
@@ -1238,7 +1250,7 @@ void WTrackMenu::updateMenus() {
     if (featureIsEnabled(Feature::FindOnWeb)) {
         m_pFindOnWebMenu->clear();
         m_pFindOnWebLastAct->setVisible(false);
-        const bool enableMenu = WFindOnWebMenu::hasEntriesForTrack(*pTrack);
+        const bool enableMenu = pTrack && WFindOnWebMenu::hasEntriesForTrack(*pTrack);
         if (enableMenu) {
             mixxx::library::createFindOnWebSubmenus(
                     m_pFindOnWebMenu.toWeakRef(),
@@ -2000,11 +2012,6 @@ void WTrackMenu::loadSelectionToGroup(const QString& group,
 void WTrackMenu::loadSelectionToGroup(const QString& group,
         bool play) {
 #endif
-    TrackPointer pTrack = getFirstTrackPointer();
-    if (!pTrack) {
-        return;
-    }
-
     // If the track load override is disabled, check to see if a track is
     // playing before trying to load it
     if (!(m_pConfig->getValueString(
@@ -2015,6 +2022,16 @@ void WTrackMenu::loadSelectionToGroup(const QString& group,
                 ControlObject::get(ConfigKey(group, "play")) > 0.0) {
             return;
         }
+    }
+
+    if (m_pTrackModel && !m_trackIndexList.isEmpty() &&
+            m_pTrackModel->requestTrackLoad(m_trackIndexList.first(), group, play)) {
+        // The model loads it once it can
+        return;
+    }
+    TrackPointer pTrack = getFirstTrackPointer();
+    if (!pTrack) {
+        return;
     }
 
     // TODO: load track from this class without depending on

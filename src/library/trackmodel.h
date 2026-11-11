@@ -10,6 +10,9 @@
 #include "track/track_decl.h"
 #include "track/trackref.h"
 
+class QAction;
+class QObject;
+
 /// Pure virtual (abstract) class that provides an interface for data models
 /// which display track lists.
 class TrackModel {
@@ -109,6 +112,27 @@ class TrackModel {
     // or TrackRef in this result set.
     virtual TrackPointer getTrack(const QModelIndex& index) const = 0;
     virtual TrackPointer getTrackByRef(const TrackRef& trackRef) const = 0;
+
+    /// Lets the model load the track at `index` into `group` itself, for a
+    /// track it cannot give at once with getTrack(), such as one whose file
+    /// still has to be fetched. An empty group is the first stopped deck,
+    /// as a double click loads. The track table and menu ask this before
+    /// getTrack(); when it returns true they load nothing themselves.
+    virtual bool requestTrackLoad(const QModelIndex& index, const QString& group, bool play) {
+        Q_UNUSED(index);
+        Q_UNUSED(group);
+        Q_UNUSED(play);
+        return false;
+    }
+
+    /// The model's own entries for the track menu of `indices`, parented to
+    /// `pParent`, shown after the menu's own; built each time the menu opens.
+    virtual QList<QAction*> trackMenuActions(
+            const QModelIndexList& indices, QObject* pParent) {
+        Q_UNUSED(indices);
+        Q_UNUSED(pParent);
+        return {};
+    }
 
     /// Get the URL of the track at the given QModelIndex.
     ///

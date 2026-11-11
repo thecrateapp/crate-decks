@@ -276,6 +276,8 @@ class WTrackMenu : public QMenu {
 
     TrackModel* const m_pTrackModel;
     QModelIndexList m_trackIndexList;
+    /// TrackModel::trackMenuActions() of the selection.
+    QList<QAction*> m_modelActions;
 
     /// Track being referenced when TrackModel is not set.
     TrackPointer m_pTrack;
