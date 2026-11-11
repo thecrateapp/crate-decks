@@ -199,6 +199,11 @@ void CacheStatusView::showModel() {
     if (m_pModel->pinnedBytes() > 0) {
         caption += tr(" · %1 kept offline").arg(formatCacheBytes(m_pModel->pinnedBytes()));
     }
+    if (m_pModel->inUseBytes() > 0) {
+        //: The cached tracks loaded in a deck or queued in Auto DJ, which
+        //: lowering the limit or clearing the cache does not delete
+        caption += tr(" · %1 in use").arg(formatCacheBytes(m_pModel->inUseBytes()));
+    }
     m_pCaption->setText(caption);
 
     const bool anyDownload = m_pModel->downloads()->rowCount() > 0;

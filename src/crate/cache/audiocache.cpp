@@ -205,6 +205,8 @@ void CacheTicket::finishFailed(const Error& error) {
     emit failed(error);
 }
 
+const QString AudioCache::kSessionPinPrefix = QStringLiteral("session:");
+
 QString AudioCache::defaultDirectory() {
     return QDir(QStandardPaths::writableLocation(QStandardPaths::CacheLocation))
             .filePath(QStringLiteral("crate-audio"));
@@ -936,6 +938,15 @@ void AudioCache::pin(const QString& serverId, const QString& entityUid, const QS
     if (!isSafePathId(serverId) || !isSafePathId(entityUid) || reason.isEmpty()) {
         return;
     }
+    if (reason.startsWith(kSessionPinPrefix)) {
+        // Never in the index: nothing of it is left after a restart
+        QStringList& reasons = m_sessionPins[keyOf(serverId, entityUid)];
+        if (!reasons.contains(reason)) {
+            reasons.append(reason);
+            emit usageChanged();
+        }
+        return;
+    }
     if (!m_loaded) {
         m_afterLoad.append([this, serverId, entityUid, reason] {
             pin(serverId, entityUid, reason);
@@ -952,6 +963,21 @@ void AudioCache::pin(const QString& serverId, const QString& entityUid, const QS
 }
 
 void AudioCache::unpin(const QString& serverId, const QString& entityUid, const QString& reason) {
+    if (reason.startsWith(kSessionPinPrefix)) {
+        const auto session = m_sessionPins.find(keyOf(serverId, entityUid));
+        if (session == m_sessionPins.end() || session->removeAll(reason) == 0) {
+            return;
+        }
+        if (session->isEmpty()) {
+            m_sessionPins.erase(session);
+        }
+        if (m_loaded) {
+            // What the limit left over for it goes now
+            makeRoom(0);
+        }
+        emit usageChanged();
+        return;
+    }
     if (!m_loaded) {
         m_afterLoad.append([this, serverId, entityUid, reason] {
             unpin(serverId, entityUid, reason);
@@ -977,7 +1003,8 @@ void AudioCache::setLimitBytes(qint64 limitBytes) {
 
 Usage AudioCache::usage() const {
     Usage usage;
-    for (const CacheEntry& entry : m_entries) {
+    for (auto it = m_entries.cbegin(); it != m_entries.cend(); ++it) {
+        const CacheEntry& entry = it.value();
         if (entry.state != CacheEntry::State::Ready) {
             continue;
         }
@@ -985,6 +1012,8 @@ Usage AudioCache::usage() const {
         usage.readyBytes += entry.bytes;
         if (entry.isPinned()) {
             usage.pinnedBytes += entry.bytes;
+        } else if (m_sessionPins.contains(it.key())) {
+            usage.inUseBytes += entry.bytes;
         }
     }
     for (const DownloadPtr& pDownload : m_downloads) {
@@ -1060,7 +1089,7 @@ int AudioCache::clear() {
     }
     QList<Key> keys;
     for (auto it = m_entries.cbegin(); it != m_entries.cend(); ++it) {
-        if (it->state == CacheEntry::State::Ready && !it->isPinned() &&
+        if (it->state == CacheEntry::State::Ready && !isKept(it.key(), it.value()) &&
                 !downloading.contains(it.key())) {
             keys.append(it.key());
         }
@@ -1087,7 +1116,7 @@ bool AudioCache::makeRoom(qint64 incomingBytes) {
             continue;
         }
         readyBytes += it->bytes;
-        if (!it->isPinned()) {
+        if (!isKept(it.key(), it.value())) {
             candidates.push_back({it.key(), it->lastUsedAtMs, it->bytes});
         }
     }
@@ -1122,6 +1151,10 @@ bool AudioCache::makeRoom(qint64 incomingBytes) {
         kLogger.info() << "The cache is over its limit: the rest of it is pinned";
     }
     return !shortOfSpace();
+}
+
+bool AudioCache::isKept(const Key& key, const CacheEntry& entry) const {
+    return entry.isPinned() || m_sessionPins.contains(key);
 }
 
 void AudioCache::evict(const Key& key) {

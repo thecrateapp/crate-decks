@@ -551,3 +551,88 @@ TEST_F(AudioCacheTest, FilePathForNamesTheFileItsDownloadWrites) {
     // Its file, whatever the format says now
     EXPECT_EQ(finalPath(kUid1), pCache->filePathFor(kServer, kUid1, QString()));
 }
+
+// Design §9: the LRU never evicts a track in use. Session pins (a track in a
+// player or in the Auto DJ queue, CrateSessionPins) keep a file when the limit
+// drops and when a download needs room, as an offline set's pins do.
+TEST_F(AudioCacheTest, LoweringLimitKeepsSessionPins) {
+    const auto pCache = makeCache();
+    const QString inDeck = AudioCache::kSessionPinPrefix + QStringLiteral("player:[Channel1]");
+    download(pCache.get(), kUid1, QByteArray(10, 'a'));
+    ++m_nowMs;
+    download(pCache.get(), kUid2, QByteArray(10, 'b'));
+    ++m_nowMs;
+    download(pCache.get(), kUid3, QByteArray(10, 'c'));
+    pCache->pin(kServer, kUid1, inDeck);
+    // In use, not kept offline
+    EXPECT_EQ(10, pCache->usage().inUseBytes);
+    EXPECT_EQ(0, pCache->usage().pinnedBytes);
+
+    // The preferences lower the limit: the least recently used ones go, the
+    // one in use stays
+    pCache->setLimitBytes(0);
+    EXPECT_TRUE(pCache->cachedPath(kServer, kUid1).has_value());
+    EXPECT_FALSE(pCache->cachedPath(kServer, kUid2).has_value());
+    EXPECT_FALSE(pCache->cachedPath(kServer, kUid3).has_value());
+    EXPECT_TRUE(QTest::qWaitFor([&] { return !QFileInfo::exists(finalPath(kUid2)); }, kWaitMs));
+    EXPECT_TRUE(QFileInfo::exists(finalPath(kUid1)));
+
+    // A download that needs room takes it from the others
+    pCache->setLimitBytes(20);
+    ++m_nowMs;
+    download(pCache.get(), kUid4, QByteArray(10, 'd'));
+    ++m_nowMs;
+    download(pCache.get(), kUid2, QByteArray(10, 'b'));
+    EXPECT_TRUE(pCache->cachedPath(kServer, kUid1).has_value());
+    EXPECT_FALSE(pCache->cachedPath(kServer, kUid4).has_value());
+    EXPECT_TRUE(pCache->cachedPath(kServer, kUid2).has_value());
+
+    // Ejected: the limit takes it too
+    pCache->unpin(kServer, kUid1, inDeck);
+    EXPECT_EQ(0, pCache->usage().inUseBytes);
+    pCache->setLimitBytes(0);
+    EXPECT_FALSE(pCache->cachedPath(kServer, kUid1).has_value());
+}
+
+TEST_F(AudioCacheTest, ClearCacheKeepsSessionPins) {
+    const auto pCache = makeCache();
+    download(pCache.get(), kUid1, QByteArray(10, 'a'));
+    download(pCache.get(), kUid2, QByteArray(10, 'b'));
+    download(pCache.get(), kUid3, QByteArray(10, 'c'));
+    pCache->pin(kServer, kUid1, AudioCache::kSessionPinPrefix + QStringLiteral("auto-dj"));
+    pCache->pin(kServer, kUid2, QStringLiteral("offline-set:7"));
+
+    EXPECT_EQ(1, pCache->clear());
+    EXPECT_TRUE(pCache->cachedPath(kServer, kUid1).has_value());
+    EXPECT_TRUE(pCache->cachedPath(kServer, kUid2).has_value());
+    EXPECT_FALSE(pCache->cachedPath(kServer, kUid3).has_value());
+    EXPECT_EQ(10, pCache->usage().inUseBytes);
+    EXPECT_EQ(10, pCache->usage().pinnedBytes);
+    // The cache view's offline sets are the offline sets only
+    EXPECT_TRUE(pCache->pinnedSets(AudioCache::kSessionPinPrefix).isEmpty());
+    ASSERT_EQ(1, pCache->pinnedSets(QStringLiteral("offline-set:")).size());
+}
+
+// The decks and the queue of the last run do not keep anything: session pins
+// are never written to the index. Offline sets keep theirs (pins persist,
+// F4.C-PR1).
+TEST_F(AudioCacheTest, SessionPinsDoNotSurviveRestart) {
+    {
+        const auto pCache = makeCache();
+        download(pCache.get(), kUid1, QByteArray(10, 'a'));
+        download(pCache.get(), kUid2, QByteArray(10, 'b'));
+        pCache->pin(kServer, kUid1, QStringLiteral("offline-set:7"));
+        pCache->pin(kServer,
+                kUid2,
+                AudioCache::kSessionPinPrefix + QStringLiteral("player:[Channel1]"));
+        // A track queued before it is cached
+        pCache->pin(kServer, kUid3, AudioCache::kSessionPinPrefix + QStringLiteral("auto-dj"));
+    }
+    const auto pCache = makeCache();
+    EXPECT_EQ(0, pCache->usage().inUseBytes);
+    EXPECT_EQ(10, pCache->usage().pinnedBytes);
+    pCache->setLimitBytes(0);
+    EXPECT_TRUE(pCache->cachedPath(kServer, kUid1).has_value());
+    EXPECT_FALSE(pCache->cachedPath(kServer, kUid2).has_value());
+    EXPECT_TRUE(QTest::qWaitFor([&] { return !QFileInfo::exists(finalPath(kUid2)); }, kWaitMs));
+}
