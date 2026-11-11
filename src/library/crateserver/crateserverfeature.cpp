@@ -3,18 +3,24 @@
 #include <QFutureWatcher>
 #include <QIconEngine>
 #include <QJsonDocument>
+#include <QLocale>
 #include <QMenu>
+#include <QMessageBox>
 #include <QPainter>
 #include <QScopeGuard>
 #include <QSet>
 #include <QtConcurrentRun>
 
+#include "crate/analysis/analysisimporter.h"
+#include "crate/analysis/profilestore.h"
+#include "crate/cache/audiocache.h"
 #include "crate/client/cratecapabilities.h"
 #include "crate/client/crateclient.h"
 #include "crate/crateservers.h"
 #include "crate/library/crateeventsubscriber.h"
 #include "crate/library/cratelibraryjson.h"
 #include "crate/library/cratelibrarysync.h"
+#include "crate/library/crateprefetcher.h"
 #include "crate/library/cratesearch.h"
 #include "library/crateserver/crateservertrackmodel.h"
 #include "library/library.h"
@@ -25,6 +31,7 @@
 #include "library/trackcollectionmanager.h"
 #include "library/treeitem.h"
 #include "library/treeitemmodel.h"
+#include "track/track.h"
 #include "util/db/dbconnectionpooled.h"
 #include "util/db/dbconnectionpooler.h"
 #include "util/logger.h"
@@ -233,6 +240,7 @@ CrateServerFeature::CrateServerFeature(Library* pLibrary,
 }
 
 CrateServerFeature::~CrateServerFeature() {
+    stopLoading();
     m_servers.clear();
     m_pool.waitForDone();
 }
@@ -252,6 +260,7 @@ void CrateServerFeature::watchServers(CrateServers* pServers) {
     connect(pServers, &QObject::destroyed, this, [this] {
         // Half destroyed: nothing of it is used any more
         m_pServers = nullptr;
+        stopLoading();
         m_servers.clear();
         m_pool.waitForDone();
         updateServers();
@@ -348,6 +357,170 @@ void CrateServerFeature::updateServers() {
     for (const QString& id : std::as_const(ids)) {
         loadSidebar(id);
     }
+    if (!ids.isEmpty()) {
+        startLoading();
+    }
+}
+
+void CrateServerFeature::startLoading() {
+    TrackCollectionManager* const pCollection = m_dependencies.pTrackCollectionManager;
+    if (m_pLoadCoordinator || !m_pServers || !pCollection) {
+        return;
+    }
+    CrateLoadCoordinator::Options options;
+    options.pCache = m_pServers->audioCache();
+    options.pConfig = m_pConfig;
+    options.trackOfFile = [pCollection](const QString& path) {
+        return pCollection->getOrAddTrack(TrackRef::fromFilePath(path));
+    };
+    options.applyAnalysis =
+            [this](const TrackPointer& pTrack, const QString& serverId, const QString& entityUid) {
+                applyAnalysis(pTrack, serverId, entityUid);
+            };
+    m_pLoadCoordinator = std::make_unique<CrateLoadCoordinator>(std::move(options));
+    connect(m_pLoadCoordinator.get(),
+            &CrateLoadCoordinator::loadTrackToPlayer,
+            this,
+            [this](const TrackPointer& pTrack, const QString& group, bool play) {
+                emit loadTrackToPlayer(pTrack,
+                        group,
+#ifdef __STEM__
+                        mixxx::StemChannelSelection(),
+#endif
+                        play);
+            });
+    connect(m_pLoadCoordinator.get(),
+            &CrateLoadCoordinator::loadTrackIntoNextAvailableDeck,
+            this,
+            &LibraryFeature::loadTrack);
+    for (CrateServerTrackModel* pModel :
+            {m_pContainerModel.get(), m_pLibraryModel.get(), m_pSearchModel.get()}) {
+        pModel->setLoadCoordinator(m_pLoadCoordinator.get());
+    }
+
+    CratePrefetcher::Options prefetch;
+    prefetch.pCache = m_pServers->audioCache();
+    prefetch.pDbConnectionPool = m_dependencies.pDbConnectionPool;
+    prefetch.pPlaylistDao = &pCollection->internalCollection()->getPlaylistDAO();
+    m_pPrefetcher = std::make_unique<CratePrefetcher>(std::move(prefetch));
+}
+
+void CrateServerFeature::stopLoading() {
+    for (CrateServerTrackModel* pModel :
+            {m_pContainerModel.get(), m_pLibraryModel.get(), m_pSearchModel.get()}) {
+        pModel->setLoadCoordinator(nullptr);
+    }
+    m_pPrefetcher.reset();
+    m_pLoadCoordinator.reset();
+}
+
+void CrateServerFeature::applyAnalysis(
+        const TrackPointer& pTrack, const QString& serverId, const QString& entityUid) {
+    analysis::ProfileStore* const pStore =
+            m_pServers ? m_pServers->profileStore(serverId) : nullptr;
+    if (!pStore || !pTrack) {
+        return;
+    }
+    const QString uid = entityUid.toLower();
+    analysis::ProfileFetch* pFetch = pStore->get({uid});
+    connect(pFetch,
+            &analysis::ProfileFetch::finished,
+            this,
+            [pTrack, pStore = QPointer<analysis::ProfileStore>(pStore), uid](
+                    const analysis::ProfileResults& results) {
+                const auto it = results.profiles.constFind(uid);
+                if (it == results.profiles.cend()) {
+                    return;
+                }
+                // Beats and key stay Mixxx's until the preferences say
+                // otherwise (F4.C-PR4)
+                const analysis::ImportOutcome outcome = analysis::AnalysisImporter::apply(
+                        pTrack, it->profile, analysis::Policy(), it->appliedCues);
+                if (outcome.appliedCues && pStore) {
+                    pStore->recordAppliedCues(uid, *outcome.appliedCues);
+                }
+            });
+}
+
+void CrateServerFeature::readOfflineSet(const QString& serverId,
+        qint64 containerId,
+        std::function<void(const OfflineSet&)> ready) {
+    auto* pWatcher = new QFutureWatcher<QList<CrateTrackRef>>(this);
+    connect(pWatcher,
+            &QFutureWatcherBase::finished,
+            this,
+            [this, pWatcher, ready = std::move(ready)] {
+                pWatcher->deleteLater();
+                OfflineSet set;
+                QSet<QString> seen;
+                const QList<CrateTrackRef> tracks = pWatcher->result();
+                for (const CrateTrackRef& track : tracks) {
+                    if (seen.contains(track.entityUid) ||
+                            (m_pLoadCoordinator &&
+                                    m_pLoadCoordinator->isCached(
+                                            track.serverId, track.entityUid))) {
+                        continue;
+                    }
+                    seen.insert(track.entityUid);
+                    set.tracks.append(track);
+                    if (track.hints.byteLength) {
+                        set.knownBytes += *track.hints.byteLength;
+                    } else {
+                        ++set.unknownSizes;
+                    }
+                }
+                ready(set);
+            });
+    pWatcher->setFuture(QtConcurrent::run(&m_pool,
+            [pPool = m_dependencies.pDbConnectionPool, serverId, containerId]() {
+                const mixxx::DbConnectionPooler pooler(pPool);
+                const QSqlDatabase database = mixxx::DbConnectionPooled(pPool);
+                QList<CrateTrackRef> tracks;
+                for (int attempt = 0; attempt < 4; ++attempt) {
+                    if (attempt > 0) {
+                        QThread::msleep(25);
+                    }
+                    QSqlQuery query(database);
+                    query.prepare(QStringLiteral(
+                            "SELECT t.entity_uid, t.format, t.byte_length, t.source_revision "
+                            "FROM crateserver_container_tracks ct "
+                            "JOIN crateserver_tracks t ON t.server_id = :server "
+                            "AND t.entity_uid = ct.entity_uid "
+                            "WHERE ct.container_id = :container ORDER BY ct.position"));
+                    query.bindValue(QStringLiteral(":server"), serverId);
+                    query.bindValue(QStringLiteral(":container"), containerId);
+                    if (!query.exec()) {
+                        continue;
+                    }
+                    while (query.next()) {
+                        CrateTrackRef track;
+                        track.serverId = serverId;
+                        track.entityUid = query.value(0).toString();
+                        track.hints.format = query.value(1).toString();
+                        if (!query.value(2).isNull()) {
+                            track.hints.byteLength = query.value(2).toLongLong();
+                        }
+                        track.hints.sourceRevision = query.value(3).toString();
+                        tracks.append(track);
+                    }
+                    return tracks;
+                }
+                kLogger.warning() << "Cannot read the tracks of the container" << containerId;
+                return tracks;
+            }));
+}
+
+void CrateServerFeature::downloadOfflineSet(qint64 containerId, const OfflineSet& set) {
+    if (!m_pLoadCoordinator) {
+        return;
+    }
+    const auto it = m_containers.constFind(containerId);
+    // Pinned by the container's identity on the server, which survives a
+    // new sync
+    const QString reason = it != m_containers.cend()
+            ? QStringLiteral("offline-set:%1:%2").arg(it->kind, it->remoteId)
+            : QStringLiteral("offline-set:%1").arg(containerId);
+    m_pLoadCoordinator->download(set.tracks, cache::Priority::OfflineSet, reason);
 }
 
 CrateServerFeature::Server* CrateServerFeature::server(const QString& serverId) const {
@@ -830,7 +1003,39 @@ void CrateServerFeature::onRightClickChild(const QPoint& globalPos, const QModel
     }
     QMenu menu;
     QAction* pRefresh = menu.addAction(tr("Refresh"));
-    if (menu.exec(globalPos) != pRefresh) {
+    QAction* pOffline = nullptr;
+    if (node.kind == Node::Kind::Container && m_pLoadCoordinator) {
+        //: Downloads every track of a playlist or crate for playing without network
+        pOffline = menu.addAction(tr("Download for offline use"));
+    }
+    QAction* const pChosen = menu.exec(globalPos);
+    if (pChosen && pChosen == pOffline) {
+        const qint64 containerId = node.containerId;
+        readOfflineSet(node.serverId, containerId, [this, containerId](const OfflineSet& set) {
+            if (set.tracks.isEmpty()) {
+                QMessageBox::information(nullptr,
+                        tr("Download for offline use"),
+                        tr("Every track of this list is already on this computer."));
+                return;
+            }
+            QString size = QLocale().formattedDataSize(set.knownBytes);
+            if (set.unknownSizes > 0) {
+                //: The size of an offline set, when some tracks' sizes are unknown
+                size = tr("%1 or more").arg(size);
+            }
+            const auto answer = QMessageBox::question(nullptr,
+                    tr("Download for offline use"),
+                    tr("Download %n track(s), %1, and keep them on this computer?",
+                            nullptr,
+                            static_cast<int>(set.tracks.size()))
+                            .arg(size));
+            if (answer == QMessageBox::Yes) {
+                downloadOfflineSet(containerId, set);
+            }
+        });
+        return;
+    }
+    if (pChosen != pRefresh) {
         return;
     }
     if (node.kind == Node::Kind::Container) {

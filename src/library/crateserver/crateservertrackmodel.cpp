@@ -1,13 +1,17 @@
 #include "library/crateserver/crateservertrackmodel.h"
 
+#include <QAction>
 #include <QFutureWatcher>
 #include <QHash>
+#include <QMimeData>
 #include <QSqlError>
 #include <QSqlQuery>
 #include <QThread>
 #include <QtConcurrentRun>
 #include <cmath>
 
+#include "crate/cache/audiocache.h"
+#include "crate/library/crateloadcoordinator.h"
 #include "crate/ui/delegates/delegateroles.h"
 #include "crate/ui/delegates/delegatestyle.h"
 #include "crate/ui/delegates/statedelegates.h"
@@ -33,6 +37,12 @@ bool isBusy(const QSqlError& error) {
 
 constexpr int kReadAttempts = 4;
 constexpr unsigned long kReadRetryMillis = 25;
+/// How often the Cache column repaints while tracks download.
+constexpr int kRepaintIntervalMs = 100;
+
+QString trackKey(const QString& serverId, const QString& entityUid) {
+    return serverId + QLatin1Char('\n') + entityUid.toLower();
+}
 
 const QString& fieldOf(int column) {
     static const QString kFields[CrateServerTrackModel::kColumnCount] = {
@@ -117,7 +127,7 @@ QVector<CrateServerTrackModel::Row> readRows(const QSqlDatabase& database, const
     QString sql = QStringLiteral(
             "SELECT t.id, %1, t.entity_uid, t.title, t.artist, t.album, t.bpm, t.camelot, "
             "t.duration_ms, t.energy, t.genre, t.profile_quality, t.bitrate, t.format, "
-            "t.sample_rate FROM ")
+            "t.sample_rate, t.server_id, t.byte_length, t.source_revision FROM ")
                           .arg(container ? QStringLiteral("ct.position + 1")
                                          : QStringLiteral("0"));
     if (container) {
@@ -175,6 +185,9 @@ QVector<CrateServerTrackModel::Row> readRows(const QSqlDatabase& database, const
             row.bitrate = optionalOf<qint64>(query.value(12));
             row.format = query.value(13).toString();
             row.sampleRate = optionalOf<qint64>(query.value(14));
+            row.serverId = query.value(15).toString();
+            row.byteLength = optionalOf<qint64>(query.value(16));
+            row.sourceRevision = query.value(17).toString();
             rows.append(row);
         }
         return rows;
@@ -221,6 +234,52 @@ CrateServerTrackModel::CrateServerTrackModel(Source source,
           m_sortColumn(source == Source::Container ? kPositionColumn : kArtistColumn) {
     m_pool.setMaxThreadCount(1);
     setDefaultSort(m_sortColumn, Qt::AscendingOrder);
+    m_repaintTimer.setSingleShot(true);
+    m_repaintTimer.setInterval(kRepaintIntervalMs);
+    connect(&m_repaintTimer,
+            &QTimer::timeout,
+            this,
+            &CrateServerTrackModel::repaintChangedTracks);
+}
+
+void CrateServerTrackModel::setLoadCoordinator(CrateLoadCoordinator* pCoordinator) {
+    if (m_pCoordinator && m_pCoordinator->cache()) {
+        disconnect(m_pCoordinator->cache(), nullptr, this, nullptr);
+    }
+    m_pCoordinator = pCoordinator;
+    if (m_pCoordinator && m_pCoordinator->cache()) {
+        connect(m_pCoordinator->cache(),
+                &cache::AudioCache::trackChanged,
+                this,
+                &CrateServerTrackModel::onTrackChanged);
+    }
+    if (!m_rows.isEmpty()) {
+        emit dataChanged(index(0, kCacheColumn), index(rowCount() - 1, kCacheColumn));
+    }
+}
+
+void CrateServerTrackModel::onTrackChanged(const QString& serverId, const QString& entityUid) {
+    m_changedTracks.insert(trackKey(serverId, entityUid));
+    if (!m_repaintTimer.isActive()) {
+        m_repaintTimer.start();
+    }
+}
+
+void CrateServerTrackModel::repaintChangedTracks() {
+    const QSet<QString> changed = std::exchange(m_changedTracks, {});
+    for (int row = 0; row < m_rows.size(); ++row) {
+        if (changed.contains(trackKey(m_rows[row].serverId, m_rows[row].entityUid))) {
+            const QModelIndex cell = index(row, kCacheColumn);
+            emit dataChanged(cell, cell);
+        }
+    }
+}
+
+std::optional<QString> CrateServerTrackModel::cachedPathOf(const Row& row) const {
+    if (!m_pCoordinator || !m_pCoordinator->cache()) {
+        return std::nullopt;
+    }
+    return m_pCoordinator->cache()->cachedPath(row.serverId, row.entityUid);
 }
 
 CrateServerTrackModel::~CrateServerTrackModel() {
@@ -344,9 +403,32 @@ QVariant CrateServerTrackModel::data(const QModelIndex& index, int role) const {
                 ? QVariant(static_cast<int>(profileQualityOf(row.profileQuality)))
                 : QVariant();
     case delegates::CacheStateRole:
-        // The audio cache is F4
-        return column == kCacheColumn ? QVariant(static_cast<int>(delegates::CacheState::None))
-                                      : QVariant();
+    case delegates::CacheProgressRole: {
+        if (column != kCacheColumn) {
+            return QVariant();
+        }
+        cache::TrackState state;
+        if (m_pCoordinator && m_pCoordinator->cache()) {
+            state = m_pCoordinator->cache()->trackState(row.serverId, row.entityUid);
+        }
+        if (role == delegates::CacheProgressRole) {
+            return state.bytesTotal > 0 ? static_cast<double>(state.bytesReceived) /
+                            static_cast<double>(state.bytesTotal)
+                                        : 0.0;
+        }
+        switch (state.kind) {
+        case cache::TrackState::Kind::Ready:
+            return static_cast<int>(delegates::CacheState::Ready);
+        case cache::TrackState::Kind::Queued:
+        case cache::TrackState::Kind::Downloading:
+            return static_cast<int>(delegates::CacheState::Downloading);
+        case cache::TrackState::Kind::Failed:
+            return static_cast<int>(delegates::CacheState::Failed);
+        case cache::TrackState::Kind::None:
+            break;
+        }
+        return static_cast<int>(delegates::CacheState::None);
+    }
     case Qt::TextAlignmentRole:
         switch (column) {
         case kPositionColumn:
@@ -467,7 +549,37 @@ Qt::ItemFlags CrateServerTrackModel::flags(const QModelIndex& index) const {
     if (!index.isValid()) {
         return Qt::NoItemFlags;
     }
-    return Qt::ItemIsEnabled | Qt::ItemIsSelectable;
+    const Qt::ItemFlags flags = Qt::ItemIsEnabled | Qt::ItemIsSelectable;
+    // Only a cached track drags onto a deck or another list
+    if (index.row() < m_rows.size() && cachedPathOf(m_rows[index.row()])) {
+        return flags | Qt::ItemIsDragEnabled;
+    }
+    return flags;
+}
+
+QStringList CrateServerTrackModel::mimeTypes() const {
+    return {QStringLiteral("text/uri-list")};
+}
+
+QMimeData* CrateServerTrackModel::mimeData(const QModelIndexList& indexes) const {
+    QList<QUrl> urls;
+    QSet<int> rows;
+    for (const QModelIndex& index : indexes) {
+        if (rows.contains(index.row())) {
+            continue;
+        }
+        rows.insert(index.row());
+        const QUrl url = getTrackUrl(index);
+        if (url.isValid()) {
+            urls.append(url);
+        }
+    }
+    if (urls.isEmpty()) {
+        return nullptr;
+    }
+    auto* pMimeData = new QMimeData();
+    pMimeData->setUrls(urls);
+    return pMimeData;
 }
 
 void CrateServerTrackModel::sort(int column, Qt::SortOrder order) {
@@ -483,9 +595,12 @@ void CrateServerTrackModel::sort(int column, Qt::SortOrder order) {
 }
 
 TrackPointer CrateServerTrackModel::getTrack(const QModelIndex& index) const {
-    Q_UNUSED(index);
-    // TEST_GAP: F4 loads Crate tracks into decks (plan F4.C-PR3)
-    return TrackPointer();
+    // Never downloads: it also runs when rows are selected and menus open
+    if (!m_pCoordinator || !index.isValid() || index.row() >= m_rows.size()) {
+        return TrackPointer();
+    }
+    const Row& row = m_rows[index.row()];
+    return m_pCoordinator->cachedTrack(row.serverId, row.entityUid);
 }
 
 TrackPointer CrateServerTrackModel::getTrackByRef(const TrackRef& trackRef) const {
@@ -493,21 +608,79 @@ TrackPointer CrateServerTrackModel::getTrackByRef(const TrackRef& trackRef) cons
     return TrackPointer();
 }
 
+bool CrateServerTrackModel::requestTrackLoad(
+        const QModelIndex& index, const QString& group, bool play) {
+    if (!m_pCoordinator || !index.isValid() || index.row() >= m_rows.size()) {
+        return false;
+    }
+    const Row& row = m_rows[index.row()];
+    if (cachedPathOf(row)) {
+        // A cached track loads at once, as a local one
+        return false;
+    }
+    m_pCoordinator->requestLoad(trackRef(index.row()), group, play);
+    return true;
+}
+
+QList<QAction*> CrateServerTrackModel::trackMenuActions(
+        const QModelIndexList& indices, QObject* pParent) {
+    if (!m_pCoordinator) {
+        return {};
+    }
+    QList<CrateTrackRef> uncached;
+    QList<CrateTrackRef> cached;
+    for (const QModelIndex& index : indices) {
+        if (!index.isValid() || index.row() >= m_rows.size()) {
+            continue;
+        }
+        const CrateTrackRef track = trackRef(index.row());
+        (cachedPathOf(m_rows[index.row()]) ? cached : uncached).append(track);
+    }
+    //: Downloads the selected Crate tracks into Crate Decks' audio cache
+    auto* pDownload = new QAction(tr("Download"), pParent);
+    pDownload->setEnabled(!uncached.isEmpty());
+    connect(pDownload,
+            &QAction::triggered,
+            this,
+            [pCoordinator = m_pCoordinator, uncached] {
+                if (pCoordinator) {
+                    pCoordinator->download(uncached, cache::Priority::Prefetch);
+                }
+            });
+    //: Deletes the selected tracks' files from Crate Decks' audio cache
+    auto* pRemove = new QAction(tr("Remove from cache"), pParent);
+    pRemove->setEnabled(!cached.isEmpty());
+    connect(pRemove,
+            &QAction::triggered,
+            this,
+            [pCoordinator = m_pCoordinator, cached] {
+                if (!pCoordinator) {
+                    return;
+                }
+                for (const CrateTrackRef& track : cached) {
+                    pCoordinator->removeFromCache(track.serverId, track.entityUid);
+                }
+            });
+    return {pDownload, pRemove};
+}
+
 QUrl CrateServerTrackModel::getTrackUrl(const QModelIndex& index) const {
-    Q_UNUSED(index);
-    return QUrl();
+    const QString location = getTrackLocation(index);
+    return location.isEmpty() ? QUrl() : QUrl::fromLocalFile(location);
 }
 
 QString CrateServerTrackModel::getTrackLocation(const QModelIndex& index) const {
-    Q_UNUSED(index);
-    return QString();
+    if (!index.isValid() || index.row() >= m_rows.size()) {
+        return QString();
+    }
+    return cachedPathOf(m_rows[index.row()]).value_or(QString());
 }
 
 TrackId CrateServerTrackModel::getTrackId(const QModelIndex& index) const {
-    // The rows' ids are Crate's, not Mixxx's: a TrackId would name another
-    // track of Mixxx's library
-    Q_UNUSED(index);
-    return TrackId();
+    // The rows' ids are Crate's, not Mixxx's: only a cached track has one in
+    // Mixxx's library
+    const TrackPointer pTrack = getTrack(index);
+    return pTrack ? pTrack->getId() : TrackId();
 }
 
 CoverInfo CrateServerTrackModel::getCoverInfo(const QModelIndex& index) const {
@@ -570,8 +743,13 @@ QAbstractItemDelegate* CrateServerTrackModel::delegateForColumn(
 }
 
 TrackModel::Capabilities CrateServerTrackModel::getCapabilities() const {
-    // Loading, analysis and the rest wait for F4
-    return Capability::Sorting;
+    if (!m_pCoordinator) {
+        return Capability::Sorting;
+    }
+    // Uncached tracks load through requestTrackLoad(); Auto DJ takes cached
+    // ones, which have a track of Mixxx's library
+    return Capability::Sorting | Capability::LoadToDeck | Capability::LoadToSampler |
+            Capability::LoadToPreviewDeck | Capability::AddToAutoDJ;
 }
 
 TrackModel::SortColumnId CrateServerTrackModel::sortColumnIdFromColumnIndex(int column) const {
@@ -648,6 +826,20 @@ bool CrateServerTrackModel::updateTrackMood(Track* pTrack, const QString& mood) 
 
 QString CrateServerTrackModel::entityUid(int row) const {
     return row >= 0 && row < m_rows.size() ? m_rows[row].entityUid : QString();
+}
+
+CrateTrackRef CrateServerTrackModel::trackRef(int row) const {
+    CrateTrackRef track;
+    if (row < 0 || row >= m_rows.size()) {
+        return track;
+    }
+    const Row& stored = m_rows[row];
+    track.serverId = stored.serverId;
+    track.entityUid = stored.entityUid;
+    track.hints.format = stored.format;
+    track.hints.byteLength = stored.byteLength;
+    track.hints.sourceRevision = stored.sourceRevision;
+    return track;
 }
 
 } // namespace crate::library

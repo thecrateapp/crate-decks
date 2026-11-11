@@ -11,6 +11,7 @@
 #include <optional>
 
 #include "crate/library/cratelibrarystore.h"
+#include "crate/library/crateloadcoordinator.h"
 #include "library/libraryfeature.h"
 #include "util/db/dbconnectionpool.h"
 #include "util/parented_ptr.h"
@@ -25,6 +26,8 @@ class CrateServers;
 
 namespace crate::library {
 
+class CrateLoadCoordinator;
+class CratePrefetcher;
 class CrateServerTrackModel;
 
 /// The Crate section of the library sidebar (plan F3.C-PR2, design §6 and
@@ -72,6 +75,29 @@ class CrateServerFeature : public LibraryFeature {
     void onLazyChildExpandation(const QModelIndex& index) override;
     void onRightClickChild(const QPoint& globalPos, const QModelIndex& index) override;
 
+    /// Loads Crate tracks into decks; nullptr until there is a server.
+    CrateLoadCoordinator* loadCoordinator() const {
+        return m_pLoadCoordinator.get();
+    }
+    CratePrefetcher* prefetcher() const {
+        return m_pPrefetcher.get();
+    }
+
+    /// What an offline set of a container downloads.
+    struct OfflineSet {
+        /// The tracks that are not cached yet.
+        QList<CrateTrackRef> tracks;
+        /// Their size, of the tracks whose size is known.
+        qint64 knownBytes = 0;
+        int unknownSizes = 0;
+    };
+    /// Reads the container's tracks off the main thread, then `ready`.
+    void readOfflineSet(const QString& serverId,
+            qint64 containerId,
+            std::function<void(const OfflineSet&)> ready);
+    /// Downloads and pins the tracks of an offline set of the container.
+    void downloadOfflineSet(qint64 containerId, const OfflineSet& set);
+
   signals:
     /// The sidebar shows what the tables hold of the server now.
     void sidebarUpdated(const QString& serverId);
@@ -106,6 +132,13 @@ class CrateServerFeature : public LibraryFeature {
     void watchServers(CrateServers* pServers);
     /// Rebuilds the servers and the whole tree when the saved servers change.
     void updateServers();
+    /// The coordinator and the prefetcher, once there is a server.
+    void startLoading();
+    void stopLoading();
+    /// Applies the server's mix profile of a track to it, once fetched.
+    void applyAnalysis(const TrackPointer& pTrack,
+            const QString& serverId,
+            const QString& entityUid);
     Server* server(const QString& serverId) const;
     QString titleOf(const QString& serverId) const;
 
@@ -150,6 +183,8 @@ class CrateServerFeature : public LibraryFeature {
     std::map<QString, std::unique_ptr<Server>> m_servers;
     /// The last tree read of each server, by container id.
     QHash<qint64, StoredContainer> m_containers;
+    std::unique_ptr<CrateLoadCoordinator> m_pLoadCoordinator;
+    std::unique_ptr<CratePrefetcher> m_pPrefetcher;
     QThreadPool m_pool;
 };
 
