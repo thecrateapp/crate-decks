@@ -642,14 +642,20 @@ TEST_F(CrateClientTest, StreamsTheBodyAsItArrives) {
     int statusAtHeaders = 0;
     QByteArray etagAtHeaders;
     QByteArray received;
-    QObject::connect(pReply, &Reply::headersReceived, pReply, [&] {
-        statusAtHeaders = pReply->httpStatus();
-        etagAtHeaders = pReply->rawHeader("ETag");
-    });
-    QObject::connect(pReply, &Reply::bodyReceived, pReply, [&](const QByteArray& chunk) {
-        EXPECT_EQ(206, statusAtHeaders);
-        received += chunk;
-    });
+    QObject::connect(pReply,
+            &Reply::headersReceived,
+            pReply,
+            [pReply, pStatus = &statusAtHeaders, pEtag = &etagAtHeaders] {
+                *pStatus = pReply->httpStatus();
+                *pEtag = pReply->rawHeader("ETag");
+            });
+    QObject::connect(pReply,
+            &Reply::bodyReceived,
+            pReply,
+            [pStatus = &statusAtHeaders, pReceived = &received](const QByteArray& chunk) {
+                EXPECT_EQ(206, *pStatus);
+                *pReceived += chunk;
+            });
 
     const QNetworkRequest& request = m_network.last().request;
     EXPECT_EQ(QByteArrayLiteral("Bearer access-1"), request.rawHeader("Authorization"));
@@ -701,10 +707,15 @@ TEST_F(CrateClientTest, StreamRenewsTheTokenAndStreamsNoErrorBody) {
     Outcome outcome(pReply);
     QByteArray received;
     int headers = 0;
-    QObject::connect(pReply, &Reply::headersReceived, pReply, [&] { ++headers; });
-    QObject::connect(pReply, &Reply::bodyReceived, pReply, [&](const QByteArray& chunk) {
-        received += chunk;
+    QObject::connect(pReply, &Reply::headersReceived, pReply, [pHeaders = &headers] {
+        ++*pHeaders;
     });
+    QObject::connect(pReply,
+            &Reply::bodyReceived,
+            pReply,
+            [pReceived = &received](const QByteArray& chunk) {
+                *pReceived += chunk;
+            });
 
     lastReply()->respond(401, QByteArrayLiteral(R"({"detail": "expired"})"));
     m_tokens.finishRenewal(true, QStringLiteral("access-2"));
