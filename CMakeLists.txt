@@ -5356,6 +5356,7 @@ if(CRATE)
       src/crate/library/cratelibrarystore.cpp
       src/crate/library/cratelibrarysync.cpp
       src/crate/library/crateloadcoordinator.cpp
+      src/crate/library/crateprefetcher.cpp
       src/crate/library/cratesearch.cpp
       src/crate/session/crateloopbackserver.cpp
       src/crate/session/cratesecretstore.cpp
@@ -5405,6 +5406,7 @@ if(CRATE)
         src/test/crate/cratejson_test.cpp
         src/test/crate/cratelibrarysync_test.cpp
         src/test/crate/crateloadcoordinator_test.cpp
+        src/test/crate/crateprefetcher_test.cpp
         src/test/crate/cratesearch_test.cpp
         src/test/crate/crateloopbackserver_test.cpp
         src/test/crate/cratesecretstore_test.cpp
