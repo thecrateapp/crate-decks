@@ -66,7 +66,7 @@ QString CrateSessionPins::playerReason(const QString& group) {
     return cache::AudioCache::kSessionPinPrefix + QStringLiteral("player:") + group;
 }
 
-CrateSessionPins::CrateSessionPins(Options options, QObject* parent)
+CrateSessionPins::CrateSessionPins(const Options& options, QObject* parent)
         : QObject(parent),
           m_pCache(options.pCache),
           m_pDbConnectionPool(options.pDbConnectionPool) {

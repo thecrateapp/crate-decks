@@ -49,7 +49,7 @@ class CrateSessionPins : public QObject {
     static QString playerReason(const QString& group);
     static const QString kQueueReason;
 
-    explicit CrateSessionPins(Options options, QObject* parent = nullptr);
+    explicit CrateSessionPins(const Options& options, QObject* parent = nullptr);
     ~CrateSessionPins() override;
 
     /// Reads the queue again soon.
