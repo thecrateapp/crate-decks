@@ -148,7 +148,7 @@ To browse the Crate library in the sidebar, the server must announce `library_cu
 
 ## Contributing
 
-- Report bugs and ideas in [this repository's issues](https://github.com/thecrateapp/crate-decks/issues).
+- Report bugs and ideas in [Crate's issues](https://github.com/thecrateapp/crate/issues): Crate Decks has no issue tracker of its own.
 - Code style, the build in depth and the pre-commit hooks: [CONTRIBUTING.md](CONTRIBUTING.md). Commits follow conventional commits, such as `feat(decks): …`.
 - Crate's own code lives in `src/crate/`, `src/library/crateserver/` and `src/test/crate/`. Every change to an inherited file is listed in [CRATE_PATCHES.md](CRATE_PATCHES.md).
 - Project notes and rules: [CRATE.md](CRATE.md) and [AGENTS.md](AGENTS.md).
