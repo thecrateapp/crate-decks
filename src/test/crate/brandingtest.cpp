@@ -24,6 +24,7 @@
 #endif
 #include "preferences/configobject.h"
 #include "preferences/dialog/dlgprefrecord.h"
+#include "preferences/upgrade.h"
 #include "recording/defs_recording.h"
 #include "test/mixxxtest.h"
 #include "util/cmdlineargs.h"
@@ -181,6 +182,44 @@ TEST_F(CrateBrandingTest, DefaultSettingsPathIsNotMixxxs) {
     // name that main() sets; mixxx-test runs with its own name.
     GTEST_SKIP() << "The default settings path is only fixed at compile time on Linux";
 #endif
+}
+
+// Plan BR2: Decks never reads, moves or deletes the settings of a Mixxx
+// installed on the same computer. Mixxx's upgrade moved its pre-1.7 files
+// from the home folder into the settings folder (and on macOS and Windows
+// switched to Mixxx's old settings folders) when the settings had no
+// version, which is every first start of Decks.
+TEST_F(CrateBrandingTest, UpgradeReadsNoMixxxInstall) {
+    QTemporaryDir home;
+    QTemporaryDir settings;
+    ASSERT_TRUE(home.isValid());
+    ASSERT_TRUE(settings.isValid());
+#ifdef __WINDOWS__
+    const QStringList mixxxFiles = {QStringLiteral("mixxx.cfg"), QStringLiteral("mixxxtrack.xml")};
+#else
+    const QStringList mixxxFiles = {QStringLiteral(".mixxx.cfg"), QStringLiteral(".mixxxtrack.xml")};
+#endif
+    for (const QString& name : mixxxFiles) {
+        QFile file(QDir(home.path()).filePath(name));
+        ASSERT_TRUE(file.open(QIODevice::WriteOnly));
+        file.write("[Config]\nVersion 1.6.0\n");
+    }
+    const QByteArray previousHome = qgetenv("HOME");
+    qputenv("HOME", home.path().toLocal8Bit());
+    ASSERT_EQ(home.path(), QDir::homePath());
+
+    Upgrade upgrade;
+    const UserSettingsPointer pConfig = upgrade.versionUpgrade(settings.path() + QChar('/'));
+    qputenv("HOME", previousHome);
+
+    for (const QString& name : mixxxFiles) {
+        EXPECT_TRUE(QFile::exists(QDir(home.path()).filePath(name))) << qPrintable(name);
+    }
+    EXPECT_FALSE(QFile::exists(QDir(settings.path()).filePath(QStringLiteral("mixxxtrack.xml"))));
+    EXPECT_NE(QStringLiteral("1.6.0"),
+            pConfig->getValueString(ConfigKey(QStringLiteral("[Config]"),
+                    QStringLiteral("Version"))));
+    EXPECT_TRUE(upgrade.isFirstRun());
 }
 
 TEST_F(CrateBrandingTest, SettingsPathOptionOverridesDefault) {

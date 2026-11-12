@@ -20,6 +20,7 @@
 #include <memory>
 #include <utility>
 
+#include "config.h"
 #include "coreservices.h"
 #include "mixxxmainwindow.h"
 #include "preferences/usersettings.h"
@@ -85,7 +86,7 @@ class OffscreenDecks {
 
     /// Writes the profile: the skin, no sound API and `settings`.
     void writeProfile(const QString& skin, const Settings& settings = {}) {
-        auto config = UserSettingsPointer(new UserSettings(m_settingsPath + "mixxx.cfg"));
+        auto config = UserSettingsPointer(new UserSettings(m_settingsPath + MIXXX_SETTINGS_FILE));
         config->setValue(ConfigKey("[Config]", "Version"), VersionStore::version());
         config->setValue(ConfigKey("[Config]", "ResizableSkin"), skin);
         // Offscreen there is no OpenGL: do not warn about it

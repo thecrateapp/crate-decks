@@ -1,4 +1,5 @@
-#define MIXXX_SETTINGS_FILE "mixxx.cfg"
+// Crate Decks: named after the executable (plan BR2)
+#define MIXXX_SETTINGS_FILE "crate-decks.cfg"
 
 #cmakedefine MIXXX_SETTINGS_PATH "@MIXXX_SETTINGS_PATH@"
 #cmakedefine MIXXX_INSTALL_DOCDIR_RELATIVE_TO_DATADIR "@MIXXX_INSTALL_DOCDIR_RELATIVE_TO_DATADIR@"

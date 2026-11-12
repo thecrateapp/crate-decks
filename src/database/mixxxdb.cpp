@@ -4,6 +4,7 @@
 #include <QSqlQuery>
 #include <QVariant>
 
+#include "crate/appidentity.h"
 #include "database/schemamanager.h"
 #include "defs_urls.h"
 #include "moc_mixxxdb.cpp"
@@ -27,7 +28,8 @@ const QString kConnectOptions = QStringLiteral("QSQLITE_OPEN_URI");
 
 const QString kUriPrefix = QStringLiteral("file://");
 
-const QString kDefaultFileName = QStringLiteral("mixxxdb.sqlite");
+// Crate Decks: named after the application (plan BR2)
+const QString kDefaultFileName = QString::fromUtf8(crate::kDatabaseFileName);
 
 const QString kUserName = QStringLiteral("mixxx");
 

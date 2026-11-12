@@ -21,19 +21,23 @@ namespace crate {
 bool namesMixxx(const QString& text);
 
 /// Whether the user would read "Mixxx" in `text` (rich text is read as its
-/// plain text), in any form but the file names Crate Decks keeps
-/// (mixxxdb.sqlite, mixxx.cfg, mixxx.log) and the hardware and the mapping
-/// author named after it (MiniMixxx, BeMixxx). For the tests of what the
-/// interface shows.
+/// plain text), in any form, Mixxx's file names included, but the hardware
+/// and the mapping author named after it (MiniMixxx, BeMixxx). For the tests
+/// of what the interface shows.
 bool showsMixxx(const QString& text);
 
 /// `text` with Crate Decks where it names Mixxx: the curated text of the
 /// inventory for a known literal or source string, else the generic rule:
 /// "Mixxx" -> "Crate Decks", "Mixxx's" -> "Crate Decks'", "MIXXX" -> "CRATE
-/// DECKS", and a version after the name ("Mixxx 2.1") is dropped.
+/// DECKS", and a version after the name ("Mixxx 2.1") is dropped. Mixxx's
+/// file names become Crate Decks' (plan BR2): mixxx.cfg -> crate-decks.cfg,
+/// mixxx.log -> crate-decks.log, mixxxdb.sqlite -> crate-decks.sqlite and
+/// ~/.mixxx -> ~/.cratedecks.
 QString brandText(const QString& text);
 
-/// The generic rule of brandText() alone.
+/// The generic rule of brandText() alone. It returns `text` itself, without
+/// copying it, when it does not contain "mixxx" in any case, so the log
+/// handler can afford it for every message.
 QString brandRule(const QString& text);
 
 /// What Crate Decks shows for the source string `source` of a tr() lookup

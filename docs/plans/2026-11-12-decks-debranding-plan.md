@@ -25,7 +25,7 @@ decir que Decks es un fork de Mixxx"*. Scope: **everything visible and everythin
 
 | Category | Left | Mechanism (BR2) |
 | --- | --- | --- |
-| Files in the settings folder | `mixxx.cfg`, `mixxx.log` (and `.1`–`.10`), `mixxxdb.sqlite` | Names from the application identity: `crate-decks.cfg`, `crate-decks.log`, `crate-decks.sqlite` |
+| Files in the settings folder | `mixxx.cfg`, `mixxx.log` (and `.1`–`.10`), `mixxxdb.sqlite`, and 28 effect presets `effects/defaults/org-mixxx-effects-*.xml` | Names from the application identity: `crate-decks.cfg`, `crate-decks.log`, `crate-decks.sqlite`; presets saved as `builtin-effects-*.xml` (they load by the id inside them) |
 | Visible strings that name those files or `~/.mixxx` | 6 `tr()` strings (`--help`, database errors, developer tools, Crate preferences) in all locales | The brand rule maps Mixxx's file names to Decks' ones, so the translation layer fixes them in every language |
 | Reads of a real Mixxx install | `Upgrade::versionUpgrade()` moves `~/.mixxx.cfg` and three other pre-1.7 files from `$HOME`; on macOS and Windows it switches to Mixxx's old folders | Never: Decks reads and writes only its own folder (`crate::kReadsMixxxSettings`, false) |
 | Log lines | 14 literals name Mixxx, plus whatever upstream adds | The log handler passes each message through the brand rule; one patch, also for future lines |
@@ -79,6 +79,7 @@ This document, AGENTS.md §5.2 "Nombres" and design §5.2.
 | `src/util/logging.cpp` | Log file name; messages through `crate::brandRule()` |
 | `src/dialog/dlgdevelopertools.cpp` | Reads the log by its new name |
 | `src/database/mixxxdb.cpp` | Database file name |
+| `src/effects/presets/effectpresetmanager.cpp` | Effect preset file names without `org-mixxx-` |
 | `src/preferences/upgrade.cpp` | Skips the migrations from Mixxx's old folders |
 | `src/util/cmdlineargs.cpp` | iOS settings folder named after the application |
 | `src/crate/brand/brandtext.cpp` | The rule maps `mixxx.cfg`, `mixxx.log`, `mixxxdb.sqlite` and `~/.mixxx` to Decks' names |
@@ -114,7 +115,7 @@ started offscreen holds no file named after Mixxx, and its log names no Mixxx);
 ## 5. Mixxx files patched (new for `CRATE_PATCHES.md`)
 
 Outside the closed list of design §5.2 until this plan: `src/config.h.in`, `src/util/logging.cpp`,
-`src/dialog/dlgdevelopertools.cpp`, `src/database/mixxxdb.cpp` (already patched by BR.PR7),
+`src/dialog/dlgdevelopertools.cpp`, `src/effects/presets/effectpresetmanager.cpp`, `src/database/mixxxdb.cpp` (already patched by BR.PR7),
 `src/preferences/upgrade.cpp`, `src/preferences/configobject.cpp` (in the list since BR.PR8),
 `packaging/appimage/appimage.cmake`, `packaging/CPackConfig.cmake` (already patched by F1). Each change reads the
 application identity or is one condition, so a sync conflicts only on those lines.

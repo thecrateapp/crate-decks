@@ -9,6 +9,7 @@
 #include <memory>
 #include <vector>
 
+#include "config.h"
 #include "control/controlobject.h"
 #include "coreservices.h"
 #include "qml/qmllibraryproxy.h"
@@ -34,7 +35,7 @@ class RejectFileDialogs final : public QObject {
 };
 
 void writeTestProfile(const QString& settingsPath) {
-    auto settings = UserSettingsPointer(new UserSettings(settingsPath + "mixxx.cfg"));
+    auto settings = UserSettingsPointer(new UserSettings(settingsPath + MIXXX_SETTINGS_FILE));
     settings->setValue(ConfigKey("[Config]", "Version"), VersionStore::FUTURE_UNSTABLE);
     settings->save();
 

@@ -9,6 +9,7 @@
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QDir>
+#include <QDirIterator>
 #include <QElapsedTimer>
 #include <QFile>
 #include <QFileInfo>
@@ -39,9 +40,12 @@
 #include <memory>
 #include <vector>
 
+#include "config.h"
 #include "control/controlobject.h"
 #include "control/controlpushbutton.h"
 #include "coreservices.h"
+#include "crate/appidentity.h"
+#include "crate/brand/brandtext.h"
 #include "crate/crateserverrows.h"
 #include "crate/crateservers.h"
 #include "crate/db/crateserverprofiles.h"
@@ -83,6 +87,7 @@
 #include "track/trackref.h"
 #include "util/cmdlineargs.h"
 #include "util/font.h"
+#include "util/logging.h"
 #include "util/versionstore.h"
 #include "waveform/visualplayposition.h"
 #include "waveform/waveform.h"
@@ -219,7 +224,7 @@ bool insertLibraryRows(const QString& settingsPath, const QList<LibraryRow>& row
     bool ok = true;
     {
         QSqlDatabase db = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), name);
-        db.setDatabaseName(settingsPath + QStringLiteral("mixxxdb.sqlite"));
+        db.setDatabaseName(settingsPath + QString::fromUtf8(crate::kDatabaseFileName));
         ok = db.open();
         ok = ok && MixxxDb::initDatabaseSchema(db);
         ok = ok && db.transaction();
@@ -299,7 +304,7 @@ bool insertCrateLibrary(const QString& settingsPath, const QString& rowsPath) {
     bool ok = true;
     {
         QSqlDatabase db = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), name);
-        db.setDatabaseName(settingsPath + QStringLiteral("mixxxdb.sqlite"));
+        db.setDatabaseName(settingsPath + QString::fromUtf8(crate::kDatabaseFileName));
         ok = db.open() && MixxxDb::initDatabaseSchema(db) &&
                 crate::db::createCrateServerSchema(db);
         crate::ServerProfile profile;
@@ -489,6 +494,51 @@ TEST_F(CrateSkinLoadTest, FirstStartAsksNoMixxxQuestions) {
     const UserSettingsPointer pConfig = decks.coreServices()->getSettings();
     EXPECT_EQ(1, pConfig->getValue<int>(ConfigKey("[Config]", "hide_menubar"), 0));
     EXPECT_EQ(0, pConfig->getValue<int>(ConfigKey("[Config]", "show_menubar_hint"), 1));
+}
+
+// Plan BR2: a new profile holds no file or folder named after Mixxx (the
+// settings, the library database and the log are named after Crate Decks),
+// and the log names Crate Decks where a message names Mixxx.
+TEST_F(CrateSkinLoadTest, SettingsFolderNamesNoMixxx) {
+    QTemporaryDir profile;
+    ASSERT_TRUE(profile.isValid());
+    const QDir profileDir(profile.path());
+    {
+        OffscreenDecks decks(profile.path() + QLatin1Char('/'));
+        decks.writeProfile(kCrateDecks);
+        decks.start(application());
+        ASSERT_NE(nullptr, decks.skin());
+        qWarning() << "Mixxx shutdown complete with code" << 0;
+        mixxx::Logging::flushLogFile();
+    }
+    QStringList named;
+    QDirIterator it(profile.path(),
+            QDir::Files | QDir::Dirs | QDir::Hidden | QDir::NoDotAndDotDot,
+            QDirIterator::Subdirectories);
+    while (it.hasNext()) {
+        const QString path = profileDir.relativeFilePath(it.next());
+        if (path.contains(QLatin1String("mixxx"), Qt::CaseInsensitive)) {
+            named.append(path);
+        }
+    }
+    EXPECT_TRUE(named.isEmpty()) << qPrintable(named.join(QStringLiteral(", ")));
+    EXPECT_TRUE(profileDir.exists(QStringLiteral(MIXXX_SETTINGS_FILE)));
+    EXPECT_TRUE(profileDir.exists(QString::fromUtf8(crate::kDatabaseFileName)));
+    // Only the first core services of a process open a log file (in their
+    // settings folder): ctest runs each test in a process of its own.
+    QFile log(profileDir.filePath(QString::fromUtf8(crate::kLogFileName)));
+    if (!log.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        GTEST_SKIP() << "Another test of this process opened the log file";
+    }
+    const QString text = QString::fromUtf8(log.readAll());
+    EXPECT_TRUE(text.contains(QLatin1String("Crate Decks shutdown complete with code")));
+    QStringList lines;
+    for (const QString& line : text.split(QLatin1Char('\n'))) {
+        if (crate::namesMixxx(line)) {
+            lines.append(line);
+        }
+    }
+    EXPECT_TRUE(lines.isEmpty()) << qPrintable(lines.join(QLatin1Char('\n')));
 }
 
 // Plan "Own brand", BR.PR5: Mixxx's skins carry the Mixxx logo, so

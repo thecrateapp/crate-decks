@@ -9,6 +9,7 @@
 
 #include "config.h"
 #include "controllers/defs_controllers.h"
+#include "crate/appidentity.h"
 #include "database/mixxxdb.h"
 #include "defs_urls.h"
 #include "library/library_prefs.h"
@@ -182,8 +183,8 @@ UserSettingsPointer Upgrade::versionUpgrade(const QString& settingsPath) {
     QFileInfo* pre170Config = new QFileInfo(oldLocation.filePath(".mixxx.cfg"));
 #endif
 
-    if (pre170Config->exists()) {
-
+    // Crate Decks: never from a Mixxx installed on the same computer (plan BR2)
+    if (crate::kReadsMixxxSettings && pre170Config->exists()) {
         // Move the files to their new location
         QDir newLocation = QDir(settingsPath);
 
@@ -297,7 +298,6 @@ UserSettingsPointer Upgrade::versionUpgrade(const QString& settingsPath) {
             }
         }
         delete oldFile;
-
     }
     // Tidy up
     delete pre170Config;
@@ -324,7 +324,9 @@ UserSettingsPointer Upgrade::versionUpgrade(const QString& settingsPath) {
         qDebug() << "Config version is empty, trying to read pre-1.9.0 config";
         // Try to read the config from the pre-1.9.0 final directory on OS X (we moved it in 1.9.0 final)
         QScopedPointer<QFile> oldConfigFile(new QFile(QDir::homePath().append("/").append(".mixxx/mixxx.cfg")));
-        if (oldConfigFile->exists() && ! CmdlineArgs::Instance().getSettingsPathSet()) {
+        // Crate Decks: never from a Mixxx installed on the same computer (plan BR2)
+        if (crate::kReadsMixxxSettings && oldConfigFile->exists() &&
+                !CmdlineArgs::Instance().getSettingsPathSet()) {
             qDebug() << "Found pre-1.9.0 config for OS X";
             // Note: We changed MIXXX_SETTINGS_PATH in 1.9.0 final on OS X so
             // it must be hardcoded to ".mixxx" here for legacy.
@@ -335,13 +337,14 @@ UserSettingsPointer Upgrade::versionUpgrade(const QString& settingsPath) {
             // to QDir::filePath elsewhere in the code. This is candidate for removal.
             CmdlineArgs::Instance().setSettingsPath(QDir::homePath().append("/.mixxx/"));
             configVersion = config->getValueString(ConfigKey("[Config]","Version"));
-        }
-        else {
+        } else {
 #elif defined(__WINDOWS__)
         qDebug() << "Config version is empty, trying to read pre-1.12.0 config";
         // Try to read the config from the pre-1.12.0 final directory on Windows (we moved it in 1.12.0 final)
         QScopedPointer<QFile> oldConfigFile(new QFile(QDir::homePath().append("/Local Settings/Application Data/Mixxx/mixxx.cfg")));
-        if (oldConfigFile->exists() && ! CmdlineArgs::Instance().getSettingsPathSet()) {
+        // Crate Decks: never from a Mixxx installed on the same computer (plan BR2)
+        if (crate::kReadsMixxxSettings && oldConfigFile->exists() &&
+                !CmdlineArgs::Instance().getSettingsPathSet()) {
             qDebug() << "Found pre-1.12.0 config for Windows";
             // Note: We changed MIXXX_SETTINGS_PATH in 1.12.0 final on Windows
             // so it must be hardcoded to "Local Settings/Application
@@ -353,8 +356,7 @@ UserSettingsPointer Upgrade::versionUpgrade(const QString& settingsPath) {
             // to QDir::filePath elsewhere in the code. This is candidate for removal.
             CmdlineArgs::Instance().setSettingsPath(QDir::homePath().append("/Local Settings/Application Data/Mixxx/"));
             configVersion = config->getValueString(ConfigKey("[Config]","Version"));
-        }
-        else {
+        } else {
 #endif
             // This must have been the first run... right? :)
 #ifdef MIXXX_USE_QML
