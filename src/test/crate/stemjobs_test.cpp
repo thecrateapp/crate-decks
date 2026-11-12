@@ -178,7 +178,7 @@ class StemJobsTest : public MixxxTest, SoundSourceProviderRegistration {
             return serverId == kServer ? m_pClient.get() : nullptr;
         };
         options.readPlaylist =
-                [this](const QString& serverId,
+                [](const QString& serverId,
                         qint64 playlistId,
                         const std::function<void(
                                 std::optional<QList<CrateTrackRef>>)>& done) {
