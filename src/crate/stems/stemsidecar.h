@@ -98,8 +98,6 @@ class StemSidecarWriter : public StemSink {
         QString sidecarPath;
         QString separator = StemAnalysis::kSeparatorVersion;
         QString sourceRevision;
-        /// Of the stems written.
-        int stemSampleRate = 44100;
     };
 
     explicit StemSidecarWriter(Options options);

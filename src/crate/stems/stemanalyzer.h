@@ -52,7 +52,8 @@ struct StemAnalysis {
     /// (schema, sizes and ranges), so that what Decks keeps from the server
     /// or sends to it is well-formed. nullopt, with the reason in `pError`,
     /// otherwise.
-    static std::optional<StemAnalysis> fromJson(const QByteArray& json, QString* pError);
+    static std::optional<StemAnalysis> fromJson(
+            const QByteArray& json, QString* pError = nullptr);
 };
 
 /// `crate-decks/<the application's version>`, in the producer's pattern.

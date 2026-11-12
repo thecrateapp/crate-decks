@@ -651,7 +651,7 @@ bool StemSidecarWriter::begin(const StemSeparationSource& source, QString* pErro
     if (source.originalSampleRate > 0 && source.originalSampleRate != m_pOriginal->sampleRate()) {
         return fail(pError, QStringLiteral("The original decodes at another sample rate"));
     }
-    m_pResampler = std::make_unique<Resampler>(m_options.stemSampleRate,
+    m_pResampler = std::make_unique<Resampler>(source.stemSampleRate,
             m_pOriginal->sampleRate(),
             static_cast<int>(kStemRows.size()));
     m_pEncoder = std::make_unique<Encoder>();
