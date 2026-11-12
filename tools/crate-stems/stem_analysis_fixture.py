@@ -1,20 +1,22 @@
-"""The shared stem-analysis/1 fixture of Crate Decks and the Crate server (ST5.PR2).
+"""The shared stem-analysis/1 fixture of Crate Decks and the server.
 
-Both producers must encode the same level bytes for the same stems (STEM-D1). This
-script makes four stereo stems at 44.1 kHz from an integer generator that the C++ test
-(src/test/crate/stemanalyzer_test.cpp) repeats exactly, gives them to the server's own
-producer (crate.smart_mix.separation.analyze_stems) and prints its stem-analysis/1
-document. The test checks that Decks' analysis of the same stems has the same bytes.
+Plan ST5.PR2. Both producers must encode the same level bytes for the
+same stems (STEM-D1). This script makes four stereo stems at 44.1 kHz
+from an integer generator that the C++ test
+(src/test/crate/stemanalyzer_test.cpp) repeats exactly, gives them to
+the server's own producer (crate.smart_mix.separation.analyze_stems)
+and prints its stem-analysis/1 document. The test checks that Decks'
+analysis of the same stems has the same bytes.
 
-Run it where the server code and numpy are, for example the analysis worker of the
-monorepo's dev stack, and keep its output as the fixture:
+Run it where the server code and numpy are, for example the analysis
+worker of the monorepo's dev stack, and keep its output as the fixture:
 
     docker exec -i crate-dev-analysis-worker python - \\
         < tools/crate-stems/stem_analysis_fixture.py \\
         > src/test/crate/data/stems/stem-analysis-fixture.json
 
-The samples are int16 values times a power of two divided by 32768, so they are the
-same float32 values on both sides.
+The samples are int16 values times a power of two divided by 32768, so
+they are the same float32 values on both sides.
 """
 
 from __future__ import annotations
@@ -33,8 +35,8 @@ SAMPLE_RATE = 44100
 FRAMES = 48510
 WINDOW = 11025
 SOURCE_REVISION = "5" * 64
-# Per stem and window, the gain as a power of two (None is silence and "full" a full
-# scale square wave), so that the bytes go from 0 to 255.
+# Per stem and window, the gain as a power of two (None is silence and
+# "full" a full scale square wave), so that the bytes go from 0 to 255.
 GAINS = {
     "drums": [0, 1, 2, 4, 8],
     "bass": [None, 0, 6, 12, "full"],
