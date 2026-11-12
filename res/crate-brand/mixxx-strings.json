@@ -1120,5 +1120,102 @@
       "text": "Mixxx effect parameter ",
       "why": "drag and drop MIME text, never shown"
     }
+  ],
+  "own": [
+    {
+      "file": "res/linux/app.cratemusic.decks.metainfo.xml",
+      "text": "Crate Decks is based on Mixxx, the free DJ software made by the Mixxx",
+      "why": "credit: the one statement that Crate Decks is a fork of Mixxx (allowed by the BR2 rule)"
+    },
+    {
+      "file": "res/skins/CrateDecks/generated/style.qss",
+      "text": "#Mixxx,",
+      "why": "QSS selector of the main window, whose object name the inherited code sets (identifier)"
+    },
+    {
+      "file": "res/skins/CrateDecks/palemoon/buttons/btn__search.svg",
+      "text": "<title>Mixxx 1.12+ iconset</title>",
+      "why": "title of the upstream icon set the image comes from (CC BY-SA attribution, as in skin.xml)"
+    },
+    {
+      "file": "res/skins/CrateDecks/palemoon/buttons/btn__search_disabled.svg",
+      "text": "<title>Mixxx 1.12+ iconset</title>",
+      "why": "title of the upstream icon set the image comes from (CC BY-SA attribution, as in skin.xml)"
+    },
+    {
+      "file": "res/skins/CrateDecks/skin.xml",
+      "text": "<ObjectName>Mixxx</ObjectName>",
+      "why": "object name of the main window, which the inherited code and its QSS select (identifier)"
+    },
+    {
+      "file": "res/skins/CrateDecks/skin.xml",
+      "text": "It is derived from LateNight, Resizable skin for Mixxx 2.3.x",
+      "why": "licence attribution of the skin LateNight (CC BY-SA 3.0)"
+    },
+    {
+      "file": "res/skins/CrateDecks/style.qss",
+      "text": "#Mixxx,",
+      "why": "QSS selector of the main window, whose object name the inherited code sets (identifier)"
+    },
+    {
+      "file": "src/crate/appidentity.h",
+      "text": "// settings, the desktop entry or keychain entries with an installed Mixxx.",
+      "why": "names the other application, a Mixxx installed on the same computer, that Decks keeps apart from"
+    },
+    {
+      "file": "src/crate/appidentity.h",
+      "text": "/// delete the files of a Mixxx installed on the same computer.",
+      "why": "names the other application, a Mixxx installed on the same computer, that Decks keeps apart from"
+    },
+    {
+      "file": "src/crate/appidentity.h",
+      "text": "/// in CMakeLists.txt), apart from an installed Mixxx's (plan BR2).",
+      "why": "names the other application, a Mixxx installed on the same computer, that Decks keeps apart from"
+    },
+    {
+      "file": "src/crate/ui/cratefirstrun.h",
+      "text": "namespace mixxx {",
+      "why": "namespace of the inherited code (identifier)"
+    },
+    {
+      "file": "src/crate/ui/cratefirstrun.h",
+      "text": "} // namespace mixxx",
+      "why": "namespace of the inherited code (identifier)"
+    },
+    {
+      "file": "src/test/crate/dialogstest.cpp",
+      "text": "EXPECT_FALSE(splash.styleSheet().contains(QLatin1String(\"mixxx\")));",
+      "why": "a test that fails when the name shows"
+    },
+    {
+      "file": "src/test/crate/dialogstest.cpp",
+      "text": "QStringLiteral(\"A deck is currently playing. Exit Mixxx?\"),",
+      "why": "upstream's source string, the input that the brand layer must rewrite"
+    },
+    {
+      "file": "src/test/crate/skinloadtest.cpp",
+      "text": "EXPECT_FALSE(header.contains(QStringLiteral(\"Mixxx\"), Qt::CaseInsensitive))",
+      "why": "a test that fails when the name shows"
+    },
+    {
+      "file": "src/test/crate/skinloadtest.cpp",
+      "text": "QStringLiteral(\"A deck is currently playing. Exit Mixxx?\"),",
+      "why": "upstream's source string, the input that the brand layer must rewrite"
+    },
+    {
+      "file": "src/test/crate/skinloadtest.cpp",
+      "text": "if (path.contains(QLatin1String(\"mixxx\"), Qt::CaseInsensitive)) {",
+      "why": "a test that fails when the name shows"
+    },
+    {
+      "file": "src/test/crate/skinloadtest.cpp",
+      "text": "qWarning() << \"Mixxx shutdown complete with code\" << 0;",
+      "why": "an upstream log line, the input that the log handler must rewrite"
+    },
+    {
+      "file": "tools/crate-design/templates/style.qss.in",
+      "text": "#Mixxx,",
+      "why": "QSS selector of the main window, whose object name the inherited code sets (identifier)"
+    }
   ]
 }

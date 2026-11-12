@@ -12,9 +12,16 @@ lists those strings and how each one is branded:
 - "keep": left as it is, with the reason ("why"): the credits in About (D2).
 
 It also lists the hard-coded literals that name Mixxx and are allowed to stay
-("why": an identifier, a log line...). Anything visible must be translatable
-or patched instead; a literal that Crate Decks shows through crate::brandText()
-can carry the text to show instead ("shown", and its Spanish "es").
+("why": an identifier, a log line that the log handler brands...). Anything
+visible must be translatable or patched instead; a literal that Crate Decks
+shows through crate::brandText() can carry the text to show instead
+("shown", and its Spanish "es").
+
+Our own code says nothing of Mixxx either (plan BR2): "own" lists each line of
+Crate Decks' own files (OWN_PATHS) that still names Mixxx or one of its
+files, with the reason it must ("why"), such as an object name that the
+inherited code selects. The brand layer and its tests name Mixxx on purpose
+and are left out (OWN_EXEMPT).
 
 This tool rescans the sources and rewrites the inventory, keeping the
 decisions already made. With --check it changes nothing and fails when the
@@ -54,6 +61,86 @@ TRANSLATE_CALL = re.compile(
     r"(?<![\w])(?:translate|QT_TRANSLATE_NOOP|QT_TRANSLATE_NOOP3"
     r"|QT_TRANSLATE_N_NOOP)\(\s*$"
 )
+# Crate Decks' own code, resources and tools (AGENTS.md 5.2)
+OWN_PATHS = (
+    "src/crate",
+    "src/library/crateserver",
+    "src/test/crate",
+    "res/skins/CrateDecks",
+    "res/crate-design",
+    "res/crate.qrc",
+    "res/linux/app.cratemusic.decks.desktop",
+    "res/linux/app.cratemusic.decks.metainfo.xml",
+    "tools/crate-design",
+    "tools/crate-stems",
+)
+# Files of our own that name Mixxx on purpose: the brand layer finds and
+# rewrites the inherited text that names Mixxx, and its tests feed it that
+# text.
+OWN_EXEMPT = (
+    "src/crate/brand/",
+    "src/test/crate/brandtest.cpp",
+    "src/test/crate/brandingtest.cpp",
+    "src/test/crate/brandvisibletest.cpp",
+    "src/test/crate/helplinkstest.cpp",
+    "src/test/crate/visiblestringstest.cpp",
+)
+# Files that the open stems pull requests (ST5.PR2, #28 and #29) edit: their
+# wording waits for those to merge, so that neither side conflicts with the
+# other (plan BR2, BR2.PR5 removes this list).
+OWN_PENDING = (
+    "src/crate/stems/",
+    "src/test/crate/stem",
+    "src/test/crate/data/stems/",
+    "tools/crate-stems/",
+    "src/crate/cache/audiocache.cpp",
+    "src/crate/cache/audiocache.h",
+    "src/crate/cache/audiocacheindex.h",
+    "src/crate/client/cratecapabilities.cpp",
+    "src/crate/client/cratecapabilities.h",
+    "src/crate/cratepreferences.cpp",
+    "src/crate/cratepreferences.h",
+    "src/crate/crateservers.cpp",
+    "src/crate/db/crateserverschema.cpp",
+    "src/crate/ui/crateprefsections.cpp",
+    "src/crate/ui/crateprefsections.h",
+    "src/crate/ui/dlgprefcrate.cpp",
+    "src/crate/ui/dlgprefcrate.h",
+    "src/library/crateserver/crateserverfeature.cpp",
+    "src/library/crateserver/crateserverfeature.h",
+    "src/test/crate/audiocache_test.cpp",
+    "src/test/crate/cratecapabilities_test.cpp",
+    "src/test/crate/crateserverfeature_test.cpp",
+    "src/test/crate/crateserverschema_test.cpp",
+    "src/test/crate/dlgprefcrate_test.cpp",
+    "src/test/crate/wavwriter.h",
+)
+# Binary files, which hold no text to read
+OWN_BINARY_SUFFIXES = (
+    ".png",
+    ".jpg",
+    ".ico",
+    ".ttf",
+    ".otf",
+    ".woff2",
+    ".mp3",
+    ".mp4",
+    ".flac",
+    ".wav",
+    ".ogg",
+    ".m4a",
+    ".opus",
+    ".sqlite",
+    ".onnx",
+    ".qm",
+)
+# Mixxx's names for the files and the folder of its settings
+MIXXX_FILES = re.compile(
+    r"(?<![\w.-])(?:mixxxd[bp]\.sqlite|mixxx\.cfg|mixxx\.log"
+    r"|~/\.mixxx(?![\w.-]))",
+    re.IGNORECASE,
+)
+
 SOURCE_SUFFIXES = (".cpp", ".h", ".mm")
 QML_SUFFIXES = (".qml", ".js")
 
@@ -257,6 +344,40 @@ def scan(repo):
     return strings, sorted(literals)
 
 
+def own_files(repo):
+    """(path, relative path) of every text file of our own to scan."""
+    for top in OWN_PATHS:
+        full = os.path.join(repo, top)
+        if os.path.isfile(full):
+            yield full, top
+            continue
+        for root, dirs, files in os.walk(full):
+            rel_root = os.path.relpath(root, repo).replace(os.sep, "/")
+            dirs.sort()
+            for name in sorted(files):
+                rel = f"{rel_root}/{name}"
+                if rel.endswith(OWN_BINARY_SUFFIXES) or rel.startswith(
+                    OWN_EXEMPT + OWN_PENDING
+                ):
+                    continue
+                yield os.path.join(root, name), rel
+
+
+def scan_own(repo):
+    """[(file, line)] of our own code that names Mixxx or its files."""
+    found = set()
+    for path, rel in own_files(repo):
+        try:
+            with open(path, encoding="utf-8") as handle:
+                text = handle.read()
+        except UnicodeDecodeError:
+            continue
+        for line in text.splitlines():
+            if NAMES_MIXXX.search(line) or MIXXX_FILES.search(line):
+                found.add((rel, line.strip()))
+    return sorted(found)
+
+
 def load(path):
     if not os.path.exists(path):
         return {"strings": [], "literals": []}
@@ -264,7 +385,7 @@ def load(path):
         return json.load(handle)
 
 
-def updated(inventory, strings, literals):
+def updated(inventory, strings, literals, own=()):
     """The inventory for the scanned sources, keeping the decisions made."""
     known = {entry["source"]: entry for entry in inventory.get("strings", [])}
     new_strings = []
@@ -290,11 +411,23 @@ def updated(inventory, strings, literals):
             if key in entry:
                 literal[key] = entry[key]
         new_literals.append(literal)
+    known_own = {(e["file"], e["text"]): e for e in inventory.get("own", [])}
+    new_own = [
+        {
+            "file": rel,
+            "text": text,
+            "why": known_own.get((rel, text), {}).get("why", ""),
+        }
+        for rel, text in own
+    ]
     result = {
-        k: v for k, v in inventory.items() if k not in ("strings", "literals")
+        k: v
+        for k, v in inventory.items()
+        if k not in ("strings", "literals", "own")
     }
     result["strings"] = new_strings
     result["literals"] = new_literals
+    result["own"] = new_own
     return result
 
 
@@ -316,6 +449,12 @@ def problems(inventory):
             found.append(
                 f"literal without a reason, {entry['file']}: {entry['text']!r}"
             )
+    for entry in inventory.get("own", []):
+        if not entry.get("why"):
+            found.append(
+                f"our code names Mixxx, {entry['file']}: {entry['text']!r}"
+                " (reword it, or give the reason it must stay)"
+            )
     return found
 
 
@@ -334,7 +473,7 @@ def main(argv=None):
     path = os.path.join(args.repo, INVENTORY)
     current = load(path)
     strings, literals = scan(args.repo)
-    fresh = updated(current, strings, literals)
+    fresh = updated(current, strings, literals, scan_own(args.repo))
     if args.check:
         stale = dump(fresh) != dump(current)
         issues = problems(fresh)
@@ -353,6 +492,12 @@ def main(argv=None):
                 print(f"new literal naming Mixxx, {rel}: {text!r}")
             for rel, text in sorted(old_literals - new_literals):
                 print(f"literal no longer in the sources, {rel}: {text!r}")
+            old_own = {(e["file"], e["text"]) for e in current.get("own", [])}
+            new_own = {(e["file"], e["text"]) for e in fresh["own"]}
+            for rel, text in sorted(new_own - old_own):
+                print(f"our code names Mixxx, {rel}: {text!r}")
+            for rel, text in sorted(old_own - new_own):
+                print(f"no longer in our code, {rel}: {text!r}")
             print(
                 f"{INVENTORY} is out of date: run "
                 "tools/crate-brand/inventory.py and review it"
@@ -366,7 +511,8 @@ def main(argv=None):
     for issue in problems(fresh):
         print(issue)
     print(
-        f"{len(fresh['strings'])} strings, {len(fresh['literals'])} literals"
+        f"{len(fresh['strings'])} strings, {len(fresh['literals'])} literals,"
+        f" {len(fresh['own'])} lines of our own code"
     )
     return 0
 

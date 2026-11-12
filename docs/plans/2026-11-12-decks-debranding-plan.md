@@ -109,9 +109,16 @@ started offscreen holds no file named after Mixxx, and its log names no Mixxx);
   match upstream's text): they are the only files exempt.
 - `tools/crate-brand/inventory.py` scans our directories too; the inventory lists each hit that must stay (an
   object name or text that matches upstream's) with its reason, and `--check` fails on any other.
-- Waits for the ST5 stems PRs (#28, #29), which edit many of the same files, so that it does not conflict with them.
+- The files that the open ST5 stems PRs (#28, #29) edit are left out of both (`OWN_PENDING` in the tool), so that
+  neither side conflicts or breaks the other's CI.
 
-**Red test:** `tools/crate-brand/test_inventory.py::test_own_code_names_no_mixxx`.
+**Red test:** `tools/crate-brand/test_inventory.py::test_own_code_names_no_mixxx` and
+`test_check_fails_on_our_code_naming_mixxx`.
+
+### BR2.PR5 · The stems files (after #28 and #29 merge)
+
+Reword the files of `OWN_PENDING` (16 lines on `main` today, plus what the stems PRs add), give a reason to what must
+stay, and delete `OWN_PENDING`.
 
 ## 5. Mixxx files patched (new for `CRATE_PATCHES.md`)
 
