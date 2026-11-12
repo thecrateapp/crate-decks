@@ -882,6 +882,15 @@ std::optional<QString> AudioCache::cachedPath(
     return absolutePath(it->path);
 }
 
+std::optional<QString> AudioCache::cachedSourceRevision(
+        const QString& serverId, const QString& entityUid) const {
+    const auto it = m_entries.constFind(keyOf(serverId, entityUid));
+    if (it == m_entries.cend() || it->state != CacheEntry::State::Ready) {
+        return std::nullopt;
+    }
+    return it->sourceRevision;
+}
+
 std::optional<QString> AudioCache::filePathFor(
         const QString& serverId, const QString& entityUid, const QString& format) const {
     if (!isSafePathId(serverId) || !isSafePathId(entityUid)) {

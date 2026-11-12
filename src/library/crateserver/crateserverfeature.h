@@ -3,6 +3,7 @@
 #include <QHash>
 #include <QList>
 #include <QPointer>
+#include <QSet>
 #include <QString>
 #include <QThreadPool>
 #include <functional>
@@ -26,6 +27,8 @@ class WLibrarySidebar;
 
 namespace crate {
 class CrateServers;
+class StemJobs;
+class StemSync;
 } // namespace crate
 
 namespace crate::library {
@@ -103,6 +106,11 @@ class CrateServerFeature : public LibraryFeature {
     CratePrefetcher* prefetcher() const {
         return m_pPrefetcher.get();
     }
+    /// The stems of Smart Mix playlists and tracks (plan ST5.PR2); nullptr
+    /// until there is a server.
+    StemJobs* stemJobs() const {
+        return m_pStemJobs.get();
+    }
     /// Keeps the Crate tracks in a player or in the Auto DJ queue cached;
     /// nullptr until there is a server.
     CrateSessionPins* sessionPins() const {
@@ -123,6 +131,16 @@ class CrateServerFeature : public LibraryFeature {
             std::function<void(const OfflineSet&)> ready);
     /// Downloads and pins the tracks of an offline set of the container.
     void downloadOfflineSet(qint64 containerId, const OfflineSet& set);
+    /// Reads a container's tracks, in order, off the main thread.
+    void readContainerTracks(const QString& serverId,
+            qint64 containerId,
+            std::function<void(const QList<CrateTrackRef>&)> ready);
+    /// The tracks of the server's playlist `playlistId`, syncing them first
+    /// if Decks does not have them: nullopt if the tree has no such
+    /// playlist yet, or the sync fails. For StemJobs.
+    void readSmartMixPlaylist(const QString& serverId,
+            qint64 playlistId,
+            std::function<void(std::optional<QList<CrateTrackRef>>)> done);
 
   signals:
     /// The sidebar shows what the tables hold of the server now.
@@ -163,6 +181,15 @@ class CrateServerFeature : public LibraryFeature {
     void startLoading();
     void stopLoading();
     void onPrefetchAutoDjChanged(bool enabled);
+    /// Starts the stems of a server that serves them, once it is ready:
+    /// its capabilities for this account say `stems` (and `stem_upload`).
+    void startStems(const QString& serverId);
+    /// Asks before downloading the tracks of a Smart Mix playlist.
+    void confirmSmartMixDownload(const QString& serverId,
+            qint64 playlistId,
+            int tracks,
+            qint64 bytes,
+            std::function<void(bool)> answer);
     /// The Cache item's label, with the cache's use.
     QString cacheLabel() const;
     void updateCacheItem();
@@ -221,6 +248,10 @@ class CrateServerFeature : public LibraryFeature {
     std::unique_ptr<CrateLoadCoordinator> m_pLoadCoordinator;
     std::unique_ptr<CratePrefetcher> m_pPrefetcher;
     std::unique_ptr<CrateSessionPins> m_pSessionPins;
+    std::unique_ptr<StemSync> m_pStemSync;
+    std::unique_ptr<StemJobs> m_pStemJobs;
+    /// Servers whose capabilities let this account upload stem analyses.
+    QSet<QString> m_stemUploads;
     parented_ptr<CacheStatusModel> m_pCacheStatus;
     QThreadPool m_pool;
 };

@@ -249,6 +249,10 @@ class AudioCache : public QObject {
     /// The complete file of a track, if the cache has it. Never starts a
     /// download (for TrackModel::getTrack(), F4.C-PR3).
     std::optional<QString> cachedPath(const QString& serverId, const QString& entityUid) const;
+    /// The server's source revision of the cached file of a track (empty if
+    /// it was not given); nullopt if the cache does not have its file.
+    std::optional<QString> cachedSourceRevision(
+            const QString& serverId, const QString& entityUid) const;
 
     /// The file of a track whether it is there or not: its cached file, else
     /// the one its download writes, for a download that names the track's

@@ -9,7 +9,9 @@
 #include <QPainter>
 #include <QScopeGuard>
 #include <QSet>
+#include <QTimer>
 #include <QtConcurrentRun>
+#include <chrono>
 
 #include "crate/analysis/analysisimporter.h"
 #include "crate/analysis/profilestore.h"
@@ -25,6 +27,8 @@
 #include "crate/library/cratesearch.h"
 #include "crate/library/cratesessionpins.h"
 #include "crate/library/cratetrackpreparer.h"
+#include "crate/stems/stemjobs.h"
+#include "crate/stems/stemsync.h"
 #include "crate/ui/cachestatusview.h"
 #include "library/crateserver/crateservertrackmodel.h"
 #include "library/library.h"
@@ -46,6 +50,9 @@
 namespace crate::library {
 
 namespace {
+
+/// From the start until the stems of Smart Mix playlists are read.
+constexpr std::chrono::seconds kStemsStartDelay{20};
 
 const mixxx::Logger kLogger("crate::library::CrateServerFeature");
 
@@ -314,7 +321,14 @@ void CrateServerFeature::updateServers() {
 
     // The servers that went, and the ones that came
     for (auto it = m_servers.begin(); it != m_servers.end();) {
-        it = ids.contains(it->first) ? std::next(it) : m_servers.erase(it);
+        if (ids.contains(it->first)) {
+            ++it;
+            continue;
+        }
+        if (m_pStemJobs) {
+            m_pStemJobs->stopServer(it->first);
+        }
+        it = m_servers.erase(it);
     }
     for (const QString& id : std::as_const(ids)) {
         if (m_servers.find(id) != m_servers.end()) {
@@ -392,6 +406,16 @@ void CrateServerFeature::updateServers() {
     if (!ids.isEmpty()) {
         startLoading();
     }
+    // The stems of Smart Mix playlists start a while after the library is
+    // painted, so that starting asks the servers nothing (design §9)
+    QTimer::singleShot(kStemsStartDelay, this, [this] {
+        const QStringList servers = m_serverIds;
+        for (const QString& id : servers) {
+            whenReady(id, [this, id] {
+                startStems(id);
+            });
+        }
+    });
 }
 
 void CrateServerFeature::startLoading() {
@@ -457,6 +481,54 @@ void CrateServerFeature::startLoading() {
     pins.pPlaylistDao = &pCollection->internalCollection()->getPlaylistDAO();
     pins.pPlayerInfo = m_dependencies.pPlayerInfo;
     m_pSessionPins = std::make_unique<CrateSessionPins>(std::move(pins));
+
+    // The stems of Smart Mix playlists (plan ST5.PR2)
+    StemSync::Options stemSync;
+    stemSync.clientFor = [pServers = m_pServers](const QString& serverId) {
+        return pServers ? pServers->client(serverId) : nullptr;
+    };
+    stemSync.mayUpload = [this](const QString& serverId) {
+        return m_stemUploads.contains(serverId);
+    };
+    // The file the stems are made from: the one in the cache
+    stemSync.currentRevision = [pCache = m_pServers->audioCache()](
+                                       const QString& serverId, const QString& entityUid) {
+        return pCache->cachedSourceRevision(serverId, entityUid).value_or(QString());
+    };
+    m_pStemSync = std::make_unique<StemSync>(std::move(stemSync));
+    StemJobs::Options stems;
+    stems.pCache = m_pServers->audioCache();
+    stems.pDbConnectionPool = m_dependencies.pDbConnectionPool;
+    stems.pSync = m_pStemSync.get();
+    stems.clientFor = [pServers = m_pServers](const QString& serverId) {
+        return pServers ? pServers->client(serverId) : nullptr;
+    };
+    stems.readPlaylist = [this](const QString& serverId,
+                                 qint64 playlistId,
+                                 std::function<void(std::optional<QList<CrateTrackRef>>)> done) {
+        readSmartMixPlaylist(serverId, playlistId, std::move(done));
+    };
+    stems.confirmDownload = [this](const QString& serverId,
+                                    qint64 playlistId,
+                                    int tracks,
+                                    qint64 bytes,
+                                    std::function<void(bool)> answer) {
+        confirmSmartMixDownload(serverId, playlistId, tracks, bytes, std::move(answer));
+    };
+    stems.download = [this](const QList<CrateTrackRef>& tracks, const QString& reason) {
+        if (m_pLoadCoordinator) {
+            m_pLoadCoordinator->download(tracks, cache::Priority::OfflineSet, reason);
+        }
+    };
+    // TEST_GAP: no local separation in the application yet: the htdemucs
+    // model is not published (ST4.PR2 release asset), so ModelStore has no
+    // manifest entry to install. Tracks without server stems stay
+    // Unavailable until then.
+    stems.pSeparator = nullptr;
+    stems.separateWhilePlaying = [pPreferences] {
+        return pPreferences->separateWhilePlaying();
+    };
+    m_pStemJobs = std::make_unique<StemJobs>(std::move(stems));
     connect(pPreferences,
             &CratePreferences::prefetchAutoDjChanged,
             this,
@@ -489,6 +561,8 @@ void CrateServerFeature::stopLoading() {
             {m_pContainerModel.get(), m_pLibraryModel.get(), m_pSearchModel.get()}) {
         pModel->setLoadCoordinator(nullptr);
     }
+    m_pStemJobs.reset();
+    m_pStemSync.reset();
     m_pSessionPins.reset();
     m_pPrefetcher.reset();
     m_pLoadCoordinator.reset();
@@ -616,15 +690,11 @@ void CrateServerFeature::applyAnalysis(
 void CrateServerFeature::readOfflineSet(const QString& serverId,
         qint64 containerId,
         std::function<void(const OfflineSet&)> ready) {
-    auto* pWatcher = new QFutureWatcher<QList<CrateTrackRef>>(this);
-    connect(pWatcher,
-            &QFutureWatcherBase::finished,
-            this,
-            [this, pWatcher, ready = std::move(ready)] {
-                pWatcher->deleteLater();
+    readContainerTracks(serverId,
+            containerId,
+            [this, ready = std::move(ready)](const QList<CrateTrackRef>& tracks) {
                 OfflineSet set;
                 QSet<QString> seen;
-                const QList<CrateTrackRef> tracks = pWatcher->result();
                 for (const CrateTrackRef& track : tracks) {
                     if (seen.contains(track.entityUid) ||
                             (m_pLoadCoordinator &&
@@ -641,6 +711,19 @@ void CrateServerFeature::readOfflineSet(const QString& serverId,
                     }
                 }
                 ready(set);
+            });
+}
+
+void CrateServerFeature::readContainerTracks(const QString& serverId,
+        qint64 containerId,
+        std::function<void(const QList<CrateTrackRef>&)> ready) {
+    auto* pWatcher = new QFutureWatcher<QList<CrateTrackRef>>(this);
+    connect(pWatcher,
+            &QFutureWatcherBase::finished,
+            this,
+            [pWatcher, ready = std::move(ready)] {
+                pWatcher->deleteLater();
+                ready(pWatcher->result());
             });
     pWatcher->setFuture(QtConcurrent::run(&m_pool,
             [pPool = m_dependencies.pDbConnectionPool, serverId, containerId]() {
@@ -692,6 +775,123 @@ void CrateServerFeature::downloadOfflineSet(qint64 containerId, const OfflineSet
             ? QStringLiteral("offline-set:%1:%2").arg(it->kind, it->remoteId)
             : QStringLiteral("offline-set:%1").arg(containerId);
     m_pLoadCoordinator->download(set.tracks, cache::Priority::OfflineSet, reason);
+}
+
+void CrateServerFeature::readSmartMixPlaylist(const QString& serverId,
+        qint64 playlistId,
+        std::function<void(std::optional<QList<CrateTrackRef>>)> done) {
+    // A Smart Mix playlist is a playlist of the server's tree (STEM-D2)
+    const QString remoteId = QString::number(playlistId);
+    const StoredContainer* pContainer = nullptr;
+    for (const StoredContainer& container : std::as_const(m_containers)) {
+        if (container.serverId == serverId && container.kind == QLatin1String("playlist") &&
+                container.remoteId == remoteId) {
+            pContainer = &container;
+            break;
+        }
+    }
+    Server* pServer = server(serverId);
+    if (!pContainer || !pServer) {
+        done(std::nullopt);
+        return;
+    }
+    const qint64 containerId = pContainer->id;
+    if (!pContainer->needsSync()) {
+        readContainerTracks(serverId, containerId, [done](const QList<CrateTrackRef>& tracks) {
+            done(tracks);
+        });
+        return;
+    }
+    // Synced first; read once the sync ends
+    LibrarySync* pSync = pServer->pSync.get();
+    auto pConnections = std::make_shared<QList<QMetaObject::Connection>>();
+    const auto disconnectAll = [pConnections] {
+        for (const QMetaObject::Connection& connection : std::as_const(*pConnections)) {
+            QObject::disconnect(connection);
+        }
+        pConnections->clear();
+    };
+    pConnections->append(connect(pSync,
+            &LibrarySync::containerUpdated,
+            this,
+            [this, serverId, containerId, done, disconnectAll](qint64 updated) {
+                if (updated != containerId) {
+                    return;
+                }
+                disconnectAll();
+                readContainerTracks(serverId,
+                        containerId,
+                        [done](const QList<CrateTrackRef>& tracks) {
+                            done(tracks);
+                        });
+            }));
+    pConnections->append(connect(pSync,
+            &LibrarySync::syncFailed,
+            this,
+            [containerId, done, disconnectAll](qint64 failed) {
+                if (failed != containerId) {
+                    return;
+                }
+                disconnectAll();
+                done(std::nullopt);
+            }));
+    whenReady(serverId, [pSync, containerId] {
+        pSync->syncContainerTracks(containerId);
+    });
+}
+
+void CrateServerFeature::confirmSmartMixDownload(const QString& serverId,
+        qint64 playlistId,
+        int tracks,
+        qint64 bytes,
+        std::function<void(bool)> answer) {
+    QString name;
+    for (const StoredContainer& container : std::as_const(m_containers)) {
+        if (container.serverId == serverId && container.kind == QLatin1String("playlist") &&
+                container.remoteId == QString::number(playlistId)) {
+            name = container.name;
+        }
+    }
+    // Not modal: it may come up at any time, also during a set
+    auto* pBox = new QMessageBox(QMessageBox::Question,
+            tr("Smart Mix playlist"),
+            //: A playlist marked for Smart Mix on the server is downloaded to
+            //: this computer, as an offline set, before its stems are made
+            tr("Download %n track(s) of the Smart Mix playlist \u201c%1\u201d, %2, and keep "
+               "them on this computer?",
+                    nullptr,
+                    tracks)
+                    .arg(name, QLocale().formattedDataSize(bytes)),
+            QMessageBox::Yes | QMessageBox::No);
+    pBox->setAttribute(Qt::WA_DeleteOnClose);
+    connect(pBox, &QMessageBox::finished, this, [answer = std::move(answer)](int result) {
+        answer(result == QMessageBox::Yes);
+    });
+    pBox->open();
+}
+
+void CrateServerFeature::startStems(const QString& serverId) {
+    Client* pClient = m_pServers ? m_pServers->client(serverId) : nullptr;
+    if (!pClient || !m_pStemJobs) {
+        return;
+    }
+    // Signed in: stem_upload depends on this account's permissions
+    Reply* pReply = pClient->get(QStringLiteral("/api/capabilities"));
+    connect(pReply, &Reply::finished, this, [this, serverId](const JsonResult& result) {
+        if (!result.ok() || !m_pStemJobs) {
+            return;
+        }
+        const Result<Capabilities> capabilities = Capabilities::fromJson(result.value());
+        if (!capabilities.ok() || !capabilities.value().has(DecksFeature::Stems)) {
+            return;
+        }
+        if (capabilities.value().has(DecksFeature::StemUpload)) {
+            m_stemUploads.insert(serverId);
+        } else {
+            m_stemUploads.remove(serverId);
+        }
+        m_pStemJobs->startServer(serverId);
+    });
 }
 
 CrateServerFeature::Server* CrateServerFeature::server(const QString& serverId) const {

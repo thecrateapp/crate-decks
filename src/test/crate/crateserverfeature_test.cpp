@@ -579,6 +579,39 @@ TEST_F(CrateServerFeatureTest, TrackMenuDownloadsAndRemovesFromTheCache) {
             [&] { return !QFileInfo::exists(cachedPathOf(QStringLiteral("e1"))); }, 5000));
 }
 
+// A Smart Mix playlist (STEM-D2) is a playlist of the server's tree, by
+// its id on the server: StemJobs reads its tracks through the feature.
+TEST_F(CrateServerFeatureTest, ReadsASmartMixPlaylistByItsIdOnTheServer) {
+    storeTree();
+    const qint64 warmUp = containerId(QStringLiteral("playlist"), QStringLiteral("7"));
+    storeContainerTracks(warmUp,
+            {remoteTrack(QStringLiteral("e1"), QStringLiteral("Lattice"), 0.7, QString()),
+                    remoteTrack(QStringLiteral("e2"), QStringLiteral("Glass"), 0.5, QString())});
+    CrateServerFeature* pFeature = makeFeature();
+    ASSERT_TRUE(QTest::qWaitFor([&] { return labels(root()).size() == 6; }, 5000));
+    const qsizetype sent = m_network.sent.size();
+
+    std::optional<std::optional<QList<crate::library::CrateTrackRef>>> read;
+    pFeature->readSmartMixPlaylist(kServer, 7, [&read](auto tracks) {
+        read = tracks;
+    });
+    ASSERT_TRUE(QTest::qWaitFor([&] { return read.has_value(); }, 5000));
+    ASSERT_TRUE(read->has_value());
+    ASSERT_EQ(2, (*read)->size());
+    EXPECT_EQ(QStringLiteral("e1"), (*read)->at(0).entityUid);
+    EXPECT_EQ(QStringLiteral("e2"), (*read)->at(1).entityUid);
+    // Synced already: from the tables
+    EXPECT_EQ(sent, m_network.sent.size());
+
+    // Not a playlist of the tree
+    read.reset();
+    pFeature->readSmartMixPlaylist(kServer, 99, [&read](auto tracks) {
+        read = tracks;
+    });
+    ASSERT_TRUE(read.has_value());
+    EXPECT_FALSE(read->has_value());
+}
+
 TEST_F(CrateServerFeatureTest, OfflineSetDownloadsAndPinsTheUncachedTracks) {
     storeTree();
     const qint64 warmUp = containerId(QStringLiteral("playlist"), QStringLiteral("7"));

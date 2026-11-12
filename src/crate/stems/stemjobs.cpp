@@ -206,12 +206,14 @@ void StemJobs::onPlaylists(const QString& serverId, const QJsonDocument& documen
     server->revision = std::max(
             server->revision, object.value(QStringLiteral("revision")).toInteger(0));
     const QJsonArray playlists = object.value(QStringLiteral("playlists")).toArray();
+    QSet<qint64> listed;
     for (const QJsonValue& value : playlists) {
         const QJsonObject playlist = value.toObject();
         const qint64 playlistId = playlist.value(QStringLiteral("playlistId")).toInteger(-1);
         if (playlistId < 0) {
             continue;
         }
+        listed.insert(playlistId);
         const bool enabled = playlist.value(QStringLiteral("enabled")).toBool();
         const auto known = server->playlists.constFind(playlistId);
         const bool wasEnabled = known != server->playlists.cend() && known->enabled;
@@ -221,6 +223,15 @@ void StemJobs::onPlaylists(const QString& serverId, const QJsonDocument& documen
         } else if (wasEnabled || firstRead) {
             // Also one turned off before this run, whose pins may remain
             disablePlaylist(serverId, playlistId);
+        }
+    }
+    // Ones on whose tracks could not be read before (the tree was not
+    // there yet): again
+    const QList<qint64> known = server->playlists.keys();
+    for (const qint64 playlistId : known) {
+        const Playlist& playlist = server->playlists[playlistId];
+        if (!listed.contains(playlistId) && playlist.enabled && playlist.tracks.isEmpty()) {
+            enablePlaylist(serverId, playlistId);
         }
     }
     emit playlistsChanged(serverId);
