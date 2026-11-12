@@ -177,9 +177,11 @@ TEST_F(AppStemSeparatorTest, DownloadsTheModelOnAYesAndSeparatesWithIt) {
     const auto pSeparator = makeSeparator();
     auto pSink = std::make_shared<CountingSink>();
     std::optional<std::pair<bool, QString>> result;
-    pSeparator->separate(Track::newTemporary(m_track), pSink, [&result](bool done, const QString& error) {
-        result = std::make_pair(done, error);
-    });
+    pSeparator->separate(Track::newTemporary(m_track),
+            pSink,
+            [&result](bool done, const QString& error) {
+                result = std::make_pair(done, error);
+            });
     ASSERT_TRUE(m_pendingAnswer);
     m_pendingAnswer(true);
     ASSERT_EQ(1, m_network.sent.size());
@@ -196,9 +198,11 @@ TEST_F(AppStemSeparatorTest, DownloadsTheModelOnAYesAndSeparatesWithIt) {
     // Installed: the next one separates without asking
     auto pNext = std::make_shared<CountingSink>();
     result.reset();
-    pSeparator->separate(Track::newTemporary(m_track), pNext, [&result](bool done, const QString& error) {
-        result = std::make_pair(done, error);
-    });
+    pSeparator->separate(Track::newTemporary(m_track),
+            pNext,
+            [&result](bool done, const QString& error) {
+                result = std::make_pair(done, error);
+            });
     ASSERT_TRUE(QTest::qWaitFor([&] { return result.has_value(); }, kWaitMs));
     EXPECT_TRUE(result->first);
     EXPECT_EQ(1, m_askedBytes.size());
