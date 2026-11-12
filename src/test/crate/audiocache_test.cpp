@@ -130,8 +130,13 @@ class AudioCacheTest : public testing::Test {
         m_pClient->setTokenSource(&m_tokens);
     }
 
-    std::unique_ptr<AudioCache> makeCache(qint64 limitBytes = 20 * kGiB) {
+    std::unique_ptr<AudioCache> makeCache(qint64 limitBytes = 20 * kGiB, bool companions = false) {
         AudioCache::Options options;
+        if (companions) {
+            options.companionsOf = [](const QString& path) {
+                return QStringList{path + QStringLiteral(".companion")};
+            };
+        }
         options.directory = m_dir.path();
         options.clientFor = [this](const QString& serverId) {
             return serverId == kServer ? m_pClient.get() : nullptr;
@@ -369,6 +374,53 @@ TEST_F(AudioCacheTest, EvictsLruButNeverPinned) {
     EXPECT_FALSE(pCache->cachedPath(kServer, kUid1).has_value());
     EXPECT_FALSE(pCache->cachedPath(kServer, kUid4).has_value());
     EXPECT_EQ(10, pCache->usage().readyBytes);
+}
+
+// A track's companion files (its stem sidecar, STEM-D9) count in its size,
+// for the limit too, and go with it; the pinned ones stay (plan ST5.PR2).
+TEST_F(AudioCacheTest, CompanionFilesCountAndGoWithTheirTrack) {
+    const auto writeCompanion = [this](const QString& uid, int bytes) {
+        QFile file(finalPath(uid) + QStringLiteral(".companion"));
+        ASSERT_TRUE(file.open(QIODevice::WriteOnly));
+        file.write(QByteArray(bytes, 'c'));
+    };
+    {
+        const auto pCache = makeCache(45, true);
+        QSignalSpy usageChanged(pCache.get(), &AudioCache::usageChanged);
+        download(pCache.get(), kUid1, QByteArrayLiteral("1111111111"));
+        pCache->pin(kServer, kUid1, QStringLiteral("offline-set:playlist:7"));
+        writeCompanion(kUid1, 20);
+        usageChanged.clear();
+        pCache->refreshCompanions(kServer, kUid1);
+        EXPECT_FALSE(usageChanged.isEmpty());
+        EXPECT_EQ(30, pCache->usage().readyBytes);
+        EXPECT_EQ(30, pCache->usage().pinnedBytes);
+
+        m_nowMs = 2000;
+        download(pCache.get(), kUid2, QByteArrayLiteral("2222222222"));
+        EXPECT_EQ(40, pCache->usage().readyBytes);
+        // Its stems take the cache over the limit: the unpinned track goes,
+        // with its companion
+        writeCompanion(kUid2, 20);
+        pCache->refreshCompanions(kServer, kUid2);
+        EXPECT_FALSE(pCache->cachedPath(kServer, kUid2).has_value());
+        ASSERT_TRUE(QTest::qWaitFor(
+                [&] {
+                    return !QFileInfo::exists(finalPath(kUid2) + QStringLiteral(".companion"));
+                },
+                kWaitMs));
+        EXPECT_TRUE(pCache->cachedPath(kServer, kUid1).has_value());
+        EXPECT_TRUE(QFileInfo::exists(finalPath(kUid1) + QStringLiteral(".companion")));
+        EXPECT_EQ(30, pCache->usage().readyBytes);
+    }
+    // At the next start the companions count from the start
+    const auto pCache = makeCache(45, true);
+    EXPECT_EQ(30, pCache->usage().readyBytes);
+    // Removing the track removes its companion
+    EXPECT_TRUE(pCache->remove(kServer, kUid1));
+    ASSERT_TRUE(QTest::qWaitFor(
+            [&] { return !QFileInfo::exists(finalPath(kUid1) + QStringLiteral(".companion")); },
+            kWaitMs));
 }
 
 TEST_F(AudioCacheTest, KeepsTwoGiBFree) {

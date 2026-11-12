@@ -217,6 +217,11 @@ class AudioCache : public QObject {
         std::shared_ptr<StorageInfo> pStorageInfo;
         /// Milliseconds since the epoch, for the LRU. Defaults to the clock.
         std::function<qint64()> nowMs;
+        /// The files that belong to a cached track beside its file (its stem
+        /// sidecar, STEM-D9), by the track's absolute path; none by default.
+        /// They count in the track's size for the limit and the free space,
+        /// and go when it goes. Called on the cache's worker thread too.
+        std::function<QStringList(const QString& trackPath)> companionsOf;
     };
 
     /// `<the app's cache location>/crate-audio`, e.g.
@@ -279,6 +284,11 @@ class AudioCache : public QObject {
     /// that is not cached yet, except session pins (kSessionPinPrefix).
     void pin(const QString& serverId, const QString& entityUid, const QString& reason);
     void unpin(const QString& serverId, const QString& entityUid, const QString& reason);
+
+    /// Measures the companion files of a cached track again
+    /// (Options::companionsOf), once they were written or changed, and
+    /// evicts what the limit leaves out.
+    void refreshCompanions(const QString& serverId, const QString& entityUid);
 
     /// Evicts at once whatever the new limit leaves out.
     void setLimitBytes(qint64 limitBytes);
