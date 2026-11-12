@@ -629,7 +629,8 @@ QByteArray withLargeCover(const QString& sourcePath, int side) {
         auto* pFrame = new TagLib::ID3v2::AttachedPictureFrame();
         pFrame->setMimeType("image/png");
         pFrame->setType(TagLib::ID3v2::AttachedPictureFrame::FrontCover);
-        pFrame->setPicture(TagLib::ByteVector(png.constData(), static_cast<unsigned int>(png.size())));
+        pFrame->setPicture(TagLib::ByteVector(
+                png.constData(), static_cast<unsigned int>(png.size())));
         // Owned by the tag
         pTag->addFrame(pFrame);
         if (!file.save()) {

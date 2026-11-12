@@ -411,7 +411,8 @@ void CrateServerFeature::startLoading() {
     };
     // On a worker: the settings are read under their lock
     options.prepareTrack = [pConfig = m_pConfig](const QString& path) {
-        return prepareTrackForLibrary(path, SyncTrackMetadataParams::readFromUserSettings(*pConfig));
+        return prepareTrackForLibrary(
+                path, SyncTrackMetadataParams::readFromUserSettings(*pConfig));
     };
     options.trackById = [pCollection](TrackId trackId) {
         return pCollection->getTrackById(trackId);
