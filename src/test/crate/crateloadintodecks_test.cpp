@@ -6,6 +6,7 @@
 #include <gtest/gtest.h>
 
 #include <QAction>
+#include <QElapsedTimer>
 #include <QFile>
 #include <QItemSelectionModel>
 #include <QJsonDocument>
@@ -553,8 +554,16 @@ TEST_F(CrateLoadIntoDecksTest, TrackInADeckSurvivesClearCacheAndALowerLimit) {
     EXPECT_EQ(m_audio.size(), pCache->usage().inUseBytes);
 
     // Ejected (later than Mixxx's double press, which would reload the
-    // last ejected track instead): the limit takes it
-    QTest::qWait(600);
+    // last ejected track instead): the limit takes it. The engine keeps
+    // running while time passes, as with a sound card: it takes in the chunks
+    // read for the loaded track. Left unread, they reach the reader after the
+    // eject, while it unloads, and trip its debug assertion
+    QElapsedTimer waited;
+    waited.start();
+    while (waited.elapsed() < 600) {
+        m_pEngine->process(1024);
+        QTest::qWait(10);
+    }
     ControlObject::set(ConfigKey(kDeck1, QStringLiteral("eject")), 1.0);
     ControlObject::set(ConfigKey(kDeck1, QStringLiteral("eject")), 0.0);
     Deck* pDeck = m_pPlayerManager->getDeck(0);
