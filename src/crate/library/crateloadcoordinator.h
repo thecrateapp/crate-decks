@@ -48,7 +48,7 @@ struct CrateQueuedTrack {
 
 /// Loads Crate tracks into decks (design §7.3, plan F4.C-PR3).
 ///
-/// A track whose file is in the audio cache is a track of Mixxx's library
+/// A track whose file is in the audio cache is a track of upstream's library
 /// at once (cachedTrack()), so it loads like any local one. Any other comes
 /// through the asynchronous load hook of the track table and menu
 /// (TrackModel::requestTrackLoad): requestLoad() downloads it with the
@@ -65,14 +65,14 @@ struct CrateQueuedTrack {
 /// requestLoad(), and cachedTrack() answers nullptr for such a file while it
 /// adds it in the background.
 ///
-/// It never interrupts a playing deck that Mixxx would not interrupt: when
+/// It never interrupts a playing deck that upstream would not interrupt: when
 /// the download ends, a deck that started playing meanwhile keeps its track
 /// unless the deck preferences allow loading into a playing deck
 /// (`[Controls],LoadWhenDeckPlaying`), as for a local track.
 ///
 /// Crate's analysis of a track (its mix profile) is applied the first time
 /// the track is taken in each run, before it is loaded. A Crate track that a
-/// player loads some other way (Auto DJ, a list of Mixxx's library) takes it
+/// player loads some other way (Auto DJ, a list of upstream's library) takes it
 /// once it is loaded, if it has not had it yet in this run.
 ///
 /// "Add to Auto DJ" takes uncached tracks too (F4.C-PR3 decision 1, Diego,

@@ -10,15 +10,15 @@
 
 namespace crate::analysis {
 
-/// Which parts of Crate's analysis replace Mixxx's own (plan F4.C-PR2). The
-/// defaults are "beats and key from Mixxx": F0 Q3–Q5 measured Crate's grid
-/// 30–350 ms away from Mixxx's and its key matching Mixxx's in 3 of 10
+/// Which parts of Crate's analysis replace upstream's own (plan F4.C-PR2). The
+/// defaults are "beats and key from upstream": F0 Q3–Q5 measured Crate's grid
+/// 30–350 ms away from upstream's and its key matching upstream's in 3 of 10
 /// tracks, and the server does not announce the S8 analyzer yet.
 struct Policy {
-    /// Crate's beat grid, when it passes checkBeatGrid(). Otherwise Mixxx
+    /// Crate's beat grid, when it passes checkBeatGrid(). Otherwise upstream
     /// analyses the beats.
     bool crateBeats = false;
-    /// Crate's key instead of Mixxx's key detector.
+    /// Crate's key instead of upstream's key detector.
     bool crateKey = false;
     /// ReplayGain from the profile's integrated loudness, when the track has
     /// none yet.
@@ -51,7 +51,7 @@ struct GridCheck {
     /// The quantised BPM the grid is imported at.
     double bpm = 0.0;
     /// The first beat of the imported grid: on a downbeat when the profile
-    /// has one, so Mixxx's bar markers line up with Crate's.
+    /// has one, so upstream's bar markers line up with Crate's.
     double firstBeatMs = 0.0;
     /// The largest distance of a beat from the constant grid.
     double maxDeviationMs = 0.0;
@@ -91,13 +91,13 @@ class CrateBeatsImporter : public mixxx::BeatsImporter {
     bool m_imported = false;
 };
 
-/// The Mixxx key of a Camelot code (1A to 12B, case and spaces ignored);
+/// The key of a Camelot code (1A to 12B, case and spaces ignored);
 /// INVALID for anything else.
 mixxx::track::io::key::ChromaticKey keyFromCamelot(const QString& camelot);
 
 /// What apply() did.
 struct ImportOutcome {
-    /// False when the profile is not `full`: the track is left for Mixxx's
+    /// False when the profile is not `full`: the track is left for upstream's
     /// own analysis and nothing else is set.
     bool usedProfile = false;
     bool beatsImported = false;
@@ -113,7 +113,7 @@ struct ImportOutcome {
 /// Applies a profile to a track before it is loaded (design D6, plan
 /// F4.C-PR2). On the main thread: Track requires it.
 ///
-/// 1. Only `full` profiles; any other quality leaves the track to Mixxx.
+/// 1. Only `full` profiles; any other quality leaves the track to upstream.
 /// 2. Beats only with Policy::crateBeats and a grid that passes
 ///    checkBeatGrid(), through CrateBeatsImporter, with the BPM locked. A
 ///    BPM the user locked is never replaced; one Decks locked for an older
@@ -121,11 +121,11 @@ struct ImportOutcome {
 /// 3. The key only with Policy::crateKey.
 /// 4. Intro and Outro from the profile when the track has none, or when they
 ///    are the ones `previous` records and the revision changed. Cues the
-///    user set or moved stay. N60dBSound and the main cue stay Mixxx's: its
+///    user set or moved stay. N60dBSound and the main cue stay upstream's: its
 ///    silence analysis still runs and keeps the Intro and Outro it finds.
 /// 5. ReplayGain from the loudness only with Policy::gainFromLufs.
 ///
-/// A track Mixxx has not opened yet gets its beats and cues when the file is
+/// A track upstream has not opened yet gets its beats and cues when the file is
 /// opened, at the file's sample rate.
 class AnalysisImporter {
   public:

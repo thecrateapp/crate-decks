@@ -2149,7 +2149,7 @@ TEST_F(CrateG3BudgetsLive, GridQualityReport) {
                   << QString::number(grid.driftMs, 'f', 2)
                   << QString::number(grid.firstBeatMs, 'f', 1) << profile.camelot;
         }
-        // Mixxx's own analysis, the default policy: load it into a deck
+        // Upstream's own analysis, the default policy: load it into a deck
         const LoadTiming timing = loadRow(pModel, uid, kDeck1, kAnalysisWaitMs);
         if (timing.loaded && timing.pTrack && timing.analysisDoneMs >= 0.0) {
             ++localAnalysed;

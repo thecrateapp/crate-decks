@@ -9,7 +9,7 @@ Description:
 
 Variables:
   ObjectName        : object name
-  ToolTipID         : standard Tooltip from mixxx db
+  ToolTipID         : standard tooltip of src/skin/legacy/tooltips.cpp
     see: https://github.com/mixxxdj/mixxx/blob/main/src/skin/legacy/tooltips.cpp
   Group             : BasePlayer group
   Size              : button size

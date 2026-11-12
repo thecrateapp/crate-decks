@@ -9,7 +9,7 @@ namespace crate {
 
 /// Crate Decks' defaults of the library preferences, for a profile that has
 /// none: the BPM with two decimals, as the decks and the GU1 mockups write it
-/// ("124.00"). Mixxx's preferences dialog saves its own defaults when it is
+/// ("124.00"). Upstream's preferences dialog saves its own defaults when it is
 /// created, before any skin loads, so CoreServices applies these first.
 void applyLibraryDefaults(const UserSettingsPointer& pConfig);
 
@@ -24,15 +24,15 @@ void applyLibraryDefaults(const UserSettingsPointer& pConfig);
 ///   loaded. Its column headers are MonoLabels, the sorted one brighter,
 ///   aligned like their cells.
 /// - The cells of titles, names, BPM, key and duration use the delegates of
-///   crate/ui/delegates/ in place of Mixxx's text delegates; Mixxx's other
+///   crate/ui/delegates/ in place of upstream's text delegates; upstream's other
 ///   delegates (rating, colour, cover art, preview, ...) stay.
 /// - A table without a saved layout shows the columns of the mockups that
-///   Mixxx has, in their order and widths; the user's own layout wins.
+///   Upstream has, in their order and widths; the user's own layout wins.
 /// - Rows are 30 px unless the user set a row height in the preferences.
 ///
 /// WTrackTableView gives each column its delegate on every model load,
 /// between hiding and showing itself: the table is restyled when it shows,
-/// so no Mixxx file is patched for it. Does nothing to a skin without
+/// so no upstream file is patched for it. Does nothing to a skin without
 /// generated/vars.xml.
 void styleLibrary(QWidget* pSkinRoot,
         const SkinVariables& variables,

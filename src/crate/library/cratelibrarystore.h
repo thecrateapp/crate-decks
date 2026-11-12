@@ -91,7 +91,7 @@ std::optional<StoredContainer> loadContainer(const QSqlDatabase& database, qint6
 /// Replaces the tree of a server with `tree`: existing containers keep their
 /// id, synced tracks and ETags; the ones the server no longer lists go, with
 /// their tracks, and so do the catalogue tracks no container lists any more
-/// (unless Mixxx's library has them). The library's track count is replaced
+/// (unless upstream's library has them). The library's track count is replaced
 /// too, also by none when the tree has none.
 WriteStatus storeContainerTree(
         const QSqlDatabase& database, const QString& serverId, const ContainerTree& tree);

@@ -142,7 +142,7 @@ TEST_F(CrateDelegatesTest, PaintsCamelotChip) {
     EXPECT_GT(strongestShade(restImage, textArea(30), m_style.textSecondary, m_background), 0.5);
     EXPECT_LT(strongestShade(restImage, restImage.rect(), m_style.accentHi, m_background), 0.5);
 
-    // Mixxx's key column gives the key in the user's notation: shown in
+    // Upstream's key column gives the key in the user's notation: shown in
     // Camelot whatever the notation
     EXPECT_EQ(QStringLiteral("8A"),
             delegate.camelotKey(item({{Qt::DisplayRole, QStringLiteral("Am")}})));
@@ -307,7 +307,7 @@ TEST_F(CrateDelegatesTest, PaintsSidebarSectionsAndActiveItem) {
     EXPECT_GT(strongestShade(image, label.translated(0, -header), m_style.navIdle, m_background),
             0.5);
 
-    // Mixxx's "Tracks (1234)": the count on the right, in mono, textFaint
+    // Upstream's "Tracks (1234)": the count on the right, in mono, textFaint
     const QModelIndex counted = item({{Qt::DisplayRole, QStringLiteral("Crates (1234)")}});
     image.fill(m_background);
     {
@@ -338,7 +338,7 @@ TEST_F(CrateDelegatesTest, PaintsSectionRootAsHeaderAndItsChildrenAtTheTop) {
     QTreeView view;
     view.resize(240, 300);
     SidebarDelegate delegate(m_style, &view);
-    delegate.setDefaultSection(QStringLiteral("Mixxx"));
+    delegate.setDefaultSection(QStringLiteral("Local"));
     constexpr int kIconNameRole = Qt::UserRole + 7;
     QTemporaryDir icons;
     ASSERT_TRUE(icons.isValid());
@@ -378,8 +378,8 @@ TEST_F(CrateDelegatesTest, PaintsSectionRootAsHeaderAndItsChildrenAtTheTop) {
     EXPECT_FALSE(delegate.isSectionRoot(library));
     EXPECT_EQ(QStringLiteral("Crate · dev.crate.local"), delegate.sectionHeader(root));
     EXPECT_EQ(QString(), delegate.sectionHeader(library));
-    // Mixxx's section starts after it
-    EXPECT_EQ(QStringLiteral("Mixxx"), delegate.sectionHeader(tracks));
+    // The local section starts after it
+    EXPECT_EQ(QStringLiteral("Local"), delegate.sectionHeader(tracks));
     QStyleOptionViewItem option;
     option.rect = QRect(0, 0, 240, m_style.rowHeight);
     EXPECT_EQ(delegate.sectionHeaderHeight(), delegate.sizeHint(option, root).height());
@@ -421,7 +421,7 @@ TEST_F(CrateDelegatesTest, PaintsLoadedTitleInTheDeckColour) {
     EXPECT_EQ(m_style.deck[0], title.textColour(loaded));
     const QModelIndex resting = item({{Qt::DisplayRole, QStringLiteral("Glass Orchard")}});
     EXPECT_EQ(m_style.textPrimary, title.textColour(resting));
-    // Mixxx's played and missing colours win over the rest colour
+    // Upstream's played and missing colours win over the rest colour
     const QModelIndex played = item({{Qt::DisplayRole, QStringLiteral("Low Sun")},
             {Qt::ForegroundRole, m_style.textSubtle}});
     EXPECT_EQ(m_style.textSubtle, title.textColour(played));

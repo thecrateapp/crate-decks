@@ -30,8 +30,8 @@ QString translate(const char* text) {
     return QCoreApplication::translate("crate::Preferences", text);
 }
 
-/// A button of the foot that stands for one of Mixxx's: same text, enabled
-/// and shown when it is, and a click clicks Mixxx's button, so that
+/// A button of the foot that stands for one of upstream's: same text, enabled
+/// and shown when it is, and a click clicks upstream's button, so that
 /// DlgPreferences sees the role it expects.
 class ButtonMirror : public QObject {
   public:
@@ -76,7 +76,7 @@ class ButtonMirror : public QObject {
 
 /// The mockups' page padding on a page of the stack (a QScrollArea around
 /// the page). The Crate page starts with its intro right under the title;
-/// Mixxx's pages start with a section after the intro's gap.
+/// Upstream's pages start with a section after the intro's gap.
 void padPage(QWidget* pScrollArea, const DialogMetrics& metrics) {
     auto* pArea = qobject_cast<QScrollArea*>(pScrollArea);
     if (!pArea || !pArea->widget() || !pArea->widget()->layout()) {
@@ -164,7 +164,7 @@ void stylePreferences(QDialog* pDialog) {
         padPage(pPages->currentWidget(), DialogMetrics::installed());
     });
 
-    // The foot: Mixxx's buttons stay in their box, hidden, and the foot
+    // The foot: upstream's buttons stay in their box, hidden, and the foot
     // shows them in the mockups' order
     QHBoxLayout* pFoot = pChrome->footLayout();
     const auto mirror = [pButtons, pDialog](QDialogButtonBox::StandardButton which,
@@ -187,7 +187,7 @@ void stylePreferences(QDialog* pDialog) {
         }
     }
     pFoot->addStretch(1);
-    // Mixxx's warning about pages with errors, next to the actions
+    // Upstream's warning about pages with errors, next to the actions
     for (const char* name : {"labelWarningIcon", "labelWarning"}) {
         if (auto* pLabel = pDialog->findChild<QLabel*>(QLatin1String(name))) {
             if (pLabel->parentWidget() && pLabel->parentWidget()->layout()) {

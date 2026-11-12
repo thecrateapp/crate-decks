@@ -62,7 +62,7 @@ QString defaultStyleSheet(const QString& resourcePath);
 QString dialogStyleSheet(const QString& resourcePath);
 
 /// Styles Crate Decks: `pMainWindow` gets `styleSheet` (defaultStyleSheet()),
-/// as Mixxx sets res/skins/default.qss on it, and each dialog gets
+/// as upstream sets res/skins/default.qss on it, and each dialog gets
 /// `styleSheet` and `dialogStyleSheet` as its own style when it is
 /// polished: Preferences and About have no parent, so the main window's
 /// style does not reach them. With CRATE, MixxxMainWindow calls this instead
@@ -81,10 +81,10 @@ void applyStyles(QWidget* pMainWindow, const QString& styleSheet, const QString&
 /// they cannot be read.
 bool applyApplicationStyle(QWidget* pMainWindow, const QString& resourcePath);
 
-/// Gives Mixxx's splash screen (LaunchImage) the Crate Decks brand instead
-/// of the Mixxx logo, for every skin: the logo, the name and a 1 px progress
+/// Gives upstream's splash screen (LaunchImage) the Crate Decks brand instead
+/// of the upstream logo, for every skin: the logo, the name and a 1 px progress
 /// lane (generated/launch.qss). It replaces the skin's own splash style and
-/// Mixxx's holiday logo.
+/// Upstream's holiday logo.
 void styleLaunchImage(QWidget* pLaunchImage, const QString& resourcePath);
 
 /// The Crate logo (generated/crate-logo.svg) at `width` x `height` logical

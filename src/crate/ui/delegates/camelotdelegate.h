@@ -12,7 +12,7 @@ namespace crate::delegates {
 /// textSecondary, compatible keys in accentHi, and the master deck's own key
 /// as an accent chip (GU1 mockups decks.css .chip[data-tone=accent]).
 ///
-/// The key comes from CamelotRole or, for Mixxx's key column, from the
+/// The key comes from CamelotRole or, for upstream's key column, from the
 /// display text in whatever notation the user picked, read back as a key and
 /// written in Camelot.
 class CamelotDelegate : public CellDelegate {
@@ -28,7 +28,7 @@ class CamelotDelegate : public CellDelegate {
     QString camelotKey(const QModelIndex& index) const;
 
   private:
-    // Key texts of Mixxx's notations and their Camelot keys, which paint
+    // Key texts of upstream's notations and their Camelot keys, which paint
     // once per visible row
     mutable QHash<QString, QString> m_camelotOfText;
 };

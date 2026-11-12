@@ -24,12 +24,12 @@ bool shouldOfferFirstRun(const UserSettingsPointer& pConfig, const CrateServers&
 /// Remembers that connecting a server was offered on this installation.
 void markFirstRunOffered(const UserSettingsPointer& pConfig);
 
-/// Whether Crate's first start is still to come on this installation. Mixxx's
+/// Whether Crate's first start is still to come on this installation. Upstream's
 /// own first-run questions (no output devices) wait for it: the first start
 /// asks them in its pages (plan "Own brand", BR.PR3).
 bool firstRunPending(const UserSettingsPointer& pConfig);
 
-/// Decides Mixxx's "hide the menu bar?" question without asking: the
+/// Decides upstream's "hide the menu bar?" question without asking: the
 /// CrateDecks skin has no menu bar in its mockups, so it is hidden (Alt shows
 /// it, Preferences › Interface changes it). A choice already made stays.
 void decideMenuBar(const UserSettingsPointer& pConfig);
@@ -40,7 +40,7 @@ struct FirstRunOutput {
     QString name;
 };
 
-/// What the first start's sound and music pages do in Mixxx. The application
+/// What the first start's sound and music pages do in upstream. The application
 /// builds them from CoreServices (firstRunServices()); tests give their own.
 struct FirstRunServices {
     /// The output devices that the main output can use
@@ -77,20 +77,20 @@ QDialog* createFirstRunDialog(CrateServers* pServers, QWidget* pParent);
 
 /// The whole first start (plan "Own brand", BR.PR3): "Connect your Crate",
 /// then the sound page (the main output, or a warning without devices) and
-/// the optional local music page, which absorb Mixxx's first-run dialogs.
+/// the optional local music page, which absorb upstream's first-run dialogs.
 /// "Not now" and a connected server move on to the sound page; "Finish"
 /// accepts. Without `services.hasPages()` it is the dialog above.
 QDialog* createFirstRunDialog(
         CrateServers* pServers, const FirstRunServices& services, QWidget* pParent);
 
 /// Whether the first-start dialog can show over `pMainWindow`: the main
-/// window has its skin, no longer Mixxx's launch image, and no other modal
-/// dialog is open, such as Mixxx's "No Output Devices".
+/// window has its skin, no longer upstream's launch image, and no other modal
+/// dialog is open, such as upstream's "No Output Devices".
 bool firstRunCanShow(const QWidget* pMainWindow);
 
 /// Offers connecting a Crate server in a dialog over `pParent`, once per
 /// installation. Call it once the main window is shown: it waits until
-/// firstRunCanShow(), since with OpenGL Mixxx loads the skin and the dialog
+/// firstRunCanShow(), since with OpenGL upstream loads the skin and the dialog
 /// styles, and shows its own startup dialogs, only after the event loop
 /// starts. Does nothing on the offscreen platform, where nobody could answer
 /// it (tests).

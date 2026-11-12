@@ -113,7 +113,7 @@ QString skinPath(const QString& skin) {
             .filePath(QStringLiteral("skins/") + skin);
 }
 
-/// Keeps the warnings that Qt and Mixxx log while it is alive, counts every
+/// Keeps the warnings that Qt and the inherited code log while it is alive, counts every
 /// message, and passes them on to the handler that was installed before.
 class WarningCollector {
   public:
@@ -492,7 +492,7 @@ class ShownDialogTitles : public QObject {
 };
 
 // Plan "Own brand", BR.PR3: on a new profile with no music folder and no
-// sound device, Mixxx asked for a music folder, warned of "No Output
+// sound device, upstream asked for a music folder, warned of "No Output
 // Devices" and asked whether to hide the menu bar, all before Crate's first
 // start. The first start asks the first two in its own pages and the skin
 // decides the third.
@@ -512,9 +512,10 @@ TEST_F(CrateSkinLoadTest, FirstStartAsksNoMixxxQuestions) {
     EXPECT_EQ(0, pConfig->getValue<int>(ConfigKey("[Config]", "show_menubar_hint"), 1));
 }
 
-// Plan BR2: a new profile holds no file or folder named after Mixxx (the
+// Plan BR2: no file or folder of a new profile carries upstream's name (the
 // settings, the library database and the log are named after Crate Decks),
-// and the log names Crate Decks where a message names Mixxx.
+// and the log says Crate Decks where a message of the inherited code says
+// upstream's name.
 TEST_F(CrateSkinLoadTest, SettingsFolderNamesNoMixxx) {
     QTemporaryDir profile;
     ASSERT_TRUE(profile.isValid());
@@ -572,7 +573,7 @@ TEST_F(CrateSkinLoadTest, OnlyCrateDecksIsOffered) {
     EXPECT_NE(nullptr, loader.getSkin(kCrateDecks));
 }
 
-// Plan "Own brand", BR.PR6: the sidebar's section of Mixxx's own library is
+// Plan "Own brand", BR.PR6: the sidebar's section of upstream's own library is
 // "Local", next to Crate's section (F3), which comes first
 TEST_F(CrateSkinLoadTest, SidebarSectionsNameNoMixxx) {
     QTemporaryDir profile;
@@ -665,7 +666,7 @@ TEST_F(CrateSkinLoadTest, PreferencesHaveTheMockupsDialog) {
     EXPECT_QSTRING_EQ(QStringLiteral("Crate"), pLast->text(0));
     EXPECT_TRUE(pLast->data(0, crate::kPreferencesLogoRole).toBool());
 
-    // The foot in the mockup's order; Mixxx's own buttons stay, hidden
+    // The foot in the mockup's order; upstream's own buttons stay, hidden
     auto* pButtons = pPreferences->findChild<QDialogButtonBox*>(QStringLiteral("buttonBox"));
     ASSERT_NE(nullptr, pButtons);
     EXPECT_TRUE(pButtons->isHidden());
@@ -720,7 +721,7 @@ TEST_F(CrateSkinLoadTest, OnlyBlockingDialogsDimTheMainWindow) {
     ASSERT_TRUE(pPreferences->isVisible());
     EXPECT_FALSE(dimmed());
     pPreferences->hide();
-    // Nor when Mixxx opens it modal, after a sound device fails. Checked
+    // Nor when upstream opens it modal, after a sound device fails. Checked
     // before events run: the DialogRejecter closes modal dialogs then
     pPreferences->setWindowModality(Qt::ApplicationModal);
     pPreferences->show();
@@ -728,7 +729,7 @@ TEST_F(CrateSkinLoadTest, OnlyBlockingDialogsDimTheMainWindow) {
     pPreferences->hide();
     pPreferences->setWindowModality(Qt::NonModal);
 
-    // A confirmation as Mixxx's on exit dims the main window until it closes
+    // A confirmation as upstream's on exit dims the main window until it closes
     QMessageBox confirm(QMessageBox::Question,
             QStringLiteral("Confirm Exit"),
             QStringLiteral("A deck is currently playing. Exit Mixxx?"),
@@ -1025,7 +1026,7 @@ TEST_F(CrateSkinLoadTest, DeckHeadHidesEmptyFields) {
     EXPECT_QSTRING_EQ(QStringLiteral("Deck A|·"), withKey.mid(0, 2).join(u'|'));
     EXPECT_FALSE(withKey[2].isEmpty());
     EXPECT_QSTRING_EQ(QStringLiteral("·|151.14|BPM"), withKey.mid(3).join(u'|'));
-    // And painted as the MonoLabel it is in the mockups, whether Mixxx's key
+    // And painted as the MonoLabel it is in the mockups, whether upstream's key
     // colours are on (its default: WKey adds a bar of the key's colour) or
     // off
     QWidget* pMeta = deckHeadMeta(decks.skin(), QStringLiteral("A"));
@@ -1586,7 +1587,7 @@ TEST_F(CrateSkinScreenshots, Capture) {
         // Without an audio device no engine callback tells the scrolling
         // waveforms where the deck is: give them the position, paused (no
         // audio buffer, so no interpolation). Offscreen there is no OpenGL,
-        // and without it this Mixxx offers no waveform type at all
+        // and without it this build offers no waveform type at all
         // (WaveformWidgetFactory::addHandle in a build with QML): the
         // scrolling waveforms stay empty there.
         auto pVisual = VisualPlayPosition::getVisualPlayPosition(group);
@@ -1789,7 +1790,7 @@ TEST_F(CrateSkinScreenshots, Capture) {
     saveOver(pFirstRun.get(), QStringLiteral("crate-scrim-firstrun-over"));
     pFirstRun->reject();
     EXPECT_FALSE(dimmed());
-    // As Mixxx confirms the exit while a deck plays
+    // As upstream confirms the exit while a deck plays
     QMessageBox confirm(QMessageBox::Question,
             QStringLiteral("Confirm Exit"),
             QStringLiteral("A deck is currently playing. Exit Mixxx?"),
@@ -1829,7 +1830,7 @@ class LastMenu : public QObject {
 
 /// Dev-only harness: renders the dialogs of plan V2.PR5 to PNG for the side
 /// by side with the GU1 mockups (preferences-crate, first-run): Preferences
-/// on the Crate page and two of Mixxx's pages, About, the first-start
+/// on the Crate page and two of upstream's pages, About, the first-start
 /// dialog, the splash screen and the track and column menus. Each one is
 /// saved alone and over the main window, where it opens. Runs only with
 /// CRATE_SKIN_SCREENSHOTS=<output dir>, like Capture; the Crate page shows

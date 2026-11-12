@@ -66,7 +66,7 @@ void applySkinDefaults(const UserSettingsPointer& pConfig, const QString& skinPa
 /// Finishes a skin that SkinLoader has just loaded, with what its QSS cannot
 /// do: the font features of the widgets whose object name starts with
 /// "DeckNumber", the keys that are MonoLabels painted as MonoLabels, without
-/// Mixxx's key colour bar, the painters of the mixer's faders and meters
+/// Upstream's key colour bar, the painters of the mixer's faders and meters
 /// (mixerstyle.h), the library's sidebar, rows, headers and cells
 /// (librarystyle.h; `pLibrary` and `pConfig` give it the row height), the
 /// layout classes from the size of the skin, the Crate server status of the

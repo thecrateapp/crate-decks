@@ -214,7 +214,7 @@ TEST_F(CrateLoadCoordinatorTest, CancelsPendingLoadWhenDeckGetsAnotherTrack) {
 }
 
 TEST_F(CrateLoadCoordinatorTest, DoesNotInterruptPlayingDeckWithoutConfirmation) {
-    // Mixxx's default: a playing deck rejects new tracks
+    // Upstream's default: a playing deck rejects new tracks
     config()->setValue(kConfigKeyLoadWhenDeckPlaying,
             static_cast<int>(LoadWhenDeckPlaying::Reject));
     m_pCoordinator->requestLoad(trackRef(kUid1), kDeck1, false);

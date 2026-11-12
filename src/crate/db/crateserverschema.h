@@ -4,11 +4,11 @@
 
 namespace crate::db {
 
-/// Creates the tables of the Crate integration in the Mixxx database if they
+/// Creates the tables of the Crate integration in the library database if they
 /// do not exist yet, in one transaction. Safe to call at every start.
 ///
 /// The tables carry the `crateserver_` prefix and are never part of
-/// res/schema.xml; no Mixxx table is touched (AGENTS.md §5.2). Later phases
+/// res/schema.xml; no upstream table is touched (AGENTS.md §5.2). Later phases
 /// add their tables here.
 ///
 /// - `crateserver_servers` (design §5.2): the servers this installation

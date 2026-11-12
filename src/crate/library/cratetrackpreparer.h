@@ -29,7 +29,7 @@ TrackPointer libraryTrackOfFile(TrackCollectionManager* pCollection, const QStri
 /// Only for a file the library does not have: a track of the library must
 /// come from the database. The caller keeps the returned track until
 /// getOrAddTrack() has taken it, because the cache cannot save a track that
-/// is in no library. Thread-safe. Returns nullptr for a file Mixxx cannot
+/// is in no library. Thread-safe. Returns nullptr for a file upstream cannot
 /// read or that another track holds.
 TrackPointer prepareTrackForLibrary(const QString& path, const SyncTrackMetadataParams& params);
 

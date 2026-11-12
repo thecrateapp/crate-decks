@@ -6,19 +6,19 @@
   braces come from res/crate-design/tokens.json. Do not write colours,
   sizes, radii or fonts by hand here (AGENTS.md 5.2).
 
-  With CRATE, Mixxx loads this file instead of res/skins/default.qss, for
+  With CRATE, upstream loads this file instead of res/skins/default.qss, for
   the whole application and not only the main window
   (crate/ui/dialogs/dialogstyle.h), and every dialog gets dialogs.qss as its
   own style. A skin's own style still wins inside the skin. Every rule here
   is matched against every widget of the skin, so this file only has what
   is not a dialog's:
   - menus and tooltips, the application's for every skin;
-  - the rules of Mixxx's default.qss that every skin relies on (library
+  - the rules of upstream's default.qss that every skin relies on (library
     preview button, BPM lock, cue menu, colour picker, search clear button),
     with Solar icons.
 */
 
-/* ── Mixxx's default rules, with Solar icons ─────────────────────────── */
+/* ── upstream's default rules, with Solar icons ─────────────────────────── */
 
 #LibraryPreviewButton {
   background: transparent;
@@ -54,7 +54,7 @@ WCueMenuPopup #CueDeleteButton {
 WColorPicker QPushButton[noColor="true"] {
   background-color: {{bgApp}};
 }
-/* "Any colour": the rainbow of Mixxx's colour picker */
+/* "Any colour": the rainbow of upstream's colour picker */
 WColorPicker QPushButton[customColor="true"] {
   background-color: qlineargradient(x1: 0, y1: 0, x2: 1, y2: 1,
                                     stop: 0 {{pickerRed}},

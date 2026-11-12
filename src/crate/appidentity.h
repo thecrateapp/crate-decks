@@ -6,8 +6,8 @@
 namespace crate {
 
 // Identity of Crate Decks as an application (design D3), gathered in one
-// place so that it can be reviewed and changed without touching the Mixxx
-// code that uses it. It differs from Mixxx's so that Crate Decks never shares
+// place so that it can be reviewed and changed without touching the inherited
+// code that uses it. It differs from upstream's so that Crate Decks never shares
 // settings, the desktop entry or keychain entries with an installed Mixxx.
 //
 // The Linux settings directory (~/.cratedecks/) is fixed at compile time by

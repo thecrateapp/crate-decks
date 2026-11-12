@@ -492,7 +492,7 @@ def knob_dot(t, used):
 
 
 def vu_level(db):
-    """Position of a level in dB on Mixxx's meter scale, from 0 to 1.
+    """Position of a level in dB on upstream's meter scale, from 0 to 1.
     EngineVuMeter shows log10(32.767 a + 1) of the mean absolute level a,
     clamped at 1: full scale is a = 9 / 32.767, and a level of db below it
     reads log10(9 * 10^(db / 20) + 1)."""
@@ -524,7 +524,7 @@ def derived_tokens(t, used):
         # The fader handle with its hairline outline
         "faderHandleLength": t["faderHandleHeight"].value
         + t["strokeHairline"].value,
-        # The warning zone of the level meters, on Mixxx's scale
+        # The warning zone of the level meters, on upstream's scale
         "vuWarningLevel": vu_level(t["vuWarningDb"].value),
     }
     return {

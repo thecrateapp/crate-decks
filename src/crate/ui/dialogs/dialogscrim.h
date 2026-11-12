@@ -75,7 +75,7 @@ class DialogScrim : public QObject {
 /// modal to the application, or to `pMainWindow`'s windows, that shows on
 /// screen (a native dialog does not, and it is not Crate's) and is not
 /// Preferences. Preferences is not modal from the toolbar, so that the DJ
-/// can adjust something mid-set watching the decks; Mixxx also opens it
+/// can adjust something mid-set watching the decks; upstream also opens it
 /// modal after a sound device fails, and it stays without the scrim then.
 bool dialogTakesScrim(const QDialog* pDialog, const QWidget* pMainWindow);
 

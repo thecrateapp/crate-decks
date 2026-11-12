@@ -19,16 +19,16 @@ class CrateLoadCoordinator;
 struct CrateTrackRef;
 
 /// The tracks of a Crate container, or every track Decks has synced from a
-/// server, for Mixxx's track table (plan F3.C-PR2).
+/// server, for upstream's track table (plan F3.C-PR2).
 ///
-/// Its own table model on purpose, not a BaseSqlTableModel: Mixxx's
+/// Its own table model on purpose, not a BaseSqlTableModel: upstream's
 /// BaseTrackTableModel makes data() and delegateForColumn() final, so a
 /// subclass cannot hand the Crate delegates their roles (Camelot, profile
 /// quality, cache state). The rows are read, filtered and sorted on a worker
 /// thread and swapped in at once: the main thread never waits for SQLite
 /// (design §9).
 ///
-/// Read-only. A track whose file is in the audio cache is a track of Mixxx's
+/// Read-only. A track whose file is in the audio cache is a track of upstream's
 /// library (getTrack(), getTrackId(), dragging); any other loads into a deck
 /// through the asynchronous hook (requestTrackLoad(), plan F4.C-PR3), which
 /// downloads it first, and the Cache column shows its download. "Add to Auto
@@ -64,8 +64,8 @@ class CrateServerTrackModel : public QAbstractTableModel, public TrackModel {
         Library,
     };
 
-    /// Field names, as TrackModel::kHeaderNameRole gives them: Mixxx's for
-    /// the columns Mixxx has, so the skin styles them as its own.
+    /// Field names, as TrackModel::kHeaderNameRole gives them: upstream's for
+    /// the columns upstream has, so the skin styles them as its own.
     static const QString kEnergyField;
     static const QString kProfileField;
     static const QString kCacheField;
@@ -84,7 +84,7 @@ class CrateServerTrackModel : public QAbstractTableModel, public TrackModel {
     const QString& serverId() const {
         return m_serverId;
     }
-    /// Decimals of the BPM column (Mixxx's library preference).
+    /// Decimals of the BPM column (upstream's library preference).
     void setBpmPrecision(int decimals) {
         m_bpmPrecision = decimals;
     }

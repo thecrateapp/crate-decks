@@ -11,7 +11,7 @@ class QAbstractItemView;
 
 namespace crate::delegates {
 
-/// A sidebar label and the count Mixxx writes into it: "Tracks (1234)" and
+/// A sidebar label and the count upstream writes into it: "Tracks (1234)" and
 /// "Warm-up (12) 1:02:33" are "Tracks" with "1 234", and "Warm-up" with
 /// "12 · 1:02:33". A size counts too: "Cache (18.4 GB)" is "Cache" with
 /// "18.4 GB". The admin's navigation shows counts on the right, in mono.
@@ -29,7 +29,7 @@ LabelAndCount splitCount(const QString& text);
 ///
 /// Top-level items belong to sections, which start with a MonoLabel header
 /// in the accent tone above their first item. An item's section is its
-/// SidebarSectionRole or, without one, the default section: Mixxx's own
+/// SidebarSectionRole or, without one, the default section: upstream's own
 /// features have none and fall in "Local". Child items indent 20 px a level
 /// and have no icon, as in the mockups; the view's own indentation and
 /// branch arrows are off.
@@ -39,7 +39,7 @@ LabelAndCount splitCount(const QString& text);
 /// children are painted as top-level items, with the icon their
 /// DecorationRole names (QIcon::name()). The Crate feature (F3) is one: its
 /// title is "Crate · <server>" and its children are Library, Playlists and
-/// the rest, without patching Mixxx's SidebarModel, which forwards no custom
+/// the rest, without patching upstream's SidebarModel, which forwards no custom
 /// role of a feature's items.
 class SidebarDelegate : public QStyledItemDelegate {
     Q_OBJECT

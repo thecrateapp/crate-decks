@@ -54,7 +54,7 @@ QString iconPath(const QString& skinPath, const QString& solarName) {
             QStringLiteral("generated/icons/%1_idle.svg").arg(solarName));
 }
 
-/// The Solar icons of the mockups' sidebar for Mixxx's features, by the
+/// The Solar icons of the mockups' sidebar for upstream's features, by the
 /// icon name each feature gives (LibraryFeature::iconName()). The external
 /// libraries share one.
 QHash<QString, QString> sidebarIcons(const QString& skinPath) {
@@ -145,7 +145,7 @@ class LoadedDecks : public QObject {
     QList<QPointer<QWidget>> m_widgets;
 };
 
-/// How the CrateDecks skin shows a column of Mixxx's track models, by the
+/// How the CrateDecks skin shows a column of upstream's track models, by the
 /// column's field name.
 enum class ColumnKind {
     Keep,
@@ -201,7 +201,7 @@ ColumnKind columnKind(const QString& field) {
     return ColumnKind::Keep;
 }
 
-/// Whether `pDelegate` is one of Mixxx's text delegates, which the skin's
+/// Whether `pDelegate` is one of upstream's text delegates, which the skin's
 /// own replace. Its other delegates (rating, colour, cover art, preview,
 /// location, comments, played) keep their editors and stay.
 bool isMixxxTextDelegate(const QAbstractItemDelegate* pDelegate) {
@@ -217,7 +217,7 @@ bool isMixxxTextDelegate(const QAbstractItemDelegate* pDelegate) {
 /// The columns of the mockups' track list, in their order: the playlist
 /// position where there is one, title, artist, BPM, key, duration, energy,
 /// genre, profile and cache. Energy, profile and cache are Crate's (plan
-/// F3.C-PR2): Mixxx's own track models do not have them. The like column
+/// F3.C-PR2): upstream's own track models do not have them. The like column
 /// waits for F4.
 const QStringList& defaultColumns() {
     static const QStringList columns = {
@@ -266,7 +266,7 @@ struct ColumnWidths {
 /// The 34 px column on the left of a track table (decks.js trackTable's
 /// first column): the letter of the deck that has the row's track loaded,
 /// in the deck's colour, and the selected row's 2 px accentHi bar. It is the
-/// table's vertical header, which Mixxx hides, so the columns and their
+/// table's vertical header, which upstream hides, so the columns and their
 /// headers move right with it.
 class DeckMarkHeader : public QHeaderView {
   public:
@@ -447,7 +447,7 @@ class TrackTableStyle : public QObject {
               m_lockIconPath(iconPath(skinPath, QStringLiteral("lock"))),
               m_pLoadedDecks(pLoadedDecks),
               m_pMeta(pMeta) {
-        // The deck letters take the place of the vertical header, which Mixxx
+        // The deck letters take the place of the vertical header, which upstream
         // hides and gives the row height; the rows are not resized by hand
         QHeaderView* pOld = pView->verticalHeader();
         auto* pMarks = new DeckMarkHeader(
@@ -662,7 +662,7 @@ class TrackTableStyle : public QObject {
                     field == kCrateEnergyField ||
                     field == LIBRARYTABLE_BITRATE || field == LIBRARYTABLE_TRACKNUMBER ||
                     field == LIBRARYTABLE_REPLAYGAIN) {
-                // As Mixxx aligns their cells
+                // As upstream aligns their cells
                 m_alignments.insert(column, Qt::AlignRight);
             }
             if (kind == ColumnKind::Keep ||
@@ -773,7 +773,7 @@ class TrackTableStyle : public QObject {
     }
 
     /// The mockups' columns, order and widths, for a table that has no
-    /// layout of its own yet. Mixxx saves it with the table's layout from
+    /// layout of its own yet. Upstream saves it with the table's layout from
     /// then on, and the user's changes win.
     void applyDefaultColumns(WTrackTableViewHeader* pHeader,
             const QHash<QString, int>& columnOfField) {
@@ -789,7 +789,7 @@ class TrackTableStyle : public QObject {
             }
         }
         if (!shown.contains(columnOfField.value(LIBRARYTABLE_TITLE, -1))) {
-            // Not a track list like Mixxx's: leave it as it is
+            // Not a track list like upstream's: leave it as it is
             return;
         }
         for (int column = 0; column < pHeader->count(); ++column) {
@@ -858,7 +858,7 @@ void styleLibrary(QWidget* pSkinRoot,
     const QList<WLibrarySidebar*> sidebars = pSkinRoot->findChildren<WLibrarySidebar*>();
     for (WLibrarySidebar* pSidebar : sidebars) {
         auto* pDelegate = new SidebarDelegate(style, pSidebar);
-        // The section of the local library, which Mixxx's features fill
+        // The section of the local library, which upstream's features fill
         // (plan "Own brand", BR.PR6)
         pDelegate->setDefaultSection(
                 QCoreApplication::translate("crate::LibraryStyle", "Local"));

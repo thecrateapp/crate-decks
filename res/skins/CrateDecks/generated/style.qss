@@ -725,7 +725,7 @@ QToolTip {
 }
 
 /* Hotcues as nodes: a circle of hotcueRadius in its box, hollow at rest
-   and stroked in the deck colour when set. Mixxx fills a set hotcue with
+   and stroked in the deck colour when set. Upstream fills a set hotcue with
    its colour; the padding leaves no content for that fill
    (background-clip), and the number is drawn over the whole button. */
 #CrateHotcues,
@@ -1319,7 +1319,7 @@ WBeatSpinBox[objectName^="CrateLoopSize"]::down-button {
 
 /* Track table: "cabin" density, a list with 1 px rules and no zebra or
    boxes (design 14.3). The view's text colour is that of names; C++ gives
-   titles, BPM, key and duration their own. Mixxx colours the text of played
+   titles, BPM, key and duration their own. Upstream colours the text of played
    and missing tracks with these properties. */
 #CrateLibrary WTrackTableView {
   font-family: "Roboto";
@@ -1339,7 +1339,7 @@ WBeatSpinBox[objectName^="CrateLoopSize"]::down-button {
   qproperty-dropIndicatorColor: #67e8f9;
 }
 /* C++ paints the column headers as MonoLabels; QSS gives the header its
-   font, which Mixxx also measures it with */
+   font, which upstream also measures it with */
 #CrateLibrary WTrackTableViewHeader,
 #CrateLibrary WTrackTableViewHeader::section {
   font-family: "JetBrains Mono";

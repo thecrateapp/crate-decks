@@ -104,7 +104,7 @@ class OffscreenDecks {
     /// Starts the core services and the main window. Returns how long the
     /// main window took to initialize, skin included, in milliseconds.
     /// `beforeSkin` runs once the core services are up, just before the
-    /// skin loads: the first CoreServices of a process installs Mixxx's log
+    /// skin loads: the first CoreServices of a process installs upstream's log
     /// handler, so message handlers go in there.
     qint64 start(QApplication* pApp, const std::function<void()>& beforeSkin = {}) {
         pApp->installEventFilter(&m_dialogRejecter);
