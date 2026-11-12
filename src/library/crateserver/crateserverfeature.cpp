@@ -505,8 +505,8 @@ void CrateServerFeature::startLoading() {
     };
     stems.readPlaylist = [this](const QString& serverId,
                                  qint64 playlistId,
-                                 std::function<void(std::optional<QList<CrateTrackRef>>)> done) {
-        readSmartMixPlaylist(serverId, playlistId, std::move(done));
+                                 const std::function<void(std::optional<QList<CrateTrackRef>>)>& done) {
+        readSmartMixPlaylist(serverId, playlistId, done);
     };
     stems.confirmDownload = [this](const QString& serverId,
                                     qint64 playlistId,
@@ -779,7 +779,7 @@ void CrateServerFeature::downloadOfflineSet(qint64 containerId, const OfflineSet
 
 void CrateServerFeature::readSmartMixPlaylist(const QString& serverId,
         qint64 playlistId,
-        std::function<void(std::optional<QList<CrateTrackRef>>)> done) {
+        const std::function<void(std::optional<QList<CrateTrackRef>>)>& done) {
     // A Smart Mix playlist is a playlist of the server's tree (STEM-D2)
     const QString remoteId = QString::number(playlistId);
     const StoredContainer* pContainer = nullptr;

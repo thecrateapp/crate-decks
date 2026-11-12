@@ -94,7 +94,7 @@ class StemSyncTest : public MixxxTest, SoundSourceProviderRegistration {
         FakeReply* pFound = nullptr;
         const bool found = QTest::qWaitFor(
                 [&] {
-                    for (const auto& sent : m_network.sent) {
+                    for (const auto& sent : std::as_const(m_network.sent)) {
                         if (sent.request.url().path().endsWith(pathEnd) && sent.pReply &&
                                 !sent.pReply->isFinished()) {
                             pFound = sent.pReply.data();

@@ -245,7 +245,7 @@ void StemJobs::enablePlaylist(const QString& serverId, qint64 playlistId) {
     }
     m_options.readPlaylist(serverId,
             playlistId,
-            [this, serverId, playlistId](std::optional<QList<CrateTrackRef>> tracks) {
+            [this, serverId, playlistId](const std::optional<QList<CrateTrackRef>>& tracks) {
                 const auto server = m_servers.find(serverId);
                 if (server == m_servers.end() || !tracks) {
                     return;

@@ -592,7 +592,7 @@ TEST_F(CrateServerFeatureTest, ReadsASmartMixPlaylistByItsIdOnTheServer) {
     const qsizetype sent = m_network.sent.size();
 
     std::optional<std::optional<QList<crate::library::CrateTrackRef>>> read;
-    pFeature->readSmartMixPlaylist(kServer, 7, [&read](auto tracks) {
+    pFeature->readSmartMixPlaylist(kServer, 7, [&read](const auto& tracks) {
         read = tracks;
     });
     ASSERT_TRUE(QTest::qWaitFor([&] { return read.has_value(); }, 5000));
@@ -605,7 +605,7 @@ TEST_F(CrateServerFeatureTest, ReadsASmartMixPlaylistByItsIdOnTheServer) {
 
     // Not a playlist of the tree
     read.reset();
-    pFeature->readSmartMixPlaylist(kServer, 99, [&read](auto tracks) {
+    pFeature->readSmartMixPlaylist(kServer, 99, [&read](const auto& tracks) {
         read = tracks;
     });
     ASSERT_TRUE(read.has_value());

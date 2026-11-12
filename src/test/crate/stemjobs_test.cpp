@@ -63,7 +63,7 @@ class FakeSeparator : public crate::LocalStemSeparator {
         m_pSink = std::move(pSink);
         m_finished = std::move(finished);
         if (finishAtOnce) {
-            QTimer::singleShot(0, [this] {
+            QTimer::singleShot(0, &m_context, [this] {
                 finish();
             });
         }
@@ -105,6 +105,7 @@ class FakeSeparator : public crate::LocalStemSeparator {
     bool finishAtOnce = false;
 
   private:
+    QObject m_context;
     std::shared_ptr<crate::StemSink> m_pSink;
     std::function<void(bool, const QString&)> m_finished;
 };
@@ -178,14 +179,13 @@ class StemJobsTest : public MixxxTest, SoundSourceProviderRegistration {
         };
         options.readPlaylist = [this](const QString& serverId,
                                        qint64 playlistId,
-                                       std::function<void(std::optional<QList<CrateTrackRef>>)>
-                                               done) {
+                                       const std::function<void(std::optional<QList<CrateTrackRef>>)>& done) {
             EXPECT_EQ(kServer, serverId);
             EXPECT_EQ(kPlaylist, playlistId);
             done(QList<CrateTrackRef>{track(kUidA), track(kUidB)});
         };
         options.confirmDownload =
-                [this](const QString&, qint64, int tracks, qint64 bytes, auto answer) {
+                [this](const QString&, qint64, int tracks, qint64 bytes, const auto& answer) {
                     m_confirmed.append({tracks, bytes});
                     answer(true);
                 };

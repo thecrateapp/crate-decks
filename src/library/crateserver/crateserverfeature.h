@@ -140,7 +140,7 @@ class CrateServerFeature : public LibraryFeature {
     /// playlist yet, or the sync fails. For StemJobs.
     void readSmartMixPlaylist(const QString& serverId,
             qint64 playlistId,
-            std::function<void(std::optional<QList<CrateTrackRef>>)> done);
+            const std::function<void(std::optional<QList<CrateTrackRef>>)>& done);
 
   signals:
     /// The sidebar shows what the tables hold of the server now.
