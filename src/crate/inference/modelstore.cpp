@@ -159,9 +159,19 @@ struct ModelStore::Download {
 };
 
 QList<ModelManifestEntry> ModelStore::builtInManifest() {
-    // TODO(ST4.PR2): the htdemucs ONNX export, once it is a release asset
-    // with a pinned URL, SHA-256 and size.
-    return {};
+    // The htdemucs ONNX export of ST4.PR2, a release asset of Crate Decks
+    // with its attribution and the note on its training data
+    // (htdemucs-onnx-1.NOTICE beside it)
+    ModelManifestEntry htdemucs;
+    htdemucs.name = kHtdemucsModel;
+    htdemucs.version = QStringLiteral("1");
+    htdemucs.url = QUrl(QStringLiteral(
+            "https://github.com/thecrateapp/crate-decks/releases/download/"
+            "models-htdemucs-onnx-1/htdemucs-onnx-1.onnx"));
+    htdemucs.sha256 = QByteArrayLiteral(
+            "808790c0f71069e6fa42572bc5b97752add35a49b4c40559098d92bc342d6a08");
+    htdemucs.size = 174273757;
+    return {htdemucs};
 }
 
 ModelStore::ModelStore(const QList<ModelManifestEntry>& manifest,

@@ -94,6 +94,31 @@ TEST_F(CrateServerSchemaTest, CreatesTheModelsTableIdempotently) {
     EXPECT_EQ(1, count.value(0).toInt());
 }
 
+TEST_F(CrateServerSchemaTest, CreatesTheStemsTableIdempotently) {
+    ASSERT_TRUE(crate::db::createCrateServerSchema(dbConnection()));
+    QSqlQuery insert(dbConnection());
+    ASSERT_TRUE(insert.exec(QStringLiteral(
+            "INSERT INTO crateserver_stems (server_id, entity_uid, path, separator_model, "
+            "source_revision, created_at) VALUES ('srv', 'uid', 'srv/ui/uid.stems.flac', "
+            "'htdemucs-onnx-1', 'ab', '2026-11-12T20:00:00Z')")));
+
+    ASSERT_TRUE(crate::db::createCrateServerSchema(dbConnection()));
+
+    // The stem sidecars Decks has (Smart Mix Stems, ST5.PR2)
+    EXPECT_EQ(QStringList({QStringLiteral("server_id"),
+                      QStringLiteral("entity_uid"),
+                      QStringLiteral("path"),
+                      QStringLiteral("separator_model"),
+                      QStringLiteral("source_revision"),
+                      QStringLiteral("created_at"),
+                      QStringLiteral("uploaded_at")}),
+            columns(QStringLiteral("crateserver_stems")));
+    QSqlQuery count(dbConnection());
+    ASSERT_TRUE(count.exec(QStringLiteral("SELECT COUNT(*) FROM crateserver_stems")));
+    ASSERT_TRUE(count.next());
+    EXPECT_EQ(1, count.value(0).toInt());
+}
+
 TEST_F(CrateServerSchemaTest, DoesNotTouchMixxxTables) {
     const QStringList before = mixxxObjects();
     ASSERT_FALSE(before.isEmpty());

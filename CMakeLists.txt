@@ -5365,7 +5365,12 @@ if(CRATE)
       src/crate/session/cratesecretstore.cpp
       src/crate/session/cratesession.cpp
       src/crate/stems/resampler.cpp
+      src/crate/stems/nistemexport.cpp
+      src/crate/stems/stemanalyzer.cpp
       src/crate/stems/stemdsp.cpp
+      src/crate/stems/stemjobs.cpp
+      src/crate/stems/stemsidecar.cpp
+      src/crate/stems/stemsync.cpp
       src/crate/crateaddserverflow.cpp
       src/crate/cratepreferences.cpp
       src/crate/crateserverrows.cpp
@@ -5392,6 +5397,7 @@ if(CRATE)
       src/crate/ui/skin/decktrackfields.cpp
       src/crate/ui/skin/librarystyle.cpp
       src/crate/ui/skin/mixerstyle.cpp
+      src/crate/ui/skin/stemcolors.cpp
       src/crate/ui/skin/preferencescontrol.cpp
       src/library/crateserver/crateserverfeature.cpp
       src/library/crateserver/crateservertrackmodel.cpp
@@ -5427,7 +5433,11 @@ if(CRATE)
         src/test/crate/dlgprefcrate_test.cpp
         src/test/crate/cratesession_test.cpp
         src/test/crate/modelstore_test.cpp
+        src/test/crate/stemanalyzer_test.cpp
         src/test/crate/stemdsp_test.cpp
+        src/test/crate/stemjobs_test.cpp
+        src/test/crate/stemsidecar_test.cpp
+        src/test/crate/stemsync_test.cpp
         src/test/crate/skinloadtest.cpp
         src/test/crate/mixerstyletest.cpp
         src/test/crate/delegatestest.cpp
@@ -5435,6 +5445,15 @@ if(CRATE)
         src/test/crate/decktrackfieldstest.cpp
         src/test/crate/brandvisibletest.cpp
         src/test/crate/helplinkstest.cpp
+    )
+  endif()
+  # Decks' stem files and the NI STEM reader they go through (ST5.PR2)
+  if(BUILD_TESTING AND STEM)
+    target_sources(
+      mixxx-test
+      PRIVATE
+        src/test/crate/nistemexport_test.cpp
+        src/test/crate/steminfoimporter_test.cpp
     )
   endif()
 
@@ -5475,8 +5494,11 @@ if(CRATE)
       mixxx-lib
       PRIVATE
         src/crate/inference/inferenceruntime.cpp
+        src/crate/stems/appstemseparator.cpp
         src/crate/stems/stemseparator.cpp
     )
+    # The application separates locally only with ONNX Runtime
+    target_compile_definitions(mixxx-lib PUBLIC __CRATE_INFERENCE__)
     # Only the runtime sees ONNX Runtime's headers, so the rest of mixxx-lib
     # compiles the same with and without it.
     set_source_files_properties(
@@ -5488,6 +5510,7 @@ if(CRATE)
       target_sources(
         mixxx-test
         PRIVATE
+          src/test/crate/appstemseparator_test.cpp
           src/test/crate/inferenceruntime_test.cpp
           src/test/crate/stemseparator_test.cpp
       )

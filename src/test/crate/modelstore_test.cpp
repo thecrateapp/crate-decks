@@ -266,3 +266,22 @@ TEST_F(ModelStoreTest, KeepsThePartialFileWhenCancelled) {
 }
 
 } // namespace
+
+// The separation model of Smart Mix Stems: the htdemucs ONNX export of
+// ST4.PR2, published as the release `models-htdemucs-onnx-1` of Crate
+// Decks, pinned by its address, SHA-256 and size.
+TEST_F(ModelStoreTest, BuiltInManifestPinsTheHtdemucsRelease) {
+    const QList<ModelManifestEntry> manifest = ModelStore::builtInManifest();
+    ASSERT_EQ(1, manifest.size());
+    const ModelManifestEntry& entry = manifest.first();
+    EXPECT_EQ(QStringLiteral("htdemucs-onnx"), entry.name);
+    EXPECT_EQ(QStringLiteral("1"), entry.version);
+    EXPECT_EQ(QUrl(QStringLiteral("https://github.com/thecrateapp/crate-decks/releases/download/"
+                                  "models-htdemucs-onnx-1/htdemucs-onnx-1.onnx")),
+            entry.url);
+    EXPECT_EQ(QByteArrayLiteral(
+                      "808790c0f71069e6fa42572bc5b97752add35a49b4c40559098d92bc342d6a08"),
+            entry.sha256);
+    EXPECT_EQ(174273757, entry.size);
+    EXPECT_EQ(crate::kHtdemucsModel, entry.name);
+}

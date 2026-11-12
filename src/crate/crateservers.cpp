@@ -16,6 +16,7 @@
 #include "crate/db/crateserverprofiles.h"
 #include "crate/db/crateserverschema.h"
 #include "crate/session/cratesecretstore.h"
+#include "crate/stems/stemsidecar.h"
 #include "util/db/dbconnectionpooled.h"
 #include "util/logger.h"
 
@@ -194,6 +195,10 @@ cache::AudioCache* CrateServers::audioCache() {
             return client(serverId);
         };
         options.limitBytes = m_pPreferences->cacheLimitBytes();
+        // A track's stem sidecar counts in its size and goes with it
+        options.companionsOf = [](const QString& trackPath) {
+            return QStringList{StemSidecar::pathFor(trackPath)};
+        };
         m_pAudioCache = std::make_unique<cache::AudioCache>(std::move(options));
         // A new directory waits for the next start: the cache is in use
         connect(m_pPreferences.get(),

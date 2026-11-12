@@ -17,6 +17,12 @@ enum class DecksFeature {
     BassHandoff,   // S5
     LongBeatmatch, // S5
     Cues,          // S7
+    /// Smart Mix Stems ST1: stem analyses and stem files of tracks.
+    Stems,
+    /// The server takes Decks' stem analyses from this account.
+    StemUpload,
+    /// ST3: the candidate menu and policy limits in the decks context.
+    LocalRefinement,
 };
 
 /// Version of the Decks server contract this client implements. The server

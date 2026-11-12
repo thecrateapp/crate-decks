@@ -15,6 +15,10 @@ class QNetworkAccessManager;
 
 namespace crate {
 
+/// The separation model of Smart Mix Stems (ST4.PR2): the htdemucs network
+/// exported to ONNX, separator identifier htdemucs-onnx-1.
+inline constexpr QLatin1StringView kHtdemucsModel{"htdemucs-onnx"};
+
 /// A model file that Decks downloads on first use (STEM-D7).
 struct ModelManifestEntry {
     /// Identifier, e.g. "htdemucs-onnx". Lowercase letters, digits, '.', '_'
