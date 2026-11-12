@@ -2,9 +2,12 @@
 
 #include <gtest/gtest.h>
 
+#include <QMutex>
+#include <QSemaphore>
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QTest>
+#include <QThread>
 #include <memory>
 
 #include "control/controlobject.h"
@@ -243,6 +246,138 @@ TEST_F(CrateLoadCoordinatorTest, DoesNotInterruptPlayingDeckWithoutConfirmation)
             static_cast<int>(LoadWhenDeckPlaying::Reject));
     EXPECT_FALSE(CrateLoadCoordinator::mayLoadInto(kDeck1, config()));
     EXPECT_TRUE(CrateLoadCoordinator::mayLoadInto(kDeck2, config()));
+}
+
+/// A library whose reads of new files wait for the test: what the
+/// coordinator's worker read, and what the main thread added.
+struct SlowLibrary {
+    QMutex mutex;
+    /// The threads that read the files, in order. Guarded by `mutex`.
+    QList<QThread*> readOn;
+    QStringList read;
+    /// One per file the worker may finish reading.
+    QSemaphore mayFinish;
+    /// Main thread only.
+    QSet<QString> inLibrary;
+    QList<QThread*> addedOn;
+    QStringList added;
+
+    qsizetype readCount() {
+        const QMutexLocker locker(&mutex);
+        return read.size();
+    }
+};
+
+/// A coordinator over the fixture's cache that reads new files for the
+/// library through `pLibrary`.
+std::unique_ptr<CrateLoadCoordinator> coordinatorReadingThrough(AudioCache* pCache,
+        const UserSettingsPointer& pConfig,
+        const std::shared_ptr<SlowLibrary>& pLibrary,
+        QList<Load>* pLoads) {
+    CrateLoadCoordinator::Options options;
+    options.pCache = pCache;
+    options.pConfig = pConfig;
+    options.trackInLibrary = [pLibrary](const QString& path) {
+        return pLibrary->inLibrary.contains(path) ? Track::newDummy(path, TrackId(QVariant(1)))
+                                                  : TrackPointer();
+    };
+    options.prepareTrack = [pLibrary](const QString& path) {
+        {
+            const QMutexLocker locker(&pLibrary->mutex);
+            pLibrary->readOn.append(QThread::currentThread());
+            pLibrary->read.append(path);
+        }
+        pLibrary->mayFinish.tryAcquire(1, kWaitMs);
+        return Track::newTemporary(path);
+    };
+    options.trackOfFile = [pLibrary](const QString& path) {
+        pLibrary->addedOn.append(QThread::currentThread());
+        pLibrary->added.append(path);
+        pLibrary->inLibrary.insert(path);
+        return Track::newDummy(path, TrackId(QVariant(1)));
+    };
+    auto pCoordinator = std::make_unique<CrateLoadCoordinator>(std::move(options));
+    QObject::connect(pCoordinator.get(),
+            &CrateLoadCoordinator::loadTrackToPlayer,
+            pCoordinator.get(),
+            [pLoads](const TrackPointer& pTrack, const QString& group, bool play) {
+                pLoads->append({pTrack->getLocation(), group, play});
+            });
+    return pCoordinator;
+}
+
+// The first load of a download reads the file for the library on a worker
+// (design §9: the main thread never blocks over 16 ms), once however many
+// wait for it; the main thread then only adds it. Meanwhile the track table
+// gets no track for the row, and reads nothing itself.
+TEST_F(CrateLoadCoordinatorTest, ReadsANewFileForTheLibraryOnAWorkerOnce) {
+    const auto pLibrary = std::make_shared<SlowLibrary>();
+    QList<Load> loads;
+    const auto pCoordinator =
+            coordinatorReadingThrough(m_pCache.get(), config(), pLibrary, &loads);
+
+    pCoordinator->requestLoad(trackRef(kUid1), kDeck1, false);
+    FakeReply* pReply = waitForDownload(kUid1);
+    ASSERT_NE(nullptr, pReply);
+    complete(pReply);
+    ASSERT_TRUE(QTest::qWaitFor([&] { return pLibrary->readCount() == 1; }, kWaitMs));
+    {
+        const QMutexLocker locker(&pLibrary->mutex);
+        EXPECT_NE(QThread::currentThread(), pLibrary->readOn.first());
+        EXPECT_EQ(cachedPathOf(kUid1), pLibrary->read.first());
+    }
+    EXPECT_TRUE(pCoordinator->isLoadPending(kDeck1));
+    EXPECT_FALSE(pCoordinator->loadsAtOnce(kServer, kUid1));
+    // The row is selected and loaded into deck 2 while the file is read
+    EXPECT_EQ(nullptr, pCoordinator->cachedTrack(kServer, kUid1));
+    pCoordinator->requestLoad(trackRef(kUid1), kDeck2, true);
+    QTest::qWait(50);
+    EXPECT_TRUE(loads.isEmpty());
+    EXPECT_TRUE(pLibrary->added.isEmpty());
+
+    pLibrary->mayFinish.release();
+    ASSERT_TRUE(QTest::qWaitFor([&] { return loads.size() == 2; }, kWaitMs));
+    EXPECT_EQ(1, pLibrary->readCount());
+    EXPECT_EQ(QStringList{cachedPathOf(kUid1)}, pLibrary->added);
+    EXPECT_EQ(QList<QThread*>{QThread::currentThread()}, pLibrary->addedOn);
+    QStringList groups{loads[0].group, loads[1].group};
+    groups.sort();
+    EXPECT_EQ((QStringList{kDeck1, kDeck2}), groups);
+    // In the library now: at once, without reading it again
+    EXPECT_TRUE(pCoordinator->loadsAtOnce(kServer, kUid1));
+    ASSERT_NE(nullptr, pCoordinator->cachedTrack(kServer, kUid1));
+    EXPECT_EQ(1, pLibrary->readCount());
+}
+
+// A newer load to a deck replaces one whose file is still read for the
+// library; that file still goes into the library.
+TEST_F(CrateLoadCoordinatorTest, NewerLoadReplacesOneWaitingForTheRead) {
+    const auto pLibrary = std::make_shared<SlowLibrary>();
+    QList<Load> loads;
+    const auto pCoordinator =
+            coordinatorReadingThrough(m_pCache.get(), config(), pLibrary, &loads);
+
+    pCoordinator->requestLoad(trackRef(kUid1), kDeck1, false);
+    FakeReply* pFirst = waitForDownload(kUid1);
+    ASSERT_NE(nullptr, pFirst);
+    complete(pFirst);
+    ASSERT_TRUE(QTest::qWaitFor([&] { return pLibrary->readCount() == 1; }, kWaitMs));
+
+    pCoordinator->requestLoad(trackRef(kUid2), kDeck1, true);
+    FakeReply* pSecond = waitForDownload(kUid2);
+    ASSERT_NE(nullptr, pSecond);
+    complete(pSecond);
+    ASSERT_TRUE(QTest::qWaitFor([&] { return pLibrary->readCount() == 2; }, kWaitMs));
+    pLibrary->mayFinish.release(2);
+
+    ASSERT_TRUE(QTest::qWaitFor([&] { return pLibrary->added.size() == 2; }, kWaitMs));
+    ASSERT_TRUE(QTest::qWaitFor([&] { return !loads.isEmpty(); }, kWaitMs));
+    QTest::qWait(50);
+    ASSERT_EQ(1, loads.size());
+    EXPECT_EQ(cachedPathOf(kUid2), loads[0].location);
+    EXPECT_EQ(kDeck1, loads[0].group);
+    EXPECT_TRUE(loads[0].play);
+    EXPECT_FALSE(pCoordinator->isLoadPending(kDeck1));
 }
 
 } // namespace

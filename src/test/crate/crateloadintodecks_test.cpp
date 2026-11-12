@@ -3,11 +3,17 @@
 // application's Library, PlayerManager and engine, with the network faked.
 // It mirrors upstream's playermanagertest.cpp fixture.
 
+#include <attachedpictureframe.h>
 #include <gtest/gtest.h>
+#include <id3v2tag.h>
+#include <mpegfile.h>
 
 #include <QAction>
+#include <QBuffer>
 #include <QElapsedTimer>
+#include <QEventLoop>
 #include <QFile>
+#include <QImage>
 #include <QItemSelectionModel>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -16,6 +22,8 @@
 #include <QSqlError>
 #include <QTemporaryDir>
 #include <QTest>
+#include <QTimer>
+#include <algorithm>
 #include <memory>
 
 #include "control/controlindicatortimer.h"
@@ -44,9 +52,11 @@
 #include "mixer/deck.h"
 #include "mixer/playerinfo.h"
 #include "mixer/playermanager.h"
+#include "sources/soundsourceproxy.h"
 #include "test/crate/fakecratenetwork.h"
 #include "test/mixxxdbtest.h"
 #include "test/soundsourceproviderregistration.h"
+#include "track/taglib/trackmetadata_file.h"
 #include "track/track.h"
 #include "widget/wtrackmenu.h"
 #include "widget/wtracktableview.h"
@@ -88,9 +98,8 @@ class CrateLoadIntoDecksTest : public MixxxDbTest, SoundSourceProviderRegistrati
 
     void SetUp() override {
         ASSERT_TRUE(m_cacheDir.isValid());
-        QFile audio(getTestDir().filePath(kTrackFile));
-        ASSERT_TRUE(audio.open(QIODevice::ReadOnly));
-        m_audio = audio.readAll();
+        m_audio = testAudio();
+        ASSERT_FALSE(m_audio.isEmpty());
 
         // As coreservices.cpp and upstream's PlayerManagerTest build them
         auto pChannelHandleFactory = std::make_shared<ChannelHandleFactory>();
@@ -208,6 +217,12 @@ class CrateLoadIntoDecksTest : public MixxxDbTest, SoundSourceProviderRegistrati
     }
 
   protected:
+    /// The file the server sends for both tracks.
+    virtual QByteArray testAudio() const {
+        QFile audio(getTestDir().filePath(kTrackFile));
+        return audio.open(QIODevice::ReadOnly) ? audio.readAll() : QByteArray();
+    }
+
     qint64 playlistId() const {
         QSqlQuery query(dbConnection());
         query.prepare(
@@ -576,6 +591,236 @@ TEST_F(CrateLoadIntoDecksTest, TrackInADeckSurvivesClearCacheAndALowerLimit) {
     EXPECT_FALSE(pCache->cachedPath(kServer, QStringLiteral("e1")).has_value());
     EXPECT_TRUE(QTest::qWaitFor(
             [&] { return !QFile::exists(cachedPathOf(QStringLiteral("e1"))); }, kWaitMs));
+}
+
+/// The main thread may block for 16 ms at most (design §9).
+constexpr double kStallBudgetMs = 16.0;
+/// The side of the embedded cover of the large-cover file, in pixels.
+constexpr int kLargeCoverSide = 4000;
+
+/// The test file with an embedded PNG cover of `side` × `side` pixels in
+/// place of its own. Adding a file to the library decodes, scales and hashes
+/// its embedded cover: the larger, the longer.
+QByteArray withLargeCover(const QString& sourcePath, int side) {
+    QTemporaryDir dir;
+    const QString path = dir.filePath(QStringLiteral("large-cover.mp3"));
+    if (!dir.isValid() || !QFile::copy(sourcePath, path)) {
+        return QByteArray();
+    }
+    QImage image(side, side, QImage::Format_RGB32);
+    for (int y = 0; y < side; ++y) {
+        auto* pLine = reinterpret_cast<QRgb*>(image.scanLine(y));
+        for (int x = 0; x < side; ++x) {
+            pLine[x] = qRgb(x % 256, y % 256, (x + y) % 256);
+        }
+    }
+    QByteArray png;
+    QBuffer buffer(&png);
+    if (!buffer.open(QIODevice::WriteOnly) || !image.save(&buffer, "PNG")) {
+        return QByteArray();
+    }
+    {
+        TagLib::MPEG::File file(TAGLIB_FILENAME_FROM_QSTRING(path));
+        TagLib::ID3v2::Tag* pTag = file.ID3v2Tag(true);
+        if (!pTag) {
+            return QByteArray();
+        }
+        pTag->removeFrames("APIC");
+        auto* pFrame = new TagLib::ID3v2::AttachedPictureFrame();
+        pFrame->setMimeType("image/png");
+        pFrame->setType(TagLib::ID3v2::AttachedPictureFrame::FrontCover);
+        pFrame->setPicture(TagLib::ByteVector(png.constData(), static_cast<unsigned int>(png.size())));
+        // Owned by the tag
+        pTag->addFrame(pFrame);
+        if (!file.save()) {
+            return QByteArray();
+        }
+    }
+    QFile file(path);
+    return file.open(QIODevice::ReadOnly) ? file.readAll() : QByteArray();
+}
+
+/// How long it takes to read the tags and the cover of `audio` as Mixxx
+/// does when it adds a file to its library, on this machine.
+double importCostMs(const QByteArray& audio) {
+    QTemporaryDir dir;
+    const QString path = dir.filePath(QStringLiteral("import-cost.mp3"));
+    QFile file(path);
+    if (!dir.isValid() || !file.open(QIODevice::WriteOnly) || file.write(audio) != audio.size()) {
+        return -1.0;
+    }
+    file.close();
+    const TrackPointer pTrack = Track::newTemporary(mixxx::FileAccess(mixxx::FileInfo(path)));
+    QElapsedTimer timer;
+    timer.start();
+    SoundSourceProxy(pTrack).updateTrackFromSource(
+            SoundSourceProxy::UpdateTrackFromSourceMode::Once, SyncTrackMetadataParams());
+    const double ms = static_cast<double>(timer.nsecsElapsed()) / 1e6;
+    return pTrack->getCoverInfo().type == CoverInfo::METADATA ? ms : -1.0;
+}
+
+/// Runs the event loop with a 1 ms timer on the main thread: `action` on the
+/// first tick, then `done` on each one until it holds. Returns the longest
+/// time between two ticks, `action` included and leaving out the time `done`
+/// takes: how long the main thread was blocked, at most. Negative if `done`
+/// never held.
+double longestStallUntil(
+        const std::function<void()>& action, const std::function<bool()>& done) {
+    struct State {
+        QEventLoop loop;
+        QElapsedTimer clock;
+        qint64 lastTickNs = 0;
+        double longestMs = 0.0;
+        bool acted = false;
+        bool held = false;
+    } state;
+    State* const pState = &state;
+    const std::function<void()>* const pAction = &action;
+    const std::function<bool()>* const pDone = &done;
+    QTimer tick;
+    tick.setTimerType(Qt::PreciseTimer);
+    tick.setInterval(1);
+    QObject::connect(&tick, &QTimer::timeout, &state.loop, [pState, pAction, pDone] {
+        const qint64 nowNs = pState->clock.nsecsElapsed();
+        pState->longestMs = std::max(pState->longestMs,
+                static_cast<double>(nowNs - pState->lastTickNs) / 1e6);
+        if (!pState->acted) {
+            // What the action takes counts: the next tick measures from here
+            pState->acted = true;
+            pState->lastTickNs = nowNs;
+            (*pAction)();
+            return;
+        }
+        if ((*pDone)()) {
+            pState->held = true;
+            pState->loop.quit();
+            return;
+        } else if (pState->clock.elapsed() > kWaitMs) {
+            pState->loop.quit();
+            return;
+        }
+        pState->lastTickNs = pState->clock.nsecsElapsed();
+    });
+    state.clock.start();
+    state.lastTickNs = state.clock.nsecsElapsed();
+    tick.start();
+    state.loop.exec();
+    return state.held ? state.longestMs : -1.0;
+}
+
+/// The decks with a file whose embedded cover is large, so that adding it
+/// to the library takes far longer than the main thread may block.
+class CrateLoadIntoDecksLargeCoverTest : public CrateLoadIntoDecksTest {
+  protected:
+    QByteArray testAudio() const override {
+        return withLargeCover(getTestDir().filePath(kTrackFile), kLargeCoverSide);
+    }
+
+    /// Whether `group` has the cached file of `uid` in the engine; drives
+    /// the engine once, without waiting.
+    bool deckIsLoaded(const QString& group, const QString& uid) {
+        Deck* pDeck = m_pPlayerManager->getDeck(group == kDeck1 ? 0 : 1);
+        const TrackPointer pTrack = pDeck->getLoadedTrack();
+        m_pEngine->process(1024);
+        return pTrack && pTrack->getLocation() == cachedPathOf(uid) &&
+                pDeck->getEngineDeck()->getEngineBuffer()->isTrackLoaded();
+    }
+
+    /// The playlist in a track table wired to the decks as
+    /// Library::bindLibraryWidget() wires the application's.
+    CrateServerTrackModel* showPlaylistOnTheDecks() {
+        CrateServerTrackModel* pModel = showPlaylist();
+        if (pModel) {
+            QObject::connect(m_pView.get(),
+                    &WTrackTableView::loadTrackToPlayer,
+                    m_pLibrary.get(),
+                    &Library::slotLoadTrackToPlayer);
+        }
+        return pModel;
+    }
+
+    void loadFirstRowInto(CrateServerTrackModel* pModel, const QString& group) {
+        m_pView->selectionModel()->select(pModel->index(0, 0),
+                QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
+        m_pView->loadSelectedTrackToGroup(group,
+#ifdef __STEM__
+                mixxx::StemChannelSelection(),
+#endif
+                false);
+    }
+};
+
+// The first load of a Crate track adds its file to the library, which reads
+// its tags and decodes, scales and hashes its embedded cover: 40-90 ms with
+// the dev stack's files (G3, 2026-11-11). That happens off the main thread;
+// the main thread only writes the library row.
+TEST_F(CrateLoadIntoDecksLargeCoverTest, FirstLoadReadsTheFileOffTheMainThread) {
+    const double importMs = importCostMs(m_audio);
+    ASSERT_GT(importMs, 2.0 * kStallBudgetMs) << "The cover is too small to tell: " << importMs;
+    CrateServerTrackModel* pModel = showPlaylistOnTheDecks();
+    ASSERT_NE(nullptr, pModel);
+    loadFirstRowInto(pModel, kDeck1);
+    ASSERT_TRUE(serveDownload(QStringLiteral("e1")));
+
+    const double stallMs = longestStallUntil([] {},
+            [this] { return deckIsLoaded(kDeck1, QStringLiteral("e1")); });
+    ASSERT_GE(stallMs, 0.0) << "Deck 1 never loaded the track";
+    EXPECT_LT(stallMs, importMs / 2.0)
+            << "The main thread blocked " << stallMs << " ms; the import takes " << importMs
+            << " ms";
+    const TrackPointer pTrack = m_pPlayerManager->getDeck(0)->getLoadedTrack();
+    ASSERT_NE(nullptr, pTrack);
+    EXPECT_TRUE(pTrack->getId().isValid());
+    // The cover was read, off the main thread
+    EXPECT_EQ(CoverInfo::METADATA, pTrack->getCoverInfo().type);
+}
+
+// A track cached before (a download, an offline set) whose file the library
+// does not have yet: selecting its row and loading it never read the file on
+// the main thread either.
+TEST_F(CrateLoadIntoDecksLargeCoverTest, CachedTrackFirstLoadReadsTheFileOffTheMainThread) {
+    const double importMs = importCostMs(m_audio);
+    ASSERT_GT(importMs, 2.0 * kStallBudgetMs) << "The cover is too small to tell: " << importMs;
+    CrateServerTrackModel* pModel = showPlaylistOnTheDecks();
+    ASSERT_NE(nullptr, pModel);
+    crate::library::CrateTrackRef track;
+    track.serverId = kServer;
+    track.entityUid = QStringLiteral("e1");
+    track.hints.format = QStringLiteral("mp3");
+    track.hints.byteLength = m_audio.size();
+    m_pFeature->loadCoordinator()->download({track}, crate::cache::Priority::Prefetch);
+    ASSERT_TRUE(serveDownload(QStringLiteral("e1")));
+    crate::cache::AudioCache* pCache = m_pServers->audioCache();
+    // The download ends and the row shows it
+    const double downloadStallMs = longestStallUntil([] {},
+            [pCache] { return pCache->cachedPath(kServer, QStringLiteral("e1")).has_value(); });
+    ASSERT_GE(downloadStallMs, 0.0) << "The download never ended";
+    EXPECT_LT(downloadStallMs, importMs / 2.0)
+            << "The main thread blocked " << downloadStallMs
+            << " ms as the download ended; the import takes " << importMs << " ms";
+    // What the table and the cache do next
+    QElapsedTimer settling;
+    settling.start();
+    const double settleStallMs =
+            longestStallUntil([] {}, [&settling] { return settling.elapsed() > 300; });
+    EXPECT_LT(settleStallMs, importMs / 2.0)
+            << "The main thread blocked " << settleStallMs
+            << " ms after the download; the import takes " << importMs << " ms";
+
+    const double stallMs = longestStallUntil(
+            [this, pModel] {
+                // As the track table does once a row stays selected
+                Q_UNUSED(pModel->getTrack(pModel->index(0, 0)));
+                loadFirstRowInto(pModel, kDeck1);
+            },
+            [this] { return deckIsLoaded(kDeck1, QStringLiteral("e1")); });
+    ASSERT_GE(stallMs, 0.0) << "Deck 1 never loaded the track";
+    EXPECT_LT(stallMs, importMs / 2.0)
+            << "The main thread blocked " << stallMs << " ms; the import takes " << importMs
+            << " ms";
+    const TrackPointer pTrack = m_pPlayerManager->getDeck(0)->getLoadedTrack();
+    ASSERT_NE(nullptr, pTrack);
+    EXPECT_EQ(CoverInfo::METADATA, pTrack->getCoverInfo().type);
 }
 
 } // namespace

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QFutureWatcher>
 #include <QHash>
 #include <QList>
 #include <QObject>
@@ -7,6 +8,7 @@
 #include <QSet>
 #include <QString>
 #include <QStringList>
+#include <QThreadPool>
 #include <functional>
 #include <optional>
 
@@ -54,6 +56,15 @@ struct CrateQueuedTrack {
 /// deck it was meant for. A newer load to the same deck replaces the one
 /// still downloading.
 ///
+/// The main thread never reads a file the library does not have yet (design
+/// §9: it never blocks over 16 ms). Adding a file reads its tags and decodes,
+/// scales and hashes its embedded cover, 40-90 ms for real files (G3,
+/// 2026-11-11), so with Options::prepareTrack that happens on a worker and
+/// the main thread only writes the library row: the first load of a
+/// download, and the first load of a file cached before, go through
+/// requestLoad(), and cachedTrack() answers nullptr for such a file while it
+/// adds it in the background.
+///
 /// It never interrupts a playing deck that Mixxx would not interrupt: when
 /// the download ends, a deck that started playing meanwhile keeps its track
 /// unless the deck preferences allow loading into a playing deck
@@ -87,6 +98,15 @@ class CrateLoadCoordinator : public QObject {
         std::function<QList<TrackId>(const QStringList& paths)> trackIdsOfFiles;
         /// TrackCollectionManager::getTrackById() in the application.
         std::function<TrackPointer(TrackId trackId)> trackById;
+        /// The library's track of a file, from the track cache or the
+        /// database, never adding it: TrackCollectionManager::getTrackByRef()
+        /// in the application. Optional, with prepareTrack.
+        std::function<TrackPointer(const QString& path)> trackInLibrary;
+        /// Reads a file the library does not have yet into the track cache,
+        /// on a worker, before trackOfFile adds it on the main thread:
+        /// prepareTrackForLibrary() in the application. Optional; without it
+        /// trackOfFile reads the file itself.
+        std::function<TrackPointer(const QString& path)> prepareTrack;
         /// Applies Crate's analysis of a track to it (ProfileStore and
         /// AnalysisImporter in the application); it may finish later.
         /// Optional.
@@ -114,8 +134,13 @@ class CrateLoadCoordinator : public QObject {
     /// The library's track of a cached Crate track; nullptr if its file is
     /// not in the cache. Never starts a download: TrackModel::getTrack()
     /// also runs when rows are selected and menus are built.
+    /// Also nullptr for a cached file the library does not have yet: it
+    /// adds that one off the main thread, and has it the next time.
     TrackPointer cachedTrack(const QString& serverId, const QString& entityUid);
     bool isCached(const QString& serverId, const QString& entityUid) const;
+    /// Whether cachedTrack() has the track now: it is cached and its file
+    /// is in the library. Otherwise a load goes through requestLoad().
+    bool loadsAtOnce(const QString& serverId, const QString& entityUid) const;
 
     /// Loads the track into `group` once its file is in the cache; an empty
     /// group is the first stopped deck, as a double click loads. Replaces a
@@ -156,6 +181,18 @@ class CrateLoadCoordinator : public QObject {
         CrateTrackRef track;
         bool play = false;
         QPointer<cache::CacheTicket> pTicket;
+        /// Once the file is there: the number of the wait for its library
+        /// track (whenInLibrary()), so that a newer load can replace it.
+        quint64 wait = 0;
+    };
+
+    using LibraryTrackCallback = std::function<void(const TrackPointer& pTrack)>;
+
+    /// A file read into the track cache on a worker, before the library
+    /// adds it.
+    struct Preparation {
+        QFutureWatcher<TrackPointer>* pWatcher = nullptr;
+        QList<LibraryTrackCallback> callbacks;
     };
 
     static QString keyOf(const QString& serverId, const QString& entityUid);
@@ -166,16 +203,36 @@ class CrateLoadCoordinator : public QObject {
     void analyseOnce(const TrackPointer& pTrack, const QString& serverId, const QString& entityUid);
     void onPlayerTrackChanged(const TrackPointer& pTrack);
     void onReady(const QString& group, cache::CacheTicket* pTicket, const QString& path);
+    /// Loads the track of a group whose file is in the library now.
+    void finishLoad(const QString& group, const PendingLoad& load, const TrackPointer& pTrack);
     void cancel(const QString& group);
+    /// The library's track of a file it has; nullptr while it does not, or
+    /// while the file is read for it.
+    TrackPointer libraryTrackOf(const QString& path) const;
+    /// Calls `callback` with the library's track of the cached file `path`
+    /// (nullptr if the library does not take it): at once if the library
+    /// has it, else once a worker has read the file and the library has
+    /// added it. Each file is read once, however many wait for it.
+    void whenInLibrary(const QString& path, LibraryTrackCallback callback);
+    void onPrepared(const QString& path);
 
     const QPointer<cache::AudioCache> m_pCache;
     const UserSettingsPointer m_pConfig;
     const std::function<TrackPointer(const QString& path)> m_trackOfFile;
     const std::function<QList<TrackId>(const QStringList& paths)> m_trackIdsOfFiles;
     const std::function<TrackPointer(TrackId trackId)> m_trackById;
+    const std::function<TrackPointer(const QString& path)> m_trackInLibrary;
+    const std::function<TrackPointer(const QString& path)> m_prepareTrack;
     const std::function<void(const TrackPointer&, const QString&, const QString&)> m_applyAnalysis;
     /// By group; "" for the first stopped deck.
     QHash<QString, PendingLoad> m_pending;
+    quint64 m_lastWait = 0;
+    /// By file.
+    QHash<QString, Preparation> m_preparing;
+    /// Cached files the library has had in this run.
+    mutable QSet<QString> m_inLibrary;
+    /// Reads files for the library: one per deck at a time.
+    QThreadPool m_preparePool;
     /// Tracks whose analysis was applied in this run.
     QSet<QString> m_analysed;
     /// Library tracks of uncached files that have Crate's tags, checked in

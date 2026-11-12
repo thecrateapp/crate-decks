@@ -5360,6 +5360,7 @@ if(CRATE)
       src/crate/library/crateprefetcher.cpp
       src/crate/library/cratesearch.cpp
       src/crate/library/cratesessionpins.cpp
+      src/crate/library/cratetrackpreparer.cpp
       src/crate/session/crateloopbackserver.cpp
       src/crate/session/cratesecretstore.cpp
       src/crate/session/cratesession.cpp

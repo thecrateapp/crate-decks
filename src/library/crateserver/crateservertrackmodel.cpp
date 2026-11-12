@@ -623,8 +623,10 @@ bool CrateServerTrackModel::requestTrackLoad(
         return false;
     }
     const Row& row = m_rows[index.row()];
-    if (cachedPathOf(row)) {
-        // A cached track loads at once, as a local one
+    if (cachedPathOf(row) && m_pCoordinator->loadsAtOnce(row.serverId, row.entityUid)) {
+        // A cached track loads at once, as a local one, once its file is in
+        // the library: the first time, the library reads it off the main
+        // thread
         return false;
     }
     m_pCoordinator->requestLoad(trackRef(index.row()), group, play);
