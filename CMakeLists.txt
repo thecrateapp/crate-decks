@@ -5365,6 +5365,7 @@ if(CRATE)
       src/crate/session/cratesecretstore.cpp
       src/crate/session/cratesession.cpp
       src/crate/stems/resampler.cpp
+      src/crate/stems/stemanalyzer.cpp
       src/crate/stems/stemdsp.cpp
       src/crate/crateaddserverflow.cpp
       src/crate/cratepreferences.cpp
@@ -5427,6 +5428,7 @@ if(CRATE)
         src/test/crate/dlgprefcrate_test.cpp
         src/test/crate/cratesession_test.cpp
         src/test/crate/modelstore_test.cpp
+        src/test/crate/stemanalyzer_test.cpp
         src/test/crate/stemdsp_test.cpp
         src/test/crate/skinloadtest.cpp
         src/test/crate/mixerstyletest.cpp
