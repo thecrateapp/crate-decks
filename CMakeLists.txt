@@ -5365,6 +5365,7 @@ if(CRATE)
       src/crate/session/cratesecretstore.cpp
       src/crate/session/cratesession.cpp
       src/crate/stems/resampler.cpp
+      src/crate/stems/nistemexport.cpp
       src/crate/stems/stemanalyzer.cpp
       src/crate/stems/stemdsp.cpp
       src/crate/stems/stemjobs.cpp
@@ -5396,6 +5397,7 @@ if(CRATE)
       src/crate/ui/skin/decktrackfields.cpp
       src/crate/ui/skin/librarystyle.cpp
       src/crate/ui/skin/mixerstyle.cpp
+      src/crate/ui/skin/stemcolors.cpp
       src/crate/ui/skin/preferencescontrol.cpp
       src/library/crateserver/crateserverfeature.cpp
       src/library/crateserver/crateservertrackmodel.cpp
@@ -5447,7 +5449,12 @@ if(CRATE)
   endif()
   # Decks' stem files and the NI STEM reader they go through (ST5.PR2)
   if(BUILD_TESTING AND STEM)
-    target_sources(mixxx-test PRIVATE src/test/crate/steminfoimporter_test.cpp)
+    target_sources(
+      mixxx-test
+      PRIVATE
+        src/test/crate/nistemexport_test.cpp
+        src/test/crate/steminfoimporter_test.cpp
+    )
   endif()
 
   # Local inference with ONNX Runtime (STEM-D7): on when ONNX Runtime is

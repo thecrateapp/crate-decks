@@ -612,6 +612,123 @@ bool StemSidecar::decode(
     return true;
 }
 
+struct StemSidecarReader::State {
+    QFile file;
+    FLAC__StreamDecoder* pDecoder = nullptr;
+    /// Decoded and not read yet, interleaved.
+    std::vector<float> pending;
+    int sampleRate = 0;
+    SINT frames = 0;
+    bool failed = false;
+    bool ended = false;
+
+    ~State() {
+        if (pDecoder) {
+            FLAC__stream_decoder_finish(pDecoder);
+            FLAC__stream_decoder_delete(pDecoder);
+        }
+    }
+
+    static FLAC__StreamDecoderReadStatus onRead(const FLAC__StreamDecoder* pDecoder,
+            FLAC__byte buffer[],
+            size_t* pBytes,
+            void* pData) {
+        Q_UNUSED(pDecoder);
+        auto* pState = static_cast<State*>(pData);
+        const qint64 read =
+                pState->file.read(reinterpret_cast<char*>(buffer), static_cast<qint64>(*pBytes));
+        if (read < 0) {
+            return FLAC__STREAM_DECODER_READ_STATUS_ABORT;
+        }
+        *pBytes = static_cast<size_t>(read);
+        return read == 0 ? FLAC__STREAM_DECODER_READ_STATUS_END_OF_STREAM
+                         : FLAC__STREAM_DECODER_READ_STATUS_CONTINUE;
+    }
+    static FLAC__StreamDecoderWriteStatus onWrite(const FLAC__StreamDecoder* pDecoder,
+            const FLAC__Frame* pFrame,
+            const FLAC__int32* const buffer[],
+            void* pData) {
+        Q_UNUSED(pDecoder);
+        auto* pState = static_cast<State*>(pData);
+        if (pFrame->header.channels != StemSidecar::kChannels) {
+            pState->failed = true;
+            return FLAC__STREAM_DECODER_WRITE_STATUS_ABORT;
+        }
+        for (uint32_t i = 0; i < pFrame->header.blocksize; ++i) {
+            for (uint32_t channel = 0; channel < StemSidecar::kChannels; ++channel) {
+                pState->pending.push_back(static_cast<float>(
+                        static_cast<double>(buffer[channel][i]) / kFullScale));
+            }
+        }
+        return FLAC__STREAM_DECODER_WRITE_STATUS_CONTINUE;
+    }
+    static void onError(const FLAC__StreamDecoder* pDecoder,
+            FLAC__StreamDecoderErrorStatus status,
+            void* pData) {
+        Q_UNUSED(pDecoder);
+        Q_UNUSED(status);
+        static_cast<State*>(pData)->failed = true;
+    }
+};
+
+StemSidecarReader::StemSidecarReader() = default;
+StemSidecarReader::~StemSidecarReader() = default;
+
+bool StemSidecarReader::open(const QString& sidecarPath, QString* pError) {
+    const std::optional<StemSidecar::Info> info = StemSidecar::readInfo(sidecarPath, pError);
+    if (!info) {
+        return false;
+    }
+    m_pState = std::make_unique<State>();
+    m_pState->sampleRate = info->sampleRate;
+    m_pState->frames = info->frames;
+    m_pState->file.setFileName(sidecarPath);
+    m_pState->pDecoder = FLAC__stream_decoder_new();
+    if (!m_pState->file.open(QIODevice::ReadOnly) || !m_pState->pDecoder ||
+            FLAC__stream_decoder_init_stream(m_pState->pDecoder,
+                    &State::onRead,
+                    nullptr,
+                    nullptr,
+                    nullptr,
+                    nullptr,
+                    &State::onWrite,
+                    nullptr,
+                    &State::onError,
+                    m_pState.get()) != FLAC__STREAM_DECODER_INIT_STATUS_OK) {
+        m_pState.reset();
+        return fail(pError, QStringLiteral("Cannot read %1").arg(sidecarPath));
+    }
+    return true;
+}
+
+int StemSidecarReader::sampleRate() const {
+    return m_pState ? m_pState->sampleRate : 0;
+}
+
+SINT StemSidecarReader::frames() const {
+    return m_pState ? m_pState->frames : 0;
+}
+
+bool StemSidecarReader::read(SINT count, std::vector<float>* pFrames, QString* pError) {
+    if (!m_pState) {
+        return fail(pError, QStringLiteral("No sidecar"));
+    }
+    const std::size_t wanted = static_cast<std::size_t>(StemSidecar::kChannels * count);
+    while (m_pState->pending.size() < wanted && !m_pState->ended) {
+        if (!FLAC__stream_decoder_process_single(m_pState->pDecoder) || m_pState->failed) {
+            return fail(pError, QStringLiteral("Cannot decode the sidecar"));
+        }
+        m_pState->ended = FLAC__stream_decoder_get_state(m_pState->pDecoder) ==
+                FLAC__STREAM_DECODER_END_OF_STREAM;
+    }
+    const std::size_t taken = std::min(wanted, m_pState->pending.size());
+    pFrames->assign(m_pState->pending.begin(),
+            m_pState->pending.begin() + static_cast<std::ptrdiff_t>(taken));
+    m_pState->pending.erase(m_pState->pending.begin(),
+            m_pState->pending.begin() + static_cast<std::ptrdiff_t>(taken));
+    return true;
+}
+
 StemSidecarWriter::StemSidecarWriter(Options options)
         : m_options(std::move(options)) {
     if (m_options.sidecarPath.isEmpty() && m_options.pTrack) {

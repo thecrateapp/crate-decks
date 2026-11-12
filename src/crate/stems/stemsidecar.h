@@ -79,6 +79,28 @@ class StemSidecar {
             QString* pError = nullptr);
 };
 
+/// Reads a sidecar in order, a block at a time, at full scale: for the NI
+/// STEM export, which does not hold a whole track in memory. Not
+/// thread-safe; blocks.
+class StemSidecarReader {
+  public:
+    StemSidecarReader();
+    ~StemSidecarReader();
+    StemSidecarReader(const StemSidecarReader&) = delete;
+    StemSidecarReader& operator=(const StemSidecarReader&) = delete;
+
+    bool open(const QString& sidecarPath, QString* pError = nullptr);
+    int sampleRate() const;
+    SINT frames() const;
+    /// The next `count` frames, 8 interleaved channels; fewer at the end.
+    /// False on a decoding error.
+    bool read(SINT count, std::vector<float>* pFrames, QString* pError = nullptr);
+
+  private:
+    struct State;
+    std::unique_ptr<State> m_pState;
+};
+
 /// Writes a track's sidecar from its stems (a StemSink), on the thread that
 /// writes them: the separator's worker, or the one that decodes the
 /// server's stems.
