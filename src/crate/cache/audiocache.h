@@ -186,7 +186,9 @@ class CacheTicket : public QObject {
 ///   free on the volume. Pinned files (offline sets, and for the session
 ///   the tracks in a player or in the Auto DJ queue) are never evicted: they
 ///   can take the cache over its limit, but never below the free space,
-///   which fails the download instead.
+///   which fails the download instead. What the other downloads under way
+///   still have to write counts as taken for both, so that two at once
+///   never break the free space between them.
 /// - The index (`<cache>/index.sqlite`, AudioCacheIndex) and every file
 ///   operation run on a worker thread of its own; the main thread only
 ///   hands over the chunks that arrive. At start the index is matched with
@@ -335,8 +337,14 @@ class AudioCache : public QObject {
     /// The entry of a track, created as Pending if there is none.
     CacheEntry& entryOf(const QString& serverId, const QString& entityUid);
     /// Evicts until `incomingBytes` more fit in the limit and leave the
-    /// minimum free space. Returns false if the free space is still short.
-    bool makeRoom(qint64 incomingBytes);
+    /// minimum free space, with the rest of the other downloads under way
+    /// (reservedBytes()) counted as taken. Returns false if the free space
+    /// is still short.
+    bool makeRoom(qint64 incomingBytes, const Download* pFor = nullptr);
+    /// What the downloads writing their part files, but `pExcept`, still
+    /// have to write: the size they announced less their part file. Each
+    /// gives its share back as it ends, fails or stops.
+    qint64 reservedBytes(const Download* pExcept) const;
     /// Whether a pin keeps the file: one of its own, or a session pin.
     bool isKept(const Key& key, const CacheEntry& entry) const;
     void evict(const Key& key);
