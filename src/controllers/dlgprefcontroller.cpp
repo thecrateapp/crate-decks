@@ -26,6 +26,7 @@
 #include "controllers/midi/midicontroller.h"
 #include "controllers/scripting/legacy/controllerscriptenginelegacy.h"
 #include "crate/brand/brandtext.h"
+#include "crate/brand/helpurl.h"
 #include "defs_urls.h"
 #include "moc_dlgprefcontroller.cpp"
 #include "preferences/usersettings.h"
@@ -500,7 +501,8 @@ QString DlgPrefController::mappingSupportLinks(
 
     QStringList linkList;
 
-    QString forumLink = pMapping->forumlink();
+    // Crate Decks: the forum threads and wiki pages are Mixxx's (BR.PR7)
+    QString forumLink = crate::helpLink(pMapping->forumlink());
     if (!forumLink.isEmpty()) {
         linkList << coloredLinkString(
                 m_pLinkColor,
@@ -508,7 +510,7 @@ QString DlgPrefController::mappingSupportLinks(
                 forumLink);
     }
 
-    QString wikiLink = pMapping->wikilink();
+    QString wikiLink = crate::helpLink(pMapping->wikilink());
     if (!wikiLink.isEmpty()) {
         linkList << coloredLinkString(
                 m_pLinkColor,

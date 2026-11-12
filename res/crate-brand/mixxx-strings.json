@@ -28,8 +28,8 @@
         "src/controllers/dlgcontrollerlearning.cpp"
       ],
       "treatment": "text",
-      "text": "The selected control does not exist.<br>This likely a bug. Please report it on the Crate Decks bug tracker.<br><a href='https://github.com/thecrateapp/crate-decks/issues'>https://github.com/thecrateapp/crate-decks/issues</a><br><br>You tried to learn: %1,%2",
-      "es": "El control seleccionado no existe.<br>Probablemente sea un error. Por favor, infórmalo en el gestor de incidencias de Crate Decks.<br><a href='https://github.com/thecrateapp/crate-decks/issues'>https://github.com/thecrateapp/crate-decks/issues</a><br><br>Intentaste asignar: %1,%2"
+      "text": "The selected control does not exist.<br>This likely a bug. Please report it on the Crate Decks bug tracker.<br><a href='https://docs.cratemusic.app/decks/community#reporting-bugs'>https://docs.cratemusic.app/decks/community#reporting-bugs</a><br><br>You tried to learn: %1,%2",
+      "es": "El control seleccionado no existe.<br>Probablemente sea un error. Por favor, infórmalo en el gestor de incidencias de Crate Decks.<br><a href='https://docs.cratemusic.app/decks/community#reporting-bugs'>https://docs.cratemusic.app/decks/community#reporting-bugs</a><br><br>Intentaste asignar: %1,%2"
     },
     {
       "source": "You can click on any button, slider, or knob in Mixxx to teach it that control.  You can also type in the box to search for a control by name, or click the Choose Control button to select from a list.",
@@ -44,8 +44,8 @@
         "src/controllers/dlgprefcontroller.cpp"
       ],
       "treatment": "text",
-      "text": "<font color='#BB0000'><b>If you use this mapping your controller may not work correctly. Please select another mapping or disable the controller.</b></font><br><br>This mapping was designed for a newer Controller Engine and cannot be used on your current Crate Decks installation.<br>Your Crate Decks installation has Controller Engine version %1. This mapping requires a Controller Engine version >= %2.<br><br>For more information visit the wiki page on <a href='https://mixxx.org/wiki/doku.php/controller_engine_versions'>Controller Engine Versions</a>.",
-      "es": "<font color='#BB0000'><b>Si usas este mapeo, puede que tu controladora no funcione bien. Elige otro mapeo o desactiva la controladora.</b></font><br><br>Este mapeo se diseñó para un Controller Engine más nuevo y no se puede usar en tu instalación de Crate Decks.<br>Tu instalación de Crate Decks tiene la versión %1 del Controller Engine. Este mapeo necesita la versión %2 o posterior.<br><br>Más información en la página del wiki sobre <a href='https://mixxx.org/wiki/doku.php/controller_engine_versions'>versiones del Controller Engine</a>."
+      "text": "<font color='#BB0000'><b>If you use this mapping your controller may not work correctly. Please select another mapping or disable the controller.</b></font><br><br>This mapping was designed for a newer Controller Engine and cannot be used on your current Crate Decks installation.<br>Your Crate Decks installation has Controller Engine version %1. This mapping requires a Controller Engine version >= %2.<br><br>For more information visit the wiki page on <a href='https://docs.cratemusic.app/decks/controllers#controller-engine-versions'>Controller Engine Versions</a>.",
+      "es": "<font color='#BB0000'><b>Si usas este mapeo, puede que tu controladora no funcione bien. Elige otro mapeo o desactiva la controladora.</b></font><br><br>Este mapeo se diseñó para un Controller Engine más nuevo y no se puede usar en tu instalación de Crate Decks.<br>Tu instalación de Crate Decks tiene la versión %1 del Controller Engine. Este mapeo necesita la versión %2 o posterior.<br><br>Más información en la página del wiki sobre <a href='https://docs.cratemusic.app/decks/controllers#controller-engine-versions'>versiones del Controller Engine</a>."
     },
     {
       "source": "Mixxx&nbsp;Forums",
