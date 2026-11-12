@@ -746,6 +746,9 @@ TEST_F(CrateAddServerFlowTest, StemSwitchesSetThePreferences) {
     QCheckBox* pGpu = page.stemsSection()->useGpu();
     QCheckBox* pFine = page.stemsSection()->fineTunedModel();
     QCheckBox* pWhilePlaying = page.stemsSection()->separateWhilePlaying();
+    // Hidden until a fine-tuned model is published
+    EXPECT_TRUE(pFine->parentWidget()->isHidden());
+    EXPECT_FALSE(pWhilePlaying->parentWidget()->isHidden());
     // Defaults: the GPU, htdemucs, paused while a deck plays
     EXPECT_TRUE(pGpu->isChecked());
     EXPECT_FALSE(pFine->isChecked());

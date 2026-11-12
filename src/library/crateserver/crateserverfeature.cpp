@@ -6,6 +6,7 @@
 #include <QLocale>
 #include <QMenu>
 #include <QMessageBox>
+#include <QNetworkAccessManager>
 #include <QPainter>
 #include <QScopeGuard>
 #include <QSet>
@@ -20,6 +21,7 @@
 #include "crate/client/crateclient.h"
 #include "crate/cratepreferences.h"
 #include "crate/crateservers.h"
+#include "crate/inference/modelstore.h"
 #include "crate/library/crateeventsubscriber.h"
 #include "crate/library/cratelibraryjson.h"
 #include "crate/library/cratelibrarysync.h"
@@ -28,6 +30,9 @@
 #include "crate/library/cratesessionpins.h"
 #include "crate/library/cratetrackpreparer.h"
 #include "crate/stems/stemjobs.h"
+#ifdef __CRATE_INFERENCE__
+#include "crate/stems/appstemseparator.h"
+#endif
 #include "crate/stems/stemsync.h"
 #include "crate/ui/cachestatusview.h"
 #include "library/crateserver/crateservertrackmodel.h"
@@ -522,11 +527,29 @@ void CrateServerFeature::startLoading() {
             m_pLoadCoordinator->download(tracks, cache::Priority::OfflineSet, reason);
         }
     };
-    // TEST_GAP: no local separation in the application yet: the htdemucs
-    // model is not published (ST4.PR2 release asset), so ModelStore has no
-    // manifest entry to install. Tracks without server stems stay
-    // Unavailable until then.
+#ifdef __CRATE_INFERENCE__
+    // Local separation: the htdemucs model downloads on first use, after a
+    // question with its size
+    ModelStore::Dependencies models;
+    models.pDbConnectionPool = m_dependencies.pDbConnectionPool;
+    m_pModelNetwork = std::make_unique<QNetworkAccessManager>();
+    models.pNetworkAccessManager = m_pModelNetwork.get();
+    models.dataDirectory = m_pConfig->getSettingsPath();
+    m_pModels = std::make_unique<ModelStore>(ModelStore::builtInManifest(), models);
+    AppStemSeparator::Options local;
+    local.pModels = m_pModels.get();
+    local.useGpu = [pPreferences] {
+        return pPreferences->stemsOnGpu();
+    };
+    local.confirmDownload = [this](qint64 bytes, std::function<void(bool)> answer) {
+        confirmModelDownload(bytes, std::move(answer));
+    };
+    m_pLocalSeparator = std::make_unique<AppStemSeparator>(std::move(local));
+    stems.pSeparator = m_pLocalSeparator.get();
+#else
+    // Without ONNX Runtime, only the server's stems
     stems.pSeparator = nullptr;
+#endif
     stems.separateWhilePlaying = [pPreferences] {
         return pPreferences->separateWhilePlaying();
     };
@@ -565,6 +588,9 @@ void CrateServerFeature::stopLoading() {
     }
     m_pStemJobs.reset();
     m_pStemSync.reset();
+    m_pLocalSeparator.reset();
+    m_pModels.reset();
+    m_pModelNetwork.reset();
     m_pSessionPins.reset();
     m_pPrefetcher.reset();
     m_pLoadCoordinator.reset();
@@ -864,6 +890,22 @@ void CrateServerFeature::confirmSmartMixDownload(const QString& serverId,
                     nullptr,
                     tracks)
                     .arg(name, QLocale().formattedDataSize(bytes)),
+            QMessageBox::Yes | QMessageBox::No);
+    pBox->setAttribute(Qt::WA_DeleteOnClose);
+    connect(pBox, &QMessageBox::finished, this, [answer = std::move(answer)](int result) {
+        answer(result == QMessageBox::Yes);
+    });
+    pBox->open();
+}
+
+void CrateServerFeature::confirmModelDownload(qint64 bytes, std::function<void(bool)> answer) {
+    auto* pBox = new QMessageBox(QMessageBox::Question,
+            tr("Stems"),
+            //: Asked the first time Crate Decks separates a track into stems
+            //: on this computer
+            tr("Separating stems on this computer needs the separation model, %1. "
+               "Download it now?")
+                    .arg(QLocale().formattedDataSize(bytes)),
             QMessageBox::Yes | QMessageBox::No);
     pBox->setAttribute(Qt::WA_DeleteOnClose);
     connect(pBox, &QMessageBox::finished, this, [answer = std::move(answer)](int result) {

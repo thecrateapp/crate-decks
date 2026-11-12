@@ -19,6 +19,7 @@
 #include "util/parented_ptr.h"
 
 class KeyboardEventFilter;
+class QNetworkAccessManager;
 class PlayerInfo;
 class TrackCollectionManager;
 class TreeItem;
@@ -27,6 +28,8 @@ class WLibrarySidebar;
 
 namespace crate {
 class CrateServers;
+class LocalStemSeparator;
+class ModelStore;
 class StemJobs;
 class StemSync;
 } // namespace crate
@@ -185,6 +188,8 @@ class CrateServerFeature : public LibraryFeature {
     /// its capabilities for this account say `stems` (and `stem_upload`).
     void startStems(const QString& serverId);
     /// Asks before downloading the tracks of a Smart Mix playlist.
+    /// Asks before downloading the separation model, with its size.
+    void confirmModelDownload(qint64 bytes, std::function<void(bool)> answer);
     void confirmSmartMixDownload(const QString& serverId,
             qint64 playlistId,
             int tracks,
@@ -248,6 +253,10 @@ class CrateServerFeature : public LibraryFeature {
     std::unique_ptr<CrateLoadCoordinator> m_pLoadCoordinator;
     std::unique_ptr<CratePrefetcher> m_pPrefetcher;
     std::unique_ptr<CrateSessionPins> m_pSessionPins;
+    /// Local separation (STEM-D7), with ONNX Runtime only.
+    std::unique_ptr<QNetworkAccessManager> m_pModelNetwork;
+    std::unique_ptr<ModelStore> m_pModels;
+    std::unique_ptr<LocalStemSeparator> m_pLocalSeparator;
     std::unique_ptr<StemSync> m_pStemSync;
     std::unique_ptr<StemJobs> m_pStemJobs;
     /// Servers whose capabilities let this account upload stem analyses.

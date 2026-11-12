@@ -284,6 +284,9 @@ StemsSection::StemsSection(QWidget* pParent)
                   tr("cleaner stems, about four times the work"))),
           m_pWhilePlaying(addToggle(tr("Separate while playing"),
                   tr("at the lowest priority; otherwise it waits until no deck plays"))) {
+    // Only the htdemucs export is published (models-htdemucs-onnx-1): the
+    // fine-tuned model waits for its own
+    m_pFineTuned->parentWidget()->hide();
 }
 
 SmartMixSection::SmartMixSection(QWidget* pParent)

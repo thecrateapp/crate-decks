@@ -5494,8 +5494,11 @@ if(CRATE)
       mixxx-lib
       PRIVATE
         src/crate/inference/inferenceruntime.cpp
+        src/crate/stems/appstemseparator.cpp
         src/crate/stems/stemseparator.cpp
     )
+    # The application separates locally only with ONNX Runtime
+    target_compile_definitions(mixxx-lib PUBLIC __CRATE_INFERENCE__)
     # Only the runtime sees ONNX Runtime's headers, so the rest of mixxx-lib
     # compiles the same with and without it.
     set_source_files_properties(
@@ -5507,6 +5510,7 @@ if(CRATE)
       target_sources(
         mixxx-test
         PRIVATE
+          src/test/crate/appstemseparator_test.cpp
           src/test/crate/inferenceruntime_test.cpp
           src/test/crate/stemseparator_test.cpp
       )
