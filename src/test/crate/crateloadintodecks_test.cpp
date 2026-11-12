@@ -682,13 +682,13 @@ double longestStallUntil(
     tick.setTimerType(Qt::PreciseTimer);
     tick.setInterval(1);
     QObject::connect(&tick, &QTimer::timeout, &state.loop, [pState, pAction, pDone] {
-        const qint64 nowNs = pState->clock.nsecsElapsed();
+        const qint64 tickNs = pState->clock.nsecsElapsed();
         pState->longestMs = std::max(pState->longestMs,
-                static_cast<double>(nowNs - pState->lastTickNs) / 1e6);
+                static_cast<double>(tickNs - pState->lastTickNs) / 1e6);
         if (!pState->acted) {
             // What the action takes counts: the next tick measures from here
             pState->acted = true;
-            pState->lastTickNs = nowNs;
+            pState->lastTickNs = tickNs;
             (*pAction)();
             return;
         }
