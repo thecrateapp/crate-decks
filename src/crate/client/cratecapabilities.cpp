@@ -29,6 +29,15 @@ std::optional<DecksFeature> decksFeatureFromName(const QString& name) {
     if (name == QLatin1String("cues")) {
         return DecksFeature::Cues;
     }
+    if (name == QLatin1String("stems")) {
+        return DecksFeature::Stems;
+    }
+    if (name == QLatin1String("stem_upload")) {
+        return DecksFeature::StemUpload;
+    }
+    if (name == QLatin1String("local_refinement")) {
+        return DecksFeature::LocalRefinement;
+    }
     return std::nullopt;
 }
 
