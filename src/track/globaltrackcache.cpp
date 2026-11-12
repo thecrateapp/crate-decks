@@ -777,7 +777,11 @@ TrackRef GlobalTrackCache::initTrackId(
     EvictAndSaveFunctor* pDel = std::get_deleter<EvictAndSaveFunctor>(strongPtr);
     DEBUG_ASSERT(pDel);
 
-    DEBUG_ASSERT(strongPtr == m_incompleteTrack);
+    // Not the incomplete track of a cache miss if the track was cached
+    // before it was added: TrackDAO::addTracksAddFile() takes such a cache
+    // hit without an id, and only the resolver of a miss has an incomplete
+    // track while it holds the lock.
+    DEBUG_ASSERT(!m_incompleteTrack || strongPtr == m_incompleteTrack);
     discardIncompleteTrack();
 
     // Insert item by id
