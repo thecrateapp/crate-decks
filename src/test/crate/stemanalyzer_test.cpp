@@ -62,9 +62,10 @@ std::vector<float> fixtureStems() {
 
 /// Writes `stems` to `pAnalyzer` in blocks of `block` frames.
 void feed(StemAnalyzer* pAnalyzer, const std::vector<float>& stems, SINT block) {
+    std::vector<float> chunk;
     for (SINT first = 0; first < kFrames; first += block) {
         const SINT count = std::min(block, kFrames - first);
-        std::vector<float> chunk(8 * count);
+        chunk.resize(8 * count);
         for (int row = 0; row < 8; ++row) {
             std::copy_n(stems.begin() + row * kFrames + first, count, chunk.begin() + row * count);
         }
@@ -148,7 +149,7 @@ TEST_F(StemAnalyzerTest, RejectsADocumentTheServerWouldReject) {
     feed(&analyzer, fixtureStems(), kFrames);
     const QJsonObject good = QJsonDocument::fromJson(analyzer.finish(kSourceRevision).toJson())
                                      .object();
-    const auto rejects = [](QJsonObject document) {
+    const auto rejects = [](const QJsonObject& document) {
         QString error;
         const bool rejected = !StemAnalysis::fromJson(
                 QJsonDocument(document).toJson(QJsonDocument::Compact), &error);
