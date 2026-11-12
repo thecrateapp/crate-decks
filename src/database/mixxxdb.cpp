@@ -5,6 +5,7 @@
 #include <QVariant>
 
 #include "database/schemamanager.h"
+#include "defs_urls.h"
 #include "moc_mixxxdb.cpp"
 #include "util/assert.h"
 #include "util/logger.h"
@@ -81,7 +82,7 @@ bool MixxxDb::initDatabaseSchema(
             tr("Unable to upgrade your database schema to version %1")
             .arg(QString::number(schemaVersion));
     QString helpContact = tr("For help with database issues consult:") + "\n" +
-            "https://www.mixxx.org/support";
+            MIXXX_SUPPORT_URL;
 
     switch (SchemaManager(database).upgradeToSchemaVersion(schemaVersion, schemaFile)) {
     case SchemaManager::Result::CurrentVersion:

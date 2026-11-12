@@ -240,6 +240,19 @@ reports there, as the docs pages already say.
 - Until then the labels are neutral ("User manual", "DJ Hardware Guide") and the targets are unchanged.
 - **Red test** (when decided): `CrateBrandTest.NoLinkLeadsToMixxx` over every `href` in the inventory, Help menu
   and Preferences.
+- **Built (2026-11-10), branch `feat/decks-help-links`:**
+  - `src/crate/brand/helpurl.{h,cpp}`: the table (32 kinds) on `https://docs.cratemusic.app/decks/<page>#<anchor>`, and
+    `crate::helpLink()` for the forum and wiki links that the shipped mappings carry.
+  - `src/defs_urls.h` gains one line at the end: it includes `src/crate/brand/helpurlmacros.h`, which redefines the
+    URL macros to read the table. No code that shows a link changes. `MIXXX_WEBSITE_URL` stays (About credits, D2);
+    `MIXXX_DONATE_URL` is removed (7.2). The Help menu looks for `Crate-Decks-*.pdf`, which nothing ships, so it never
+    opens Mixxx's `res/Mixxx-Keyboard-Shortcuts.pdf` (CMake still installs that file: BR.PR8 removes it).
+  - `src/database/mixxxdb.cpp`: the schema upgrade error uses `MIXXX_SUPPORT_URL` instead of a hard-coded mixxx.org.
+  - The inventory's curated bug tracker and Controller Engine links point at the docs pages. The repository
+    `thecrateapp/crate-decks` has GitHub issues disabled, so the community page sends reports to
+    `thecrateapp/crate`'s issues.
+  - The pages: monorepo branch `docs/decks-help-pages`, a new `decks` section of the docs site. The anchors are a
+    contract that `CrateHelpUrlTest.EveryLinkHasItsCrateDocsPage` lists. The Decks PR waits until those pages are live.
 
 ### BR.PR8 · Installed paths (with F9.PR1)
 
@@ -350,4 +363,4 @@ Built on `feat/decks-own-brand` (local, not pushed), one commit per task, each b
 - **2026-11-10:** Diego decided §7. `40cd5412d9` (feat(decks): drop the Donate to Mixxx button from About)
   follows §7.2, test first (`CrateBrandingTest.AboutOffersNoDonation`); the inventory drops the string (104
   strings, 2 kept).
-- **Still to do:** BR.PR7 (decided, separate follow-up PR), BR.PR8 (with F9.PR1), BR.PR9 (optional refactor).
+- **Still to do:** BR.PR7 (built on `feat/decks-help-links`; merges once the docs pages are live), BR.PR8 (with F9.PR1), BR.PR9 (optional refactor).
