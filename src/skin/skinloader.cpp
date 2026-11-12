@@ -115,6 +115,14 @@ SkinPointer SkinLoader::getSkin(const QString& skinName) const {
     // directory, we'll discover the one from the user dir first
     const QList<QDir> skinSearchPaths = getSkinSearchPaths();
     for (QDir dir : skinSearchPaths) {
+#ifdef __CRATE__
+        // Crate Decks: upstream's skins carry the upstream logo, so they do
+        // not load from the system folder either; one in the user's own
+        // skins folder does (plan BR2)
+        if (skinName != QLatin1String(crate::kSkinName) && dir == getSytemSkinDir()) {
+            continue;
+        }
+#endif
         if (dir.cd(skinName)) {
             SkinPointer pSkin = skinFromDirectory(dir);
             if (pSkin) {

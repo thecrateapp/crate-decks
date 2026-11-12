@@ -6,6 +6,7 @@
 #include <QTextStream>
 #include <QtDebug>
 
+#include "crate/appidentity.h"
 #include "util/cmdlineargs.h"
 #include "util/color/rgbcolor.h"
 #include "util/xml.h"
@@ -66,7 +67,9 @@ QString computeResourcePathImpl() {
             }
         }
 #if defined(__UNIX__) && !defined(__ANDROID__)
-        else if (mixxxDir.cd(QStringLiteral("../share/mixxx"))) {
+        // Crate Decks: its data is installed under its own name (plan BR2)
+        else if (mixxxDir.cd(QStringLiteral("../share/") +
+                         QLatin1String(crate::kInstallDataDirName))) {
             qResourcePath = mixxxDir.absolutePath();
         }
 #elif defined(__WINDOWS__)

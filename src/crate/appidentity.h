@@ -36,6 +36,9 @@ inline constexpr char kDatabaseFileName[] = "crate-decks.sqlite";
 /// upstream's migrations from its old settings folders would read, move and
 /// delete the files of a Mixxx installed on the same computer.
 inline constexpr bool kReadsMixxxSettings = false;
+/// Folder of the installed data under share/ on Linux (MIXXX_INSTALL_DATADIR
+/// in CMakeLists.txt), apart from an installed Mixxx's (plan BR2).
+inline constexpr char kInstallDataDirName[] = "crate-decks";
 /// Prefix of the keychain service names of the broadcast profiles.
 inline constexpr char kBroadcastKeychainPrefix[] = "Crate - ";
 

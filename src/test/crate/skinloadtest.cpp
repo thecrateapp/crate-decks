@@ -416,12 +416,26 @@ bool insertCrateLibrary(const QString& settingsPath, const QString& rowsPath) {
     return ok;
 }
 
+/// Links `skin`, if it is one of upstream's, into the skins folder of the
+/// profile at `settingsPath`: the only place it loads from (plan BR2).
+void linkUpstreamSkin(const QString& settingsPath, const QString& skin) {
+    if (skin == kCrateDecks) {
+        return;
+    }
+    QDir profile(settingsPath);
+    EXPECT_TRUE(profile.mkpath(QStringLiteral("skins")));
+    EXPECT_TRUE(QFile::link(skinPath(skin), profile.filePath(QStringLiteral("skins/") + skin)));
+}
+
 class CrateSkinLoadTest : public MixxxTest {
   protected:
-    /// Loads `skin` and returns its skin warnings.
+    /// Loads `skin` and returns its skin warnings. A skin of upstream's is
+    /// first linked into the profile's own skins folder, the only place it
+    /// loads from (plan BR2).
     QStringList loadSkin(const QString& skin, QString* pLoadedRootName = nullptr) {
         QTemporaryDir profile;
         EXPECT_TRUE(profile.isValid());
+        linkUpstreamSkin(profile.path(), skin);
         OffscreenDecks decks(profile.path() + QLatin1Char('/'));
         decks.writeProfile(skin);
         std::unique_ptr<WarningCollector> pWarnings;
@@ -454,6 +468,8 @@ TEST_F(CrateSkinLoadTest, IsDefaultSkin) {
     EXPECT_EQ(QStringList{QStringLiteral("Crate")}, pSkin->colorschemes());
 }
 
+// LateNight is not offered nor installed, but the CrateDecks defaults and
+// styles must not break the skins a user installs (plan BR2)
 TEST_F(CrateSkinLoadTest, LateNightStillLoads) {
     const QStringList warnings = loadSkin(kLateNight);
     EXPECT_TRUE(warnings.isEmpty()) << warnings.join(QLatin1Char('\n')).toStdString();
@@ -541,8 +557,9 @@ TEST_F(CrateSkinLoadTest, SettingsFolderNamesNoMixxx) {
     EXPECT_TRUE(lines.isEmpty()) << qPrintable(lines.join(QLatin1Char('\n')));
 }
 
-// Plan "Own brand", BR.PR5: Mixxx's skins carry the Mixxx logo, so
-// Preferences offers only CrateDecks; the others still load by name
+// Plan "Own brand", BR.PR5 and BR2: upstream's skins carry the upstream
+// logo, so only CrateDecks is offered, and the others do not load by name
+// from the system folder either; one in the user's own folder does
 TEST_F(CrateSkinLoadTest, OnlyCrateDecksIsOffered) {
     mixxx::skin::SkinLoader loader(config());
     QStringList offered;
@@ -551,7 +568,8 @@ TEST_F(CrateSkinLoadTest, OnlyCrateDecksIsOffered) {
         offered.append(pSkin->name());
     }
     EXPECT_EQ(QStringList{kCrateDecks}, offered);
-    EXPECT_NE(nullptr, loader.getSkin(kLateNight));
+    EXPECT_EQ(nullptr, loader.getSkin(kLateNight));
+    EXPECT_NE(nullptr, loader.getSkin(kCrateDecks));
 }
 
 // Plan "Own brand", BR.PR6: the sidebar's section of Mixxx's own library is
@@ -2060,6 +2078,7 @@ class CrateSkinPerformance : public MixxxTest {
         const QString settingsPath = profile.path() + QLatin1Char('/');
         {
             // A first start creates the library schema
+            linkUpstreamSkin(settingsPath, skin);
             OffscreenDecks decks(settingsPath);
             decks.writeProfile(skin);
             decks.start(application());

@@ -41,7 +41,8 @@ class from the executable and the application name (`crate-decks`, `Crate Decks`
 its own (the screensaver inhibitor uses the application id).
 
 **Not in scope, recorded:** the macOS bundle (`Mixxx.app`, `org.mixxx.mixxx`), the Windows executable and MSI, and
-Android are not built today; F9.PR2 and F9.PR3 give them Decks' identity together with the macOS sandbox
+Android are not built today, nor is the Debian package (`packaging/CPackDebInstall.cmake`, `packaging/debian/`, whose
+udev rule and man page still say `mixxx`); F9.PR1–F9.PR3 give them Decks' identity together with the macOS sandbox
 migration that the design already lists as blocking. Upstream files that Decks neither installs nor shows
 (`res/linux/org.mixxx.Mixxx.*`, `CHANGELOG.md`, `CONTRIBUTING.md`, the Mixxx skins' sources) stay for the syncs.
 
