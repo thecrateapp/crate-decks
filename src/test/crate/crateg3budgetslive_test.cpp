@@ -2207,4 +2207,159 @@ TEST_F(CrateG3BudgetsLive, GridQualityReport) {
             });
 }
 
+// 8. Auto DJ and a Crate track that was queued uncached (F4.C-PR3 decision 1):
+// "Add to Auto DJ" gives it a library row with Crate's tags and no file; the
+// cache downloads the file; then Auto DJ takes the track from the library
+// (AutoDJProcessor::getNextTrackFromQueue() -> BaseSqlTableModel::getTrack()
+// -> TrackCollectionManager::getTrackById()) on the main thread, the first
+// time with the file there. How long that first take blocks the main
+// thread, and the same for "Add to Auto DJ" with cached files that are not in
+// the library yet.
+TEST_F(CrateG3BudgetsLive, AutoDjFirstLoad) {
+    const qint64 id = containerId(kAutoDj);
+    ASSERT_GT(id, 0);
+    CrateServerTrackModel* pModel = activate(m_pFeature, id);
+    ASSERT_NE(nullptr, pModel);
+    ASSERT_TRUE(wait(
+            [pModel] {
+                return pModel->rowCount() > 0;
+            },
+            kNetworkWaitMs));
+    ASSERT_TRUE(waitForApiQuiet(300, kNetworkWaitMs));
+    // Tracks whose file name is known before it downloads
+    QList<int> rows;
+    for (int row = 0; row < pModel->rowCount(); ++row) {
+        if (!pModel->trackRef(row).hints.format.isEmpty()) {
+            rows.append(row);
+        }
+    }
+    ASSERT_GE(rows.size(), 4);
+    const qsizetype half = std::min<qsizetype>(10, rows.size() / 2);
+    const QList<int> queuedRows = rows.mid(0, half);
+    const QList<int> cachedRows = rows.mid(half, half);
+
+    crate::cache::AudioCache* pCache = cache();
+    const QString serverId = m_serverId;
+    const auto download = [&](const QList<int>& which) {
+        QStringList uids;
+        for (const int row : which) {
+            const CrateTrackRef ref = pModel->trackRef(row);
+            pCache->ensure(serverId, ref.entityUid, crate::cache::Priority::AutoDj, ref.hints);
+            uids.append(ref.entityUid);
+        }
+        return wait(
+                [&] {
+                    for (const QString& uid : std::as_const(uids)) {
+                        if (!pCache->cachedPath(serverId, uid)) {
+                            return false;
+                        }
+                    }
+                    return true;
+                },
+                kNetworkWaitMs);
+    };
+
+    MainThreadStalls stalls;
+    m_pStalls = &stalls;
+    Csv csv({QStringLiteral("pass"),
+            QStringLiteral("uid"),
+            QStringLiteral("title"),
+            QStringLiteral("format"),
+            QStringLiteral("bytes"),
+            QStringLiteral("call_ms")});
+    QHash<QString, std::vector<double>> calls;
+    const auto addRow = [&](const QString& pass, const QString& uid, double ms) {
+        const TrackInfo info = trackInfo(uid);
+        csv.row({pass, uid, info.title, info.format, QString::number(info.bytes), number(ms)});
+        calls[pass].push_back(ms);
+    };
+
+    // a. Queued uncached, one at a time as a user adds them
+    QList<TrackId> queuedIds;
+    for (const int row : queuedRows) {
+        const QString uid = pModel->entityUid(row);
+        setPhase(QStringLiteral("add uncached %1 to Auto DJ").arg(uid));
+        QElapsedTimer call;
+        call.start();
+        const QList<TrackId> ids = pModel->getTrackIdsForAutoDJ({pModel->index(row, 0)});
+        addRow(QStringLiteral("add-uncached"), uid, static_cast<double>(call.nsecsElapsed()) / 1e6);
+        ASSERT_EQ(1, ids.size()) << uid.toStdString();
+        queuedIds.append(ids.first());
+    }
+    // b. Their files arrive (the prefetch, or Auto DJ's wait)
+    setPhase(QStringLiteral("download the queued tracks"));
+    ASSERT_TRUE(download(queuedRows));
+    ASSERT_TRUE(waitForApiQuiet(300, kNetworkWaitMs));
+    // c. Auto DJ takes each from the library, the first time with its file
+    for (int i = 0; i < queuedIds.size(); ++i) {
+        const QString uid = pModel->entityUid(queuedRows[i]);
+        setPhase(QStringLiteral("Auto DJ takes %1 the first time").arg(uid));
+        QElapsedTimer call;
+        call.start();
+        TrackPointer pTrack = m_pTrackCollectionManager->getTrackById(queuedIds[i]);
+        const double ms = static_cast<double>(call.nsecsElapsed()) / 1e6;
+        ASSERT_NE(nullptr, pTrack) << uid.toStdString();
+        EXPECT_TRUE(pTrack->getFileInfo().checkFileExists()) << uid.toStdString();
+        addRow(QStringLiteral("first-take"), uid, ms);
+        pTrack.reset();
+        // Saved and out of the track cache, as when Auto DJ lets it go
+        wait(
+                [] {
+                    return false;
+                },
+                20);
+    }
+    // d. And again, as each later poll and load of Auto DJ
+    for (int i = 0; i < queuedIds.size(); ++i) {
+        const QString uid = pModel->entityUid(queuedRows[i]);
+        setPhase(QStringLiteral("Auto DJ takes %1 again").arg(uid));
+        QElapsedTimer call;
+        call.start();
+        TrackPointer pTrack = m_pTrackCollectionManager->getTrackById(queuedIds[i]);
+        addRow(QStringLiteral("later-take"), uid, static_cast<double>(call.nsecsElapsed()) / 1e6);
+        pTrack.reset();
+        wait(
+                [] {
+                    return false;
+                },
+                20);
+    }
+    // e. Cached files that are not in the library yet, added to Auto DJ
+    setPhase(QStringLiteral("download tracks before adding them"));
+    ASSERT_TRUE(download(cachedRows));
+    ASSERT_TRUE(waitForApiQuiet(300, kNetworkWaitMs));
+    for (const int row : cachedRows) {
+        const QString uid = pModel->entityUid(row);
+        setPhase(QStringLiteral("add cached %1 to Auto DJ").arg(uid));
+        QElapsedTimer call;
+        call.start();
+        const QList<TrackId> ids = pModel->getTrackIdsForAutoDJ({pModel->index(row, 0)});
+        addRow(QStringLiteral("add-cached"), uid, static_cast<double>(call.nsecsElapsed()) / 1e6);
+        EXPECT_EQ(1, ids.size()) << uid.toStdString();
+    }
+    stalls.pause();
+
+    QJsonObject passes;
+    for (const QString& pass : {QStringLiteral("add-uncached"),
+                 QStringLiteral("first-take"),
+                 QStringLiteral("later-take"),
+                 QStringLiteral("add-cached")}) {
+        passes.insert(pass, stats(calls.value(pass)));
+        std::cout << measureLine(QStringLiteral("Auto DJ %1: main-thread call p50 %2 ms, max %3 ms")
+                        .arg(pass,
+                                number(median(calls.value(pass))),
+                                number(maximum(calls.value(pass)))));
+    }
+    std::cout << measureLine(QStringLiteral("AutoDjFirstLoad: ") + stalls.summary());
+    ASSERT_TRUE(csv.write(outPath(QStringLiteral("autodj-first-load.csv"))));
+    record(QStringLiteral("AutoDjFirstLoad"),
+            QJsonObject{
+                    {QStringLiteral("playlist"), kAutoDj},
+                    {QStringLiteral("tracks_queued_uncached"), static_cast<int>(queuedRows.size())},
+                    {QStringLiteral("tracks_added_cached"), static_cast<int>(cachedRows.size())},
+                    {QStringLiteral("call_ms"), passes},
+                    {QStringLiteral("main_thread"), mainThread(stalls)},
+            });
+}
+
 } // namespace
