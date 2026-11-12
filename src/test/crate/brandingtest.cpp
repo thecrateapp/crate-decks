@@ -197,7 +197,8 @@ TEST_F(CrateBrandingTest, UpgradeReadsNoMixxxInstall) {
 #ifdef __WINDOWS__
     const QStringList mixxxFiles = {QStringLiteral("mixxx.cfg"), QStringLiteral("mixxxtrack.xml")};
 #else
-    const QStringList mixxxFiles = {QStringLiteral(".mixxx.cfg"), QStringLiteral(".mixxxtrack.xml")};
+    const QStringList mixxxFiles = {
+            QStringLiteral(".mixxx.cfg"), QStringLiteral(".mixxxtrack.xml")};
 #endif
     for (const QString& name : mixxxFiles) {
         QFile file(QDir(home.path()).filePath(name));
