@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include <QDir>
+#include <QDirIterator>
 #include <QFile>
 #include <QFileInfo>
 #include <QSignalSpy>
@@ -46,9 +47,20 @@ constexpr int kWaitMs = 5000;
 class FakeStorageInfo : public StorageInfo {
   public:
     qint64 free = 100 * kGiB;
+    /// If set, a disk that the files under this directory fill: `free`
+    /// less their size.
+    QString filledBy;
 
     qint64 bytesAvailable(const QString&) const override {
-        return free;
+        if (filledBy.isEmpty()) {
+            return free;
+        }
+        qint64 used = 0;
+        QDirIterator files(filledBy, QDir::Files, QDirIterator::Subdirectories);
+        while (files.hasNext()) {
+            used += files.nextFileInfo().size();
+        }
+        return free - used;
     }
 };
 
@@ -380,6 +392,90 @@ TEST_F(AudioCacheTest, KeepsTwoGiBFree) {
     EXPECT_TRUE(pReply->aborted());
     EXPECT_TRUE(pCache->cachedPath(kServer, kUid2).has_value());
     EXPECT_FALSE(QFileInfo::exists(finalPath(kUid3) + QStringLiteral(".part")));
+}
+
+// Two downloads at once each check the free space before either has
+// written much: what the first still has to write counts for the second, so
+// that together they never leave less than 2 GiB free. The reservation ends
+// with the download.
+TEST_F(AudioCacheTest, ReservesTheRestOfParallelDownloads) {
+    const auto pCache = makeCache();
+    m_pStorage->free = 2 * kGiB + 150;
+    // The audio files; the index is not counted
+    m_pStorage->filledBy = m_dir.filePath(kServer);
+    Outcome first(pCache->ensure(kServer, kUid1, Priority::Deck, flacHints(100)));
+    Outcome second(pCache->ensure(kServer, kUid2, Priority::Deck, flacHints(100)));
+    ASSERT_TRUE(waitForRequests(2));
+    replyOf(0)->respondHeaders(200, audioHeaders(100));
+    replyOf(0)->sendBody(QByteArray(10, 'a'));
+    ASSERT_TRUE(waitForPartSize(kUid1, 10));
+
+    // 140 bytes free over the floor, 90 of them the first's
+    replyOf(1)->respondHeaders(200, audioHeaders(100));
+    ASSERT_TRUE(second.waitForFailure());
+    EXPECT_EQ(Error::Kind::Storage, second.error->kind);
+    EXPECT_TRUE(replyOf(1)->aborted());
+
+    replyOf(0)->sendBody(QByteArray(90, 'a'));
+    replyOf(0)->finishBody();
+    ASSERT_TRUE(first.waitForReady());
+    EXPECT_GE(m_pStorage->bytesAvailable(QString()), 2 * kGiB);
+
+    // Done: 50 bytes over the floor are free for the next one
+    Outcome third(pCache->ensure(kServer, kUid3, Priority::Deck, flacHints(40)));
+    ASSERT_TRUE(waitForRequests(3));
+    replyOf(2)->respond(200, QByteArray(40, 'c'), audioHeaders(40));
+    ASSERT_TRUE(third.waitForReady());
+    EXPECT_GE(m_pStorage->bytesAvailable(QString()), 2 * kGiB);
+}
+
+// A download that stops (its last ticket cancelled) gives back the space it
+// had reserved for the rest of its file.
+TEST_F(AudioCacheTest, StoppedDownloadGivesBackItsReservation) {
+    const auto pCache = makeCache();
+    m_pStorage->free = 2 * kGiB + 150;
+    // The audio files; the index is not counted
+    m_pStorage->filledBy = m_dir.filePath(kServer);
+    CacheTicket* pStopped = pCache->ensure(kServer, kUid1, Priority::Deck, flacHints(100));
+    ASSERT_TRUE(waitForRequests(1));
+    replyOf(0)->respondHeaders(200, audioHeaders(100));
+    replyOf(0)->sendBody(QByteArray(10, 'a'));
+    ASSERT_TRUE(waitForPartSize(kUid1, 10));
+    pStopped->cancel();
+    EXPECT_TRUE(replyOf(0)->aborted());
+
+    // 140 bytes free over the floor, none of them reserved any more
+    Outcome next(pCache->ensure(kServer, kUid2, Priority::Deck, flacHints(100)));
+    ASSERT_TRUE(waitForRequests(2));
+    replyOf(1)->respond(200, QByteArray(100, 'b'), audioHeaders(100));
+    ASSERT_TRUE(next.waitForReady());
+    EXPECT_GE(m_pStorage->bytesAvailable(QString()), 2 * kGiB);
+}
+
+// The soft limit counts what the downloads still to finish will add: the
+// least recently used file makes room for both, not only for each one.
+TEST_F(AudioCacheTest, LimitCountsTheRestOfParallelDownloads) {
+    const auto pCache = makeCache(200);
+    download(pCache.get(), kUid1, QByteArray(60, 'o'));
+    ASSERT_TRUE(pCache->cachedPath(kServer, kUid1).has_value());
+
+    Outcome first(pCache->ensure(kServer, kUid2, Priority::Deck, flacHints(100)));
+    Outcome second(pCache->ensure(kServer, kUid3, Priority::Deck, flacHints(100)));
+    ASSERT_TRUE(waitForRequests(3));
+    replyOf(1)->respondHeaders(200, audioHeaders(100));
+    // 60 + 100 fit in 200
+    EXPECT_TRUE(pCache->cachedPath(kServer, kUid1).has_value());
+    replyOf(2)->respondHeaders(200, audioHeaders(100));
+    // 60 + 100 + 100 do not
+    EXPECT_FALSE(pCache->cachedPath(kServer, kUid1).has_value());
+
+    replyOf(1)->sendBody(QByteArray(100, 'b'));
+    replyOf(1)->finishBody();
+    replyOf(2)->sendBody(QByteArray(100, 'c'));
+    replyOf(2)->finishBody();
+    ASSERT_TRUE(first.waitForReady());
+    ASSERT_TRUE(second.waitForReady());
+    EXPECT_LE(pCache->usage().readyBytes, 200);
 }
 
 TEST_F(AudioCacheTest, ReconcilesIndexOnStartup) {

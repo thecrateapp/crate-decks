@@ -591,7 +591,7 @@ void AudioCache::onHeaders(const DownloadPtr& pDownload, Reply* pReply) {
     // itself.
     entry.state = CacheEntry::State::Downloading;
 
-    if (!makeRoom(expected > 0 ? expected - offset : 0)) {
+    if (!makeRoom(expected > 0 ? expected - offset : 0, pDownload.get())) {
         dropReply(pDownload);
         finish(pDownload,
                 Error::storage(QStringLiteral(
@@ -1103,7 +1103,22 @@ int AudioCache::clear() {
     return static_cast<int>(keys.size());
 }
 
-bool AudioCache::makeRoom(qint64 incomingBytes) {
+qint64 AudioCache::reservedBytes(const Download* pExcept) const {
+    qint64 reserved = 0;
+    for (const DownloadPtr& pDownload : m_downloads) {
+        if (pDownload.get() == pExcept || !pDownload->partOpen || pDownload->expected <= 0) {
+            continue;
+        }
+        // What is on the disk, rather than what came in: the worker may
+        // not have written all of it yet
+        const qint64 written =
+                QFileInfo(absolutePath(partPathOf(pDownload->relativePath))).size();
+        reserved += std::max<qint64>(0, pDownload->expected - written);
+    }
+    return reserved;
+}
+
+bool AudioCache::makeRoom(qint64 incomingBytes, const Download* pFor) {
     struct Candidate {
         Key key;
         qint64 lastUsedAtMs;
@@ -1125,12 +1140,15 @@ bool AudioCache::makeRoom(qint64 incomingBytes) {
     const qint64 freeBytes = incomingBytes > 0
             ? m_options.pStorageInfo->bytesAvailable(m_options.directory)
             : -1;
+    // The other downloads under way will write the rest of their files too
+    const qint64 reserved = reservedBytes(pFor);
     qint64 freedBytes = 0;
     const auto overLimit = [&] {
-        return readyBytes - freedBytes + incomingBytes > m_options.limitBytes;
+        return readyBytes - freedBytes + incomingBytes + reserved > m_options.limitBytes;
     };
     const auto shortOfSpace = [&] {
-        return freeBytes >= 0 && freeBytes + freedBytes - incomingBytes < m_options.minFreeBytes;
+        return freeBytes >= 0 &&
+                freeBytes + freedBytes - incomingBytes - reserved < m_options.minFreeBytes;
     };
     if (!overLimit() && !shortOfSpace()) {
         return true;
