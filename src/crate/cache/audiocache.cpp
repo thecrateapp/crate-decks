@@ -279,8 +279,9 @@ AudioCache::AudioCache(Options options, QObject* parent)
                 if (companionsOf) {
                     for (CacheEntry& entry : reconciliation.entries) {
                         if (entry.state == CacheEntry::State::Ready) {
-                            entry.companionBytes =
-                                    companionBytesOf(companionsOf, QDir(directory).filePath(entry.path));
+                            entry.companionBytes = companionBytesOf(
+                                    companionsOf,
+                                    QDir(directory).filePath(entry.path));
                         }
                     }
                 }

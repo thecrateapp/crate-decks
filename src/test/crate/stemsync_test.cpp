@@ -153,7 +153,10 @@ TEST_F(StemSyncTest, PrefersTheServerStemFileAndRebuildsOtherAsTheResidual) {
     pSync->fetch(kServer, kUid, m_cachedPath, kRevision, [&](const StemSync::Outcome& done) {
         outcome = done;
     });
-    answer(404, QByteArrayLiteral(R"({"detail":"No stem analysis"})"), 200, fixture(QStringLiteral("server-stems.mp4")));
+    answer(404,
+            QByteArrayLiteral(R"({"detail":"No stem analysis"})"),
+            200,
+            fixture(QStringLiteral("server-stems.mp4")));
     ASSERT_TRUE(QTest::qWaitFor([&] { return outcome.has_value(); }, kWaitMs));
     ASSERT_EQ(StemSync::Outcome::Result::ServerStems, outcome->result)
             << outcome->error.toStdString();
@@ -232,7 +235,8 @@ TEST_F(StemSyncTest, DoesNotUploadWithoutTheCapability) {
     ASSERT_NE(nullptr, pPut);
     EXPECT_EQ(QNetworkAccessManager::PutOperation, m_network.last().operation);
     const QJsonObject sent = QJsonDocument::fromJson(m_network.last().body).object();
-    EXPECT_EQ(QStringLiteral("crate-decks/1.0.0"), sent.value(QStringLiteral("producer")).toString());
+    EXPECT_EQ(QStringLiteral("crate-decks/1.0.0"),
+            sent.value(QStringLiteral("producer")).toString());
     EXPECT_EQ(kRevision, sent.value(QStringLiteral("sourceRevision")).toString());
     pPut->respond(200,
             QByteArrayLiteral(R"({"result":"kept_stronger"})"),

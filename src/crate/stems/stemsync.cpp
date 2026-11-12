@@ -361,7 +361,8 @@ void StemSync::fetchStemFile(const FetchPtr& pFetch) {
         return;
     }
     // Beside the sidecar, so on the cache's volume
-    pFetch->downloadPath = StemSidecar::pathFor(pFetch->cachedPath) + QStringLiteral(".server.part");
+    pFetch->downloadPath = StemSidecar::pathFor(pFetch->cachedPath) +
+            QStringLiteral(".server.part");
     RequestOptions options;
     options.streamBody = true;
     Reply* pReply = pClient->get(

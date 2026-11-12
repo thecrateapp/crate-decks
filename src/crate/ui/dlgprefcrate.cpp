@@ -167,7 +167,10 @@ void DlgPrefCrate::bindPreferences() {
             &QCheckBox::toggled,
             pPreferences,
             &CratePreferences::setGainFromLufs);
-    connect(m_pStems->useGpu(), &QCheckBox::toggled, pPreferences, &CratePreferences::setStemsOnGpu);
+    connect(m_pStems->useGpu(),
+            &QCheckBox::toggled,
+            pPreferences,
+            &CratePreferences::setStemsOnGpu);
     connect(m_pStems->fineTunedModel(),
             &QCheckBox::toggled,
             pPreferences,

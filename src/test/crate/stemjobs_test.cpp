@@ -88,8 +88,9 @@ class FakeSeparator : public crate::LocalStemSeparator {
         std::vector<float> stems(8 * 44100);
         for (std::size_t i = 0; i < 44100; ++i) {
             for (std::size_t row = 0; row < 8; ++row) {
-                stems[row * 44100 + i] = static_cast<float>(
-                        0.1 * std::sin(2.0 * std::numbers::pi * 100.0 * static_cast<double>(i) / 44100.0));
+                stems[row * 44100 + i] = static_cast<float>(0.1 *
+                        std::sin(2.0 * std::numbers::pi * 100.0 *
+                                static_cast<double>(i) / 44100.0));
             }
         }
         done = done && m_pSink->write(0, 44100, stems, &error);
