@@ -549,7 +549,8 @@ TEST_F(CrateSkinLoadTest, SettingsFolderNamesNoMixxx) {
     const QString text = QString::fromUtf8(log.readAll());
     EXPECT_TRUE(text.contains(QLatin1String("Crate Decks shutdown complete with code")));
     QStringList lines;
-    for (const QString& line : text.split(QLatin1Char('\n'))) {
+    const QStringList logLines = text.split(QLatin1Char('\n'));
+    for (const QString& line : logLines) {
         if (crate::namesMixxx(line)) {
             lines.append(line);
         }

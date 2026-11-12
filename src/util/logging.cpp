@@ -237,12 +237,14 @@ QString rotateLogFilesAndGetFilePath(const QString& logDirPath) {
     const QString baseName = QString::fromUtf8(crate::kLogFileName);
     // Rotate old logfiles.
     for (int i = 9; i >= 0; --i) {
-        const QString logFileName = (i == 0) ? baseName
-                                             : QStringLiteral("%1.%2").arg(baseName).arg(i);
+        const QString logFileName = (i == 0)
+                ? baseName
+                : QStringLiteral("%1.%2").arg(baseName, QString::number(i));
         logFilePath = logDir.absoluteFilePath(logFileName);
         if (QFileInfo::exists(logFilePath)) {
             QString olderLogFilePath =
-                    logDir.absoluteFilePath(QStringLiteral("%1.%2").arg(baseName).arg(i + 1));
+                    logDir.absoluteFilePath(QStringLiteral("%1.%2").arg(
+                            baseName, QString::number(i + 1)));
             // This should only happen with number 10
             if (QFileInfo::exists(olderLogFilePath)) {
                 QFile::remove(olderLogFilePath);
