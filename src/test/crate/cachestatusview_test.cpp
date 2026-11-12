@@ -267,3 +267,25 @@ TEST_F(CacheStatusViewTest, ChangingLimitTriggersEviction) {
 }
 
 } // namespace
+
+// The tracks the decks and the Auto DJ queue keep (session pins) are in use,
+// not kept offline: lowering the limit leaves them, and the caption says why.
+TEST_F(CacheStatusViewTest, CaptionShowsTracksInUse) {
+    download(kUid1, 300);
+    download(kUid2, 300);
+    m_pCache->pin(kServer,
+            kUid1,
+            AudioCache::kSessionPinPrefix +
+                    QStringLiteral("player:[Channel1]"));
+    makeView();
+
+    m_pModel->setLimitBytes(100);
+    EXPECT_TRUE(m_pCache->cachedPath(kServer, kUid1).has_value());
+    EXPECT_FALSE(m_pCache->cachedPath(kServer, kUid2).has_value());
+    EXPECT_EQ(300, m_pModel->usedBytes());
+    EXPECT_EQ(300, m_pModel->inUseBytes());
+    EXPECT_EQ(0, m_pModel->pinnedBytes());
+    EXPECT_EQ(QStringLiteral("1 tracks · 0 downloading · 300 B in use"),
+            m_pView->captionLabel()->text());
+    EXPECT_EQ(0, m_pView->offlineSetsTable()->model()->rowCount());
+}

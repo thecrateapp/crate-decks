@@ -32,6 +32,7 @@ namespace crate::library {
 
 class CrateLoadCoordinator;
 class CratePrefetcher;
+class CrateSessionPins;
 class CrateServerTrackModel;
 
 /// The Crate section of the library sidebar (plan F3.C-PR2, design §6 and
@@ -101,6 +102,11 @@ class CrateServerFeature : public LibraryFeature {
     }
     CratePrefetcher* prefetcher() const {
         return m_pPrefetcher.get();
+    }
+    /// Keeps the Crate tracks in a player or in the Auto DJ queue cached;
+    /// nullptr until there is a server.
+    CrateSessionPins* sessionPins() const {
+        return m_pSessionPins.get();
     }
 
     /// What an offline set of a container downloads.
@@ -214,6 +220,7 @@ class CrateServerFeature : public LibraryFeature {
     QHash<qint64, StoredContainer> m_containers;
     std::unique_ptr<CrateLoadCoordinator> m_pLoadCoordinator;
     std::unique_ptr<CratePrefetcher> m_pPrefetcher;
+    std::unique_ptr<CrateSessionPins> m_pSessionPins;
     parented_ptr<CacheStatusModel> m_pCacheStatus;
     QThreadPool m_pool;
 };

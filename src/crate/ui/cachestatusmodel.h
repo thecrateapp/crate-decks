@@ -105,6 +105,7 @@ class CacheStatusModel : public QObject {
     Q_PROPERTY(qint64 usedBytes READ usedBytes NOTIFY changed)
     Q_PROPERTY(qint64 limitBytes READ limitBytes WRITE setLimitBytes NOTIFY changed)
     Q_PROPERTY(qint64 pinnedBytes READ pinnedBytes NOTIFY changed)
+    Q_PROPERTY(qint64 inUseBytes READ inUseBytes NOTIFY changed)
     Q_PROPERTY(int readyFiles READ readyFiles NOTIFY changed)
     Q_PROPERTY(int activeDownloads READ activeDownloads NOTIFY changed)
     Q_PROPERTY(int queuedDownloads READ queuedDownloads NOTIFY changed)
@@ -140,8 +141,13 @@ class CacheStatusModel : public QObject {
         return m_limitBytes;
     }
     void setLimitBytes(qint64 limitBytes);
+    /// Kept offline (offline sets).
     qint64 pinnedBytes() const {
         return m_usage.pinnedBytes;
+    }
+    /// Kept only while a player or the Auto DJ queue has them.
+    qint64 inUseBytes() const {
+        return m_usage.inUseBytes;
     }
     int readyFiles() const {
         return m_usage.readyFiles;

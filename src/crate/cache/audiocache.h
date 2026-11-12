@@ -60,8 +60,12 @@ struct Usage {
     /// Complete files, and their size.
     int readyFiles = 0;
     qint64 readyBytes = 0;
-    /// The part of them that is pinned.
+    /// The part of them that is pinned to stay, such as offline sets: what
+    /// the cache view shows as kept offline.
     qint64 pinnedBytes = 0;
+    /// The part of them that only session pins keep (kSessionPinPrefix):
+    /// tracks in a player or in the Auto DJ queue.
+    qint64 inUseBytes = 0;
     int activeDownloads = 0;
     int queuedDownloads = 0;
 };
@@ -179,9 +183,10 @@ class CacheTicket : public QObject {
 ///   Options::maxAttempts times.
 /// - Before a file comes in, the least recently used unpinned files go until
 ///   it fits in the limit (20 GiB by default) and Options::minFreeBytes stay
-///   free on the volume. Pinned files are never evicted: they can take the
-///   cache over its limit, but never below the free space, which fails the
-///   download instead.
+///   free on the volume. Pinned files (offline sets, and for the session
+///   the tracks in a player or in the Auto DJ queue) are never evicted: they
+///   can take the cache over its limit, but never below the free space,
+///   which fails the download instead.
 /// - The index (`<cache>/index.sqlite`, AudioCacheIndex) and every file
 ///   operation run on a worker thread of its own; the main thread only
 ///   hands over the chunks that arrive. At start the index is matched with
@@ -256,13 +261,20 @@ class AudioCache : public QObject {
     std::optional<TrackKey> trackOfFile(const QString& path) const;
 
     /// Deletes the track's file and its pins, for the "Remove from cache"
-    /// entry of the track menu. A track that is downloading stays. Returns
-    /// whether there was a file to delete.
+    /// entry of the track menu; its session pins stay while the track is in
+    /// use. A track that is downloading stays. Returns whether there was a
+    /// file to delete.
     bool remove(const QString& serverId, const QString& entityUid);
 
+    /// Pins whose reason starts with this last for this run only: they are
+    /// kept in memory, never in the index (CrateSessionPins pins the tracks
+    /// in a player or in the Auto DJ queue, design §9).
+    static const QString kSessionPinPrefix;
+
     /// Keeps the track from being evicted while any reason holds, such as
-    /// "deck" or "offline-set:<id>". Pins are kept in the index across
-    /// restarts, also for a track that is not cached yet.
+    /// "offline-set:<id>": by the LRU before a download, a lower limit or
+    /// clear(). Pins are kept in the index across restarts, also for a track
+    /// that is not cached yet, except session pins (kSessionPinPrefix).
     void pin(const QString& serverId, const QString& entityUid, const QString& reason);
     void unpin(const QString& serverId, const QString& entityUid, const QString& reason);
 
@@ -325,6 +337,8 @@ class AudioCache : public QObject {
     /// Evicts until `incomingBytes` more fit in the limit and leave the
     /// minimum free space. Returns false if the free space is still short.
     bool makeRoom(qint64 incomingBytes);
+    /// Whether a pin keeps the file: one of its own, or a session pin.
+    bool isKept(const Key& key, const CacheEntry& entry) const;
     void evict(const Key& key);
     void store(const CacheEntry& entry);
 
@@ -344,6 +358,9 @@ class AudioCache : public QObject {
     QList<QPointer<CacheTicket>> m_waitingForIndex;
     /// Pins and unpins made before the index was read.
     QList<std::function<void()>> m_afterLoad;
+    /// The session pins of each track (kSessionPinPrefix): in memory only,
+    /// also for a track the cache does not have.
+    QHash<Key, QStringList> m_sessionPins;
     quint64 m_nextDownloadId = 1;
 };
 
