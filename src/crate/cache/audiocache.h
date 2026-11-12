@@ -284,6 +284,9 @@ class AudioCache : public QObject {
     /// that is not cached yet, except session pins (kSessionPinPrefix).
     void pin(const QString& serverId, const QString& entityUid, const QString& reason);
     void unpin(const QString& serverId, const QString& entityUid, const QString& reason);
+    /// Removes the pin of `reason` from every track of the server, such as
+    /// a Smart Mix playlist turned off. Returns how many tracks had it.
+    int unpinAll(const QString& serverId, const QString& reason);
 
     /// Measures the companion files of a cached track again
     /// (Options::companionsOf), once they were written or changed, and

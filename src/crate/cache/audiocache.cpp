@@ -991,6 +991,27 @@ void AudioCache::pin(const QString& serverId, const QString& entityUid, const QS
     emit usageChanged();
 }
 
+int AudioCache::unpinAll(const QString& serverId, const QString& reason) {
+    if (!m_loaded) {
+        m_afterLoad.append([this, serverId, reason] {
+            unpinAll(serverId, reason);
+        });
+        return 0;
+    }
+    int unpinned = 0;
+    for (auto it = m_entries.begin(); it != m_entries.end(); ++it) {
+        if (it->serverId == serverId && it->pinnedReasons.removeAll(reason) > 0) {
+            store(*it);
+            ++unpinned;
+        }
+    }
+    if (unpinned > 0) {
+        makeRoom(0);
+        emit usageChanged();
+    }
+    return unpinned;
+}
+
 void AudioCache::unpin(const QString& serverId, const QString& entityUid, const QString& reason) {
     if (reason.startsWith(kSessionPinPrefix)) {
         const auto session = m_sessionPins.find(keyOf(serverId, entityUid));
