@@ -177,13 +177,15 @@ class StemJobsTest : public MixxxTest, SoundSourceProviderRegistration {
         options.clientFor = [this](const QString& serverId) {
             return serverId == kServer ? m_pClient.get() : nullptr;
         };
-        options.readPlaylist = [this](const QString& serverId,
-                                       qint64 playlistId,
-                                       const std::function<void(std::optional<QList<CrateTrackRef>>)>& done) {
-            EXPECT_EQ(kServer, serverId);
-            EXPECT_EQ(kPlaylist, playlistId);
-            done(QList<CrateTrackRef>{track(kUidA), track(kUidB)});
-        };
+        options.readPlaylist =
+                [this](const QString& serverId,
+                        qint64 playlistId,
+                        const std::function<void(
+                                std::optional<QList<CrateTrackRef>>)>& done) {
+                    EXPECT_EQ(kServer, serverId);
+                    EXPECT_EQ(kPlaylist, playlistId);
+                    done(QList<CrateTrackRef>{track(kUidA), track(kUidB)});
+                };
         options.confirmDownload =
                 [this](const QString&, qint64, int tracks, qint64 bytes, const auto& answer) {
                     m_confirmed.append({tracks, bytes});

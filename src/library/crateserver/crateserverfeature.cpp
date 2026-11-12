@@ -503,11 +503,13 @@ void CrateServerFeature::startLoading() {
     stems.clientFor = [pServers = m_pServers](const QString& serverId) {
         return pServers ? pServers->client(serverId) : nullptr;
     };
-    stems.readPlaylist = [this](const QString& serverId,
-                                 qint64 playlistId,
-                                 const std::function<void(std::optional<QList<CrateTrackRef>>)>& done) {
-        readSmartMixPlaylist(serverId, playlistId, done);
-    };
+    stems.readPlaylist =
+            [this](const QString& serverId,
+                    qint64 playlistId,
+                    const std::function<void(
+                            std::optional<QList<CrateTrackRef>>)>& done) {
+                readSmartMixPlaylist(serverId, playlistId, done);
+            };
     stems.confirmDownload = [this](const QString& serverId,
                                     qint64 playlistId,
                                     int tracks,
