@@ -5367,6 +5367,7 @@ if(CRATE)
       src/crate/stems/resampler.cpp
       src/crate/stems/stemanalyzer.cpp
       src/crate/stems/stemdsp.cpp
+      src/crate/stems/stemsidecar.cpp
       src/crate/crateaddserverflow.cpp
       src/crate/cratepreferences.cpp
       src/crate/crateserverrows.cpp
@@ -5430,6 +5431,7 @@ if(CRATE)
         src/test/crate/modelstore_test.cpp
         src/test/crate/stemanalyzer_test.cpp
         src/test/crate/stemdsp_test.cpp
+        src/test/crate/stemsidecar_test.cpp
         src/test/crate/skinloadtest.cpp
         src/test/crate/mixerstyletest.cpp
         src/test/crate/delegatestest.cpp
