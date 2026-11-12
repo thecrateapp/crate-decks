@@ -121,6 +121,21 @@ const QStringList kStatements = {
                        "sha256 TEXT NOT NULL, "
                        "bytes INTEGER NOT NULL, "
                        "installed_at TEXT NOT NULL)"),
+        // Smart Mix Stems ST5.PR2: the stem sidecars Decks has (STEM-D9),
+        // one per track of a server. `path` is relative to the audio cache's
+        // directory; `separator_model` the separator identifier it was made
+        // with (the server's or Decks'); `source_revision` the track's file
+        // it was made for; `uploaded_at` when Decks' own analysis went to
+        // the server, NULL if it did not.
+        QStringLiteral("CREATE TABLE IF NOT EXISTS crateserver_stems ("
+                       "server_id TEXT NOT NULL, "
+                       "entity_uid TEXT NOT NULL, "
+                       "path TEXT NOT NULL, "
+                       "separator_model TEXT NOT NULL, "
+                       "source_revision TEXT NOT NULL, "
+                       "created_at TEXT NOT NULL, "
+                       "uploaded_at TEXT, "
+                       "PRIMARY KEY (server_id, entity_uid))"),
 };
 
 } // namespace
