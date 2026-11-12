@@ -9,9 +9,12 @@
 #include <gtest/gtest.h>
 
 #include <QFile>
+#include <QMutex>
 #include <QScopedPointer>
+#include <QSqlQuery>
 #include <QTemporaryDir>
 #include <QTest>
+#include <QThread>
 #include <memory>
 
 #include "control/controllinpotmeter.h"
@@ -21,6 +24,7 @@
 #include "crate/client/crateclient.h"
 #include "crate/library/crateloadcoordinator.h"
 #include "crate/library/crateprefetcher.h"
+#include "crate/library/cratetrackpreparer.h"
 #include "library/autodj/autodjprocessor.h"
 #include "library/dao/playlistdao.h"
 #include "library/dao/trackschema.h"
@@ -215,7 +219,9 @@ class AutoDJCratePendingTest : public LibraryTest {
 
     /// The application's audio cache, Auto DJ prefetcher (which answers the
     /// pending track hook) and load coordinator, for the tracks of kServer.
-    void makeCrate(bool prefetch) {
+    /// With `readOnWorker`, the coordinator reads files for the library on a
+    /// worker, as CrateServerFeature sets it up.
+    void makeCrate(bool prefetch, bool readOnWorker = false) {
         ASSERT_TRUE(m_cacheDir.isValid());
         crate::ClientOptions clientOptions;
         clientOptions.deviceFingerprint = QStringLiteral("install-1");
@@ -253,6 +259,21 @@ class AutoDJCratePendingTest : public LibraryTest {
         coordinatorOptions.trackById = [this](TrackId trackId) {
             return trackCollectionManager()->getTrackById(trackId);
         };
+        if (readOnWorker) {
+            coordinatorOptions.trackInLibrary = [this](const QString& path) {
+                return crate::library::libraryTrackOfFile(trackCollectionManager(), path);
+            };
+            coordinatorOptions.prepareTrack = [](const QString& path) {
+                return crate::library::prepareTrackForLibrary(path, SyncTrackMetadataParams());
+            };
+            coordinatorOptions.readTrack = [this](const TrackPointer& pTrack) {
+                {
+                    const QMutexLocker locker(&m_readMutex);
+                    m_readOn.append(QThread::currentThread());
+                }
+                crate::library::readLibraryTrackFromFile(pTrack, SyncTrackMetadataParams());
+            };
+        }
         m_pCoordinator = std::make_unique<crate::library::CrateLoadCoordinator>(
                 std::move(coordinatorOptions));
     }
@@ -312,6 +333,20 @@ class AutoDJCratePendingTest : public LibraryTest {
         ASSERT_TRUE(QFile::copy(getTestDir().filePath(kTrackFile), m_dir.filePath(name)));
     }
 
+    /// Whether the library row of `trackId` has been read from its file,
+    /// and whether it has a cover from it.
+    std::pair<bool, bool> readFromFile(TrackId trackId) const {
+        QSqlQuery query(dbConnection());
+        query.prepare(QStringLiteral(
+                "SELECT source_synchronized_ms, coverart_source FROM library WHERE id = :id"));
+        query.bindValue(QStringLiteral(":id"), trackId.toVariant());
+        if (!query.exec() || !query.next()) {
+            return {false, false};
+        }
+        return {!query.value(0).isNull() && query.value(0).toLongLong() > 0,
+                query.value(1).toInt() != 0};
+    }
+
     TrackId queueTop() const {
         PlaylistTableModel* pModel = pProcessor->getTableModel();
         return pModel->getTrackId(pModel->index(0, 0));
@@ -319,6 +354,9 @@ class AutoDJCratePendingTest : public LibraryTest {
 
     QTemporaryDir m_dir;
     QTemporaryDir m_cacheDir;
+    /// The threads readTrack ran on.
+    QMutex m_readMutex;
+    QList<QThread*> m_readOn;
     crate::test::FakeNetworkAccessManager m_network;
     crate::test::FakeScheduler m_scheduler;
     crate::test::FakeTokenSource m_tokens;
@@ -490,6 +528,48 @@ TEST_F(AutoDJCratePendingTest, SkipsQueuedUncachedTrackAfterTimeout) {
     EXPECT_EQ(m_dir.filePath(QStringLiteral("next.mp3")), pProcessor->loads[0].location);
     EXPECT_TRUE(pProcessor->loads[0].play);
     EXPECT_EQ(next, queueTop());
+}
+
+// A track queued uncached has a library row without its file's tags. Taking
+// it from the library the first time with its file there read the tags and
+// the cover on the main thread (TrackDAO::getTrackById(): 60-74 ms for the dev
+// stack's FLACs, G3 harness 2026-11-12), when Auto DJ's turn came. The file is
+// read on a worker as soon as it arrives instead (design §9: the main thread
+// never blocks over 16 ms), so the row has them before Auto DJ takes it.
+TEST_F(AutoDJCratePendingTest, ReadsAQueuedUncachedTrackOnAWorkerWhenItsFileArrives) {
+    makeCrate(true, true);
+    const TrackId uncached = queueUncached(QStringLiteral("e1"));
+    ASSERT_TRUE(uncached.isValid());
+    EXPECT_EQ((std::pair<bool, bool>{false, false}), readFromFile(uncached));
+    // The prefetch asks for it as soon as it is queued
+    ASSERT_TRUE(QTest::qWaitFor([this] { return downloadOf(QStringLiteral("e1")); }, kWaitMs));
+
+    QFile audio(getTestDir().filePath(kTrackFile));
+    ASSERT_TRUE(audio.open(QIODevice::ReadOnly));
+    const QByteArray bytes = audio.readAll();
+    downloadOf(QStringLiteral("e1"))
+            ->respond(200,
+                    bytes,
+                    {{QByteArrayLiteral("Content-Length"), QByteArray::number(bytes.size())},
+                            {QByteArrayLiteral("Content-Type"), QByteArrayLiteral("audio/mpeg")}});
+
+    // Nobody takes the track: its row is read and saved anyway
+    ASSERT_TRUE(QTest::qWaitFor(
+            [this, uncached] {
+                return readFromFile(uncached).first;
+            },
+            kWaitMs));
+    EXPECT_TRUE(readFromFile(uncached).second);
+    {
+        const QMutexLocker locker(&m_readMutex);
+        ASSERT_EQ(1, m_readOn.size());
+        EXPECT_NE(QThread::currentThread(), m_readOn.first());
+    }
+    // Auto DJ's take finds it read
+    const TrackPointer pTrack = trackCollectionManager()->getTrackById(uncached);
+    ASSERT_NE(nullptr, pTrack);
+    EXPECT_TRUE(pTrack->getSourceSynchronizedAt().isValid());
+    EXPECT_TRUE(pTrack->getCoverInfo().hasImage());
 }
 
 } // namespace crate_autodj_pending

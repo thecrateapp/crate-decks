@@ -55,9 +55,16 @@ CrateLoadCoordinator::CrateLoadCoordinator(Options options, QObject* parent)
           m_trackById(std::move(options.trackById)),
           m_trackInLibrary(std::move(options.trackInLibrary)),
           m_prepareTrack(std::move(options.prepareTrack)),
+          m_readTrack(std::move(options.readTrack)),
           m_applyAnalysis(std::move(options.applyAnalysis)) {
     // As many as decks load at once, usually
     m_preparePool.setMaxThreadCount(2);
+    if (m_pCache && m_readTrack && m_prepareTrack && m_trackInLibrary) {
+        connect(m_pCache.data(),
+                &cache::AudioCache::trackChanged,
+                this,
+                &CrateLoadCoordinator::onCacheTrackChanged);
+    }
     if (options.pPlayerInfo) {
         connect(options.pPlayerInfo,
                 &PlayerInfo::trackChanged,
@@ -163,6 +170,9 @@ CrateLoadCoordinator::~CrateLoadCoordinator() {
     }
     m_preparing.clear();
     m_preparePool.waitForDone();
+    // Saved as they go
+    m_unread.clear();
+    m_unreadPaths.clear();
 }
 
 QString CrateLoadCoordinator::keyOf(const QString& serverId, const QString& entityUid) {
@@ -211,7 +221,7 @@ bool CrateLoadCoordinator::loadsAtOnce(const QString& serverId, const QString& e
 }
 
 TrackPointer CrateLoadCoordinator::libraryTrackOf(const QString& path) const {
-    if (!m_trackInLibrary || m_preparing.contains(path)) {
+    if (!m_trackInLibrary || m_preparing.contains(path) || m_unread.contains(path)) {
         return TrackPointer();
     }
     TrackPointer pTrack = m_trackInLibrary(path);
@@ -230,9 +240,14 @@ void CrateLoadCoordinator::whenInLibrary(const QString& path, LibraryTrackCallba
     }
     auto it = m_preparing.find(path);
     if (it == m_preparing.end()) {
-        if (const TrackPointer pTrack = libraryTrackOf(path)) {
-            callback(pTrack);
-            return;
+        // A library track never read from its file, held since its download
+        // started: read into it
+        const TrackPointer pUnread = m_unread.value(path);
+        if (!pUnread) {
+            if (const TrackPointer pTrack = libraryTrackOf(path)) {
+                callback(pTrack);
+                return;
+            }
         }
         Preparation preparation;
         preparation.pWatcher = new QFutureWatcher<TrackPointer>(this);
@@ -242,10 +257,18 @@ void CrateLoadCoordinator::whenInLibrary(const QString& path, LibraryTrackCallba
                 [this, path] {
                     onPrepared(path);
                 });
-        preparation.pWatcher->setFuture(QtConcurrent::run(&m_preparePool,
-                [prepare = m_prepareTrack, path] {
-                    return prepare(path);
-                }));
+        if (pUnread && m_readTrack) {
+            preparation.pWatcher->setFuture(QtConcurrent::run(&m_preparePool,
+                    [read = m_readTrack, pUnread] {
+                        read(pUnread);
+                        return pUnread;
+                    }));
+        } else {
+            preparation.pWatcher->setFuture(QtConcurrent::run(&m_preparePool,
+                    [prepare = m_prepareTrack, path] {
+                        return prepare(path);
+                    }));
+        }
         it = m_preparing.insert(path, preparation);
     }
     it->callbacks.append(std::move(callback));
@@ -261,14 +284,75 @@ void CrateLoadCoordinator::onPrepared(const QString& path) {
     // Keeps the prepared track in the track cache until the library takes it
     TrackPointer pPrepared = preparation.pWatcher->result();
     preparation.pWatcher->deleteLater();
-    // The file's tags and cover are read: what is left is its library row
-    const TrackPointer pTrack = m_trackOfFile ? m_trackOfFile(path) : TrackPointer();
+    // The file's tags and cover are read: what is left is its library row,
+    // unless it is a library track read in place
+    TrackPointer pTrack = m_unread.take(path);
+    if (pTrack) {
+        if (const std::optional<cache::TrackKey> track =
+                        m_pCache ? m_pCache->trackOfFile(path) : std::nullopt) {
+            m_unreadPaths.remove(keyOf(track->serverId, track->entityUid));
+        }
+    } else if (m_trackOfFile) {
+        pTrack = m_trackOfFile(path);
+    }
     pPrepared.reset();
     if (pTrack && pTrack->getId().isValid()) {
         m_inLibrary.insert(path);
     }
     for (const LibraryTrackCallback& callback : preparation.callbacks) {
         callback(pTrack);
+    }
+}
+
+void CrateLoadCoordinator::onCacheTrackChanged(
+        const QString& serverId, const QString& entityUid) {
+    const QString key = keyOf(serverId, entityUid);
+    const cache::TrackState::Kind kind = m_pCache->trackState(serverId, entityUid).kind;
+    if (kind == cache::TrackState::Kind::Downloading) {
+        // Sent for every chunk: the start only
+        if (m_downloadsSeen.contains(key)) {
+            return;
+        }
+        // Named once the server has answered
+        const std::optional<QString> path = m_pCache->filePathFor(serverId, entityUid, QString());
+        if (!path) {
+            return;
+        }
+        m_downloadsSeen.insert(key);
+        if (m_unreadPaths.contains(key) || QFileInfo::exists(*path)) {
+            return;
+        }
+        // Without its file, the database gives the track without reading
+        // anything
+        TrackPointer pTrack = m_trackInLibrary(*path);
+        if (!pTrack || !pTrack->getId().isValid() ||
+                pTrack->getSourceSynchronizedAt().isValid()) {
+            return;
+        }
+        m_unread.insert(*path, std::move(pTrack));
+        m_unreadPaths.insert(key, *path);
+        return;
+    }
+    m_downloadsSeen.remove(key);
+    const auto it = m_unreadPaths.constFind(key);
+    if (it == m_unreadPaths.cend()) {
+        return;
+    }
+    if (kind == cache::TrackState::Kind::Ready) {
+        // Read on a worker, then let go of (onPrepared())
+        whenInLibrary(it.value(), [](const TrackPointer& pTrack) {
+            Q_UNUSED(pTrack);
+        });
+        return;
+    }
+    // The download stopped or failed: held again when it starts again
+    releaseUnread(key);
+}
+
+void CrateLoadCoordinator::releaseUnread(const QString& key) {
+    const QString path = m_unreadPaths.take(key);
+    if (!path.isEmpty() && !m_preparing.contains(path)) {
+        m_unread.remove(path);
     }
 }
 
