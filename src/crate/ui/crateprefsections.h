@@ -115,6 +115,31 @@ class AnalysisSection : public PrefsSection {
     QCheckBox* m_pGain;
 };
 
+/// The stems section of the Crate page (Smart Mix Stems, plan ST5.PR2):
+/// where Decks separates and with which model, and whether it does while a
+/// deck plays (STEM-D7). Not in the GU1 mockups: it follows the switches of
+/// Crate analysis.
+class StemsSection : public PrefsSection {
+    Q_OBJECT
+  public:
+    explicit StemsSection(QWidget* pParent);
+
+    QCheckBox* useGpu() const {
+        return m_pGpu;
+    }
+    QCheckBox* fineTunedModel() const {
+        return m_pFineTuned;
+    }
+    QCheckBox* separateWhilePlaying() const {
+        return m_pWhilePlaying;
+    }
+
+  private:
+    QCheckBox* m_pGpu;
+    QCheckBox* m_pFineTuned;
+    QCheckBox* m_pWhilePlaying;
+};
+
 /// The Auto DJ and Smart Mix section of the Crate page, as the GU1 mockups
 /// show it: the Auto DJ transition (Crate Smart Mix, full intro and outro,
 /// fade at the outro) and the Smart Mix switches. Smart Mix is plan F6: the

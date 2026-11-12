@@ -48,6 +48,7 @@ DlgPrefCrate::DlgPrefCrate(QWidget* pParent, CrateServers* pServers)
           m_pCache(new CacheSection(this)),
           m_pSmartMix(new SmartMixSection(this)),
           m_pAnalysis(new AnalysisSection(this)),
+          m_pStems(new StemsSection(this)),
           m_pColumns(new QWidget(this)) {
     const DialogMetrics& metrics = DialogMetrics::installed();
     m_pServerList->setObjectName(QStringLiteral("crateServers"));
@@ -107,11 +108,13 @@ DlgPrefCrate::DlgPrefCrate(QWidget* pParent, CrateServers* pServers)
     pRight->setSpacing(0);
     pRight->addWidget(m_pSmartMix);
     pRight->addWidget(m_pAnalysis);
+    pRight->addWidget(m_pStems);
     pRight->addStretch(1);
     pColumns->addLayout(pRight, 100);
     m_pCache->hide();
     m_pSmartMix->hide();
     m_pAnalysis->hide();
+    m_pStems->hide();
 
     auto* pLayout = new QVBoxLayout(this);
     pLayout->setSpacing(0);
@@ -164,6 +167,15 @@ void DlgPrefCrate::bindPreferences() {
             &QCheckBox::toggled,
             pPreferences,
             &CratePreferences::setGainFromLufs);
+    connect(m_pStems->useGpu(), &QCheckBox::toggled, pPreferences, &CratePreferences::setStemsOnGpu);
+    connect(m_pStems->fineTunedModel(),
+            &QCheckBox::toggled,
+            pPreferences,
+            &CratePreferences::setFineTunedStemModel);
+    connect(m_pStems->separateWhilePlaying(),
+            &QCheckBox::toggled,
+            pPreferences,
+            &CratePreferences::setSeparateWhilePlaying);
     connect(pPreferences,
             &CratePreferences::cacheDirectoryChanged,
             this,
@@ -171,6 +183,7 @@ void DlgPrefCrate::bindPreferences() {
     connect(pPreferences, &CratePreferences::cacheLimitChanged, this, &DlgPrefCrate::showCache);
     m_pCache->show();
     m_pAnalysis->show();
+    m_pStems->show();
     showPreferences();
 }
 
@@ -182,6 +195,10 @@ void DlgPrefCrate::showPreferences() {
     m_pCache->prefetchAutoDj()->setChecked(pPreferences->prefetchAutoDj());
     m_pAnalysis->keyFromCrate()->setChecked(pPreferences->keyFromCrate());
     m_pAnalysis->gainFromLufs()->setChecked(pPreferences->gainFromLufs());
+    m_pStems->useGpu()->setChecked(pPreferences->stemsOnGpu());
+    m_pStems->fineTunedModel()->setChecked(
+            pPreferences->stemModel() == QLatin1String("htdemucs_ft"));
+    m_pStems->separateWhilePlaying()->setChecked(pPreferences->separateWhilePlaying());
     showCache();
 }
 
@@ -240,6 +257,9 @@ void DlgPrefCrate::slotResetToDefaults() {
     pPreferences->setPrefetchAutoDj(true);
     pPreferences->setKeyFromCrate(false);
     pPreferences->setGainFromLufs(false);
+    pPreferences->setStemsOnGpu(true);
+    pPreferences->setFineTunedStemModel(false);
+    pPreferences->setSeparateWhilePlaying(false);
     showPreferences();
 }
 

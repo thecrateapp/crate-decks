@@ -276,6 +276,16 @@ AnalysisSection::AnalysisSection(QWidget* pParent)
                   tr("ReplayGain from Crate's LUFS for tracks without one"))) {
 }
 
+StemsSection::StemsSection(QWidget* pParent)
+        : PrefsSection(tr("Stems"), pParent),
+          m_pGpu(addToggle(tr("Separate on the GPU"),
+                  tr("when it can; otherwise on the CPU"))),
+          m_pFineTuned(addToggle(tr("Fine-tuned model"),
+                  tr("cleaner stems, about four times the work"))),
+          m_pWhilePlaying(addToggle(tr("Separate while playing"),
+                  tr("at the lowest priority; otherwise it waits until no deck plays"))) {
+}
+
 SmartMixSection::SmartMixSection(QWidget* pParent)
         : PrefsSection(tr("Auto DJ and Smart Mix"), pParent),
           m_pSmartMix(nullptr) {

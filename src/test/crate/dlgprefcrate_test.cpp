@@ -737,6 +737,45 @@ TEST_F(CrateAddServerFlowTest, CacheLocationTakesEffectAtTheNextStart) {
     EXPECT_QSTRING_EQ(QDir::cleanPath(chosen.path()), nextStart.audioCache()->directory());
 }
 
+// Smart Mix Stems (plan ST5.PR2, STEM-D7): the GPU when there is one, the
+// model, and whether to separate while a deck plays.
+TEST_F(CrateAddServerFlowTest, StemSwitchesSetThePreferences) {
+    crate::DlgPrefCrate page(nullptr, m_pServers.get());
+    crate::CratePreferences* pPreferences = m_pServers->preferences();
+    EXPECT_FALSE(page.stemsSection()->isHidden());
+    QCheckBox* pGpu = page.stemsSection()->useGpu();
+    QCheckBox* pFine = page.stemsSection()->fineTunedModel();
+    QCheckBox* pWhilePlaying = page.stemsSection()->separateWhilePlaying();
+    // Defaults: the GPU, htdemucs, paused while a deck plays
+    EXPECT_TRUE(pGpu->isChecked());
+    EXPECT_FALSE(pFine->isChecked());
+    EXPECT_FALSE(pWhilePlaying->isChecked());
+    EXPECT_TRUE(pPreferences->stemsOnGpu());
+    EXPECT_EQ(QStringLiteral("htdemucs"), pPreferences->stemModel());
+    EXPECT_FALSE(pPreferences->separateWhilePlaying());
+
+    QSignalSpy changed(pPreferences, &crate::CratePreferences::stemsChanged);
+    pGpu->click();
+    pFine->click();
+    pWhilePlaying->click();
+    EXPECT_EQ(3, changed.size());
+    EXPECT_FALSE(pPreferences->stemsOnGpu());
+    EXPECT_EQ(QStringLiteral("htdemucs_ft"), pPreferences->stemModel());
+    EXPECT_TRUE(pPreferences->separateWhilePlaying());
+    const crate::CratePreferences saved(config());
+    EXPECT_FALSE(saved.stemsOnGpu());
+    EXPECT_EQ(QStringLiteral("htdemucs_ft"), saved.stemModel());
+    EXPECT_TRUE(saved.separateWhilePlaying());
+    crate::DlgPrefCrate again(nullptr, m_pServers.get());
+    EXPECT_TRUE(again.stemsSection()->separateWhilePlaying()->isChecked());
+
+    page.slotResetToDefaults();
+    EXPECT_TRUE(pPreferences->stemsOnGpu());
+    EXPECT_EQ(QStringLiteral("htdemucs"), pPreferences->stemModel());
+    EXPECT_FALSE(pPreferences->separateWhilePlaying());
+    EXPECT_FALSE(pWhilePlaying->isChecked());
+}
+
 TEST_F(CrateAddServerFlowTest, PrefetchAndAnalysisSwitchesSetThePreferences) {
     crate::DlgPrefCrate page(nullptr, m_pServers.get());
     crate::CratePreferences* pPreferences = m_pServers->preferences();
