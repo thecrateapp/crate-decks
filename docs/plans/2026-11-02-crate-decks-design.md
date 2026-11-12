@@ -115,13 +115,14 @@ Decks es el cliente de DJ de primera clase.
 - **Marca:** no se usa el nombre ni el logo de Mixxx. Habrá créditos visibles ("Basado en Mixxx") en About y en la documentación.
   - **Desde el 2026-11-09 (Diego):** no aparece nada de Mixxx en ningún sitio: cadenas, diálogos, menús, enlaces, imágenes, rutas, la terminal ni lo que Decks escribe para otros programas. Los diálogos de primer arranque de Mixxx se absorben en el de Crate. La única excepción son los créditos de About y del metainfo. Plan: [Own brand](2026-11-09-crate-decks-own-brand-plan.md).
   - **Decisiones del 2026-11-10 (Diego, §7 del plan):** de Mixxx, About solo conserva la línea legal ("basado en Mixxx"), los créditos y el aviso de copyright y la GPL; sin el botón *Donate to Mixxx*. Solo se ofrece la skin `CrateDecks`. La sección local de la barra lateral se llama "Local". Las carpetas locales son opcionales en el primer arranque, cuyas páginas nuevas (sonido y música local, `first-run-pages.html`) quedan aprobadas como especificación, igual que las de GU1. Los enlaces de ayuda y documentación irán a las páginas de documentación de Crate, en un PR aparte (BR.PR7) que se mergea cuando esas páginas estén publicadas.
+  - **Desde el 2026-11-12 (Diego, [plan BR2](2026-11-12-decks-debranding-plan.md)):** desaparece toda referencia a Mixxx que vaya más allá de la atribución de licencia y de decir que Decks es un fork de Mixxx: también los nombres de los ficheros que escribe, los logs, el árbol instalado y nuestro propio código y comentarios. Se quedan los identificadores internos heredados que el usuario no ve.
   - **Decided (Diego, 2026-11-11):** bug reports stay in `thecrateapp/crate`'s issues. `thecrateapp/crate-decks` has no issues; the README, the metainfo's bug tracker, the docs pages ("Help and community") and, once BR.PR7 merges, the in-app help links send reports to `thecrateapp/crate`.
 - **Distribución:** los binarios llevan el código fuente correspondiente (enlace al tag del repo), como exige la GPL.
 
 **D3. Identidad de aplicación separada de Mixxx.**
 - **Nombre:** "Crate Decks".
 - **Identificadores:** organización `cratemusic.app` y bundle ID `app.cratemusic.decks`. Flatpak, cuando exista, usa el mismo ID (G1): tiene que coincidir con el del `.desktop` y el metainfo.
-- **Ajustes:** directorio propio (`~/.cratedecks/` en Linux y el equivalente derivado de `QStandardPaths` en macOS y Windows). Así nunca pisa la base de datos ni la configuración de un Mixxx instalado.
+- **Ajustes:** directorio propio (`~/.cratedecks/` en Linux y el equivalente derivado de `QStandardPaths` en macOS y Windows). Así nunca pisa la base de datos ni la configuración de un Mixxx instalado. Dentro, `crate-decks.cfg`, `crate-decks.log` y `crate-decks.sqlite` (BR2), y Decks nunca lee ni migra las carpetas de Mixxx.
 
 **D4. Audio: caché local completa; reproducción progresiva opcional (D14).**
 - **Descarga:** por `GET /api/tracks/by-entity/{uid}/stream?delivery=original` con `Authorization: Bearer` y Range para reanudar. **No se usa `/download`**, que reescribe tags y no es idéntico byte a byte.
@@ -315,6 +316,8 @@ Los parches de V2 (skin por defecto ampliado, `coreservices.cpp`, `mixxxmainwind
 
 **Marca propia (2026-11-09, [plan](2026-11-09-crate-decks-own-brand-plan.md)).** Las cadenas traducibles que nombran Mixxx no se editan en los ficheros de Mixxx: las reescribe en tiempo de ejecución la capa de marca (`crate::BrandTranslator`, instalada en `main.cpp`), con el inventario de `res/crate-brand/` y un test que falla cuando upstream añade una cadena nueva. Solo se parchea lo que no es traducible. Diego decidió los puntos abiertos del plan el 2026-11-10 (D2). Los parches de la marca propia están en la tabla con la etiqueta BR; los ficheros nuevos en la lista son `dlgprefrecord.cpp`, `screensaver.cpp`, `pipewireenumerator.cpp`, `engineprimeexportjob.cpp`, `dlglibraryexport.cpp`, `dlgprefeffects.cpp` y `cmdlineargs.cpp`.
 
+**Marca propia, segunda pasada (2026-11-12, [plan BR2](2026-11-12-decks-debranding-plan.md)).** Diego amplía la regla: desaparece toda referencia a Mixxx salvo la atribución de licencia, decir que Decks es un fork de Mixxx y el texto de desarrollo sobre upstream. Ya no se conservan los nombres de fichero con "Mixxx": los ficheros de ajustes, log y base de datos, el árbol instalado y nuestro propio código cambian; los identificadores internos heredados (clases, grupos de control, claves de configuración, API de scripting) se quedan. Entran en la lista `src/config.h.in`, `src/util/logging.cpp`, `src/dialog/dlgdevelopertools.cpp` y `src/preferences/upgrade.cpp` (filas BR2).
+
 | Fichero | Cambio | ¿Hook genérico? |
 |---|---|---|
 | ~~`src/library/trackcollectionmanager.cpp`~~ | **Descartado tras F0 (Q9):** no hay forma de registrar colecciones externas (la línea 59 es un `TODO`), y la colección recibiría `saveTrack`, purgas y reubicaciones desde cualquier hilo. Se reconsidera en F7/F8 | — |
@@ -352,7 +355,10 @@ Los parches de V2 (skin por defecto ampliado, `coreservices.cpp`, `mixxxmainwind
 | `src/coreservices.cpp` y `src/mixxxmainwindow.cpp` (primer arranque) | BR: con `CRATE`, sin el aviso de carpeta de música ni "No Output Devices" mientras el primer arranque de Crate está pendiente, que ofrece lo mismo en sus páginas; la skin decide la barra de menús sin preguntar | No |
 | `src/preferences/dialog/dlgprefinterface.cpp`, `src/controllers/dlgprefcontroller.cpp` (icono) | BR: las skins y los mapeos de serie se marcan con el logo de Crate generado (`:/images/crate-logo.svg`) en vez de `ic_mixxx_symbolic.svg`, que es el icono de Mixxx | No |
 | `src/skin/skinloader.cpp` (además de la skin por defecto) | BR: con `CRATE`, la lista de skins solo ofrece `CrateDecks`; las de Mixxx llevan su logo (decidido por Diego el 2026-11-10) | No |
-| `src/preferences/configobject.cpp`, `CMakeLists.txt`, `packaging/` (con F9.PR1) | BR: datos instalados en `share/crate-decks` en vez de `share/mixxx` | No |
+| `src/preferences/configobject.cpp`, `CMakeLists.txt`, `packaging/` | BR (hecho en BR2.PR3): datos instalados en `share/crate-decks` en vez de `share/mixxx`, documentación en `share/doc/crate-decks`, sin los PDF de Mixxx ni sus skins | No |
+| `src/config.h.in`, `src/util/logging.cpp`, `src/dialog/dlgdevelopertools.cpp`, `src/database/mixxxdb.cpp` | BR2: ficheros de ajustes, log y base de datos con el nombre de Crate Decks (`crate::appidentity`); el manejador de log pasa cada mensaje por la regla de marca | No |
+| `src/preferences/upgrade.cpp` | BR2: nunca migra ajustes de las carpetas antiguas de Mixxx: leerían y borrarían ficheros de un Mixxx instalado | No |
+| `src/skin/skinloader.cpp` (BR2) | Las skins de Mixxx tampoco cargan por nombre desde la carpeta del sistema; las de la carpeta del usuario sí | No |
 
 ## 6. Datos locales
 
