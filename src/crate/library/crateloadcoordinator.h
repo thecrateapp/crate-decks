@@ -81,6 +81,16 @@ struct CrateQueuedTrack {
 /// duration, so that the queue shows it; Auto DJ waits for that file when the
 /// track's turn comes (CratePrefetcher answers its pending track hook). Once
 /// cached, the track is that same library track.
+///
+/// Such a library track has never been read from its file, and the database
+/// reads it, tags and cover, the first time it gives the track with the file
+/// there: on the main thread, when Auto DJ takes it (60-74 ms, G3,
+/// 2026-11-12). With Options::readTrack that read happens on a worker
+/// instead: when the download of a file that the library has such a track of
+/// starts, the track is taken from the database (the file is not there, so
+/// nothing is read) and held in the track cache; once the file is complete,
+/// a worker reads it into that track, and whoever takes it from the library
+/// meanwhile gets that same track. Then it is let go, which saves it.
 class CrateLoadCoordinator : public QObject {
     Q_OBJECT
   public:
@@ -107,6 +117,10 @@ class CrateLoadCoordinator : public QObject {
         /// prepareTrackForLibrary() in the application. Optional; without it
         /// trackOfFile reads the file itself.
         std::function<TrackPointer(const QString& path)> prepareTrack;
+        /// Reads a library track that has never been read from its file,
+        /// on a worker: readLibraryTrackFromFile() in the application.
+        /// Optional, with trackInLibrary and prepareTrack.
+        std::function<void(const TrackPointer& pTrack)> readTrack;
         /// Applies Crate's analysis of a track to it (ProfileStore and
         /// AnalysisImporter in the application); it may finish later.
         /// Optional.
@@ -215,6 +229,12 @@ class CrateLoadCoordinator : public QObject {
     /// added it. Each file is read once, however many wait for it.
     void whenInLibrary(const QString& path, LibraryTrackCallback callback);
     void onPrepared(const QString& path);
+    /// AudioCache::trackChanged(): holds the library track of a download
+    /// that starts, if the library has one that was never read from its
+    /// file, and reads it once the file is complete.
+    void onCacheTrackChanged(const QString& serverId, const QString& entityUid);
+    /// Lets go of the unread library track of `key`, if one is held.
+    void releaseUnread(const QString& key);
 
     const QPointer<cache::AudioCache> m_pCache;
     const UserSettingsPointer m_pConfig;
@@ -223,6 +243,7 @@ class CrateLoadCoordinator : public QObject {
     const std::function<TrackPointer(TrackId trackId)> m_trackById;
     const std::function<TrackPointer(const QString& path)> m_trackInLibrary;
     const std::function<TrackPointer(const QString& path)> m_prepareTrack;
+    const std::function<void(const TrackPointer& pTrack)> m_readTrack;
     const std::function<void(const TrackPointer&, const QString&, const QString&)> m_applyAnalysis;
     /// By group; "" for the first stopped deck.
     QHash<QString, PendingLoad> m_pending;
@@ -238,6 +259,13 @@ class CrateLoadCoordinator : public QObject {
     /// Library tracks of uncached files that have Crate's tags, checked in
     /// this run.
     QSet<TrackId> m_tagged;
+    /// Library tracks never read from their file, held from the start of
+    /// their download until a worker has read them, by file.
+    QHash<QString, TrackPointer> m_unread;
+    /// Their files, by track key.
+    QHash<QString, QString> m_unreadPaths;
+    /// Downloads under way whose start was handled, by track key.
+    QSet<QString> m_downloadsSeen;
 };
 
 } // namespace crate::library

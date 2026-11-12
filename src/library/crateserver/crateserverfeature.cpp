@@ -407,12 +407,15 @@ void CrateServerFeature::startLoading() {
     };
     options.trackIdsOfFiles = CrateLoadCoordinator::trackIdsOfFilesIn(pCollection);
     options.trackInLibrary = [pCollection](const QString& path) {
-        return pCollection->getTrackByRef(TrackRef::fromFilePath(path));
+        return libraryTrackOfFile(pCollection, path);
     };
     // On a worker: the settings are read under their lock
     options.prepareTrack = [pConfig = m_pConfig](const QString& path) {
         return prepareTrackForLibrary(
                 path, SyncTrackMetadataParams::readFromUserSettings(*pConfig));
+    };
+    options.readTrack = [pConfig = m_pConfig](const TrackPointer& pTrack) {
+        readLibraryTrackFromFile(pTrack, SyncTrackMetadataParams::readFromUserSettings(*pConfig));
     };
     options.trackById = [pCollection](TrackId trackId) {
         return pCollection->getTrackById(trackId);
