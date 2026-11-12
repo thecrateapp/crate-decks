@@ -52,7 +52,8 @@ quint64 operator>>(QIODevice* reader, MP4BoxHeader& box) {
         // size is in the next 64bits integer big endian
         quint64 extendedSize;
         reader->read((char*)&extendedSize, sizeof(extendedSize));
-        box.size = qFromBigEndian(box.size);
+        // Crate Decks: the 64-bit size is big endian too
+        extendedSize = qFromBigEndian(extendedSize);
         return extendedSize - kAtomHeaderSize - sizeof(extendedSize);
     }
     return box.size - kAtomHeaderSize;
@@ -72,15 +73,17 @@ const QStringList kStemManifestAtomPath = {
 /// search in
 /// @param pathIdx The level of the tree currently search (index of path)
 /// @return the size of the box data if found, -1 otherwise
-uint32_t seekTillAtom(QIODevice* reader,
+// Crate Decks: box sizes are 64-bit, so that a box over 4 GiB before the
+// manifest is skipped whole
+quint64 seekTillAtom(QIODevice* reader,
         const QStringList& path,
-        uint32_t boxSize = 0,
+        quint64 boxSize = 0,
         uint32_t pathIdx = 0) {
     if (static_cast<uint32_t>(path.size()) == pathIdx) {
         return boxSize;
     }
 
-    uint32_t byteRead = 0;
+    quint64 byteRead = 0;
     MP4BoxHeader box;
     quint64 effectiveAtomSize;
     while (!reader->atEnd() && (!boxSize || byteRead < boxSize)) {
@@ -138,7 +141,7 @@ QList<StemInfo> StemInfoImporter::importStemInfos(
         return {};
     }
 
-    uint32_t manifestSize;
+    quint64 manifestSize;
     if (!(manifestSize = seekTillAtom(&file, kStemManifestAtomPath))) {
         kLogger.debug()
                 << "No stem manifest found in the file"
@@ -146,7 +149,7 @@ QList<StemInfo> StemInfoImporter::importStemInfos(
         return {};
     }
 
-    QByteArray manifest = file.read(manifestSize);
+    QByteArray manifest = file.read(static_cast<qint64>(manifestSize));
     // Though most MP4 atoms are usually not null-terminated, it looks like the
     // STEM sometime is, resulting in extra null character(s) preventing JSON
     // deserialization

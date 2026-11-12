@@ -5437,6 +5437,10 @@ if(CRATE)
         src/test/crate/helplinkstest.cpp
     )
   endif()
+  # Decks' stem files and the NI STEM reader they go through (ST5.PR2)
+  if(BUILD_TESTING AND STEM)
+    target_sources(mixxx-test PRIVATE src/test/crate/steminfoimporter_test.cpp)
+  endif()
 
   # Local inference with ONNX Runtime (STEM-D7): on when ONNX Runtime is
   # found, off otherwise. ONNXRUNTIME_ROOT points at an ONNX Runtime release
