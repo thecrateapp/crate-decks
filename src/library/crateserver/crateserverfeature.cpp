@@ -24,6 +24,7 @@
 #include "crate/library/crateprefetcher.h"
 #include "crate/library/cratesearch.h"
 #include "crate/library/cratesessionpins.h"
+#include "crate/library/cratetrackpreparer.h"
 #include "crate/ui/cachestatusview.h"
 #include "library/crateserver/crateservertrackmodel.h"
 #include "library/library.h"
@@ -405,6 +406,14 @@ void CrateServerFeature::startLoading() {
         return pCollection->getOrAddTrack(TrackRef::fromFilePath(path));
     };
     options.trackIdsOfFiles = CrateLoadCoordinator::trackIdsOfFilesIn(pCollection);
+    options.trackInLibrary = [pCollection](const QString& path) {
+        return pCollection->getTrackByRef(TrackRef::fromFilePath(path));
+    };
+    // On a worker: the settings are read under their lock
+    options.prepareTrack = [pConfig = m_pConfig](const QString& path) {
+        return prepareTrackForLibrary(
+                path, SyncTrackMetadataParams::readFromUserSettings(*pConfig));
+    };
     options.trackById = [pCollection](TrackId trackId) {
         return pCollection->getTrackById(trackId);
     };

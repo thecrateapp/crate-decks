@@ -1101,7 +1101,7 @@ class CrateG3BudgetsLive : public MixxxDbTest, SoundSourceProviderRegistration {
     /// A local track of the library (not Crate's) into `group`, as the
     /// library's own track table loads it.
     LoadTiming loadLocal(const QString& path, const QString& group, int analysisWaitMs) {
-        setPhase(QStringLiteral("local track: added to the library"));
+        setPhase(QStringLiteral("local track: taken from the library"));
         const TrackPointer pTrack =
                 m_pTrackCollectionManager->getOrAddTrack(TrackRef::fromFilePath(path));
         if (!pTrack) {
@@ -1523,6 +1523,9 @@ TEST_F(CrateG3BudgetsLive, LoadIntoDeck) {
         const QString copy = workPath(QStringLiteral("local/%1.flac").arg(i + 1));
         stalls.pause();
         ASSERT_TRUE(QFile::copy(*cached, copy));
+        // In the library, as the library scanner adds it on its own thread
+        // in the application: not the main thread's time
+        ASSERT_NE(nullptr, m_pTrackCollectionManager->getOrAddTrack(TrackRef::fromFilePath(copy)));
         stalls.resume();
         copies.append(copy);
     }

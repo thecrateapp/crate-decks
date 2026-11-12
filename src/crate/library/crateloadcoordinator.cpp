@@ -1,6 +1,7 @@
 #include "crate/library/crateloadcoordinator.h"
 
 #include <QFileInfo>
+#include <QtConcurrentRun>
 
 #include "control/controlobject.h"
 #include "library/trackcollectionmanager.h"
@@ -52,7 +53,11 @@ CrateLoadCoordinator::CrateLoadCoordinator(Options options, QObject* parent)
           m_trackOfFile(std::move(options.trackOfFile)),
           m_trackIdsOfFiles(std::move(options.trackIdsOfFiles)),
           m_trackById(std::move(options.trackById)),
+          m_trackInLibrary(std::move(options.trackInLibrary)),
+          m_prepareTrack(std::move(options.prepareTrack)),
           m_applyAnalysis(std::move(options.applyAnalysis)) {
+    // As many as decks load at once, usually
+    m_preparePool.setMaxThreadCount(2);
     if (options.pPlayerInfo) {
         connect(options.pPlayerInfo,
                 &PlayerInfo::trackChanged,
@@ -147,6 +152,17 @@ CrateLoadCoordinator::~CrateLoadCoordinator() {
             it->pTicket->cancel();
         }
     }
+    // A file read for the library still goes into it: the track cache cannot
+    // save a track that is in no library
+    for (auto it = m_preparing.cbegin(); it != m_preparing.cend(); ++it) {
+        it->pWatcher->waitForFinished();
+        const TrackPointer pPrepared = it->pWatcher->result();
+        if (pPrepared && m_trackOfFile) {
+            m_trackOfFile(it.key());
+        }
+    }
+    m_preparing.clear();
+    m_preparePool.waitForDone();
 }
 
 QString CrateLoadCoordinator::keyOf(const QString& serverId, const QString& entityUid) {
@@ -165,7 +181,95 @@ TrackPointer CrateLoadCoordinator::cachedTrack(const QString& serverId, const QS
     if (!path) {
         return TrackPointer();
     }
-    return trackOf(*path, serverId, entityUid);
+    if (!m_prepareTrack || !m_trackInLibrary) {
+        return trackOf(*path, serverId, entityUid);
+    }
+    const TrackPointer pTrack = libraryTrackOf(*path);
+    if (!pTrack) {
+        // Its file is read off the main thread: the track is there next time
+        whenInLibrary(*path, [this, serverId, entityUid](const TrackPointer& pAdded) {
+            if (pAdded) {
+                analyseOnce(pAdded, serverId, entityUid);
+            }
+        });
+        return TrackPointer();
+    }
+    analyseOnce(pTrack, serverId, entityUid);
+    return pTrack;
+}
+
+bool CrateLoadCoordinator::loadsAtOnce(const QString& serverId, const QString& entityUid) const {
+    if (!m_pCache) {
+        return false;
+    }
+    const std::optional<QString> path = m_pCache->cachedPath(serverId, entityUid);
+    if (!path) {
+        return false;
+    }
+    // Without a database query: a file the library has had in this run
+    return !m_prepareTrack || !m_trackInLibrary || m_inLibrary.contains(*path);
+}
+
+TrackPointer CrateLoadCoordinator::libraryTrackOf(const QString& path) const {
+    if (!m_trackInLibrary || m_preparing.contains(path)) {
+        return TrackPointer();
+    }
+    TrackPointer pTrack = m_trackInLibrary(path);
+    if (!pTrack || !pTrack->getId().isValid()) {
+        // Not in the library, or read for it right now
+        return TrackPointer();
+    }
+    m_inLibrary.insert(path);
+    return pTrack;
+}
+
+void CrateLoadCoordinator::whenInLibrary(const QString& path, LibraryTrackCallback callback) {
+    if (!m_prepareTrack || !m_trackInLibrary) {
+        callback(m_trackOfFile ? m_trackOfFile(path) : TrackPointer());
+        return;
+    }
+    auto it = m_preparing.find(path);
+    if (it == m_preparing.end()) {
+        if (const TrackPointer pTrack = libraryTrackOf(path)) {
+            callback(pTrack);
+            return;
+        }
+        Preparation preparation;
+        preparation.pWatcher = new QFutureWatcher<TrackPointer>(this);
+        connect(preparation.pWatcher,
+                &QFutureWatcher<TrackPointer>::finished,
+                this,
+                [this, path] {
+                    onPrepared(path);
+                });
+        preparation.pWatcher->setFuture(QtConcurrent::run(&m_preparePool,
+                [prepare = m_prepareTrack, path] {
+                    return prepare(path);
+                }));
+        it = m_preparing.insert(path, preparation);
+    }
+    it->callbacks.append(std::move(callback));
+}
+
+void CrateLoadCoordinator::onPrepared(const QString& path) {
+    const auto it = m_preparing.find(path);
+    if (it == m_preparing.end()) {
+        return;
+    }
+    const Preparation preparation = it.value();
+    m_preparing.erase(it);
+    // Keeps the prepared track in the track cache until the library takes it
+    TrackPointer pPrepared = preparation.pWatcher->result();
+    preparation.pWatcher->deleteLater();
+    // The file's tags and cover are read: what is left is its library row
+    const TrackPointer pTrack = m_trackOfFile ? m_trackOfFile(path) : TrackPointer();
+    pPrepared.reset();
+    if (pTrack && pTrack->getId().isValid()) {
+        m_inLibrary.insert(path);
+    }
+    for (const LibraryTrackCallback& callback : preparation.callbacks) {
+        callback(pTrack);
+    }
 }
 
 TrackPointer CrateLoadCoordinator::trackOf(
@@ -225,16 +329,33 @@ void CrateLoadCoordinator::requestLoad(
 
 void CrateLoadCoordinator::onReady(
         const QString& group, cache::CacheTicket* pTicket, const QString& path) {
-    const auto it = m_pending.constFind(group);
-    if (it == m_pending.cend() || it->pTicket != pTicket) {
+    const auto it = m_pending.find(group);
+    if (it == m_pending.end() || it->pTicket != pTicket) {
         return;
     }
-    const PendingLoad load = it.value();
-    m_pending.remove(group);
-    const TrackPointer pTrack = trackOf(path, load.track.serverId, load.track.entityUid);
+    it->pTicket = nullptr;
+    const quint64 wait = ++m_lastWait;
+    it->wait = wait;
+    // Waits on: a newer load to the group replaces this one
+    whenInLibrary(path, [this, group, wait](const TrackPointer& pTrack) {
+        const auto waiting = m_pending.constFind(group);
+        if (waiting == m_pending.cend() || waiting->wait != wait) {
+            return;
+        }
+        const PendingLoad load = waiting.value();
+        m_pending.remove(group);
+        finishLoad(group, load, pTrack);
+    });
+}
+
+void CrateLoadCoordinator::finishLoad(
+        const QString& group, const PendingLoad& load, const TrackPointer& pTrack) {
     if (!pTrack) {
+        kLogger.warning() << "The library does not take the cached file of"
+                          << load.track.entityUid;
         return;
     }
+    analyseOnce(pTrack, load.track.serverId, load.track.entityUid);
     if (group.isEmpty()) {
         // As a double click: the first stopped deck, if there is one
         emit loadTrackIntoNextAvailableDeck(pTrack);
