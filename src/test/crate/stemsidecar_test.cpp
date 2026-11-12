@@ -86,7 +86,9 @@ std::vector<float> fakeStems(SINT first, SINT frames) {
         for (SINT i = 0; i < frames; ++i) {
             const double t = static_cast<double>(first + i) / 44100.0;
             stems[static_cast<std::size_t>(row * frames + i)] =
-                    static_cast<float>(0.25 * std::sin(2.0 * std::numbers::pi * 60.0 * (row + 1) * t));
+                    static_cast<float>(0.25 *
+                            std::sin(2.0 * std::numbers::pi * 60.0 * (row + 1) *
+                                    t));
         }
     }
     return stems;
@@ -167,7 +169,8 @@ class StemSidecarTest : public MixxxTest, SoundSourceProviderRegistration {
                 };
                 const long long sum = at(0) + at(1) + at(2) + at(3);
                 stemsSoundAtAll = stemsSoundAtAll || at(0) != 0;
-                ASSERT_EQ(static_cast<double>(decoded[static_cast<std::size_t>(2 * frame + channel)]),
+                ASSERT_EQ(static_cast<double>(decoded[static_cast<std::size_t>(
+                                  2 * frame + channel)]),
                         static_cast<double>(sum) / fullScale)
                         << "frame " << frame << " channel " << channel;
             }

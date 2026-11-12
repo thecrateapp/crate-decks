@@ -118,7 +118,9 @@ void readFrames(const mixxx::AudioSourcePointer& pSource,
                         request, mixxx::SampleBuffer::WritableSlice(*pBuffer)));
         const mixxx::IndexRange read = intersect(readable.frameIndexRange(), request);
         if (!read.empty()) {
-            std::copy_n(readable.readableData(2 * (read.start() - readable.frameIndexRange().start())),
+            std::copy_n(readable.readableData(2 *
+                                (read.start() -
+                                        readable.frameIndexRange().start())),
                     2 * read.length(),
                     pOut->begin() + 2 * (done + read.start() - start));
         }
@@ -219,7 +221,9 @@ class StemSidecarWriter::Encoder {
     bool open(const QString& path, int sampleRate, SINT frames, QString* pError) {
         m_file.setFileName(path);
         if (!m_file.open(QIODevice::ReadWrite | QIODevice::Truncate)) {
-            return fail(pError, QStringLiteral("Cannot write %1: %2").arg(path, m_file.errorString()));
+            return fail(pError,
+                    QStringLiteral("Cannot write %1: %2")
+                            .arg(path, m_file.errorString()));
         }
         m_pEncoder = FLAC__stream_encoder_new();
         m_pPadding = FLAC__metadata_object_new(FLAC__METADATA_TYPE_PADDING);
@@ -376,7 +380,9 @@ class StemSidecarWriter::Original {
             const SINT from = std::max(m_next, m_starts[k]);
             const SINT to = std::min(m_next + count, m_starts[k] + m_excerptLength);
             for (SINT frame = from; frame < to; ++frame) {
-                const std::size_t at = 2 * (k * static_cast<std::size_t>(m_excerptLength) + static_cast<std::size_t>(frame - m_starts[k]));
+                const std::size_t at = 2 *
+                        (k * static_cast<std::size_t>(m_excerptLength) +
+                                static_cast<std::size_t>(frame - m_starts[k]));
                 const std::size_t in = static_cast<std::size_t>(2 * (frame - m_next));
                 m_fingerprint[at] = quantise16((*pOut)[in]);
                 m_fingerprint[at + 1] = quantise16((*pOut)[in + 1]);
@@ -415,7 +421,8 @@ QString StemSidecar::pathFor(const QString& originalPath) {
     return info.dir().filePath(info.completeBaseName() + QStringLiteral(".stems.flac"));
 }
 
-std::optional<StemSidecar::Info> StemSidecar::readInfo(const QString& sidecarPath, QString* pError) {
+std::optional<StemSidecar::Info> StemSidecar::readInfo(
+        const QString& sidecarPath, QString* pError) {
     QFile file(sidecarPath);
     if (!file.open(QIODevice::ReadOnly)) {
         fail(pError, QStringLiteral("No sidecar at %1").arg(sidecarPath));
@@ -454,7 +461,8 @@ std::optional<StemSidecar::Info> StemSidecar::readInfo(const QString& sidecarPat
                     tagValue(comment, kTagSampleRate).toInt() == info.sampleRate;
             info.separator = tagValue(comment, kTagSeparator);
             info.sourceRevision = tagValue(comment, kTagSourceRevision);
-            info.fingerprint = QByteArray::fromBase64(tagValue(comment, kTagFingerprint).toLatin1());
+            info.fingerprint = QByteArray::fromBase64(
+                    tagValue(comment, kTagFingerprint).toLatin1());
         }
     } while (FLAC__metadata_iterator_next(pIterator));
     FLAC__metadata_iterator_delete(pIterator);
@@ -487,7 +495,8 @@ bool StemSidecar::isValidFor(
     if (sampleRate != info->sampleRate || frames != info->frames) {
         pSource->close();
         return fail(pReason,
-                QStringLiteral("The file decodes to %1 frames at %2 Hz, the sidecar has %3 at %4 Hz")
+                QStringLiteral("The file decodes to %1 frames at %2 Hz, the "
+                               "sidecar has %3 at %4 Hz")
                         .arg(QString::number(frames),
                                 QString::number(sampleRate),
                                 QString::number(info->frames),
@@ -642,8 +651,9 @@ bool StemSidecarWriter::begin(const StemSeparationSource& source, QString* pErro
     if (source.originalSampleRate > 0 && source.originalSampleRate != m_pOriginal->sampleRate()) {
         return fail(pError, QStringLiteral("The original decodes at another sample rate"));
     }
-    m_pResampler = std::make_unique<Resampler>(
-            m_options.stemSampleRate, m_pOriginal->sampleRate(), static_cast<int>(kStemRows.size()));
+    m_pResampler = std::make_unique<Resampler>(m_options.stemSampleRate,
+            m_pOriginal->sampleRate(),
+            static_cast<int>(kStemRows.size()));
     m_pEncoder = std::make_unique<Encoder>();
     return m_pEncoder->open(m_options.sidecarPath + QStringLiteral(".part"),
             m_pOriginal->sampleRate(),
@@ -680,7 +690,9 @@ bool StemSidecarWriter::encodePending(bool last, QString* pError) {
     std::size_t used = 0;
     while (m_encodedFrames < m_pOriginal->frames()) {
         const SINT pendingFrames = static_cast<SINT>((m_pending.size() - used) / kIn);
-        SINT count = std::min({kBlockFrames, pendingFrames, m_pOriginal->frames() - m_encodedFrames});
+        SINT count = std::min({kBlockFrames,
+                pendingFrames,
+                m_pOriginal->frames() - m_encodedFrames});
         if (count == 0) {
             if (!last) {
                 break;
@@ -758,7 +770,9 @@ bool StemSidecarWriter::finish(QString* pError) {
     QFile::remove(m_options.sidecarPath);
     if (!QFile::rename(partPath, m_options.sidecarPath)) {
         QFile::remove(partPath);
-        return fail(pError, QStringLiteral("Cannot move the sidecar to %1").arg(m_options.sidecarPath));
+        return fail(pError,
+                QStringLiteral("Cannot move the sidecar to %1")
+                        .arg(m_options.sidecarPath));
     }
     m_finished = true;
     return true;
