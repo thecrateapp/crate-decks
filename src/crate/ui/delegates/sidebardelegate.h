@@ -13,7 +13,8 @@ namespace crate::delegates {
 
 /// A sidebar label and the count Mixxx writes into it: "Tracks (1234)" and
 /// "Warm-up (12) 1:02:33" are "Tracks" with "1 234", and "Warm-up" with
-/// "12 · 1:02:33". The admin's navigation shows counts on the right, in mono.
+/// "12 · 1:02:33". A size counts too: "Cache (18.4 GB)" is "Cache" with
+/// "18.4 GB". The admin's navigation shows counts on the right, in mono.
 struct LabelAndCount {
     QString label;
     QString count;

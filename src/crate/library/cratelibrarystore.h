@@ -79,6 +79,11 @@ struct Invalidation {
     QString remoteId;
 };
 
+/// The kind of a server's one ephemeral container: the results of its DJ
+/// search (crate::library::Search). The server's tree never lists it, the
+/// sidebar does not show it, and a tree sync keeps it.
+inline const QString kSearchContainerKind = QStringLiteral("search");
+
 /// The containers of a server, in tree order.
 QList<StoredContainer> loadContainers(const QSqlDatabase& database, const QString& serverId);
 std::optional<StoredContainer> loadContainer(const QSqlDatabase& database, qint64 containerId);
@@ -127,6 +132,18 @@ WriteStatus replaceContainerTracks(const QSqlDatabase& database,
 /// Records a sync that found nothing new: the stored tracks stay.
 WriteStatus markContainerSynced(
         const QSqlDatabase& database, qint64 containerId, const SyncRecord& record);
+
+/// Stores the results of a DJ search for `query`, in one transaction: the
+/// tracks join the catalogue (only the fields a search carries are updated,
+/// so a track synced from a container keeps its format, bitrate and profile
+/// quality), and they become, in order, the tracks of the server's search
+/// container, created the first time. Its id goes to `pContainerId`.
+WriteStatus storeSearchResults(const QSqlDatabase& database,
+        const QString& serverId,
+        const QString& query,
+        const QList<RemoteTrack>& tracks,
+        const QString& now,
+        qint64* pContainerId);
 
 /// Marks the containers `invalidation` affects as dirty, and appends their ids
 /// to `pMarked`. A Tree invalidation marks none: the tree's ETags tell which

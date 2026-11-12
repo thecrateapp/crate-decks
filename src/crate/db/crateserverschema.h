@@ -20,6 +20,8 @@ namespace crate::db {
 /// - `crateserver_tracks`, `crateserver_containers` and
 ///   `crateserver_container_tracks` (design §6, plan F3.C-PR1): the Crate
 ///   library as Decks synced it, written by crate::library::LibrarySync.
+/// - `crateserver_profiles` (design §6, plan F4.C-PR2): the mix profiles
+///   crate::analysis::ProfileStore fetched.
 ///
 /// Returns false, after rolling back, if any statement fails.
 bool createCrateServerSchema(const QSqlDatabase& database);

@@ -1,0 +1,20 @@
+{
+ "trackEntityUid": "3c2a7f10-9e4b-4d21-b6f8-0a5e1c7d9b32",
+ "profileVersion": 1,
+ "profileRevision": "b08d2f85c015485e103e79627887fc6a1ac8cb264e404a3c1f7dfa2b16bd1822",
+ "analyzer": "crate-python",
+ "analyzerVersion": "smart-mix-audio-v10",
+ "sourceRevision": "3bbc36f2901af125b0f3c4d62c63cd92cb00547085cde868ce4d780b333b17fc",
+ "durationMs": 241000,
+ "bpm": 92.0,
+ "bpmConfidence": 0.22,
+ "truePeakDbfs": -3.1,
+ "activeStartMs": 0,
+ "activeEndMs": 238400,
+ "integratedLufs": -14.9,
+ "measurementVersion": "bs1770-v1",
+ "durationSource": "library",
+ "quality": "partial",
+ "analyzedAt": "2026-11-07T17:02:11Z",
+ "beatGridMs": []
+}

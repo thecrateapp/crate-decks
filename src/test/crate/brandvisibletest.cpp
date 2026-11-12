@@ -15,6 +15,7 @@
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QRegularExpression>
+#include <QScopeGuard>
 #include <QStackedWidget>
 #include <QTabBar>
 #include <QTabWidget>
@@ -29,6 +30,7 @@
 #include <memory>
 
 #include "control/controlobject.h"
+#include "crate/appidentity.h"
 #include "crate/brand/brandtext.h"
 #include "crate/brand/brandtranslator.h"
 #include "crate/crateservers.h"
@@ -283,6 +285,17 @@ QWidget* topLevelOf(const char* className) {
 TEST_F(CrateBrandVisibleTest, NoMixxxAnywhere) {
     QTemporaryDir profile;
     ASSERT_TRUE(profile.isValid());
+    // The application's name, as main.cpp and appidentity.cpp give it, and
+    // not the test binary's: the Crate page shows the audio cache's default
+    // directory, which the OS names after the application
+    const QString testName = QCoreApplication::applicationName();
+    const QString testOrganization = QCoreApplication::organizationName();
+    QCoreApplication::setApplicationName(QString::fromUtf8(crate::kApplicationName));
+    QCoreApplication::setOrganizationName(QString::fromUtf8(crate::kOrganizationName));
+    const auto restoreName = qScopeGuard([&] {
+        QCoreApplication::setApplicationName(testName);
+        QCoreApplication::setOrganizationName(testOrganization);
+    });
     OffscreenDecks decks(profile.path() + QLatin1Char('/'));
     decks.writeProfile(kCrateDecks);
     TextCollector texts;

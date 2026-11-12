@@ -484,3 +484,5 @@ Diego: "los stems que vayan solo si el cliente es Decks" (STEM-D5). Listen's `li
   - `never switches plans in Preparing or Running`.
 
 **Gate STEM-G2 (Diego):** stems playback and local refinement in a real set, with a real DJ setup.
+
+**Decided (Diego, 2026-11-10):** Diego has no DJ gear, so the real set is replaced by automatic metrics on rendered transitions, as in SM5: beat phase in the overlap (Beat This!), voice on voice (YAMNet) and EBU R128 level jumps, plus the deviation CSVs. Transitions are rendered offline with and without stems and local refinement over the same pairs, and Diego approves the gate on the report. The agent still stops at it.

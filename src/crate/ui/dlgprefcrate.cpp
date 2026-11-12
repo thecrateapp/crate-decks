@@ -1,15 +1,23 @@
 #include "crate/ui/dlgprefcrate.h"
 
+#include <QCheckBox>
+#include <QDir>
+#include <QFileDialog>
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QLineEdit>
 #include <QListWidget>
+#include <QMessageBox>
 #include <QPushButton>
 #include <QStringList>
 #include <QVBoxLayout>
 
+#include "crate/cache/audiocache.h"
+#include "crate/cratepreferences.h"
 #include "crate/crateservers.h"
 #include "crate/session/cratesession.h"
+#include "crate/ui/cachestatusmodel.h"
 #include "crate/ui/crateaddserverwidget.h"
 #include "crate/ui/crateprefsections.h"
 #include "crate/ui/dialogs/dialogstyle.h"
@@ -39,6 +47,7 @@ DlgPrefCrate::DlgPrefCrate(QWidget* pParent, CrateServers* pServers)
           m_pAddServer(new AddServerWidget(pServers, m_pAddBox)),
           m_pCache(new CacheSection(this)),
           m_pSmartMix(new SmartMixSection(this)),
+          m_pAnalysis(new AnalysisSection(this)),
           m_pColumns(new QWidget(this)) {
     const DialogMetrics& metrics = DialogMetrics::installed();
     m_pServerList->setObjectName(QStringLiteral("crateServers"));
@@ -86,15 +95,23 @@ DlgPrefCrate::DlgPrefCrate(QWidget* pParent, CrateServers* pServers)
     pServersSection->rows()->addWidget(m_pAddBox);
     pServersSection->rows()->addWidget(m_pKeychainWarning);
 
-    // Cache and Auto DJ and Smart Mix, side by side (decks.css .pcols),
-    // hidden until F4 and F6 give them their data
+    // Cache and Auto DJ and Smart Mix, side by side (decks.css .pcols).
+    // Smart Mix stays hidden until F6 gives it its data; Crate analysis
+    // goes under it. Without servers there is nothing to set.
     auto* pColumns = new QHBoxLayout(m_pColumns);
     pColumns->setContentsMargins(0, 0, 0, 0);
     pColumns->setSpacing(metrics.px("prefsColumnGap"));
     pColumns->addWidget(m_pCache, 115, Qt::AlignTop);
-    pColumns->addWidget(m_pSmartMix, 100, Qt::AlignTop);
+    auto* pRight = new QVBoxLayout();
+    pRight->setContentsMargins(0, 0, 0, 0);
+    pRight->setSpacing(0);
+    pRight->addWidget(m_pSmartMix);
+    pRight->addWidget(m_pAnalysis);
+    pRight->addStretch(1);
+    pColumns->addLayout(pRight, 100);
     m_pCache->hide();
     m_pSmartMix->hide();
+    m_pAnalysis->hide();
 
     auto* pLayout = new QVBoxLayout(this);
     pLayout->setSpacing(0);
@@ -109,8 +126,121 @@ DlgPrefCrate::DlgPrefCrate(QWidget* pParent, CrateServers* pServers)
     connect(m_pAddServer, &AddServerWidget::serverAdded, m_pAddBox, &QWidget::hide);
     if (m_pServers) {
         connect(m_pServers, &CrateServers::serversChanged, this, &DlgPrefCrate::slotUpdate);
+        bindPreferences();
     }
     slotUpdate();
+}
+
+void DlgPrefCrate::bindPreferences() {
+    CratePreferences* const pPreferences = m_pServers->preferences();
+    CacheStatusModel::Options options;
+    options.pCache = m_pServers->existingAudioCache();
+    options.pPreferences = pPreferences;
+    m_pCacheStatus = new CacheStatusModel(std::move(options), this);
+    connect(m_pServers, &CrateServers::audioCacheCreated, this, [this] {
+        if (m_pServers) {
+            m_pCacheStatus->setSources(
+                    m_pServers->existingAudioCache(), m_pServers->preferences());
+        }
+    });
+    connect(m_pCacheStatus, &CacheStatusModel::changed, this, &DlgPrefCrate::showCache);
+
+    m_pCache->setMinimumLimit(CratePreferences::kMinimumCacheLimitBytes);
+    connect(m_pCache, &CacheSection::limitChosen, m_pCacheStatus, &CacheStatusModel::setLimitBytes);
+    connect(m_pCache->chooseLocation(),
+            &QPushButton::clicked,
+            this,
+            &DlgPrefCrate::chooseCacheLocation);
+    connect(m_pCache->clear(), &QPushButton::clicked, this, &DlgPrefCrate::clearCache);
+    connect(m_pCache->prefetchAutoDj(),
+            &QCheckBox::toggled,
+            pPreferences,
+            &CratePreferences::setPrefetchAutoDj);
+    connect(m_pAnalysis->keyFromCrate(),
+            &QCheckBox::toggled,
+            pPreferences,
+            &CratePreferences::setKeyFromCrate);
+    connect(m_pAnalysis->gainFromLufs(),
+            &QCheckBox::toggled,
+            pPreferences,
+            &CratePreferences::setGainFromLufs);
+    connect(pPreferences,
+            &CratePreferences::cacheDirectoryChanged,
+            this,
+            &DlgPrefCrate::showCache);
+    connect(pPreferences, &CratePreferences::cacheLimitChanged, this, &DlgPrefCrate::showCache);
+    m_pCache->show();
+    m_pAnalysis->show();
+    showPreferences();
+}
+
+void DlgPrefCrate::showPreferences() {
+    if (!m_pServers) {
+        return;
+    }
+    const CratePreferences* pPreferences = m_pServers->preferences();
+    m_pCache->prefetchAutoDj()->setChecked(pPreferences->prefetchAutoDj());
+    m_pAnalysis->keyFromCrate()->setChecked(pPreferences->keyFromCrate());
+    m_pAnalysis->gainFromLufs()->setChecked(pPreferences->gainFromLufs());
+    showCache();
+}
+
+void DlgPrefCrate::showCache() {
+    if (!m_pServers || !m_pCacheStatus) {
+        return;
+    }
+    const CratePreferences* pPreferences = m_pServers->preferences();
+    m_pCache->setUsage(m_pCacheStatus->usedBytes(),
+            pPreferences->cacheLimitBytes(),
+            m_pCacheStatus->readyFiles(),
+            m_pCacheStatus->activeDownloads() + m_pCacheStatus->queuedDownloads());
+    // The directory in use, or the one chosen for the next start
+    const cache::AudioCache* pCache = m_pServers->existingAudioCache();
+    const QString chosen = pPreferences->cacheDirectory();
+    QString inUse = pCache ? pCache->directory() : chosen;
+    if (inUse.isEmpty()) {
+        inUse = cache::AudioCache::defaultDirectory();
+    }
+    const bool atNextStart = !chosen.isEmpty() && QDir::cleanPath(chosen) != QDir::cleanPath(inUse);
+    m_pCache->setLocation(QDir::toNativeSeparators(atNextStart ? chosen : inUse), atNextStart);
+}
+
+void DlgPrefCrate::chooseCacheLocation() {
+    // TEST_GAP: a file dialog is modal; the tests set the preference itself
+    const QString directory = QFileDialog::getExistingDirectory(this,
+            tr("Cache location"),
+            QDir::fromNativeSeparators(m_pCache->location()->text()));
+    if (!directory.isEmpty() && m_pServers) {
+        m_pServers->preferences()->setCacheDirectory(directory);
+    }
+}
+
+void DlgPrefCrate::clearCache() {
+    // TEST_GAP: the confirmation is modal; AudioCache::clear() is tested
+    cache::AudioCache* pCache = m_pServers ? m_pServers->existingAudioCache() : nullptr;
+    if (!pCache) {
+        return;
+    }
+    const QMessageBox::StandardButton answer = QMessageBox::question(this,
+            tr("Clear cache"),
+            tr("Delete the cached tracks from this computer? Offline sets and the "
+               "downloads on their way stay."));
+    if (answer == QMessageBox::Yes) {
+        pCache->clear();
+    }
+}
+
+void DlgPrefCrate::slotResetToDefaults() {
+    if (!m_pServers) {
+        return;
+    }
+    CratePreferences* const pPreferences = m_pServers->preferences();
+    pPreferences->setCacheLimitBytes(CratePreferences::kDefaultCacheLimitBytes);
+    pPreferences->setCacheDirectory(QString());
+    pPreferences->setPrefetchAutoDj(true);
+    pPreferences->setKeyFromCrate(false);
+    pPreferences->setGainFromLufs(false);
+    showPreferences();
 }
 
 void DlgPrefCrate::slotUpdate() {
@@ -130,6 +260,7 @@ void DlgPrefCrate::slotUpdate() {
     }
     m_pKeychainWarning->setVisible(!keychainAvailable);
     showRows(serverRows(*m_pServers));
+    showCache();
 }
 
 void DlgPrefCrate::showServerRows(const QList<ServerRow>& rows) {

@@ -17,7 +17,16 @@ class QNetworkAccessManager;
 namespace crate {
 
 class Client;
+class CratePreferences;
 class SecretStore;
+
+namespace analysis {
+class ProfileStore;
+} // namespace analysis
+
+namespace cache {
+class AudioCache;
+} // namespace cache
 
 /// The Crate servers of this installation, each with its Client and Session.
 ///
@@ -36,6 +45,9 @@ class CrateServers : public QObject {
         QNetworkAccessManager* pNetworkAccessManager = nullptr;
         /// Not owned. Without one, the OS keychain is used.
         SecretStore* pSecretStore = nullptr;
+        /// The audio cache's directory; empty for the one of the
+        /// preferences, or else cache::AudioCache::defaultDirectory().
+        QString audioCacheDirectory;
     };
 
     explicit CrateServers(const Dependencies& dependencies, QObject* parent = nullptr);
@@ -64,6 +76,23 @@ class CrateServers : public QObject {
     /// That answer, or empty if there is none.
     QByteArray lastCapabilities(const QString& serverId) const;
 
+    /// The cache and analysis choices of the Crate preferences page.
+    CratePreferences* preferences() const {
+        return m_pPreferences.get();
+    }
+
+    /// The audio cache of every server (design D4), created the first time
+    /// it is asked for, in the preferences' directory and with their limit,
+    /// which it follows.
+    cache::AudioCache* audioCache();
+    /// The audio cache if it was created; never creates it.
+    cache::AudioCache* existingAudioCache() const {
+        return m_pAudioCache.get();
+    }
+    /// The mix profiles of a server; nullptr for an unknown server. Created
+    /// the first time they are asked for.
+    analysis::ProfileStore* profileStore(const QString& serverId);
+
     /// Whether a server with this origin is kept or being added.
     bool hasOrigin(const QUrl& origin) const;
     /// Whether the server is saved: signed in once and stored.
@@ -71,6 +100,8 @@ class CrateServers : public QObject {
 
   signals:
     void serversChanged();
+    /// audioCache() created the cache.
+    void audioCacheCreated();
 
   private:
     struct Server;
@@ -84,6 +115,8 @@ class CrateServers : public QObject {
     std::vector<std::unique_ptr<Server>> m_servers;
     /// Removed servers, kept until their sign-out reached the server.
     std::vector<std::unique_ptr<Server>> m_retired;
+    std::unique_ptr<CratePreferences> m_pPreferences;
+    std::unique_ptr<cache::AudioCache> m_pAudioCache;
 };
 
 } // namespace crate

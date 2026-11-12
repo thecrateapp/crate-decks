@@ -72,7 +72,7 @@ El [informe del spike](2026-11-03-crate-decks-spike-report.md) mide Q1, Q3–Q5,
 
 | Antes de | Pruebas |
 | --- | --- |
-| F4 | Q3 y Q5 en la forma de onda (qué grid va con la música) y Q10 en la LAN |
+| F4 | Q3 y Q5 en la forma de onda (qué grid va con la música) y Q10 en la LAN. **Decided (Diego, 2026-11-11):** F4 went ahead without them; they run in the G3 session (see the G3 gate at the end of F4) |
 | F6 | Q6 (EQ) y Q7 (10 transiciones con audio) |
 | V1/V2 y GU1 | Q13–Q16 |
 
@@ -98,7 +98,7 @@ flowchart TD
   G3 --> F5[F5 · Recomendaciones]
   G3 --> F6[F6 · Smart Mix en AutoDJ · S5]
   F6 --> G4{{G4}}
-  SM4[[smart-mix-3 · SM4]] --> F6b[F6b · AI Assisted Mixing · cliente]
+  SM2[[smart-mix-3 · SM2]] --> F6b[F6b · Planner v3 en Decks]
   G4 --> F6b
   F6b --> G4b{{G4b}}
   F5 --> F7[F7 · Escritura de vuelta · S6]
@@ -133,7 +133,7 @@ con la skin `CrateDecks`.
 | F4b | Reproducción progresiva (D14) como preferencia; G3b decide si va activada por defecto | 3 | 15–25 días |
 | F5 | Compatibles, Radio y Paths | 3 cliente | 4–6 días |
 | F6 | Modo AutoDJ "Crate Smart Mix" y asistente | 1 servidor + 4 cliente | 10–14 días |
-| F6b | Planner v3 y AI Assisted Mixing en el cliente (servidor en el plan smart-mix-3) | 3 | 6–9 días |
+| F6b | Planner v3 in Decks: the v3 candidate menu and limits the server serves (AI refinement dropped after SG3) | 1 | 2–4 días |
 | F7 | Historial, now playing, likes, valoraciones y playlists | 1 servidor + 3 cliente | 5–7 días |
 | F8 | Cues y correcciones sincronizadas | 2 servidor + 2 cliente | 7–10 días |
 | F9 | AppImage, `.deb`, DMG y MSI; aviso de actualización; documentación | 3–4 | 5–8 días |
@@ -636,6 +636,15 @@ Si F0/Q9 recomendó `library.cpp` en lugar de `ExternalTrackCollection`, se usa 
 
 ## F4 · Caché de audio, análisis y carga en decks
 
+**Built (2026-11-11):** F4.C-PR1 to C-PR4 are merged (crate-decks #16 to #19); F4.S-PR1 is crate #421, not yet deployed, and until it is live Decks falls back to single profile requests.
+
+**Decided (Diego, 2026-11-11), before G3.** The open points of F4 are closed. Each task below records the choices that belong to it; these four have their own PRs:
+
+- **Uncached Crate tracks in AutoDJ** (F4.C-PR3): AutoDJ accepts them. A generic hook creates the library row with the future cache path, so the track has a library id before its file exists, and the "pending track" logic of `autodjprocessor.cpp` downloads it. "Add to Auto DJ" no longer drops uncached tracks. Its own PR, which adds its row to design §5.2.
+- **Tracks in use are never evicted** (design §9): a track loaded in a deck or queued in AutoDJ is pinned for the session. Lowering the limit or "Clear cache" never deletes it. Its own PR.
+- **DJ search payload** (F3.C-PR3 finding): the search results gain `format`, `bitrate`, `sample_rate`, `profile_quality` and `source_revision`, like the S3 browse payload. It is a small addition to S3 in a monorepo PR and ships with a later Crate release; until then the cache falls back to the HTTP headers.
+- **Real profile fixtures** (F4.C-PR2): the schema-faithful fixtures of `src/test/crate/data/` are replaced or extended with real anonymised profiles from the dev stack, never from production, in a small test PR.
+
 ### F4.S-PR1 · Servidor: perfiles en lote (S4)
 
 - **Endpoint:** `POST /api/decks/mix-profiles` con `{entity_uids: [...≤200], detail: "full"}`. Devuelve `{profiles: {uid: MixProfile}, missing: [uid]}` con el **mismo esquema** que `GET /api/tracks/by-entity/{uid}/mix-profile?detail=full` (reutilizar el serializador).
@@ -668,6 +677,13 @@ Si F0/Q9 recomendó `library.cpp` en lugar de `ExternalTrackCollection`, se usa 
 - `ReconcilesIndexOnStartup`
 - `ConcurrentEnsureForSameUidSharesDownload`
 
+**Decided (Diego, 2026-11-11):**
+
+- The cache's default directory is `QStandardPaths::CacheLocation/crate-audio`, which on Linux is `~/.cache/Crate/Crate Decks/crate-audio`.
+- 20 GiB is a soft limit: pinned tracks may exceed it, and LRU eviction removes only unpinned ones. 2 GiB free on the volume is a hard limit: a download that would break it fails with `Storage`.
+- Pins persist across restarts, because offline sets need them.
+- No prefetch preemption: a deck load has the highest priority in the queue, but it waits its turn behind the 2 downloads already running.
+
 ### F4.C-PR2 · `crate::AnalysisImporter` y `ProfileStore`
 
 | Fichero | Contenido |
@@ -685,6 +701,12 @@ Si F0/Q9 recomendó `library.cpp` en lugar de `ExternalTrackCollection`, se usa 
 - `ReappliesCratesCuesOnNewRevision`
 - `PartialProfileLeavesTrackForLocalAnalysis`
 - `AnalyzerSkipsBeatsForCrateGrid` (integración con `AnalyzerBeats::shouldAnalyze`)
+
+**Decided (Diego, 2026-11-11):**
+
+- `crateserver_profiles` gains the column `applied_cues` (design §6): where Decks put Intro and Outro. It is the only way to tell Crate's cues from the user's when a new profile revision arrives; `apply()` takes that record and returns the new one.
+- With "key from Crate" on, Crate's key overwrites the track's key, also one the user set: Mixxx does not record where a key came from.
+- The fixtures were schema-faithful, not real profiles (the dev stack was down and production is off limits). A small test PR replaces or extends them with real anonymised profiles from the dev stack, never from production.
 
 ### F4.C-PR3 · Cargar en deck y AutoDJ
 
@@ -707,6 +729,12 @@ Si F0/Q9 recomendó `library.cpp` en lugar de `ExternalTrackCollection`, se usa 
   - `SkipsToNextAvailableAfterTimeout`
   - `NonCrateBehaviourUnchanged`
 
+**Decided (Diego, 2026-11-11):**
+
+- AutoDJ waits up to N = 30 s for a pending Crate track. After that it removes the track from the queue and goes on with the next available one.
+- The `WTrackMenu` patches that were not in design §5.2 are accepted and added to its closed list: the menu is also built for a row without a `Track` (with null checks of the track for BPM and "Find on Web"), so that "Load to Deck N" works with uncached tracks, and `TrackModel::trackMenuActions()` adds a model's own entries at the end of the menu. Both are generic and described in `CRATE_PATCHES.md`.
+- Uncached tracks in AutoDJ and the session pin of tracks in use: see the decisions at the start of F4.
+
 ### F4.C-PR4 · Vista de caché y preferencias
 
 - `src/crate/ui/cachestatusview.{h,cpp}` (vista registrada con `WLibrary::registerView`): uso, límite, descargas en curso y sets offline.
@@ -717,12 +745,23 @@ Si F0/Q9 recomendó `library.cpp` en lugar de `ExternalTrackCollection`, se usa 
   - `ShowsUsageAndQueue`
   - `ChangingLimitTriggersEviction`
 
+**Decided (Diego, 2026-11-11):**
+
+- The cache view has no mockup: it uses the library's styling.
+- The mockup of the Crate preferences page has no switches for prefetch, key or gain. Prefetch goes in the Cache section, and the key from Crate and the LUFS gain go in a new "Crate analysis" section under Smart Mix.
+- The limit slider shows decimal GB, like the mockup, so the 20 GiB default reads "21 GB".
+
 **Gate G3 (Diego):** sesión de 1 h con el stack dev, o con un servidor real si Diego lo autoriza:
 - Cargar desde playlists y búsqueda.
 - Un set offline de 50 pistas.
 - AutoDJ clásico (sin Smart Mix) con pistas Crate.
 
 Medir contra los presupuestos de §9 del diseño.
+
+**Decided (Diego, 2026-11-11):**
+
+- The session also runs the F0.4 tests that were listed before F4: Q3 and Q5 on the waveform (which grid fits the music) and Q10 (download-and-load times on the LAN). They need a desktop, not DJ gear.
+- Before the session, an agent measures design §9's budgets automatically: a synced 500-track container opened from disk and from the LAN, a 40 MB FLAC loaded from the LAN from click to waveform, a cached load against a local track, request and download concurrency per server, main thread stalls over 16 ms, and the cache's limit and free space. Diego gets the numbers with a checklist of what is left to see and hear in the session.
 
 ---
 
@@ -951,9 +990,13 @@ grep -rn "smart-mix-v2" app/crate | head
 
 **Gate G4 (Diego):** prueba de escucha A/B de 10 transiciones (Android Smart Mix frente a Decks AutoDJ) con los mismos pares, más los CSV de desviación. **No se sigue sin su aprobación.**
 
+**Decided (Diego, 2026-11-10):** Diego has no DJ gear and cannot run listening tests, so G4 uses automatic metrics on rendered transitions, as in SM5: beat phase in the overlap (Beat This!), voice on voice (YAMNet) and EBU R128 level jumps. The same 10 pairs are rendered offline twice, as Android Smart Mix and as Decks AutoDJ would play them, and the report compares both, together with the deviation CSVs. Diego still approves the gate on that report, and the agent still stops at it.
+
 ---
 
 ## F6b · AI Assisted Mixing en Decks (D15)
+
+**Decided (Diego, 2026-11-10):** SG3 of smart-mix-3 was a no-go (the AI stays off), so F6b keeps only planner v3 in Decks. F6b.PR1 consumes the smart-mix-v3 candidate menu and the policy limits the server already serves to Crate Decks (monorepo `aea3d084e`: with `source: "decks"` and `localRefinement`, each v3 plan carries its candidates with their score breakdowns and the limits resolved for the edge; `limit_violations` is the reference check Decks mirrors). F6b.PR2 (requesting and collecting the refinement) and F6b.PR3 (the AI option and the `AI · <MODEL>` origin) are dropped. G4b no longer is a booth test with the refinement on: see its new text below.
 
 **Depende de smart-mix-3** ([plan](2026-11-02-smart-mix-3-implementation-plan.md)):
 - F6b.PR1 necesita SM2 (planner v3 en la API).
@@ -982,6 +1025,8 @@ desarrollar se usa el stack dev con la IA activada en local (Ollama con Qwen), n
 
 ### F6b.PR2 · Petición y recogida del refinamiento
 
+**Dropped (Diego, 2026-11-10):** no AI refinement after SG3's no-go. Kept for the record.
+
 | Fichero | Contenido |
 |---|---|
 | `src/crate/smartmix/refinementtracker.{h,cpp}` | Por arista: estado (`none`, `pending`, `ready`, `unavailable`, `late`), plan refinado, `modelLabel`, motivo, confianza y `promptVersion`. Recogida: vuelve a pedir las aristas `pending` en un único lote, como mucho cada 5 s y nunca más de 32 aristas por petición. Si el servidor anuncia el evento SSE `smart_mix.refinement_ready` (SM6), lo usa en lugar del polling. Deja de seguir una arista cuando sale de la cola o cuando el director entra en `Preparing` |
@@ -1006,6 +1051,8 @@ desarrollar se usa el stack dev con la IA activada en local (Ollama con Qwen), n
 
 ### F6b.PR3 · Interfaz y preferencia
 
+**Dropped (Diego, 2026-11-10):** without the refinement there is no AI option, origin or toggle. Kept for the record.
+
 | Fichero | Contenido |
 |---|---|
 | `DlgPrefCrate` | Opción "AI Assisted Mixing" (apagada por defecto), visible solo con `ai_assisted.available`. Muestra `model_label`, si es local o cloud, y la latencia típica, con un texto: "La configuración del modelo es del servidor; Crate Decks solo envía la petición" |
@@ -1019,6 +1066,8 @@ desarrollar se usa el stack dev con la IA activada en local (Ollama con Qwen), n
 
 **Gate G4b (Diego):** prueba de cabina de 1 h con AutoDJ y asistente, con el refinamiento activo y el modelo
 elegido en SG3 de smart-mix-3. Activarlo por defecto en el servidor es decisión de SG4 de ese plan.
+
+**Decided (Diego, 2026-11-10):** replaced. G4b is an automatic-metrics check of planner v3 in Decks: AutoDJ transitions planned with v2 and with v3 (its candidate menu and limits) are rendered offline over the same pairs, and the report gives automatic metrics on rendered transitions, as in SM5: beat phase in the overlap (Beat This!), voice on voice (YAMNet) and EBU R128 level jumps for both, plus how often Decks' local limit check agrees with the server's `limit_violations`. Diego approves the gate on the report.
 
 ---
 
@@ -1365,7 +1414,7 @@ Esquema previsto (se detallará en un plan propio cuando GU2 lo apruebe):
 | Divergencia entre `tokens.json` y el admin | El admin cambia de paleta y Decks no | Revisión en el trabajo continuo: cada cambio en `app/shared/ui/tokens/` abre un issue en el fork |
 | Q17: lecturas cortas o cuelgues al expulsar en algún formato | Sin motor: ninguna lectura corta en FLAC, AAC, ALAC y Opus. El MP3 falla con FFmpeg 9.0.2 incluso completo | D14 solo para FLAC, AAC, ALAC y Opus; el MP3 se descarga entero hasta arreglar la fuente FFmpeg o tener una fuente basada en MAD. Las banderas de aborto evitan los cuelgues (F4b) |
 | FFmpeg ausente en algún build de plataforma | Q17 | D14 solo donde exista FFmpeg; el resto usa la descarga completa |
-| smart-mix-3 se retrasa o SG3 es no-go | F6b bloqueada o sin IA | F6b.PR1 (v3) sigue siendo útil por sí solo; PR2 y PR3 se aparcan sin afectar al resto de Decks |
+| smart-mix-3 se retrasa o SG3 es no-go | F6b bloqueada o sin IA | F6b.PR1 (v3) sigue siendo útil por sí solo; PR2 y PR3 se aparcan sin afectar al resto de Decks. SG3 was a no-go: PR2 and PR3 are dropped (2026-11-10) |
 | La calidad del análisis de Crate no mejora a tiempo (S8) | El grid sigue fuera del control de calidad en las pistas de prueba | `AnalysisImporter` deja los beats y la tonalidad a Mixxx (política por defecto mientras S8 no esté); Crate sigue aportando cues, planes y compatibles |
 | Upstream o Diego rechazan el hook de carga asíncrona | Sin decisión antes de F3 | La sección Crate usa vista propia, como el spike: sin columnas nativas, arrastre ni `LoadSelectedTrack` hasta que haya hook |
 | El stack dev borra pistas sin fichero | Faltan pistas después de arrancar o sincronizar | Desactivar `library_pipeline` y `repair_duplicate_tracks` en `schedules` antes de arrancar los workers; importar el audio de prueba con artistas propios (informe del spike) |

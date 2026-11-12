@@ -83,6 +83,10 @@ struct Client::Call {
     std::optional<QString> bearerToken;
     QList<std::pair<QByteArray, QByteArray>> headers;
     bool rawBody = false;
+    /// RequestOptions::streamBody.
+    bool streamBody = false;
+    /// A streamed 2xx answer has told its headers to the Replies.
+    bool streaming = false;
     /// Set for GETs, which share one call while it is active.
     QString sharedKey;
     int attemptsMade = 0;
@@ -95,6 +99,10 @@ struct Client::Call {
 
     bool isIdempotent() const {
         return method != Method::Post;
+    }
+    /// Streams have no ClientOptions::maxConcurrentRequests slot.
+    bool takesSlot() const {
+        return !streamBody;
     }
 };
 
@@ -244,7 +252,7 @@ Reply* Client::request(Method method,
     const QUrl url = urlOf(path, options.query);
 
     QString sharedKey;
-    if (method == Method::Get && !options.bearerToken) {
+    if (method == Method::Get && !options.bearerToken && !options.streamBody) {
         sharedKey = (options.authenticated ? QStringLiteral("auth ") : QStringLiteral("anon ")) +
                 (options.rawBody ? QStringLiteral("raw ") : QString()) +
                 url.toString(QUrl::FullyEncoded);
@@ -268,6 +276,7 @@ Reply* Client::request(Method method,
     pCall->bearerToken = options.bearerToken;
     pCall->headers = options.headers;
     pCall->rawBody = options.rawBody;
+    pCall->streamBody = options.streamBody && method == Method::Get;
     pCall->sharedKey = sharedKey;
     pCall->subscribers.append(pReply);
     m_calls.push_back(pCall);
@@ -277,8 +286,13 @@ Reply* Client::request(Method method,
 }
 
 void Client::pump() {
-    while (m_inFlight < m_options.maxConcurrentRequests && !m_queue.isEmpty()) {
-        const CallPtr pCall = m_queue.takeFirst();
+    for (int i = 0; i < m_queue.size();) {
+        const CallPtr pCall = m_queue.at(i);
+        if (pCall->takesSlot() && m_inFlight >= m_options.maxConcurrentRequests) {
+            ++i;
+            continue;
+        }
+        m_queue.removeAt(i);
         if (pCall->authenticated && !pCall->bearerToken && m_renewingToken) {
             m_waitingForToken.append(pCall);
             continue;
@@ -356,6 +370,9 @@ void Client::send(const CallPtr& pCall) {
         request.setHeader(QNetworkRequest::ContentTypeHeader,
                 QByteArrayLiteral("application/json"));
     }
+    if (pCall->streamBody) {
+        request.setRawHeader("Accept", "*/*");
+    }
     request.setTransferTimeout(static_cast<int>(m_options.transferTimeout.count()));
 
     QNetworkReply* pNetworkReply = nullptr;
@@ -374,10 +391,22 @@ void Client::send(const CallPtr& pCall) {
         break;
     }
     ++pCall->attemptsMade;
-    ++m_inFlight;
+    if (pCall->takesSlot()) {
+        ++m_inFlight;
+    }
     pCall->pNetworkReply = pNetworkReply;
 
     const std::weak_ptr<Call> weakCall = pCall;
+    if (pCall->streamBody) {
+        // The headers may come before any of the body.
+        const auto deliver = [this, weakCall] {
+            if (const CallPtr pActive = weakCall.lock()) {
+                deliverStream(pActive);
+            }
+        };
+        connect(pNetworkReply, &QNetworkReply::metaDataChanged, this, deliver);
+        connect(pNetworkReply, &QIODevice::readyRead, this, deliver);
+    }
     connect(pNetworkReply,
             &QNetworkReply::downloadProgress,
             this,
@@ -399,7 +428,60 @@ void Client::send(const CallPtr& pCall) {
     });
 }
 
+bool Client::deliverStream(const CallPtr& pCall) {
+    QNetworkReply* const pNetworkReply = pCall->pNetworkReply;
+    if (!pNetworkReply || pCall->done) {
+        return false;
+    }
+    if (!pCall->streaming) {
+        const QVariant statusAttribute =
+                pNetworkReply->attribute(QNetworkRequest::HttpStatusCodeAttribute);
+        const int status = statusAttribute.isValid() ? statusAttribute.toInt() : 0;
+        if (status < 200 || status >= 300) {
+            // An error answer, a retry or a renewal: its small body is read
+            // when it finishes.
+            return true;
+        }
+        pCall->streaming = true;
+        Reply::Response response;
+        response.status = status;
+        response.headers = pNetworkReply->rawHeaderPairs();
+        const QPointer<Client> pGuard(this);
+        const QList<QPointer<Reply>> subscribers = pCall->subscribers;
+        for (const QPointer<Reply>& pReply : subscribers) {
+            if (pReply) {
+                pReply->m_response = response;
+                emit pReply->headersReceived();
+            }
+            if (!pGuard || pCall->done) {
+                return false;
+            }
+        }
+    }
+    const QByteArray chunk = pNetworkReply->readAll();
+    if (chunk.isEmpty()) {
+        return true;
+    }
+    const QPointer<Client> pGuard(this);
+    const QList<QPointer<Reply>> subscribers = pCall->subscribers;
+    for (const QPointer<Reply>& pReply : subscribers) {
+        if (pReply) {
+            emit pReply->bodyReceived(chunk);
+        }
+        if (!pGuard || pCall->done) {
+            return false;
+        }
+    }
+    return true;
+}
+
 void Client::onNetworkReplyFinished(const CallPtr& pCall) {
+    // What a stream has not handed over yet goes first, also when the
+    // transfer broke off: the bytes that came are good. A 2xx with an empty
+    // body tells its headers here.
+    if (pCall->streamBody && !deliverStream(pCall)) {
+        return;
+    }
     QNetworkReply* const pNetworkReply = pCall->pNetworkReply;
     VERIFY_OR_DEBUG_ASSERT(pNetworkReply) {
         return;
@@ -407,7 +489,9 @@ void Client::onNetworkReplyFinished(const CallPtr& pCall) {
     pCall->pNetworkReply = nullptr;
     pNetworkReply->disconnect(this);
     pNetworkReply->deleteLater();
-    --m_inFlight;
+    if (pCall->takesSlot()) {
+        --m_inFlight;
+    }
 
     const QVariant statusAttribute =
             pNetworkReply->attribute(QNetworkRequest::HttpStatusCodeAttribute);
@@ -463,6 +547,10 @@ void Client::onNetworkReplyFinished(const CallPtr& pCall) {
     if (status < 200 || status >= 300) {
         kLogger.warning() << "Request to" << pCall->url.path() << "failed with HTTP" << status;
         complete({pCall}, httpError(status, body), response);
+        return;
+    }
+    if (pCall->streamBody) {
+        complete({pCall}, QJsonDocument(), response);
         return;
     }
     if (pCall->rawBody) {
@@ -631,7 +719,9 @@ void Client::forget(const CallPtr& pCall) {
         pNetworkReply->disconnect(this);
         pNetworkReply->abort();
         pNetworkReply->deleteLater();
-        --m_inFlight;
+        if (pKept->takesSlot()) {
+            --m_inFlight;
+        }
     }
     m_calls.erase(std::remove(m_calls.begin(), m_calls.end(), pKept), m_calls.end());
 }

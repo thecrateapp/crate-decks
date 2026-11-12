@@ -87,6 +87,15 @@ struct RequestOptions {
     /// Reply::body() the bytes. For answers that are parsed off the main
     /// thread (design §9).
     bool rawBody = false;
+    /// Streams the body of a successful (2xx) answer instead of keeping it:
+    /// Reply::headersReceived() and then Reply::bodyReceived() as it arrives,
+    /// and finished() with a null document. For GETs of audio files, which do
+    /// not fit in memory. Such a request is never shared with another one and
+    /// does not take one of the ClientOptions::maxConcurrentRequests slots,
+    /// so a long download never holds up API requests. Retries and the
+    /// renewal of the access token work as for any GET, because nothing is
+    /// streamed before a 2xx status.
+    bool streamBody = false;
 };
 
 /// The ID of this installation, created the first time and kept in the
@@ -122,6 +131,12 @@ class Reply : public QObject {
   signals:
     void finished(const crate::JsonResult& result);
     void progress(qint64 bytesReceived, qint64 bytesTotal);
+    /// RequestOptions::streamBody only: a 2xx answer arrived. Emitted once,
+    /// before any bodyReceived(), even for an empty body.
+    void headersReceived();
+    /// RequestOptions::streamBody only: the next bytes of the body. A slot
+    /// may cancel the Reply.
+    void bodyReceived(const QByteArray& chunk);
 
   private:
     friend class Client;
@@ -212,6 +227,9 @@ class Client : public QObject {
     void pump();
     void send(const CallPtr& pCall);
     void onNetworkReplyFinished(const CallPtr& pCall);
+    /// Hands what a streamed 2xx answer has received to its Replies. Returns
+    /// false if a slot cancelled the call or deleted this Client.
+    bool deliverStream(const CallPtr& pCall);
     void onUnauthorized(const CallPtr& pCall);
     void onAccessTokenRenewed(TokenSource::Renewal renewal);
     void scheduleRetry(const CallPtr& pCall, std::chrono::milliseconds delay);

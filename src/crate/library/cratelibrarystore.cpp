@@ -232,7 +232,8 @@ WriteStatus storeContainerTree(
             const QString key = keyOf(ids.value(1).toString(), ids.value(2).toString());
             if (listed.contains(key)) {
                 idOf.insert(key, ids.value(0).toLongLong());
-            } else {
+            } else if (ids.value(1).toString() != kSearchContainerKind) {
+                // Gone from the tree. The search results never are in it, and stay
                 removed.append(ids.value(0).toLongLong());
             }
         }
@@ -458,6 +459,98 @@ WriteStatus replaceContainerTracks(const QSqlDatabase& database,
                 }
                 return true;
             });
+}
+
+WriteStatus storeSearchResults(const QSqlDatabase& database,
+        const QString& serverId,
+        const QString& query,
+        const QList<RemoteTrack>& tracks,
+        const QString& now,
+        qint64* pContainerId) {
+    return inTransaction(database, "store the Crate search results", [&](QSqlError* pError) {
+        QSqlQuery upsert(database);
+        upsert.prepare(QStringLiteral(
+                "INSERT INTO crateserver_tracks (server_id, entity_uid, title, artist, "
+                "album, duration_ms, bpm, camelot, energy, genre, playable, cover_url, "
+                "updated_at) "
+                "VALUES (:server, :uid, :title, :artist, :album, :duration, :bpm, "
+                ":camelot, :energy, :genre, :playable, :cover, :now) "
+                "ON CONFLICT(server_id, entity_uid) DO UPDATE SET "
+                "title = excluded.title, artist = excluded.artist, "
+                "album = excluded.album, duration_ms = excluded.duration_ms, "
+                "bpm = excluded.bpm, camelot = excluded.camelot, "
+                "energy = excluded.energy, genre = excluded.genre, "
+                "playable = excluded.playable, cover_url = excluded.cover_url, "
+                "updated_at = excluded.updated_at"));
+        for (const RemoteTrack& track : tracks) {
+            upsert.bindValue(QStringLiteral(":server"), serverId);
+            upsert.bindValue(QStringLiteral(":uid"), track.entityUid);
+            upsert.bindValue(QStringLiteral(":title"), text(track.title));
+            upsert.bindValue(QStringLiteral(":artist"), text(track.artist));
+            upsert.bindValue(QStringLiteral(":album"), text(track.album));
+            upsert.bindValue(QStringLiteral(":duration"), nullable(track.durationMs));
+            upsert.bindValue(QStringLiteral(":bpm"), nullable(track.bpm));
+            upsert.bindValue(QStringLiteral(":camelot"), nullable(track.camelot));
+            upsert.bindValue(QStringLiteral(":energy"), nullable(track.energy));
+            upsert.bindValue(QStringLiteral(":genre"), nullable(track.genre));
+            upsert.bindValue(QStringLiteral(":playable"), nullable(track.playable));
+            upsert.bindValue(QStringLiteral(":cover"), nullable(track.coverUrl));
+            upsert.bindValue(QStringLiteral(":now"), now);
+            if (!exec(upsert, pError)) {
+                return false;
+            }
+        }
+
+        QSqlQuery container(database);
+        container.prepare(QStringLiteral(
+                "INSERT INTO crateserver_containers "
+                "(server_id, kind, remote_id, name, position, fetched_at) "
+                "VALUES (:server, :kind, '', :name, 0, :now) "
+                "ON CONFLICT(server_id, kind, remote_id) DO UPDATE SET "
+                "name = excluded.name, fetched_at = excluded.fetched_at"));
+        container.bindValue(QStringLiteral(":server"), serverId);
+        container.bindValue(QStringLiteral(":kind"), kSearchContainerKind);
+        container.bindValue(QStringLiteral(":name"), query);
+        container.bindValue(QStringLiteral(":now"), now);
+        if (!exec(container, pError)) {
+            return false;
+        }
+        QSqlQuery id(database);
+        id.prepare(QStringLiteral(
+                "SELECT id FROM crateserver_containers WHERE server_id = :server "
+                "AND kind = :kind AND remote_id = ''"));
+        id.bindValue(QStringLiteral(":server"), serverId);
+        id.bindValue(QStringLiteral(":kind"), kSearchContainerKind);
+        if (!exec(id, pError) || !id.next()) {
+            return false;
+        }
+        const qint64 containerId = id.value(0).toLongLong();
+        id.finish();
+
+        QSqlQuery remove(database);
+        remove.prepare(QStringLiteral(
+                "DELETE FROM crateserver_container_tracks WHERE container_id = :id"));
+        remove.bindValue(QStringLiteral(":id"), containerId);
+        if (!exec(remove, pError)) {
+            return false;
+        }
+        QSqlQuery insert(database);
+        insert.prepare(QStringLiteral(
+                "INSERT INTO crateserver_container_tracks "
+                "(container_id, position, entity_uid) VALUES (:id, :position, :uid)"));
+        for (int i = 0; i < tracks.size(); ++i) {
+            insert.bindValue(QStringLiteral(":id"), containerId);
+            insert.bindValue(QStringLiteral(":position"), i);
+            insert.bindValue(QStringLiteral(":uid"), tracks[i].entityUid);
+            if (!exec(insert, pError)) {
+                return false;
+            }
+        }
+        if (pContainerId) {
+            *pContainerId = containerId;
+        }
+        return true;
+    });
 }
 
 WriteStatus markContainerSynced(

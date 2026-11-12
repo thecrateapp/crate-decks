@@ -1,13 +1,18 @@
 #include "crate/crateservers.h"
 
+#include <QJsonDocument>
 #include <QNetworkAccessManager>
 #include <QTimer>
 #include <QUuid>
 #include <algorithm>
 #include <chrono>
 
+#include "crate/analysis/profilestore.h"
+#include "crate/cache/audiocache.h"
+#include "crate/client/cratecapabilities.h"
 #include "crate/client/crateclient.h"
 #include "crate/client/crateserveraddress.h"
+#include "crate/cratepreferences.h"
 #include "crate/db/crateserverprofiles.h"
 #include "crate/db/crateserverschema.h"
 #include "crate/session/cratesecretstore.h"
@@ -32,12 +37,15 @@ struct CrateServers::Server {
     // The Session goes first: it unsets itself as the Client's TokenSource.
     std::unique_ptr<Client> pClient;
     std::unique_ptr<Session> pSession;
+    // Before the Client it uses.
+    std::unique_ptr<analysis::ProfileStore> pProfileStore;
     bool saved = false;
 };
 
 CrateServers::CrateServers(const Dependencies& dependencies, QObject* parent)
         : QObject(parent),
-          m_dependencies(dependencies) {
+          m_dependencies(dependencies),
+          m_pPreferences(std::make_unique<CratePreferences>(dependencies.pConfig)) {
     if (!m_dependencies.pNetworkAccessManager) {
         m_pOwnNetworkAccessManager = std::make_unique<QNetworkAccessManager>();
         m_dependencies.pNetworkAccessManager = m_pOwnNetworkAccessManager.get();
@@ -52,6 +60,8 @@ CrateServers::~CrateServers() {
     if (s_pInstance == this) {
         s_pInstance = nullptr;
     }
+    // The cache's downloads use the Clients.
+    m_pAudioCache.reset();
     // Sessions before the stores and the network they use.
     m_servers.clear();
     m_retired.clear();
@@ -158,9 +168,61 @@ void CrateServers::rememberCapabilities(
     for (const auto& pServer : m_servers) {
         if (pServer->pSession->profile().id == serverId && pServer->saved) {
             db::saveLastCapabilities(database(), serverId, capabilitiesJson);
+            if (pServer->pProfileStore) {
+                const Result<Capabilities> capabilities =
+                        Capabilities::fromJson(QJsonDocument::fromJson(capabilitiesJson));
+                if (capabilities.ok()) {
+                    pServer->pProfileStore->setCapabilities(capabilities.value());
+                }
+            }
             return;
         }
     }
+}
+
+cache::AudioCache* CrateServers::audioCache() {
+    if (!m_pAudioCache) {
+        cache::AudioCache::Options options;
+        options.directory = m_dependencies.audioCacheDirectory;
+        if (options.directory.isEmpty()) {
+            options.directory = m_pPreferences->cacheDirectory();
+        }
+        if (options.directory.isEmpty()) {
+            options.directory = cache::AudioCache::defaultDirectory();
+        }
+        options.clientFor = [this](const QString& serverId) {
+            return client(serverId);
+        };
+        options.limitBytes = m_pPreferences->cacheLimitBytes();
+        m_pAudioCache = std::make_unique<cache::AudioCache>(std::move(options));
+        // A new directory waits for the next start: the cache is in use
+        connect(m_pPreferences.get(),
+                &CratePreferences::cacheLimitChanged,
+                m_pAudioCache.get(),
+                &cache::AudioCache::setLimitBytes);
+        emit audioCacheCreated();
+    }
+    return m_pAudioCache.get();
+}
+
+analysis::ProfileStore* CrateServers::profileStore(const QString& serverId) {
+    const auto it = std::find_if(m_servers.begin(), m_servers.end(), [&](const auto& pServer) {
+        return pServer->pSession->profile().id == serverId;
+    });
+    if (it == m_servers.end()) {
+        return nullptr;
+    }
+    Server* const pServer = it->get();
+    if (!pServer->pProfileStore) {
+        pServer->pProfileStore = std::make_unique<analysis::ProfileStore>(
+                serverId, pServer->pClient.get(), m_dependencies.pDbConnectionPool);
+        const Result<Capabilities> capabilities =
+                Capabilities::fromJson(QJsonDocument::fromJson(lastCapabilities(serverId)));
+        if (capabilities.ok()) {
+            pServer->pProfileStore->setCapabilities(capabilities.value());
+        }
+    }
+    return pServer->pProfileStore.get();
 }
 
 QByteArray CrateServers::lastCapabilities(const QString& serverId) const {
