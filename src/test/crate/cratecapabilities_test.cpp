@@ -40,6 +40,23 @@ TEST(CrateCapabilitiesTest, ParsesDecksSection) {
     EXPECT_EQ(Compatibility::Compatible, capabilities.compatibility(kClientVersion));
 }
 
+// Smart Mix Stems (ST1, ST3): what the stems of Decks need (plan ST5.PR2)
+TEST(CrateCapabilitiesTest, ParsesTheStemFeatures) {
+    const auto result = Capabilities::fromJson(parse(R"({
+        "decks": {
+            "available": true,
+            "min_client_version": "0.1.0",
+            "contract_version": 1,
+            "features": ["library_cursor", "stems", "stem_upload", "local_refinement"]
+        }
+    })"));
+    ASSERT_TRUE(result.ok()) << result.error().message.toStdString();
+    EXPECT_TRUE(result.value().has(DecksFeature::Stems));
+    EXPECT_TRUE(result.value().has(DecksFeature::StemUpload));
+    EXPECT_TRUE(result.value().has(DecksFeature::LocalRefinement));
+    EXPECT_FALSE(result.value().has(DecksFeature::Cues));
+}
+
 TEST(CrateCapabilitiesTest, MissingDecksSectionMeansUnavailable) {
     const auto result = Capabilities::fromJson(parse(R"({"smart_mix": {"available": true}})"));
 

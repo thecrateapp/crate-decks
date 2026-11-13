@@ -39,7 +39,14 @@ struct CacheEntry {
     QStringList pinnedReasons;
     /// Milliseconds since the epoch; the eviction order (LRU).
     qint64 lastUsedAtMs = 0;
+    /// The size of its companion files (AudioCache::Options::companionsOf),
+    /// measured at start and when they change; not stored.
+    qint64 companionBytes = 0;
 
+    /// The file and its companions.
+    qint64 totalBytes() const {
+        return bytes + companionBytes;
+    }
     bool isPinned() const {
         return !pinnedReasons.isEmpty();
     }
