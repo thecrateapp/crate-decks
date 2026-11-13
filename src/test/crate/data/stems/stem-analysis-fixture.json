@@ -1,0 +1,23 @@
+{
+    "durationMs": 1100,
+    "hopMs": 250,
+    "levels": {
+        "bass": "AN5FAP8=",
+        "drums": "3sWqdxE=",
+        "other": "kQAAxF0=",
+        "vocals": "AAAA3is="
+    },
+    "producer": "crate-server/stems-1",
+    "schema": "stem-analysis/1",
+    "separator": {
+        "model": "htdemucs",
+        "sources": [
+            "drums",
+            "bass",
+            "other",
+            "vocals"
+        ],
+        "version": "htdemucs-onnx-1"
+    },
+    "sourceRevision": "5555555555555555555555555555555555555555555555555555555555555555"
+}

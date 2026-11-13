@@ -19,6 +19,7 @@ class CacheSection;
 class CacheStatusModel;
 class CrateServers;
 class SmartMixSection;
+class StemsSection;
 
 /// The "Crate" page of the preferences: the Crate servers of this
 /// installation, their sign-in state and features, adding one and signing
@@ -47,6 +48,9 @@ class DlgPrefCrate : public DlgPreferencePage {
     }
     SmartMixSection* smartMixSection() const {
         return m_pSmartMix;
+    }
+    StemsSection* stemsSection() const {
+        return m_pStems;
     }
     AnalysisSection* analysisSection() const {
         return m_pAnalysis;
@@ -78,6 +82,7 @@ class DlgPrefCrate : public DlgPreferencePage {
     CacheSection* m_pCache;
     SmartMixSection* m_pSmartMix;
     AnalysisSection* m_pAnalysis;
+    StemsSection* m_pStems;
     CacheStatusModel* m_pCacheStatus = nullptr;
     QWidget* m_pColumns;
 };

@@ -53,6 +53,19 @@ class CratePreferences : public QObject {
     bool gainFromLufs() const;
     void setGainFromLufs(bool enabled);
 
+    /// Smart Mix Stems (STEM-D7): separate on the GPU when there is one
+    /// that can, else on the CPU. On by default.
+    bool stemsOnGpu() const;
+    void setStemsOnGpu(bool enabled);
+    /// The separation model: "htdemucs" by default, or "htdemucs_ft" (four
+    /// fine-tuned models, about four times the work).
+    QString stemModel() const;
+    void setFineTunedStemModel(bool enabled);
+    /// Separate while a deck plays, at the lowest priority. Off by default:
+    /// separation pauses.
+    bool separateWhilePlaying() const;
+    void setSeparateWhilePlaying(bool enabled);
+
     /// The import policy these choices make. Crate's beats stay off until
     /// the server announces the S8 analyzer.
     analysis::Policy analysisPolicy() const;
@@ -62,6 +75,7 @@ class CratePreferences : public QObject {
     void cacheLimitChanged(qint64 limitBytes);
     void prefetchAutoDjChanged(bool enabled);
     void analysisPolicyChanged();
+    void stemsChanged();
 
   private:
     bool flag(const char* key, bool defaultValue) const;

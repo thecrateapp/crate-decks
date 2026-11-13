@@ -43,6 +43,13 @@
   <!-- Waveforms and overviews -->
   <SetVariable name="CrateWaveBg">#0a0a0f</SetVariable>
   <SetVariable name="CrateWaveLowAccent">#0e7490</SetVariable>
+  <!-- The four stems of Crate's separation, in the sidecar's order. C++
+       reads them from here (crate/ui/skin/stemcolors.cpp) for the stem
+       files Decks writes and the stems it shows -->
+  <SetVariable name="CrateStemDrums">#67e8f9</SetVariable>
+  <SetVariable name="CrateStemBass">#0e7490</SetVariable>
+  <SetVariable name="CrateStemOther">#999ca0</SetVariable>
+  <SetVariable name="CrateStemVocals">#fbbf24</SetVariable>
   <SetVariable name="CrateWaveMidAccent">#06b6d4</SetVariable>
   <SetVariable name="CrateWaveHighAccent">#67e8f9</SetVariable>
   <SetVariable name="CrateWaveLowNeutral">#4a4c52</SetVariable>

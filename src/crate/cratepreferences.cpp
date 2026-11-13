@@ -14,6 +14,9 @@ constexpr const char* kCacheDirectory = "CacheDirectory";
 constexpr const char* kCacheLimitBytes = "CacheLimitBytes";
 constexpr const char* kPrefetchAutoDj = "PrefetchAutoDj";
 constexpr const char* kKeyFromCrate = "KeyFromCrate";
+constexpr const char* kStemsOnGpu = "StemsOnGpu";
+constexpr const char* kStemsFineTuned = "StemsFineTuned";
+constexpr const char* kSeparateWhilePlaying = "SeparateWhilePlaying";
 constexpr const char* kGainFromLufs = "GainFromLufs";
 
 ConfigKey keyOf(const char* item) {
@@ -92,6 +95,37 @@ bool CratePreferences::prefetchAutoDj() const {
 void CratePreferences::setPrefetchAutoDj(bool enabled) {
     if (setFlag(kPrefetchAutoDj, enabled, true)) {
         emit prefetchAutoDjChanged(enabled);
+    }
+}
+
+bool CratePreferences::stemsOnGpu() const {
+    return flag(kStemsOnGpu, true);
+}
+
+void CratePreferences::setStemsOnGpu(bool enabled) {
+    if (setFlag(kStemsOnGpu, enabled, true)) {
+        emit stemsChanged();
+    }
+}
+
+QString CratePreferences::stemModel() const {
+    return flag(kStemsFineTuned, false) ? QStringLiteral("htdemucs_ft")
+                                        : QStringLiteral("htdemucs");
+}
+
+void CratePreferences::setFineTunedStemModel(bool enabled) {
+    if (setFlag(kStemsFineTuned, enabled, false)) {
+        emit stemsChanged();
+    }
+}
+
+bool CratePreferences::separateWhilePlaying() const {
+    return flag(kSeparateWhilePlaying, false);
+}
+
+void CratePreferences::setSeparateWhilePlaying(bool enabled) {
+    if (setFlag(kSeparateWhilePlaying, enabled, false)) {
+        emit stemsChanged();
     }
 }
 

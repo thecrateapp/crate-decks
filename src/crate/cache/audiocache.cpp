@@ -96,6 +96,20 @@ struct Finalized {
     qint64 bytes = 0;
 };
 
+/// The size of the companion files of the track at `trackPath`.
+qint64 companionBytesOf(const std::function<QStringList(const QString&)>& companionsOf,
+        const QString& trackPath) {
+    qint64 bytes = 0;
+    const QStringList companions = companionsOf(trackPath);
+    for (const QString& companion : companions) {
+        const QFileInfo info(companion);
+        if (info.isFile()) {
+            bytes += info.size();
+        }
+    }
+    return bytes;
+}
+
 } // namespace
 
 /// What only the worker thread touches.
@@ -256,11 +270,22 @@ AudioCache::AudioCache(Options options, QObject* parent)
     m_pWorker = std::make_shared<Worker>(m_options.directory);
 
     inWorker<Reconciliation>(
-            [](Worker& worker) -> Reconciliation {
+            [companionsOf = m_options.companionsOf,
+                    directory = m_options.directory](Worker& worker) -> Reconciliation {
                 if (!worker.index.open()) {
                     return Reconciliation();
                 }
-                return worker.index.reconcile();
+                Reconciliation reconciliation = worker.index.reconcile();
+                if (companionsOf) {
+                    for (CacheEntry& entry : reconciliation.entries) {
+                        if (entry.state == CacheEntry::State::Ready) {
+                            entry.companionBytes = companionBytesOf(
+                                    companionsOf,
+                                    QDir(directory).filePath(entry.path));
+                        }
+                    }
+                }
+                return reconciliation;
             },
             [this](const Reconciliation& reconciliation) {
                 for (const CacheEntry& entry : reconciliation.entries) {
@@ -762,6 +787,11 @@ void AudioCache::finalize(const DownloadPtr& pDownload) {
                 entry.state = CacheEntry::State::Ready;
                 entry.path = pDownload->relativePath;
                 entry.bytes = finalized.bytes;
+                // A new file of the track: what was made from the old one
+                // is measured again
+                entry.companionBytes = m_options.companionsOf
+                        ? companionBytesOf(m_options.companionsOf, absolutePath(entry.path))
+                        : 0;
                 entry.lastUsedAtMs = now();
                 store(entry);
                 finish(pDownload, std::nullopt);
@@ -851,6 +881,15 @@ std::optional<QString> AudioCache::cachedPath(
         return std::nullopt;
     }
     return absolutePath(it->path);
+}
+
+std::optional<QString> AudioCache::cachedSourceRevision(
+        const QString& serverId, const QString& entityUid) const {
+    const auto it = m_entries.constFind(keyOf(serverId, entityUid));
+    if (it == m_entries.cend() || it->state != CacheEntry::State::Ready) {
+        return std::nullopt;
+    }
+    return it->sourceRevision;
 }
 
 std::optional<QString> AudioCache::filePathFor(
@@ -962,6 +1001,27 @@ void AudioCache::pin(const QString& serverId, const QString& entityUid, const QS
     emit usageChanged();
 }
 
+int AudioCache::unpinAll(const QString& serverId, const QString& reason) {
+    if (!m_loaded) {
+        m_afterLoad.append([this, serverId, reason] {
+            unpinAll(serverId, reason);
+        });
+        return 0;
+    }
+    int unpinned = 0;
+    for (auto it = m_entries.begin(); it != m_entries.end(); ++it) {
+        if (it->serverId == serverId && it->pinnedReasons.removeAll(reason) > 0) {
+            store(*it);
+            ++unpinned;
+        }
+    }
+    if (unpinned > 0) {
+        makeRoom(0);
+        emit usageChanged();
+    }
+    return unpinned;
+}
+
 void AudioCache::unpin(const QString& serverId, const QString& entityUid, const QString& reason) {
     if (reason.startsWith(kSessionPinPrefix)) {
         const auto session = m_sessionPins.find(keyOf(serverId, entityUid));
@@ -1001,6 +1061,22 @@ void AudioCache::setLimitBytes(qint64 limitBytes) {
     }
 }
 
+void AudioCache::refreshCompanions(const QString& serverId, const QString& entityUid) {
+    const auto it = m_entries.find(keyOf(serverId, entityUid));
+    if (it == m_entries.end() || it->state != CacheEntry::State::Ready ||
+            !m_options.companionsOf) {
+        return;
+    }
+    const qint64 bytes = companionBytesOf(m_options.companionsOf, absolutePath(it->path));
+    if (bytes == it->companionBytes) {
+        return;
+    }
+    it->companionBytes = bytes;
+    makeRoom(0);
+    emit usageChanged();
+    emit trackChanged(serverId, entityUid);
+}
+
 Usage AudioCache::usage() const {
     Usage usage;
     for (auto it = m_entries.cbegin(); it != m_entries.cend(); ++it) {
@@ -1009,11 +1085,11 @@ Usage AudioCache::usage() const {
             continue;
         }
         ++usage.readyFiles;
-        usage.readyBytes += entry.bytes;
+        usage.readyBytes += entry.totalBytes();
         if (entry.isPinned()) {
-            usage.pinnedBytes += entry.bytes;
+            usage.pinnedBytes += entry.totalBytes();
         } else if (m_sessionPins.contains(it.key())) {
-            usage.inUseBytes += entry.bytes;
+            usage.inUseBytes += entry.totalBytes();
         }
     }
     for (const DownloadPtr& pDownload : m_downloads) {
@@ -1072,7 +1148,7 @@ QList<PinnedSet> AudioCache::pinnedSets(const QString& reasonPrefix) const {
             ++set.tracks;
             if (entry.state == CacheEntry::State::Ready) {
                 ++set.readyTracks;
-                set.readyBytes += entry.bytes;
+                set.readyBytes += entry.totalBytes();
             }
         }
     }
@@ -1130,9 +1206,9 @@ bool AudioCache::makeRoom(qint64 incomingBytes, const Download* pFor) {
         if (it->state != CacheEntry::State::Ready) {
             continue;
         }
-        readyBytes += it->bytes;
+        readyBytes += it->totalBytes();
         if (!isKept(it.key(), it.value())) {
-            candidates.push_back({it.key(), it->lastUsedAtMs, it->bytes});
+            candidates.push_back({it.key(), it->lastUsedAtMs, it->totalBytes()});
         }
     }
     // The free space only bounds what comes in: a disk that others fill
@@ -1183,8 +1259,14 @@ void AudioCache::evict(const Key& key) {
     const CacheEntry entry = it.value();
     m_entries.erase(it);
     const QString path = absolutePath(entry.path);
-    onWorker([entry, path](Worker& worker) {
+    const QStringList companions =
+            m_options.companionsOf && !entry.path.isEmpty() ? m_options.companionsOf(path)
+                                                            : QStringList();
+    onWorker([entry, path, companions](Worker& worker) {
         QFile::remove(path);
+        for (const QString& companion : companions) {
+            QFile::remove(companion);
+        }
         worker.index.remove(entry.serverId, entry.entityUid);
     });
     emit evicted(entry.serverId, entry.entityUid);

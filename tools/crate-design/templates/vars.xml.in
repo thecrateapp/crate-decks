@@ -43,6 +43,13 @@
   <!-- Waveforms and overviews -->
   <SetVariable name="CrateWaveBg">{{waveBg}}</SetVariable>
   <SetVariable name="CrateWaveLowAccent">{{waveLowAccent}}</SetVariable>
+  <!-- The four stems of Crate's separation, in the sidecar's order. C++
+       reads them from here (crate/ui/skin/stemcolors.cpp) for the stem
+       files Decks writes and the stems it shows -->
+  <SetVariable name="CrateStemDrums">{{stemDrums}}</SetVariable>
+  <SetVariable name="CrateStemBass">{{stemBass}}</SetVariable>
+  <SetVariable name="CrateStemOther">{{stemOther}}</SetVariable>
+  <SetVariable name="CrateStemVocals">{{stemVocals}}</SetVariable>
   <SetVariable name="CrateWaveMidAccent">{{waveMidAccent}}</SetVariable>
   <SetVariable name="CrateWaveHighAccent">{{waveHighAccent}}</SetVariable>
   <SetVariable name="CrateWaveLowNeutral">{{waveLowNeutral}}</SetVariable>
