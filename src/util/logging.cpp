@@ -17,6 +17,8 @@
 #include <atomic>
 #include <string_view>
 
+#include "crate/appidentity.h"
+#include "crate/brand/brandtext.h"
 #include "util/assert.h"
 #include "util/cmdlineargs.h"
 
@@ -231,14 +233,18 @@ QString rotateLogFilesAndGetFilePath(const QString& logDirPath) {
     }
 
     QString logFilePath;
+    // Crate Decks: the log is named after the application (plan BR2)
+    const QString baseName = QString::fromUtf8(crate::kLogFileName);
     // Rotate old logfiles.
     for (int i = 9; i >= 0; --i) {
-        const QString logFileName = (i == 0) ? QString("mixxx.log")
-                                             : QString("mixxx.log.%1").arg(i);
+        const QString logFileName = (i == 0)
+                ? baseName
+                : QStringLiteral("%1.%2").arg(baseName, QString::number(i));
         logFilePath = logDir.absoluteFilePath(logFileName);
         if (QFileInfo::exists(logFilePath)) {
             QString olderLogFilePath =
-                    logDir.absoluteFilePath(QString("mixxx.log.%1").arg(i + 1));
+                    logDir.absoluteFilePath(QStringLiteral("%1.%2").arg(
+                            baseName, QString::number(i + 1)));
             // This should only happen with number 10
             if (QFileInfo::exists(olderLogFilePath)) {
                 QFile::remove(olderLogFilePath);
@@ -292,7 +298,11 @@ bool isControllerLoggingCategory(const QString& categoryName) {
 void handleMessage(
         QtMsgType type,
         const QMessageLogContext& context,
-        const QString& input) {
+        const QString& message) {
+    // Crate Decks: log lines name Crate Decks, not Mixxx (plan BR2). The rule
+    // leaves identifiers alone and returns `message` itself, without copying
+    // it, when it does not contain "mixxx".
+    const QString input = crate::brandRule(message);
     const char* levelName = nullptr;
     WriteFlags writeFlags = WriteFlag::None;
     bool isDebugAssert = false;

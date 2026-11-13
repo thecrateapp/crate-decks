@@ -8,6 +8,9 @@
 #include <QRegularExpression>
 #include <QTextDocumentFragment>
 
+#include "config.h"
+#include "crate/appidentity.h"
+
 namespace crate {
 
 namespace {
@@ -38,12 +41,47 @@ const QRegularExpression kNamesMixxx(
 
 const QString kCrateDecks = QStringLiteral("Crate Decks");
 
-/// What showsMixxx() lets through: the file names Crate Decks keeps (one
-/// translation misspells "mixxxdp.sqlite"), and the hardware and the mapping
-/// author named after Mixxx.
-const QRegularExpression kAllowedMixxx(
-        QStringLiteral("mixxxd[bp]\\.sqlite|mixxx\\.cfg|mixxx\\.log|MiniMixxx|BeMixxx"),
+/// Mixxx's names for the files and the folder of its settings, which the
+/// texts of the inherited code show (plan BR2): the database (Czech writes
+/// "Mixxxdb.sqlite", one translation misspells "mixxxdp.sqlite"), the
+/// settings and log files and the Linux settings folder ("~/.mixxx", not
+/// "~/.mixxx2"). Groups: database, settings, log, folder.
+const QRegularExpression kMixxxFiles(
+        QStringLiteral("(?<![\\w.-])(?:(mixxxd[bp]\\.sqlite)|(mixxx\\.cfg)|(mixxx\\.log)"
+                       "|(~/\\.mixxx)(?![\\w.-]))"),
         QRegularExpression::CaseInsensitiveOption);
+
+/// What showsMixxx() lets through: the hardware and the mapping author named
+/// after Mixxx.
+const QRegularExpression kAllowedMixxx(
+        QStringLiteral("MiniMixxx|BeMixxx"),
+        QRegularExpression::CaseInsensitiveOption);
+
+/// `text` with Crate Decks' files and folder where it names Mixxx's.
+QString renameMixxxFiles(const QString& text) {
+    QString result;
+    qsizetype last = 0;
+    QRegularExpressionMatchIterator matches = kMixxxFiles.globalMatch(text);
+    while (matches.hasNext()) {
+        const QRegularExpressionMatch match = matches.next();
+        result += QStringView(text).mid(last, match.capturedStart() - last);
+        if (match.capturedStart(1) >= 0) {
+            result += QLatin1String(kDatabaseFileName);
+        } else if (match.capturedStart(2) >= 0) {
+            result += QLatin1String(MIXXX_SETTINGS_FILE);
+        } else if (match.capturedStart(3) >= 0) {
+            result += QLatin1String(kLogFileName);
+        } else {
+            result += QStringLiteral("~/") + QLatin1String(kSettingsFolderName);
+        }
+        last = match.capturedEnd();
+    }
+    if (last == 0) {
+        return text;
+    }
+    result += QStringView(text).mid(last);
+    return result;
+}
 
 BrandInventory::Treatment treatmentOf(const QString& name) {
     if (name == QLatin1String("text")) {
@@ -69,10 +107,11 @@ bool showsMixxx(const QString& text) {
     return plain.contains(QLatin1String("mixxx"), Qt::CaseInsensitive);
 }
 
-QString brandRule(const QString& text) {
-    if (!text.contains(QLatin1String("mixxx"), Qt::CaseInsensitive)) {
-        return text;
+QString brandRule(const QString& input) {
+    if (!input.contains(QLatin1String("mixxx"), Qt::CaseInsensitive)) {
+        return input;
     }
+    const QString text = renameMixxxFiles(input);
     QString result;
     qsizetype last = 0;
     QRegularExpressionMatchIterator matches = kNamesMixxx.globalMatch(text);

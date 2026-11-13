@@ -25,13 +25,13 @@ class CellDelegate : public QStyledItemDelegate {
     }
 
   protected:
-    /// The track colour of Mixxx's tables (Qt::BackgroundRole), if any.
+    /// The track colour of upstream's tables (Qt::BackgroundRole), if any.
     void paintBackground(QPainter* pPainter,
             const QStyleOptionViewItem& option,
             const QModelIndex& index) const;
     /// The cell less its padding and the row's rule.
     QRect contentRect(const QStyleOptionViewItem& option) const;
-    /// The colour Mixxx gives played and missing tracks
+    /// The colour upstream gives played and missing tracks
     /// (Qt::ForegroundRole), or `fallback`.
     QColor foreground(const QModelIndex& index, const QColor& fallback) const;
 
@@ -50,7 +50,7 @@ class TrackTextDelegate : public CellDelegate {
         Meta,
     };
     /// The deck that has the track of a row loaded ("A" to "D"), for models
-    /// that do not give LoadedDeckRole themselves, such as Mixxx's.
+    /// that do not give LoadedDeckRole themselves, such as upstream's.
     using LoadedDeck = std::function<QString(const QModelIndex&)>;
 
     TrackTextDelegate(const DelegateStyle& style, Kind kind, QObject* pParent);

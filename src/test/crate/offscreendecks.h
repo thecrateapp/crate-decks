@@ -20,6 +20,7 @@
 #include <memory>
 #include <utility>
 
+#include "config.h"
 #include "coreservices.h"
 #include "mixxxmainwindow.h"
 #include "preferences/usersettings.h"
@@ -85,7 +86,7 @@ class OffscreenDecks {
 
     /// Writes the profile: the skin, no sound API and `settings`.
     void writeProfile(const QString& skin, const Settings& settings = {}) {
-        auto config = UserSettingsPointer(new UserSettings(m_settingsPath + "mixxx.cfg"));
+        auto config = UserSettingsPointer(new UserSettings(m_settingsPath + MIXXX_SETTINGS_FILE));
         config->setValue(ConfigKey("[Config]", "Version"), VersionStore::version());
         config->setValue(ConfigKey("[Config]", "ResizableSkin"), skin);
         // Offscreen there is no OpenGL: do not warn about it
@@ -103,7 +104,7 @@ class OffscreenDecks {
     /// Starts the core services and the main window. Returns how long the
     /// main window took to initialize, skin included, in milliseconds.
     /// `beforeSkin` runs once the core services are up, just before the
-    /// skin loads: the first CoreServices of a process installs Mixxx's log
+    /// skin loads: the first CoreServices of a process installs upstream's log
     /// handler, so message handlers go in there.
     qint64 start(QApplication* pApp, const std::function<void()>& beforeSkin = {}) {
         pApp->installEventFilter(&m_dialogRejecter);

@@ -89,7 +89,7 @@ if(CPACK_GENERATOR STREQUAL "AppImage")
   # The AppImage desktop file regenerates Exec= to "crate-decks" (it must refer
   # to the binary by basename only, as CPack matches it against an installed
   # file).
-  set(CPACK_APPIMAGE_DESKTOP_FILE "mixxx-appimage.desktop")
+  set(CPACK_APPIMAGE_DESKTOP_FILE "crate-decks-appimage.desktop")
   # CPACK_PACKAGE_ICON must be the bare file name of an installed icon matching
   # the Icon= key in the desktop file (which is "app.cratemusic.decks").
   set(CPACK_PACKAGE_ICON "app.cratemusic.decks.png")

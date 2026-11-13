@@ -159,6 +159,59 @@ def test_check_fails_when_upstream_adds_a_string(tmp_path, capsys):
     )
 
 
+OWN_SOURCE = """#include "mixxxmainwindow.h"
+namespace crate {
+// Upstream's library, read by MixxxMainWindow and mixxx::Logger
+// Mixxx's library
+/// never in mixxx.cfg
+const QString kUrl = QStringLiteral("https://github.com/mixxxdj/mixxx/issues/1");
+} // namespace crate
+"""  # noqa: E501
+
+
+def make_own_repo(tmp_path):
+    repo = make_repo(tmp_path)
+    (repo / "src" / "crate" / "brand").mkdir(parents=True)
+    (repo / "src" / "crate" / "x.cpp").write_text(OWN_SOURCE, encoding="utf-8")
+    (repo / "src" / "crate" / "brand" / "rule.cpp").write_text(
+        "// Mixxx -> Crate Decks", encoding="utf-8"
+    )
+    (repo / "src" / "crate" / "logo.png").write_bytes(b"\x89PNG Mixxx")
+    return repo
+
+
+def test_own_code_names_no_mixxx(tmp_path):
+    # Plan BR2: our own code names Mixxx only where the inventory says why;
+    # identifiers, include names and upstream URLs do not count, and the
+    # brand layer names it on purpose
+    repo = make_own_repo(tmp_path)
+    assert inventory.scan_own(repo) == [
+        ("src/crate/x.cpp", "// Mixxx's library"),
+        ("src/crate/x.cpp", "/// never in mixxx.cfg"),
+    ]
+
+
+def test_check_fails_on_our_code_naming_mixxx(tmp_path, capsys):
+    repo = make_own_repo(tmp_path)
+    assert inventory.main(["--repo", str(repo)]) == 0
+    path = repo / inventory.INVENTORY
+    data = json.loads(path.read_text(encoding="utf-8"))
+    for entry in data["literals"]:
+        entry["why"] = "test"
+    path.write_text(inventory.dump(data), encoding="utf-8")
+    assert inventory.main(["--repo", str(repo), "--check"]) == 1
+    out = capsys.readouterr().out
+    assert (
+        'our code names Mixxx, src/crate/x.cpp: "// Mixxx\'s library"' in out
+    )
+    assert "reword it, or give the reason it must stay" in out
+
+    for entry in data["own"]:
+        entry["why"] = "test"
+    path.write_text(inventory.dump(data), encoding="utf-8")
+    assert inventory.main(["--repo", str(repo), "--check"]) == 0
+
+
 def test_inventory_of_this_repository_is_current():
     assert inventory.main(["--check"]) == 0
 

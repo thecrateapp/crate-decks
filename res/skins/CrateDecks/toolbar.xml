@@ -325,7 +325,7 @@
                   <BindProperty>visible</BindProperty>
                 </Connection>
               </PushButton>
-              <!-- Opens Preferences: Mixxx has no control for it, so the
+              <!-- Opens Preferences: upstream has no control for it, so the
                    skin's C++ triggers the menu bar's Preferences action -->
               <PushButton>
                 <Tooltip>Preferences</Tooltip>

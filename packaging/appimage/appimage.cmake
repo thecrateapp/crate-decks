@@ -6,7 +6,7 @@
 # against an installed file.
 set(
   MIXXX_APPIMAGE_DESKTOP_FILE
-  "${CMAKE_CURRENT_BINARY_DIR}/mixxx-appimage.desktop"
+  "${CMAKE_CURRENT_BINARY_DIR}/crate-decks-appimage.desktop"
 )
 file(
   READ
@@ -24,12 +24,12 @@ file(WRITE "${MIXXX_APPIMAGE_DESKTOP_FILE}" "${MIXXX_APPIMAGE_DESKTOP_CONTENT}")
 install(
   FILES "${MIXXX_APPIMAGE_DESKTOP_FILE}"
   DESTINATION "${CMAKE_INSTALL_DATADIR}/applications"
-  RENAME "mixxx-appimage.desktop"
+  RENAME "crate-decks-appimage.desktop"
 )
 
 # Custom AppRun: the CPack AppImage generator uses an AppRun installed in
 # the AppDir root if present, falling back to a generated one otherwise.
-# The desktop file must use Exec=mixxx (a plain basename), so the
+# The desktop file must use Exec=crate-decks (a plain basename), so the
 # pasuspender convenience of the original Exec line is reproduced in AppRun
 # instead.
 install(

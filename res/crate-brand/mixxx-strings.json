@@ -790,7 +790,7 @@
     {
       "file": "src/analyzer/analyzerbeats.cpp",
       "text": "a BPM computed by a previous Mixxx version and user",
-      "why": "log"
+      "why": "log line: the log handler brands it (plan BR2)"
     },
     {
       "file": "src/controllers/android.cpp",
@@ -805,7 +805,7 @@
     {
       "file": "src/controllers/dlgcontrollerlearning.cpp",
       "text": "Mixxx UI element clicked for which there is no learnable control ",
-      "why": "log"
+      "why": "log line: the log handler brands it (plan BR2)"
     },
     {
       "file": "src/controllers/hid/hidenumerator.cpp",
@@ -815,7 +815,7 @@
     {
       "file": "src/controllers/legacycontrollermappingfilehandler.cpp",
       "text": ". Mixxx isn't built with QML support",
-      "why": "log"
+      "why": "log line: the log handler brands it (plan BR2)"
     },
     {
       "file": "src/database/mixxxdb.cpp",
@@ -1013,47 +1013,47 @@
     {
       "file": "src/encoder/encoderffmpegresample.cpp",
       "text": "EncoderFfmpegResample::openMixxx: open MIXXX FFmpeg Resampler version",
-      "why": "log"
+      "why": "log line: the log handler brands it (plan BR2)"
     },
     {
       "file": "src/library/dao/analysisdao.cpp",
       "text": "WARNING: Could not create analysis storage path. Mixxx will be unable to store analyses.",
-      "why": "log"
+      "why": "log line: the log handler brands it (plan BR2)"
     },
     {
       "file": "src/library/itunes/itunesiosimporter.mm",
       "text": "iOS media library access is denied, Mixxx will not be able to access any tracks",
-      "why": "log (iOS)"
+      "why": "log line (iOS): the log handler brands it (plan BR2)"
     },
     {
       "file": "src/library/itunes/itunesiosimporter.mm",
       "text": "iOS media library access is not determined, Mixxx may not be able to access any tracks",
-      "why": "log (iOS)"
+      "why": "log line (iOS): the log handler brands it (plan BR2)"
     },
     {
       "file": "src/library/itunes/itunesiosimporter.mm",
       "text": "iOS media library access is restricted, Mixxx may not be able to access all tracks",
-      "why": "log (iOS)"
+      "why": "log line (iOS): the log handler brands it (plan BR2)"
     },
     {
       "file": "src/library/librarycontrol.cpp",
       "text": "No Mixxx window, popup or menu has focus.",
-      "why": "log"
+      "why": "log line: the log handler brands it (plan BR2)"
     },
     {
       "file": "src/main.cpp",
       "text": "Mixxx shutdown complete with code",
-      "why": "log"
+      "why": "log line: the log handler brands it (plan BR2)"
     },
     {
       "file": "src/main.cpp",
       "text": "Running Mixxx",
-      "why": "log"
+      "why": "log line: the log handler brands it (plan BR2)"
     },
     {
       "file": "src/preferences/upgrade.cpp",
       "text": "The MIDI mapping file format has changed in this version of Mixxx. You will need to reconfigure your MIDI controller. See the Wiki for full details on the new format.",
-      "why": "log"
+      "why": "log line: the log handler brands it (plan BR2)"
     },
     {
       "file": "src/qml/asyncimageprovider.cpp",
@@ -1083,17 +1083,17 @@
     {
       "file": "src/sources/soundsourcemp3.cpp",
       "text": "Mixxx tries to plays it with the most common sample rate for this file",
-      "why": "log"
+      "why": "log line: the log handler brands it (plan BR2)"
     },
     {
       "file": "src/track/steminfoimporter.cpp",
       "text": "The STEM manifest is requesting DSP effects but this isn't supported by Mixxx yet.",
-      "why": "log"
+      "why": "log line: the log handler brands it (plan BR2)"
     },
     {
       "file": "src/track/track.cpp",
       "text": "Skipping import of Serato cues because Mixxx Hotcues are already set. Reset them first via the track context menu.",
-      "why": "log"
+      "why": "log line: the log handler brands it (plan BR2)"
     },
     {
       "file": "src/util/screensaver.cpp",
@@ -1113,12 +1113,109 @@
     {
       "file": "src/vinylcontrol/vinylcontrolmanager.cpp",
       "text": ", but Mixxx only supports ",
-      "why": "log"
+      "why": "log line: the log handler brands it (plan BR2)"
     },
     {
       "file": "src/widget/weffectparameternamebase.cpp",
       "text": "Mixxx effect parameter ",
       "why": "drag and drop MIME text, never shown"
+    }
+  ],
+  "own": [
+    {
+      "file": "res/linux/app.cratemusic.decks.metainfo.xml",
+      "text": "Crate Decks is based on Mixxx, the free DJ software made by the Mixxx",
+      "why": "credit: the one statement that Crate Decks is a fork of Mixxx (allowed by the BR2 rule)"
+    },
+    {
+      "file": "res/skins/CrateDecks/generated/style.qss",
+      "text": "#Mixxx,",
+      "why": "QSS selector of the main window, whose object name the inherited code sets (identifier)"
+    },
+    {
+      "file": "res/skins/CrateDecks/palemoon/buttons/btn__search.svg",
+      "text": "<title>Mixxx 1.12+ iconset</title>",
+      "why": "title of the upstream icon set the image comes from (CC BY-SA attribution, as in skin.xml)"
+    },
+    {
+      "file": "res/skins/CrateDecks/palemoon/buttons/btn__search_disabled.svg",
+      "text": "<title>Mixxx 1.12+ iconset</title>",
+      "why": "title of the upstream icon set the image comes from (CC BY-SA attribution, as in skin.xml)"
+    },
+    {
+      "file": "res/skins/CrateDecks/skin.xml",
+      "text": "<ObjectName>Mixxx</ObjectName>",
+      "why": "object name of the main window, which the inherited code and its QSS select (identifier)"
+    },
+    {
+      "file": "res/skins/CrateDecks/skin.xml",
+      "text": "It is derived from LateNight, Resizable skin for Mixxx 2.3.x",
+      "why": "licence attribution of the skin LateNight (CC BY-SA 3.0)"
+    },
+    {
+      "file": "res/skins/CrateDecks/style.qss",
+      "text": "#Mixxx,",
+      "why": "QSS selector of the main window, whose object name the inherited code sets (identifier)"
+    },
+    {
+      "file": "src/crate/appidentity.h",
+      "text": "// settings, the desktop entry or keychain entries with an installed Mixxx.",
+      "why": "names the other application, a Mixxx installed on the same computer, that Decks keeps apart from"
+    },
+    {
+      "file": "src/crate/appidentity.h",
+      "text": "/// delete the files of a Mixxx installed on the same computer.",
+      "why": "names the other application, a Mixxx installed on the same computer, that Decks keeps apart from"
+    },
+    {
+      "file": "src/crate/appidentity.h",
+      "text": "/// in CMakeLists.txt), apart from an installed Mixxx's (plan BR2).",
+      "why": "names the other application, a Mixxx installed on the same computer, that Decks keeps apart from"
+    },
+    {
+      "file": "src/crate/ui/cratefirstrun.h",
+      "text": "namespace mixxx {",
+      "why": "namespace of the inherited code (identifier)"
+    },
+    {
+      "file": "src/crate/ui/cratefirstrun.h",
+      "text": "} // namespace mixxx",
+      "why": "namespace of the inherited code (identifier)"
+    },
+    {
+      "file": "src/test/crate/dialogstest.cpp",
+      "text": "EXPECT_FALSE(splash.styleSheet().contains(QLatin1String(\"mixxx\")));",
+      "why": "a test that fails when the name shows"
+    },
+    {
+      "file": "src/test/crate/dialogstest.cpp",
+      "text": "QStringLiteral(\"A deck is currently playing. Exit Mixxx?\"),",
+      "why": "upstream's source string, the input that the brand layer must rewrite"
+    },
+    {
+      "file": "src/test/crate/skinloadtest.cpp",
+      "text": "EXPECT_FALSE(header.contains(QStringLiteral(\"Mixxx\"), Qt::CaseInsensitive))",
+      "why": "a test that fails when the name shows"
+    },
+    {
+      "file": "src/test/crate/skinloadtest.cpp",
+      "text": "QStringLiteral(\"A deck is currently playing. Exit Mixxx?\"),",
+      "why": "upstream's source string, the input that the brand layer must rewrite"
+    },
+    {
+      "file": "src/test/crate/skinloadtest.cpp",
+      "text": "if (path.contains(QLatin1String(\"mixxx\"), Qt::CaseInsensitive)) {",
+      "why": "a test that fails when the name shows"
+    },
+    {
+      "file": "src/test/crate/skinloadtest.cpp",
+      "text": "qWarning() << \"Mixxx shutdown complete with code\" << 0;",
+      "why": "an upstream log line, the input that the log handler must rewrite"
+    },
+    {
+      "file": "tools/crate-design/templates/style.qss.in",
+      "text": "#Mixxx,",
+      "why": "QSS selector of the main window, whose object name the inherited code sets (identifier)"
     }
   ]
 }

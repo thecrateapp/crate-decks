@@ -40,7 +40,7 @@ namespace {
 
 const ConfigKey kFirstRunOfferedKey(
         QStringLiteral("[CrateDecks]"), QStringLiteral("FirstRunOffered"));
-// Mixxx's menu bar settings (mixxxmainwindow.cpp)
+// Upstream's menu bar settings (mixxxmainwindow.cpp)
 const ConfigKey kHideMenuBarKey(QStringLiteral("[Config]"), QStringLiteral("hide_menubar"));
 const ConfigKey kMenuBarHintKey(QStringLiteral("[Config]"), QStringLiteral("show_menubar_hint"));
 
@@ -222,7 +222,7 @@ QWidget* serverPage(CrateServers* pServers, QWidget* pParent, AddServerWidget** 
 }
 
 /// The sound page: the main output, or a warning without devices. It replaces
-/// Mixxx's "No Output Devices" on the first start. `done` moves on.
+/// Upstream's "No Output Devices" on the first start. `done` moves on.
 QWidget* soundPage(const FirstRunServices& services,
         QWidget* pParent,
         const std::function<void()>& done) {
@@ -326,7 +326,7 @@ QWidget* soundPage(const FirstRunServices& services,
 }
 
 /// The optional local music page: folders of this computer next to the
-/// Crate library. It replaces Mixxx's music folder prompt. `done` finishes.
+/// Crate library. It replaces upstream's music folder prompt. `done` finishes.
 QWidget* musicPage(const FirstRunServices& services,
         QWidget* pParent,
         const std::function<void()>& done) {
@@ -505,7 +505,7 @@ FirstRunServices firstRunServices(mixxx::CoreServices* pCoreServices) {
         pSound->clearAndQueryDevices();
     };
     services.showSoundPreferences = [] {
-        // Over the first start, as Mixxx opens it from "No Output Devices"
+        // Over the first start, as upstream opens it from "No Output Devices"
         const QWidgetList windows = QApplication::topLevelWidgets();
         for (QWidget* pWindow : windows) {
             if (auto* pPreferences = qobject_cast<QDialog*>(pWindow);
@@ -530,7 +530,7 @@ FirstRunServices firstRunServices(mixxx::CoreServices* pCoreServices) {
         if (!pLibrary || !pLibrary->requestAddDir(folder)) {
             return false;
         }
-        // The scan Mixxx starts when its own prompt adds a folder
+        // The scan upstream starts when its own prompt adds a folder
         if (pCollections) {
             pCollections->startLibraryScan();
         }
@@ -620,7 +620,7 @@ void offerFirstRun(const UserSettingsPointer& pConfig,
     if (!due(*pServers)) {
         return;
     }
-    // Waits on a timer: Mixxx has no signal for the end of its start, and
+    // Waits on a timer: upstream has no signal for the end of its start, and
     // its startup dialogs run their own event loops
     auto* pWait = new QTimer(pParent);
     pWait->setInterval(kFirstRunWaitMs);

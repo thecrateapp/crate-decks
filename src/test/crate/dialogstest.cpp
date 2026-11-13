@@ -110,14 +110,14 @@ class CrateDialogsTest : public MixxxTest {
 };
 
 TEST_F(CrateDialogsTest, DefaultStyleKeepsMixxxDefaultRules) {
-    // Mixxx's default.qss gives every skin a few images and colours (the
+    // Upstream's default.qss gives every skin a few images and colours (the
     // library preview button, the BPM lock, the cue menu, the colour
     // picker, the search's clear button): Crate's must keep each of those
     // rules, so that a sync that adds one fails here
-    const QString mixxx = readText(
+    const QString inherited = readText(
             QDir(resourcePath()).filePath(QStringLiteral("skins/default.qss")));
     const QString crate = generated(QStringLiteral("default.qss"));
-    ASSERT_FALSE(mixxx.isEmpty());
+    ASSERT_FALSE(inherited.isEmpty());
     ASSERT_FALSE(crate.isEmpty());
     QSet<QString> crateSelectors;
     const auto crateRules = qssRules(crate);
@@ -127,8 +127,8 @@ TEST_F(CrateDialogsTest, DefaultStyleKeepsMixxxDefaultRules) {
         }
     }
     int checked = 0;
-    const auto mixxxRules = qssRules(mixxx);
-    for (const auto& [selectors, body] : mixxxRules) {
+    const auto inheritedRules = qssRules(inherited);
+    for (const auto& [selectors, body] : inheritedRules) {
         if (!body.contains(QLatin1String("image")) && !body.contains(QLatin1String("icon")) &&
                 !body.contains(QLatin1String("background"))) {
             continue;
@@ -146,7 +146,7 @@ TEST_F(CrateDialogsTest, DefaultStyleUsesOnlyGeneratedImages) {
             crate::dialogStyleSheet(resourcePath());
     ASSERT_FALSE(crate::defaultStyleSheet(resourcePath()).isEmpty());
     ASSERT_FALSE(crate::dialogStyleSheet(resourcePath()).isEmpty());
-    // Solar icons and generated controls only, no Mixxx images
+    // Solar icons and generated controls only, no upstream images
     EXPECT_FALSE(style.contains(QLatin1String(":/images/")));
     EXPECT_FALSE(style.contains(QLatin1String("url(skins:")));
     static const QRegularExpression kUrl(QStringLiteral("url\\(([^)]+)\\)"));
@@ -163,7 +163,7 @@ TEST_F(CrateDialogsTest, DefaultStyleReachesParentlessDialogs) {
     Warnings warnings;
     QWidget mainWindow;
     ASSERT_TRUE(crate::applyApplicationStyle(&mainWindow, resourcePath()));
-    // The main window's style, as Mixxx's default.qss, and nothing on the
+    // The main window's style, as upstream's default.qss, and nothing on the
     // application, which would put every widget through QSS
     EXPECT_FALSE(mainWindow.styleSheet().isEmpty());
     EXPECT_TRUE(application()->styleSheet().isEmpty());
@@ -186,7 +186,7 @@ TEST_F(CrateDialogsTest, DefaultStyleReachesParentlessDialogs) {
     EXPECT_NE(QStringLiteral("Roboto"), pSkinButton->font().family());
 }
 
-// Plan "Own brand", BR.PR3: Mixxx's message boxes ("No Output Devices", the
+// Plan "Own brand", BR.PR3: upstream's message boxes ("No Output Devices", the
 // quit confirmation...) show a Solar icon of their kind, not the platform's
 TEST_F(CrateDialogsTest, MessageBoxesUseSolarIcons) {
     QWidget mainWindow;
@@ -229,7 +229,7 @@ TEST_F(CrateDialogsTest, MessageBoxesUseSolarIcons) {
 
 TEST_F(CrateDialogsTest, SplashShowsTheCrateBrand) {
     Warnings warnings;
-    // Mixxx's own splash, with the Mixxx logo
+    // Upstream's own splash, with the upstream logo
     LaunchImage splash(nullptr, QString());
     EXPECT_TRUE(splash.styleSheet().contains(QLatin1String("mixxx-icon-logo")));
     crate::styleLaunchImage(&splash, resourcePath());
@@ -239,7 +239,7 @@ TEST_F(CrateDialogsTest, SplashShowsTheCrateBrand) {
     ASSERT_NE(nullptr, pName);
     EXPECT_QSTRING_EQ(QStringLiteral("Crate Decks"), pName->text());
     EXPECT_NE(nullptr, splash.findChild<QLabel*>(QStringLiteral("CrateSplashLogo")));
-    // Painted on the app's background, not Mixxx's grey
+    // Painted on the app's background, not upstream's grey
     splash.resize(400, 300);
     const QImage image = splash.grab().toImage();
     EXPECT_EQ(crate::DialogMetrics::installed().colour("CrateBgApp").rgb(),
@@ -328,7 +328,7 @@ TEST_F(CrateDialogsTest, BlockingDialogsDimTheMainWindow) {
     ScrimMainWindow main;
     EXPECT_EQ(nullptr, scrimWindow());
 
-    // A confirmation as Mixxx opens one: open() makes it modal to the main
+    // A confirmation as upstream opens one: open() makes it modal to the main
     // window. The scrim covers the whole main window, below the dialog
     QMessageBox confirm(QMessageBox::Question,
             QStringLiteral("Confirm Exit"),

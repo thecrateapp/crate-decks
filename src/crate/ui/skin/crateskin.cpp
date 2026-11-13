@@ -64,7 +64,7 @@ void applyFonts(QWidget* pSkinRoot) {
 
 /// Paints a key that is a MonoLabel, the deck header's (GU1 mockups
 /// .deck-head), as one: its text in the MonoLabel's type and colour. With
-/// Mixxx's key colours on, its default, WKey paints a bar of the key's colour
+/// Upstream's key colours on, its default, WKey paints a bar of the key's colour
 /// by the text, which the mockups do not have, and it paints both in the
 /// style's contents rectangle, which is empty when QSS gives the label no
 /// box: the key did not show at all.
@@ -243,7 +243,7 @@ void prepareLoadedSkin(QWidget* pSkinRoot,
     if (!pSkinRoot) {
         return;
     }
-    // Another skin paints Mixxx's own cells; styleLibrary() sets CrateDecks'
+    // Another skin paints upstream's own cells; styleLibrary() sets CrateDecks'
     delegates::DelegateStyle::setCurrent(delegates::DelegateStyle());
     const SkinVariables variables = readSkinVariables(QDir(skinPath).filePath(kVarsXml));
     if (variables.isEmpty()) {

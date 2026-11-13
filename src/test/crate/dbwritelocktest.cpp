@@ -98,7 +98,7 @@ class CrateDbWriteLockTest : public MixxxTest {
         QSqlQuery query(database());
         ASSERT_TRUE(query.exec(QStringLiteral(
                 "CREATE TABLE t (id INTEGER PRIMARY KEY, v INTEGER)")));
-        // As in Mixxx's schema
+        // As in upstream's schema
         ASSERT_TRUE(query.exec(QStringLiteral(
                 "CREATE TABLE settings (name TEXT UNIQUE NOT NULL, value TEXT)")));
     }
@@ -200,7 +200,7 @@ TEST_F(CrateDbWriteLockTest, OtherThreadsSeeAConnectionWaitForTheLock) {
 }
 
 // A connection that Qt clones, as the track tables' (BaseTrackTableModel),
-// waits as Mixxx's own and tells others that it waits
+// waits as upstream's own and tells others that it waits
 TEST_F(CrateDbWriteLockTest, ClonedConnectionsWaitAsMixxxConnections) {
     LockingWriter writer(m_filePath, 300, 1000);
     writer.start();

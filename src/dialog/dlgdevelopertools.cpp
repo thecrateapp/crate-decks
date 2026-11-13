@@ -5,6 +5,7 @@
 #include <QKeyEvent>
 
 #include "control/control.h"
+#include "crate/appidentity.h"
 #include "moc_dlgdevelopertools.cpp"
 #include "util/logging.h"
 #include "util/statsmanager.h"
@@ -33,7 +34,8 @@ DlgDeveloperTools::DlgDeveloperTools(QWidget* pParent,
     m_statProxyModel.setSourceModel(&m_statModel);
     statsTable->setModel(&m_statProxyModel);
 
-    QString logFileName = QDir(pConfig->getSettingsPath()).filePath("mixxx.log");
+    QString logFileName = QDir(pConfig->getSettingsPath())
+                                  .filePath(QString::fromUtf8(crate::kLogFileName));
     m_logFile.setFileName(logFileName);
     if (!m_logFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
         qWarning() << "ERROR: Could not open log file:" << logFileName;

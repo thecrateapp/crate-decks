@@ -1,6 +1,6 @@
 /*
-  Crate Decks: the splash screen (Mixxx's LaunchImage) with the Crate Decks
-  brand instead of the Mixxx logo (plan V2.PR5), for every skin: the logo,
+  Crate Decks: the splash screen (upstream's LaunchImage) with the Crate Decks
+  brand instead of the upstream logo (plan V2.PR5), for every skin: the logo,
   the name in display type and a 1 px progress lane, as the admin draws
   progress. crate/ui/dialogs/applicationstyle.h applies it, with the
   skins: URLs made absolute.

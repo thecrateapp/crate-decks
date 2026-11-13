@@ -20,7 +20,7 @@ const ConfigKey& showPreferencesKey();
 QAction* findPreferencesAction(QWidget* pWindow);
 
 /// Opens Preferences when [CrateDecks],show_preferences goes to 1, and puts
-/// the control back to 0. Mixxx has no control that opens Preferences: its
+/// the control back to 0. Upstream has no control that opens Preferences: its
 /// menu bar's action does (WMainMenuBar). This triggers that action of the
 /// window `pSkinRoot` is in, so the button, the menu and the keyboard
 /// shortcut do the same thing, also when the menu bar is hidden. It belongs

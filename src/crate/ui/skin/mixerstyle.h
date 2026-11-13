@@ -81,7 +81,7 @@ struct LevelMeterStyle {
 };
 
 /// Paints a vertical level meter of `size` at `level` with its peak hold at
-/// `peak` (both on Mixxx's meter scale, from 0 to 1) in `colour`.
+/// `peak` (both on upstream's meter scale, from 0 to 1) in `colour`.
 void paintLevelMeter(QPainter* pPainter,
         QSize size,
         double level,

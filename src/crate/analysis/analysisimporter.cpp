@@ -21,11 +21,11 @@ const mixxx::Logger kLogger("crate::analysis::AnalysisImporter");
 
 const QString kSubVersionPrefix = QStringLiteral("crate-mix-profile-");
 
-/// Mixxx's ReplayGain 2.0 reference (AnalyzerEbur128).
+/// Upstream's ReplayGain 2.0 reference (AnalyzerEbur128).
 constexpr double kReplayGainReferenceLufs = -18.0;
 
 /// A cue Decks set counts as unedited while it stays this close to where it
-/// was set; Mixxx keeps cue positions in fractional frames.
+/// was set; upstream keeps cue positions in fractional frames.
 constexpr double kCueToleranceMs = 1.0;
 
 /// A BPM within this of a whole or half BPM is quantised.
@@ -167,7 +167,7 @@ std::optional<AppliedCues> importCues(const TrackPointer& pTrack,
     if (cueInfos.isEmpty()) {
         return std::nullopt;
     }
-    // Mixxx skips an import that has a type of an existing cue; the ones
+    // Upstream skips an import that has a type of an existing cue; the ones
     // replaced are gone by now, and the rest are of other types.
     pTrack->importCueInfos(std::make_unique<mixxx::CueInfoImporter>(cueInfos));
     return applied;
@@ -238,7 +238,7 @@ GridCheck checkBeatGrid(const MixProfile& profile) {
         return failed(check, QStringLiteral("The beats drift %1 ms").arg(check.driftMs));
     }
 
-    // Mixxx places a constant grid's marker on its first downbeat.
+    // Upstream places a constant grid's marker on its first downbeat.
     double firstBeatMs = phase - std::floor(phase / period) * period;
     if (profile.downbeatAnchorMs) {
         const double downbeat = static_cast<double>(*profile.downbeatAnchorMs);
@@ -259,7 +259,7 @@ CrateBeatsImporter::CrateBeatsImporter(GridCheck grid, QString profileRevision)
 }
 
 bool CrateBeatsImporter::isEmpty() const {
-    // Mixxx expects an importer to be empty once it has imported.
+    // Upstream expects an importer to be empty once it has imported.
     return m_imported || !m_grid.passed;
 }
 
@@ -327,7 +327,7 @@ ImportOutcome AnalysisImporter::apply(const TrackPointer& pTrack,
         return outcome;
     }
     if (!profile.isFull()) {
-        // Design D6: Mixxx analyses the track itself.
+        // Design D6: upstream analyses the track itself.
         return outcome;
     }
     outcome.usedProfile = true;

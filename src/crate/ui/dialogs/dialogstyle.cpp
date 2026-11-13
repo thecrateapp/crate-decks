@@ -201,7 +201,7 @@ void applyStyles(QWidget* pMainWindow, const QString& styleSheet, const QString&
         pApp->installEventFilter(s_pPolishFixes);
     }
     // A dialog's own style replaces its parents': it needs the menus and
-    // Mixxx's rules too
+    // Upstream's rules too
     s_pPolishFixes->dialogStyleSheet =
             dialogStyleSheet.isEmpty() ? QString() : styleSheet + dialogStyleSheet;
     if (pMainWindow && pMainWindow->styleSheet() != styleSheet) {

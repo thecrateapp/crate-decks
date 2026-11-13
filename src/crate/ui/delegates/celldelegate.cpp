@@ -97,14 +97,14 @@ QFont TrackTextDelegate::textFont() const {
 }
 
 Qt::Alignment TrackTextDelegate::alignment(const QModelIndex& index) const {
-    // The model's horizontal alignment (Mixxx right-aligns BPM and
+    // The model's horizontal alignment (upstream right-aligns BPM and
     // duration), always centred vertically
     const QVariant value = index.data(Qt::TextAlignmentRole);
     Qt::Alignment horizontal = Qt::AlignLeft;
     if (value.isValid()) {
         horizontal = Qt::Alignment(value.toInt()) & Qt::AlignHorizontal_Mask;
         if (horizontal == Qt::AlignHCenter && m_kind == Kind::Meta) {
-            // Mixxx centres dates; a column of tabular figures reads better
+            // Upstream centres dates; a column of tabular figures reads better
             // from the left, as the mockups' mono cells do
             horizontal = Qt::AlignLeft;
         }
@@ -144,7 +144,7 @@ void BpmDelegate::paint(QPainter* pPainter,
         TrackTextDelegate::paint(pPainter, option, index);
         return;
     }
-    // Mixxx writes the BPM with the locale's decimal point; the decks and
+    // Upstream writes the BPM with the locale's decimal point; the decks and
     // the mockups write "124.00" whatever the locale
     QString bpm = index.data(Qt::DisplayRole).toString();
     bpm.replace(QLocale().decimalPoint(), QStringLiteral("."));

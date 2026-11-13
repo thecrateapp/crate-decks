@@ -92,7 +92,12 @@ void EffectPresetManager::saveDefaultForEffect(EffectPresetPointer pEffectPreset
     // The file name does not matter as long as it is unique. The actual id string
     // is safely stored in the UTF8 document, regardless of what the filesystem
     // supports for file names.
-    QFile file(path + "/" + mixxx::filename::sanitize(pEffectPreset->id()) + ".xml");
+    // Crate Decks: no file of the settings folder is named after Mixxx
+    // (plan BR2), so the built-in effects' "org.mixxx." prefix becomes
+    // "builtin." in the file name only
+    QString fileName = pEffectPreset->id();
+    fileName.replace(QLatin1String("org.mixxx."), QLatin1String("builtin."));
+    QFile file(path + "/" + mixxx::filename::sanitize(fileName) + ".xml");
     if (!file.open(QIODevice::Truncate | QIODevice::WriteOnly)) {
         return;
     }

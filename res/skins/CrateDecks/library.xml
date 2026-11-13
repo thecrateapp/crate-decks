@@ -105,7 +105,7 @@
 
               <Library>
                 <ShowButtonText>false</ShowButtonText>
-                <!-- Mixxx's track colours, faint under the row -->
+                <!-- Upstream's track colours, faint under the row -->
                 <TrackTableBackgroundColorOpacity>0.175</TrackTableBackgroundColorOpacity>
                 <SignalColor><Variable name="CrateWaveMidAccent"/></SignalColor>
               </Library>

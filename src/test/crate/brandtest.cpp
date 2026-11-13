@@ -17,6 +17,8 @@
 #include <memory>
 #include <vector>
 
+#include "config.h"
+#include "crate/appidentity.h"
 #include "crate/brand/brandtext.h"
 #include "crate/brand/brandtranslator.h"
 #include "preferences/configobject.h"
@@ -66,14 +68,10 @@ TEST(CrateBrandTextTest, RenamesTheApplication) {
             crate::brandText(QStringLiteral("Tietoja mixxxistä")));
     EXPECT_QSTRING_EQ(QStringLiteral("määritelty Crate Decks-asetuksissa."),
             crate::brandText(QStringLiteral("määritelty mixxx-asetuksissa.")));
-    EXPECT_QSTRING_EQ(QStringLiteral("Soubor Mixxxdb.sqlite může být poškozen."),
-            crate::brandText(QStringLiteral("Soubor Mixxxdb.sqlite může být poškozen.")));
 }
 
 TEST(CrateBrandTextTest, KeepsFileNamesUrlsAndLongerWords) {
     for (const QString& text : {
-                 QStringLiteral("Your mixxxdb.sqlite file may be corrupt."),
-                 QStringLiteral("(e.g. ~/.mixxx)"),
                  QStringLiteral("https://www.mixxx.org/support/"),
                  QStringLiteral("http://www.Mixxx.org"),
                  QStringLiteral("org.mixxx.Mixxx"),
@@ -82,12 +80,36 @@ TEST(CrateBrandTextTest, KeepsFileNamesUrlsAndLongerWords) {
                  QStringLiteral("BeMixxx"),
                  QStringLiteral("std::optional<mixxx::RgbColor>"),
                  QStringLiteral("mixxx-devel@lists.sourceforge.net"),
-                 QStringLiteral("nothing is stored in mixxx.cfg."),
                  QStringLiteral("skins:Mixxx"),
          }) {
         EXPECT_QSTRING_EQ(text, crate::brandText(text));
         EXPECT_FALSE(crate::namesMixxx(text)) << qPrintable(text);
     }
+}
+
+// Plan BR2: the files Decks writes have names of their own, so the texts
+// that name Mixxx's files name Decks' ones instead, in every language
+TEST(CrateBrandTextTest, NamesDecksFiles) {
+    EXPECT_QSTRING_EQ(QStringLiteral("Your crate-decks.sqlite file may be corrupt."),
+            crate::brandText(QStringLiteral("Your mixxxdb.sqlite file may be corrupt.")));
+    EXPECT_QSTRING_EQ(QStringLiteral("nothing is stored in crate-decks.cfg."),
+            crate::brandText(QStringLiteral("nothing is stored in mixxx.cfg.")));
+    EXPECT_QSTRING_EQ(QStringLiteral("the log buffer is flushed to crate-decks.log. <level>"),
+            crate::brandText(QStringLiteral("the log buffer is flushed to mixxx.log. <level>")));
+    EXPECT_QSTRING_EQ(QStringLiteral("saved in the settings path (e.g. ~/.cratedecks)"),
+            crate::brandText(QStringLiteral("saved in the settings path (e.g. ~/.mixxx)")));
+    EXPECT_QSTRING_EQ(QStringLiteral("~/.cratedecks/crate-decks.cfg"),
+            crate::brandText(QStringLiteral("~/.mixxx/mixxx.cfg")));
+    // Capitalised in Czech, misspelt in one translation
+    EXPECT_QSTRING_EQ(QStringLiteral("Soubor crate-decks.sqlite může být poškozen."),
+            crate::brandText(QStringLiteral("Soubor Mixxxdb.sqlite může být poškozen.")));
+    EXPECT_QSTRING_EQ(QStringLiteral("crate-decks.sqlite"),
+            crate::brandText(QStringLiteral("mixxxdp.sqlite")));
+    // The names come from the application identity
+    EXPECT_QSTRING_EQ(QStringLiteral("crate-decks.log"), QString::fromUtf8(crate::kLogFileName));
+    EXPECT_QSTRING_EQ(QStringLiteral("crate-decks.sqlite"),
+            QString::fromUtf8(crate::kDatabaseFileName));
+    EXPECT_STREQ("crate-decks.cfg", MIXXX_SETTINGS_FILE);
 }
 
 TEST(CrateBrandTextTest, DropsMixxxVersions) {
@@ -119,7 +141,10 @@ TEST(CrateBrandTextTest, ShowsMixxxSeesWhatTheUserReads) {
     EXPECT_TRUE(crate::showsMixxx(QStringLiteral("see www.mixxx.org")));
     EXPECT_FALSE(crate::showsMixxx(QStringLiteral(
             "<a href='https://manual.mixxx.org'>User manual</a>")));
-    EXPECT_FALSE(crate::showsMixxx(QStringLiteral("Your mixxxdb.sqlite file may be corrupt.")));
+    // Mixxx's file names are Mixxx too (plan BR2)
+    EXPECT_TRUE(crate::showsMixxx(QStringLiteral("Your mixxxdb.sqlite file may be corrupt.")));
+    EXPECT_TRUE(crate::showsMixxx(QStringLiteral("nothing is stored in mixxx.cfg")));
+    EXPECT_TRUE(crate::showsMixxx(QStringLiteral("flushed to mixxx.log")));
     EXPECT_FALSE(crate::showsMixxx(QStringLiteral("Yaeltex MiniMixxx")));
 }
 

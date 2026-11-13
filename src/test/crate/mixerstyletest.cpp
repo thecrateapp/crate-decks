@@ -123,7 +123,7 @@ TEST_F(CrateSkinMixerTest, MeterTurnsToWarningAboveItsLevel) {
     const QColor track = over(m_meter.track, m_background);
     const int scale = size.height() - m_meter.topGap;
     const int warningTop = size.height() - qRound(scale * m_meter.warningLevel);
-    // -6 dB on Mixxx's meter scale is about three quarters of it
+    // -6 dB on upstream's meter scale is about three quarters of it
     EXPECT_NEAR(0.74, m_meter.warningLevel, 0.01);
 
     QImage image = canvas(size);

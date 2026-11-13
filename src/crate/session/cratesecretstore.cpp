@@ -19,7 +19,7 @@ namespace {
 const mixxx::Logger kLogger("crate::SecretStore");
 
 #ifdef __QTKEYCHAIN__
-/// Keychain service of Crate Decks (design D3), never Mixxx's.
+/// Keychain service of Crate Decks (design D3), never upstream's.
 const QString kKeychainService = QStringLiteral("app.cratemusic.decks");
 
 SecretStore::Status statusOf(const QKeychain::Job& job) {

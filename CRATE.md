@@ -28,13 +28,13 @@ Se reportan en este repositorio, nunca en el de Mixxx.
 
 Dependencias, compilación y tests: [AGENTS.md §7](AGENTS.md). Estilo de código y detalles de compilación de Mixxx: [CONTRIBUTING.md](CONTRIBUTING.md).
 
-El ejecutable es `crate-decks`. En Linux guarda los ajustes en `~/.cratedecks/` (o en la carpeta que se le pase con `--settingsPath`), así que no comparte `mixxx.cfg` ni `mixxxdb.sqlite` con un Mixxx instalado.
+El ejecutable es `crate-decks`. En Linux guarda los ajustes en `~/.cratedecks/` (o en la carpeta que se le pase con `--settingsPath`): `crate-decks.cfg`, la biblioteca `crate-decks.sqlite` y el log `crate-decks.log`. Nunca lee ni migra los ajustes de un Mixxx instalado. Un perfil de un build anterior al 2026-11-12 conserva sus datos si se renombran `mixxx.cfg`, `mixxxdb.sqlite` y `mixxx.log` a esos nombres.
 
 ## Versión
 
 - **Tags:** los de Crate Decks son `decks-vX.Y.Z`, y los crea Diego (AGENTS.md §2). El build solo mira esos (`git describe --match 'decks-v*'`); los tags de Mixxx que trae la historia no cuentan.
 - **Versión del build:** desde un tag, la del tag (`0.1.0`, o `0.1.0-5-g<commit>` cinco commits después). Sin ningún tag, la versión de producto (`crate::kApplicationVersion`) más el commit: `0.1.0-dev+g<commit>`. Con cambios sin commit se añade `-modified`.
-- **Dónde se ve:** en el nombre de la AppImage y de los paquetes, en `--version` y en *About*. La versión de Mixxx de la base solo sale en *About* ("based on Mixxx 2.7.0-alpha"), y `mixxx.cfg` sigue guardando la de Mixxx como versión de los ajustes.
+- **Dónde se ve:** en el nombre de la AppImage y de los paquetes, en `--version` y en *About*. La versión de Mixxx de la base solo sale en *About* ("based on Mixxx 2.7.0-alpha"), y `crate-decks.cfg` guarda la de la base como versión de los ajustes.
 
 ## CI
 

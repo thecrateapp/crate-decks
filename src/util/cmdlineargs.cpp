@@ -19,6 +19,7 @@
 #include "defs_urls.h"
 #include "sources/soundsourceproxy.h"
 #include "util/assert.h"
+#include "util/versionstore.h"
 
 namespace {
 
@@ -90,9 +91,11 @@ CmdlineArgs::CmdlineArgs()
           //
           // This lets the user back up their mixxxdb, add custom controller mappings,
           // potentially diagnose issues by accessing logs etc. via the native iOS files app.
+          // Crate Decks: named after the application (plan BR2)
           m_settingsPath(
                   QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)
-                          .append("/Library/Application Support/Mixxx"))
+                          .append("/Library/Application Support/")
+                          .append(VersionStore::applicationName()))
 #else
 
           // TODO(XXX) Trailing slash not needed anymore as we switches from String::append

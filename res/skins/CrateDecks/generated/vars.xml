@@ -70,7 +70,7 @@
   <SetVariable name="CrateWaveHighBD">#f1f5f9</SetVariable>
 
   <!-- Level meters (crate/ui/skin/mixerstyle.cpp paints them): the deck
-       colour, warning from vuWarningDb on Mixxx's meter scale
+       colour, warning from vuWarningDb on upstream's meter scale
        (CrateVuWarningLevel), a 1 px peak hold -->
   <SetVariable name="CrateVuLevel">#67e8f9</SetVariable>
   <SetVariable name="CrateVuWarning">#fbbf24</SetVariable>
@@ -267,7 +267,7 @@
   <SetVariable name="CrateDlgFirstRunLogoHeight">43</SetVariable>
   <SetVariable name="CrateDlgFontSizeFirstRunTitle">34</SetVariable>
   <SetVariable name="CrateDlgFirstRunActionsTop">4</SetVariable>
-  <!-- The Solar icon of message boxes (own brand: no platform or Mixxx icon) -->
+  <!-- The Solar icon of message boxes (own brand: no platform or upstream icon) -->
   <SetVariable name="CrateDlgMessageIconSize">32</SetVariable>
   <SetVariable name="CrateDlgStepsGap">10</SetVariable>
   <SetVariable name="CrateDlgStepGap">8</SetVariable>

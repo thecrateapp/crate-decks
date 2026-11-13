@@ -10,6 +10,7 @@
 #include <memory>
 #include <optional>
 
+#include "config.h"
 #include "crate/appidentity.h"
 #include "test/crate/fakecratenetwork.h"
 
@@ -104,7 +105,7 @@ TEST_F(CrateClientTest, SendsTheSameDeviceFingerprintAcrossRestarts) {
     QTemporaryDir otherInstallation;
     ASSERT_TRUE(installation.isValid());
     ASSERT_TRUE(otherInstallation.isValid());
-    const QString settingsFile = installation.filePath(QStringLiteral("mixxx.cfg"));
+    const QString settingsFile = installation.filePath(QStringLiteral(MIXXX_SETTINGS_FILE));
 
     UserSettingsPointer pFirstRun(new UserSettings(settingsFile));
     const QString fingerprint = crate::deviceFingerprint(pFirstRun);
@@ -112,7 +113,7 @@ TEST_F(CrateClientTest, SendsTheSameDeviceFingerprintAcrossRestarts) {
     UserSettingsPointer pRestart(new UserSettings(settingsFile));
     const QString fingerprintAfterRestart = crate::deviceFingerprint(pRestart);
     UserSettingsPointer pOther(
-            new UserSettings(otherInstallation.filePath(QStringLiteral("mixxx.cfg"))));
+            new UserSettings(otherInstallation.filePath(QStringLiteral(MIXXX_SETTINGS_FILE))));
 
     EXPECT_FALSE(fingerprint.isEmpty());
     EXPECT_EQ(fingerprint, fingerprintAfterRestart);

@@ -144,7 +144,6 @@ jobs:
           -DDEBUG_ASSERTIONS_FATAL=OFF
           -DBATTERY=ON
           -DBROADCAST=ON
-          -DDOWNLOAD_MANUAL=ON
           -DHID=ON
           -DKEYFINDER=ON
           -DLILV=ON
@@ -211,6 +210,14 @@ jobs:
           GTEST_COLOR: 1
           CTEST_PARALLEL_LEVEL: 3
           CTEST_OUTPUT_ON_FAILURE: 1
+
+      - name: "Check the installed tree"
+        # Plan BR2: nothing installed is named after Mixxx, and only the
+        # CrateDecks skin ships
+        if: matrix.run_tests
+        run: |
+          cmake --install build --prefix "$RUNNER_TEMP/install"
+          python3 tools/crate-brand/check_install.py "$RUNNER_TEMP/install"
 
       - name: "Package"
         if: matrix.cpack_generator != null

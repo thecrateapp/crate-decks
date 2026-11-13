@@ -2315,9 +2315,11 @@ elseif(APPLE AND IOS)
   )
 elseif(UNIX)
   set(MIXXX_INSTALL_BINDIR "${CMAKE_INSTALL_BINDIR}")
-  set(MIXXX_INSTALL_DATADIR "${CMAKE_INSTALL_DATADIR}/${CMAKE_PROJECT_NAME}")
-  set(MIXXX_INSTALL_DOCDIR "${CMAKE_INSTALL_DOCDIR}")
-  set(MIXXX_INSTALL_LICENSEDIR "${CMAKE_INSTALL_DOCDIR}")
+  # Crate Decks: data and documentation under its own name, apart from an
+  # installed Mixxx (plan BR2, BR2.PR3); crate::kInstallDataDirName finds it
+  set(MIXXX_INSTALL_DATADIR "${CMAKE_INSTALL_DATADIR}/crate-decks")
+  set(MIXXX_INSTALL_DOCDIR "${CMAKE_INSTALL_DATAROOTDIR}/doc/crate-decks")
+  set(MIXXX_INSTALL_LICENSEDIR "${MIXXX_INSTALL_DOCDIR}")
 endif()
 
 if(WIN32)
@@ -2578,10 +2580,26 @@ if(NOT ANDROID)
   )
 
   # Skins
-  install(
-    DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/res/skins"
-    DESTINATION "${MIXXX_INSTALL_DATADIR}"
-  )
+  if(CRATE)
+    # Crate Decks: only its own skin and the style sheets every skin shares;
+    # Mixxx's skins carry the Mixxx logo (plan BR2, BR2.PR3)
+    install(
+      DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/res/skins/CrateDecks"
+      DESTINATION "${MIXXX_INSTALL_DATADIR}/skins"
+    )
+    install(
+      FILES
+        "${CMAKE_CURRENT_SOURCE_DIR}/res/skins/default.qss"
+        "${CMAKE_CURRENT_SOURCE_DIR}/res/skins/default-menu-styles-linux.qss"
+        "${CMAKE_CURRENT_SOURCE_DIR}/res/skins/default-menu-styles-windows.qss"
+      DESTINATION "${MIXXX_INSTALL_DATADIR}/skins"
+    )
+  else()
+    install(
+      DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/res/skins"
+      DESTINATION "${MIXXX_INSTALL_DATADIR}"
+    )
+  endif()
 
   # Controller mappings
   install(
@@ -2649,18 +2667,12 @@ install(
 )
 
 # Documentation
+# Crate Decks: Mixxx's manual and keyboard shortcuts are not installed; the
+# Help menu leads to Crate's documentation (plan BR2, BR2.PR3)
 install(
-  FILES
-    "${CMAKE_CURRENT_SOURCE_DIR}/README.md"
-    "${CMAKE_CURRENT_SOURCE_DIR}/res/Mixxx-Keyboard-Shortcuts.pdf"
+  FILES "${CMAKE_CURRENT_SOURCE_DIR}/README.md"
   DESTINATION "${MIXXX_INSTALL_DOCDIR}"
 )
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/res/Mixxx-Manual.pdf")
-  install(
-    FILES "${CMAKE_CURRENT_SOURCE_DIR}/res/Mixxx-Manual.pdf"
-    DESTINATION "${MIXXX_INSTALL_DOCDIR}"
-  )
-endif()
 
 # Additional Linux-only files
 if(UNIX AND NOT APPLE)
@@ -2723,10 +2735,12 @@ if(UNIX AND NOT APPLE)
         endif()
       endif()
     endif()
+    # Crate Decks: the rules are installed under its own name (plan BR2)
     if(MIXXX_UDEVDIR STREQUAL "${MIXXX_INSTALL_DATADIR}/udev")
       install(
         FILES "${CMAKE_CURRENT_SOURCE_DIR}/res/linux/mixxx-usb-uaccess.rules"
         DESTINATION "${MIXXX_UDEVDIR}/rules.d"
+        RENAME "crate-decks-usb-uaccess.rules"
       )
       install(
         CODE
@@ -2735,8 +2749,8 @@ if(UNIX AND NOT APPLE)
           \"The udev rule file for USB HID and Bulk controller permissions have been\n\"
           \"installed to:\n\"
           \"    ${MIXXX_UDEVDIR}/rules.d.\n\"
-          \"If you are installing Mixxx from source for your own use, copy\n\"
-          \"mixxx-usb-uaccess.rules to /etc/udev/rules.d/ and run:\n\"
+          \"If you are installing Crate Decks from source for your own use, copy\n\"
+          \"crate-decks-usb-uaccess.rules to /etc/udev/rules.d/ and run:\n\"
           \"    udevadm control --reload-rules && udevadm trigger\n\"
           \"as root to load the rules.\n\"
           \"If you are building a package for a distribution, the correct directory for\n\"
@@ -2749,7 +2763,7 @@ if(UNIX AND NOT APPLE)
       install(
         FILES "${CMAKE_CURRENT_SOURCE_DIR}/res/linux/mixxx-usb-uaccess.rules"
         DESTINATION "${MIXXX_UDEVDIR}/rules.d"
-        RENAME "69-mixxx-usb-uaccess.rules"
+        RENAME "69-crate-decks-usb-uaccess.rules"
       )
     endif()
   endif()

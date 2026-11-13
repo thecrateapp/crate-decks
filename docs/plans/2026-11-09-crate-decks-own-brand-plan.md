@@ -19,6 +19,8 @@ Diego, 2026-11-09: *"que se absorba absolutamente todo lo de Mixxx, no puede apa
 - Mixxx's first-run dialogs are absorbed into Crate's first start, or decided without asking.
 - **Unchanged:** identifiers, control groups, config keys and file names keep "Mixxx" (`mixxxdb.sqlite`,
   `mixxx.cfg`, `[Master]`, `MixxxControl` in mapping XML). They are not shown as product names.
+  **Superseded on 2026-11-12** by the [second pass](2026-11-12-decks-debranding-plan.md): the files Decks writes,
+  its logs, its installed tree and our own code drop the name too; only internal identifiers stay.
 - **Only exception:** the credits in *About* ("based on Mixxx", the Mixxx team, the GPL notice), required by
   D2 and by the GPL's notices. The metainfo's credit line is the same credit for software centres. §7 asks
   Diego to confirm both.
@@ -363,4 +365,4 @@ Built on `feat/decks-own-brand` (local, not pushed), one commit per task, each b
 - **2026-11-10:** Diego decided §7. `40cd5412d9` (feat(decks): drop the Donate to Mixxx button from About)
   follows §7.2, test first (`CrateBrandingTest.AboutOffersNoDonation`); the inventory drops the string (104
   strings, 2 kept).
-- **Still to do:** BR.PR7 (built on `feat/decks-help-links`; merges once the docs pages are live), BR.PR8 (with F9.PR1), BR.PR9 (optional refactor).
+- **Still to do:** BR.PR9 (optional refactor). BR.PR7 merged; BR.PR8 is done in the [second pass](2026-11-12-decks-debranding-plan.md) (BR2.PR3).

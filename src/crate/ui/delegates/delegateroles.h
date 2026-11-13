@@ -7,12 +7,12 @@ namespace crate::delegates {
 /// The item-data roles that the delegates of src/crate/ui/delegates/ read.
 /// A model that wants a Crate cell (F3's track models, F4's cache state,
 /// F5's compatibles) returns its data under these roles; the delegates never
-/// look at a model's columns. They start well above Mixxx's own roles
+/// look at a model's columns. They start well above upstream's own roles
 /// (TrackModel and SidebarModel use Qt::UserRole to Qt::UserRole + 3).
 enum Role : int {
     /// QString, the Camelot key of a track, such as "8A". Without it the
     /// Camelot delegate reads the display text of a key column, in any
-    /// notation Mixxx knows, and shows it in Camelot.
+    /// notation upstream knows, and shows it in Camelot.
     CamelotRole = Qt::UserRole + 0x200,
     /// int, a CamelotTone: how the key relates to the master deck's.
     CamelotToneRole,

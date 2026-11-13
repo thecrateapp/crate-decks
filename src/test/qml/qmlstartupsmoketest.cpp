@@ -12,6 +12,7 @@
 #include <ostream>
 #include <string>
 
+#include "config.h"
 #include "coreservices.h"
 #include "preferences/configobject.h"
 #include "qml/qmlapplication.h"
@@ -69,7 +70,7 @@ class QmlStartupSmokeTest : public MixxxTest,
     }
 
     static void writeProfile(const QString& settingsPath, const QmlSkin& skin) {
-        auto settings = UserSettingsPointer(new UserSettings(settingsPath + "mixxx.cfg"));
+        auto settings = UserSettingsPointer(new UserSettings(settingsPath + MIXXX_SETTINGS_FILE));
         settings->setValue(ConfigKey("[Config]", "Version"), VersionStore::FUTURE_UNSTABLE);
         if (!skin.useNewUi) {
             settings->setValue(

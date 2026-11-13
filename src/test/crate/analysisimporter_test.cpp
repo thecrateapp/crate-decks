@@ -70,14 +70,14 @@ class AnalysisImporterTest : public MixxxTest, SoundSourceProviderRegistration {
         return profile.ok() ? profile.value() : MixProfile();
     }
 
-    /// A track Mixxx has not opened: no sample rate from the decoder yet.
+    /// A track upstream has not opened: no sample rate from the decoder yet.
     TrackPointer unopenedTrack() const {
         const QString path = getTestDir().filePath(kAudioFile);
         EXPECT_TRUE(QFile::exists(path));
         return Track::newTemporary(path);
     }
 
-    /// A track whose file Mixxx has opened, as after a first load.
+    /// A track whose file upstream has opened, as after a first load.
     TrackPointer openedTrack() const {
         TrackPointer pTrack = unopenedTrack();
         SoundSourceProxy proxy(pTrack);
@@ -125,7 +125,7 @@ TEST_F(AnalysisImporterTest, ImportsBeatGridAtFileSampleRate) {
         }
     }
 
-    // A track Mixxx has not opened yet gets the grid when the file opens, at
+    // A track upstream has not opened yet gets the grid when the file opens, at
     // the file's own sample rate.
     TrackPointer pTrack = unopenedTrack();
     const ImportOutcome outcome = AnalysisImporter::apply(pTrack, profile, crateEverything());
@@ -292,8 +292,8 @@ TEST_F(AnalysisImporterTest, CreatesIntroOutroCues) {
     EXPECT_NEAR(31964 * perMs, pIntro->getEndPosition().value(), 1.0);
     EXPECT_NEAR(165802 * perMs, pOutro->getPosition().value(), 1.0);
     EXPECT_NEAR(196350 * perMs, pOutro->getEndPosition().value(), 1.0);
-    // activeEndMs is a musical end, not Mixxx's −60 dB end of sound: Mixxx's
-    // silence analysis sets N60dBSound, and the main cue stays Mixxx's.
+    // activeEndMs is a musical end, not upstream's −60 dB end of sound: upstream's
+    // silence analysis sets N60dBSound, and the main cue stays upstream's.
     EXPECT_EQ(nullptr, pTrack->findCueByType(mixxx::CueType::N60dBSound));
     EXPECT_EQ(mainCue, pTrack->getMainCuePosition());
 
@@ -302,7 +302,7 @@ TEST_F(AnalysisImporterTest, CreatesIntroOutroCues) {
     EXPECT_EQ((AppliedCues::Range{475.0, 31964.0}), outcome.appliedCues->intro);
     EXPECT_EQ((AppliedCues::Range{165802.0, 196350.0}), outcome.appliedCues->outro);
 
-    // A track Mixxx has not opened gets them when the file opens.
+    // A track upstream has not opened gets them when the file opens.
     TrackPointer pUnopened = unopenedTrack();
     AnalysisImporter::apply(pUnopened, profile, Policy());
     EXPECT_EQ(Track::ImportStatus::Pending, pUnopened->getCueImportStatus());
@@ -426,7 +426,7 @@ TEST_F(AnalysisImporterTest, SetsGainFromLufsOnlyWhenAsked) {
 
     EXPECT_TRUE(AnalysisImporter::apply(pTrack, profile, policy).gainSet);
 
-    // Mixxx's ReplayGain 2.0 reference, −18 LUFS.
+    // Upstream's ReplayGain 2.0 reference, −18 LUFS.
     ASSERT_TRUE(pTrack->getReplayGain().hasRatio());
     EXPECT_NEAR(db2ratio(-18.0 - -8.6), pTrack->getReplayGain().getRatio(), 1e-6);
 }
@@ -443,7 +443,7 @@ TEST_F(AnalysisImporterTest, AnalyzerSkipsBeatsForCrateGrid) {
             mixxx::audio::ChannelCount::stereo(),
             static_cast<SINT>(10 * pTrack->getSampleRate().toDouble())));
 
-    // With Mixxx's beats (the default policy) the analyzer runs.
+    // With upstream's beats (the default policy) the analyzer runs.
     TrackPointer pLocal = openedTrack();
     AnalysisImporter::apply(pLocal, profile, Policy());
     AnalyzerBeats localAnalyzer(config(), true);
@@ -548,7 +548,7 @@ TEST_F(AnalysisImporterTest, RealFractionalBpmProfileFailsGridCheck) {
     EXPECT_FALSE(atHalf.passed);
     EXPECT_GT(atHalf.maxDeviationMs, crate::analysis::kGridMaxDeviationMs);
 
-    // Mixxx analyses the beats; the rest of the profile still applies.
+    // Upstream analyses the beats; the rest of the profile still applies.
     TrackPointer pTrack = openedTrack();
     const ImportOutcome outcome = AnalysisImporter::apply(pTrack, profile, crateEverything());
     EXPECT_TRUE(outcome.usedProfile);
@@ -593,7 +593,7 @@ TEST_F(AnalysisImporterTest, RealTrackedProfileFailsGridCheck) {
 }
 
 // A real `partial` profile carries a grid and a key, but Decks takes nothing
-// from it: Mixxx analyses the track.
+// from it: upstream analyses the track.
 TEST_F(AnalysisImporterTest, RealPartialProfileLeavesTrackForLocalAnalysis) {
     const MixProfile profile = fixture(kRealPartialFixture);
     ASSERT_EQ(MixProfile::Quality::Partial, profile.quality);

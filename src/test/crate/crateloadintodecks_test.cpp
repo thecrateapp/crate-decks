@@ -568,7 +568,7 @@ TEST_F(CrateLoadIntoDecksTest, TrackInADeckSurvivesClearCacheAndALowerLimit) {
     EXPECT_TRUE(QFile::exists(cachedPathOf(QStringLiteral("e1"))));
     EXPECT_EQ(m_audio.size(), pCache->usage().inUseBytes);
 
-    // Ejected (later than Mixxx's double press, which would reload the
+    // Ejected (later than upstream's double press, which would reload the
     // last ejected track instead): the limit takes it. The engine keeps
     // running while time passes, as with a sound card: it takes in the chunks
     // read for the loaded track. Left unread, they reach the reader after the
@@ -641,7 +641,7 @@ QByteArray withLargeCover(const QString& sourcePath, int side) {
     return file.open(QIODevice::ReadOnly) ? file.readAll() : QByteArray();
 }
 
-/// How long it takes to read the tags and the cover of `audio` as Mixxx
+/// How long it takes to read the tags and the cover of `audio` as upstream
 /// does when it adds a file to its library, on this machine.
 double importCostMs(const QByteArray& audio) {
     QTemporaryDir dir;

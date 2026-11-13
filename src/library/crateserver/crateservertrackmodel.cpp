@@ -688,8 +688,8 @@ QString CrateServerTrackModel::getTrackLocation(const QModelIndex& index) const 
 }
 
 TrackId CrateServerTrackModel::getTrackId(const QModelIndex& index) const {
-    // The rows' ids are Crate's, not Mixxx's: only a cached track has one in
-    // Mixxx's library
+    // The rows' ids are Crate's, not upstream's: only a cached track has one in
+    // Upstream's library
     const TrackPointer pTrack = getTrack(index);
     return pTrack ? pTrack->getId() : TrackId();
 }
@@ -773,7 +773,7 @@ QAbstractItemDelegate* CrateServerTrackModel::delegateForColumn(
     case kCacheColumn:
         return new delegates::CacheStateDelegate(style, pParent);
     default:
-        // The skin gives Mixxx's columns its own delegates
+        // The skin gives upstream's columns its own delegates
         return nullptr;
     }
 }

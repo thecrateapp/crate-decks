@@ -32,7 +32,7 @@ Variables:
         <EndOfTrackColor><Variable name="CrateWarning"/></EndOfTrackColor>
         <SlipBorderOutlineColor><Variable name="CrateWarning"/></SlipBorderOutlineColor>
         <PassthroughLabelColor><Variable name="CrateTextMuted"/></PassthroughLabelColor>
-        <!-- Hotcues: Mixxx paints them in their own colour -->
+        <!-- Hotcues: upstream paints them in their own colour -->
         <DefaultMark>
           <Align>top|left</Align>
           <Color><Variable name="DeckColor"/></Color>
