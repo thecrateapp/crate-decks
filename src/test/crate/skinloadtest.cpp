@@ -934,6 +934,28 @@ TEST_F(CrateSkinLoadTest, EveryVisibleControlTakesItsClicks) {
     }
 }
 
+TEST_F(CrateSkinLoadTest, EmptyDecksNameTheirLoadKey) {
+    QTemporaryDir profile;
+    ASSERT_TRUE(profile.isValid());
+    OffscreenDecks decks(profile.path() + QLatin1Char('/'));
+    decks.writeProfile(kCrateDecks);
+    decks.start(application());
+    ASSERT_NE(nullptr, decks.skin());
+    // The keyboard mappings load the selected track into deck 1 and 2 with
+    // Shift + Left and Shift + Right; decks 3 and 4 have no key
+    QStringList hints;
+    const QList<QLabel*> labels = decks.skin()->findChildren<QLabel*>(QStringLiteral("MonoDropHint"));
+    for (const QLabel* pLabel : labels) {
+        hints.append(pLabel->text());
+    }
+    hints.removeDuplicates();
+    hints.sort();
+    EXPECT_EQ(QStringList({QStringLiteral("Or select a track · Shift + ←"),
+                      QStringLiteral("Or select a track · Shift + →"),
+                      QStringLiteral("Or use Load to in a track's menu")}),
+            hints);
+}
+
 /// The widget of `type` named `name` inside the strip of deck `letter`
 /// (two decks), found by the strip's deck letter.
 template<typename T>
