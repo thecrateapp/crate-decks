@@ -137,6 +137,57 @@
   <SetVariable name="CrateLevelRingTrackWidth">{{strokeHairline}}</SetVariable>
   <SetVariable name="CrateLevelRingMinimum">{{levelRingMinimum}}</SetVariable>
 
+  <!-- Instrument widgets: crate/ui/widgets/ paints the Camelot wheel, the
+       level ring and the scales of GenreWheel and StackMap with them
+       (design 14.5, plan V3.PR1) -->
+  <SetVariable name="CrateInstStrokeHairline">{{strokeHairline}}</SetVariable>
+  <SetVariable name="CrateInstStrokeNode">{{strokeNode}}</SetVariable>
+  <SetVariable name="CrateInstStrokeActive">{{strokeActive}}</SetVariable>
+  <SetVariable name="CrateInstStrokeNodeActive">{{strokeNodeActive}}</SetVariable>
+  <SetVariable name="CrateInstStrokeSelected">{{strokeSelected}}</SetVariable>
+  <SetVariable name="CrateInstStrokeConnection">{{strokeConnection}}</SetVariable>
+  <SetVariable name="CrateInstNodeRoot">{{nodeRoot}}</SetVariable>
+  <SetVariable name="CrateInstNodeSelected">{{nodeSelected}}</SetVariable>
+  <SetVariable name="CrateInstTickCount">{{tickCount}}</SetVariable>
+  <SetVariable name="CrateInstTickEvery">{{tickEvery}}</SetVariable>
+  <SetVariable name="CrateInstTickLong">{{tickLong}}</SetVariable>
+  <SetVariable name="CrateInstTickShort">{{tickShort}}</SetVariable>
+  <SetVariable name="CrateInstDashData">{{dashData}}</SetVariable>
+  <SetVariable name="CrateInstDashQueue">{{dashQueue}}</SetVariable>
+  <SetVariable name="CrateInstDashTelemetry">{{dashTelemetry}}</SetVariable>
+  <SetVariable name="CrateInstDashAxis">{{dashAxis}}</SetVariable>
+  <SetVariable name="CrateInstDashSpoke">{{dashSpoke}}</SetVariable>
+  <SetVariable name="CrateInstOpacityContext">{{opacityContext}}</SetVariable>
+  <SetVariable name="CrateInstOpacityGuide">{{opacityGuide}}</SetVariable>
+  <SetVariable name="CrateInstArrowMarkerSize">{{arrowMarkerSize}}</SetVariable>
+  <SetVariable name="CrateInstArrowMarkerBox">{{arrowMarkerBox}}</SetVariable>
+  <SetVariable name="CrateInstArrowMarkerTip">{{arrowMarkerTip}}</SetVariable>
+  <SetVariable name="CrateInstArrowMarkerBack">{{arrowMarkerBack}}</SetVariable>
+  <SetVariable name="CrateInstArrowMarkerSpread">{{arrowMarkerSpread}}</SetVariable>
+  <SetVariable name="CrateInstGlowSelectedRadius">{{glowSelectedRadius}}</SetVariable>
+  <SetVariable name="CrateInstGlowSelectedAlpha">{{glowSelectedAlpha}}</SetVariable>
+  <SetVariable name="CrateInstGlowHoverRadius">{{glowHoverRadius}}</SetVariable>
+  <SetVariable name="CrateInstGlowHoverAlpha">{{glowHoverAlpha}}</SetVariable>
+  <SetVariable name="CrateInstWheelCanvas">{{wheelCanvas}}</SetVariable>
+  <SetVariable name="CrateInstCamelotRingA">{{camelotRingA}}</SetVariable>
+  <SetVariable name="CrateInstCamelotRingB">{{camelotRingB}}</SetVariable>
+  <SetVariable name="CrateInstCamelotWheelSize">{{camelotWheelSize}}</SetVariable>
+  <SetVariable name="CrateInstCamelotLabelGap">{{camelotLabelGap}}</SetVariable>
+  <SetVariable name="CrateInstCamelotNameGap">{{camelotNameGap}}</SetVariable>
+  <SetVariable name="CrateInstCamelotLabelShift">{{camelotLabelShift}}</SetVariable>
+  <SetVariable name="CrateInstCamelotEdgeBow">{{camelotEdgeBow}}</SetVariable>
+  <SetVariable name="CrateInstCamelotFigureBaseline">{{camelotFigureBaseline}}</SetVariable>
+  <SetVariable name="CrateInstCamelotSubtitleBaseline">{{camelotSubtitleBaseline}}</SetVariable>
+  <SetVariable name="CrateInstFontSizeWheelLabel">{{fontSizeWheelLabel}}</SetVariable>
+  <SetVariable name="CrateInstTrackingWheelLabel">{{trackingWheelLabel}}</SetVariable>
+  <SetVariable name="CrateInstTrackingWheelFigure">{{trackingWheelFigure}}</SetVariable>
+  <SetVariable name="CrateInstFontSizeDisplay">{{fontSizeDisplay}}</SetVariable>
+  <SetVariable name="CrateInstFontWeightDisplay">{{fontWeightDisplay}}</SetVariable>
+  <SetVariable name="CrateInstFontSizeMeta">{{fontSizeMeta}}</SetVariable>
+  <SetVariable name="CrateInstFontSizeMonoLabel">{{fontSizeMonoLabel}}</SetVariable>
+  <SetVariable name="CrateInstMonoSeparatorPadding">{{monoSeparatorPadding}}</SetVariable>
+  <SetVariable name="CrateInstLevelRingInset">{{levelRingInset}}</SetVariable>
+
   <!-- Library: crate/ui/delegates/ paints its cells and its sidebar, and
        crate/ui/skin/librarystyle.cpp its rows, column headers and deck
        letters (GU1 mockups decks.css .tracks and .side) -->

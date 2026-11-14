@@ -1307,8 +1307,9 @@ PR indicado.
 |---|---|
 | `instrumentpainter.{h,cpp}` | Utilidades comunes: plumas cosméticas de 1 px alineadas a medio píxel, anillos con marcas configurables (24 con una larga cada 30° en los knobs, según GU1; 48 con una larga cada 4 en los anillos de StackMap), ejes discontinuos, patrones de trazo por tipo, nodos (hueco, activo, seleccionado, contexto), flechas, MonoLabel pintado (mayúsculas, tracking 0,14 em, separador ` · `) y cifra de display. Todo desde los tokens de geometría |
 | `camelotwheel.{h,cpp}` y `camelotwheelmodel.{h,cpp}` | Rueda Camelot de §14.3: el modelo (sin widgets) calcula activo, compatibles y contexto a partir de la tonalidad del deck maestro y de los compatibles de F5; el widget dibuja dos anillos de 12 nodos, aristas activas con flecha y un centro con la tonalidad en display. Clic en un nodo filtra la vista Compatibles por esa tonalidad |
-| `transitionplanview.{h,cpp}` y `transitionplanviewmodel.{h,cpp}` | Plan de Smart Mix de §14.3: dos líneas de tiempo con marcas de beat, cues como nodos, ventana de transición, patrones por aspecto (tempo, bajos, ganancia, beatmatch largo) y leyenda MonoLabel. Durante la ejecución, cursor de progreso a 30 fps como máximo |
 | `levelring.{h,cpp}` | Anillo de nivel (progreso de descarga, cobertura de un set offline) como `stack-map__level` |
+
+La vista del plan de Smart Mix sale de este PR y pasa a V3.PR1b (Diego, 2026-11-14): sus tests necesitan los fixtures de F6.C-PR1, y F6 no está hecho. Lo común que necesita (patrones de trazo, ejes discontinuos, flechas, MonoLabel y cifra de display) ya está en `instrumentpainter`.
 
 **Tests:**
 - `instrumentpainter_test.cpp`:
@@ -1320,11 +1321,19 @@ PR indicado.
   - `NoMasterTrackMeansAllRest`
   - `ContextOpacityForUnrelated`
 - `camelotwheel_test.cpp`: render a `QImage` y comprobación de píxeles; nodo activo en `accent` y contexto con alfa ≈ 0,25.
+- `levelring_test.cpp`: `ArcProportionalToValue`.
+
+**V3.PR1b · Vista del plan de Smart Mix** (`src/crate/ui/widgets/`, tras F6.C-PR1)
+
+| Fichero | Contenido |
+|---|---|
+| `transitionplanview.{h,cpp}` y `transitionplanviewmodel.{h,cpp}` | Plan de Smart Mix de §14.3: dos líneas de tiempo con marcas de beat, cues como nodos, ventana de transición, patrones por aspecto (tempo, bajos, ganancia, beatmatch largo) y leyenda MonoLabel. Durante la ejecución, cursor de progreso a 30 fps como máximo |
+
+**Tests:**
 - `transitionplanviewmodel_test.cpp`:
   - `MapsPlanToSegments` (con los fixtures de F6.C-PR1)
   - `BassHandoffUsesQueueDash`
   - `FallbackPlanRendersAsSimpleFade`
-- `levelring_test.cpp`: `ArcProportionalToValue`.
 - **Rendimiento:** `transitionplanview_test.cpp`, `RepaintsOnlyDirtyRegionDuringRun` y `CachesStaticScaleInPixmap` (presupuesto de §9 del diseño).
 
 **V3.PR2 · Vistas de Crate**

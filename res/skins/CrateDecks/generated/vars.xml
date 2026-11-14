@@ -137,6 +137,57 @@
   <SetVariable name="CrateLevelRingTrackWidth">1</SetVariable>
   <SetVariable name="CrateLevelRingMinimum">0.04</SetVariable>
 
+  <!-- Instrument widgets: crate/ui/widgets/ paints the Camelot wheel, the
+       level ring and the scales of GenreWheel and StackMap with them
+       (design 14.5, plan V3.PR1) -->
+  <SetVariable name="CrateInstStrokeHairline">1</SetVariable>
+  <SetVariable name="CrateInstStrokeNode">1.25</SetVariable>
+  <SetVariable name="CrateInstStrokeActive">1.5</SetVariable>
+  <SetVariable name="CrateInstStrokeNodeActive">1.75</SetVariable>
+  <SetVariable name="CrateInstStrokeSelected">2.25</SetVariable>
+  <SetVariable name="CrateInstStrokeConnection">1.4</SetVariable>
+  <SetVariable name="CrateInstNodeRoot">5.5</SetVariable>
+  <SetVariable name="CrateInstNodeSelected">8</SetVariable>
+  <SetVariable name="CrateInstTickCount">48</SetVariable>
+  <SetVariable name="CrateInstTickEvery">4</SetVariable>
+  <SetVariable name="CrateInstTickLong">7</SetVariable>
+  <SetVariable name="CrateInstTickShort">3</SetVariable>
+  <SetVariable name="CrateInstDashData">9 4</SetVariable>
+  <SetVariable name="CrateInstDashQueue">3 4</SetVariable>
+  <SetVariable name="CrateInstDashTelemetry">1 5</SetVariable>
+  <SetVariable name="CrateInstDashAxis">1 7</SetVariable>
+  <SetVariable name="CrateInstDashSpoke">1.5 4</SetVariable>
+  <SetVariable name="CrateInstOpacityContext">0.25</SetVariable>
+  <SetVariable name="CrateInstOpacityGuide">0.45</SetVariable>
+  <SetVariable name="CrateInstArrowMarkerSize">5</SetVariable>
+  <SetVariable name="CrateInstArrowMarkerBox">10</SetVariable>
+  <SetVariable name="CrateInstArrowMarkerTip">8</SetVariable>
+  <SetVariable name="CrateInstArrowMarkerBack">1</SetVariable>
+  <SetVariable name="CrateInstArrowMarkerSpread">4</SetVariable>
+  <SetVariable name="CrateInstGlowSelectedRadius">5</SetVariable>
+  <SetVariable name="CrateInstGlowSelectedAlpha">0.35</SetVariable>
+  <SetVariable name="CrateInstGlowHoverRadius">4</SetVariable>
+  <SetVariable name="CrateInstGlowHoverAlpha">0.5</SetVariable>
+  <SetVariable name="CrateInstWheelCanvas">760</SetVariable>
+  <SetVariable name="CrateInstCamelotRingA">196</SetVariable>
+  <SetVariable name="CrateInstCamelotRingB">292</SetVariable>
+  <SetVariable name="CrateInstCamelotWheelSize">470</SetVariable>
+  <SetVariable name="CrateInstCamelotLabelGap">7</SetVariable>
+  <SetVariable name="CrateInstCamelotNameGap">5</SetVariable>
+  <SetVariable name="CrateInstCamelotLabelShift">0.35</SetVariable>
+  <SetVariable name="CrateInstCamelotEdgeBow">0.86</SetVariable>
+  <SetVariable name="CrateInstCamelotFigureBaseline">4</SetVariable>
+  <SetVariable name="CrateInstCamelotSubtitleBaseline">24</SetVariable>
+  <SetVariable name="CrateInstFontSizeWheelLabel">10</SetVariable>
+  <SetVariable name="CrateInstTrackingWheelLabel">0.04</SetVariable>
+  <SetVariable name="CrateInstTrackingWheelFigure">-0.04</SetVariable>
+  <SetVariable name="CrateInstFontSizeDisplay">40</SetVariable>
+  <SetVariable name="CrateInstFontWeightDisplay">800</SetVariable>
+  <SetVariable name="CrateInstFontSizeMeta">10.5</SetVariable>
+  <SetVariable name="CrateInstFontSizeMonoLabel">10.3125</SetVariable>
+  <SetVariable name="CrateInstMonoSeparatorPadding">4</SetVariable>
+  <SetVariable name="CrateInstLevelRingInset">2</SetVariable>
+
   <!-- Library: crate/ui/delegates/ paints its cells and its sidebar, and
        crate/ui/skin/librarystyle.cpp its rows, column headers and deck
        letters (GU1 mockups decks.css .tracks and .side) -->
