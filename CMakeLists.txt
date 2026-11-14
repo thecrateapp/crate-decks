@@ -5416,6 +5416,7 @@ if(CRATE)
       src/crate/ui/widgets/camelotwheel.cpp
       src/crate/ui/widgets/camelotwheelmodel.cpp
       src/crate/ui/widgets/instrumentpainter.cpp
+      src/crate/ui/widgets/levelring.cpp
       src/library/crateserver/crateserverfeature.cpp
       src/library/crateserver/crateservertrackmodel.cpp
   )
@@ -5465,6 +5466,7 @@ if(CRATE)
         src/test/crate/instrumentpainter_test.cpp
         src/test/crate/camelotwheelmodel_test.cpp
         src/test/crate/camelotwheel_test.cpp
+        src/test/crate/levelring_test.cpp
     )
   endif()
   # Decks' stem files and the NI STEM reader they go through (ST5.PR2)
