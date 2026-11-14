@@ -950,16 +950,16 @@ TEST_F(CrateSkinLoadTest, EveryVisibleControlTakesItsClicks) {
         ControlObject::set(fourDecks, deckCount);
         QCoreApplication::processEvents();
         int visibleSyncButtons = 0;
-        const QList<QWidget*> syncButtons = decks.skin()->findChildren<QWidget*>(
-                QRegularExpression(QStringLiteral("^CrateDeckButtonFrameSync")));
+        static const QRegularExpression kSyncButton(QStringLiteral("^CrateDeckButtonFrameSync"));
+        const QList<QWidget*> syncButtons = decks.skin()->findChildren<QWidget*>(kSyncButton);
         for (QWidget* pButton : syncButtons) {
             visibleSyncButtons += pButton->isVisible() ? 1 : 0;
         }
         // The deck controls are part of the inventory
-        EXPECT_GE(visibleSyncButtons, deckCount ? 4 : 2);
+        EXPECT_GE(visibleSyncButtons, deckCount > 0.0 ? 4 : 2);
         const QStringList covered = coveredControls(decks.skin());
         EXPECT_TRUE(covered.isEmpty())
-                << (deckCount ? "4 decks" : "2 decks") << ", " << covered.size()
+                << (deckCount > 0.0 ? "4 decks" : "2 decks") << ", " << covered.size()
                 << " covered:\n  " << covered.join(QStringLiteral("\n  ")).toStdString();
     }
 }
@@ -990,7 +990,7 @@ TEST_F(CrateSkinLoadTest, EmptyDecksNameTheirLoadKey) {
 /// The files of the racks' templates, from the three racks down
 QStringList rackTemplateFiles() {
     const QDir skinDir(skinPath(kCrateDecks));
-    const QRegularExpression include(QStringLiteral("src=\"skins:CrateDecks/([^\"]+)\""));
+    static const QRegularExpression include(QStringLiteral("src=\"skins:CrateDecks/([^\"]+)\""));
     QStringList pending = {QStringLiteral("fx_rack.xml"),
             QStringLiteral("samplers_rack.xml"),
             QStringLiteral("mic_aux_rack.xml")};
@@ -1018,7 +1018,7 @@ QSet<QString> lateNightStyledNames() {
     EXPECT_TRUE(qss.open(QIODevice::ReadOnly));
     const QString text = QString::fromUtf8(qss.readAll());
     QSet<QString> names;
-    const QRegularExpression id(QStringLiteral("#([A-Za-z_][A-Za-z0-9_-]*)"));
+    static const QRegularExpression id(QStringLiteral("#([A-Za-z_][A-Za-z0-9_-]*)"));
     for (auto it = id.globalMatch(text); it.hasNext();) {
         names.insert(it.next().captured(1));
     }
@@ -1088,7 +1088,9 @@ void forEachRackState(OffscreenDecks* pDecks, const std::function<void(const QSt
 TEST_F(CrateSkinLoadTest, RacksUseNoLateNightStyle) {
     // The racks' templates name no LateNight pixmap: every image they use
     // is generated from the tokens
-    const QRegularExpression pixmap(
+    static const QRegularExpression kSchemeVariable(
+            QStringLiteral("name=\"(Btn|Knob|Slider|Style)Scheme\""));
+    static const QRegularExpression pixmap(
             QStringLiteral("skins:CrateDecks/(?!generated/)[^<\"]*\\.(svg|png)"));
     const QStringList files = rackTemplateFiles();
     EXPECT_GT(files.size(), 20);
@@ -1097,9 +1099,7 @@ TEST_F(CrateSkinLoadTest, RacksUseNoLateNightStyle) {
         ASSERT_TRUE(xml.open(QIODevice::ReadOnly)) << file.toStdString();
         const QString text = QString::fromUtf8(xml.readAll());
         EXPECT_FALSE(text.contains(QLatin1String("palemoon"))) << file.toStdString();
-        EXPECT_FALSE(text.contains(QRegularExpression(QStringLiteral(
-                "name=\"(Btn|Knob|Slider|Style)Scheme\""))))
-                << file.toStdString();
+        EXPECT_FALSE(text.contains(kSchemeVariable)) << file.toStdString();
         EXPECT_FALSE(text.contains(pixmap)) << file.toStdString();
     }
 
