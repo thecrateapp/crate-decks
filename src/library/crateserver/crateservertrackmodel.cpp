@@ -617,16 +617,19 @@ TrackPointer CrateServerTrackModel::getTrackByRef(const TrackRef& trackRef) cons
     return TrackPointer();
 }
 
-bool CrateServerTrackModel::requestTrackLoad(
-        const QModelIndex& index, const QString& group, bool play) {
+bool CrateServerTrackModel::canRequestTrackLoad(const QModelIndex& index) const {
     if (!m_pCoordinator || !index.isValid() || index.row() >= m_rows.size()) {
         return false;
     }
     const Row& row = m_rows[index.row()];
-    if (cachedPathOf(row) && m_pCoordinator->loadsAtOnce(row.serverId, row.entityUid)) {
-        // A cached track loads at once, as a local one, once its file is in
-        // the library: the first time, the library reads it off the main
-        // thread
+    // A cached track loads at once, as a local one, once its file is in the
+    // library: the first time, the library reads it off the main thread
+    return !(cachedPathOf(row) && m_pCoordinator->loadsAtOnce(row.serverId, row.entityUid));
+}
+
+bool CrateServerTrackModel::requestTrackLoad(
+        const QModelIndex& index, const QString& group, bool play) {
+    if (!canRequestTrackLoad(index)) {
         return false;
     }
     m_pCoordinator->requestLoad(trackRef(index.row()), group, play);

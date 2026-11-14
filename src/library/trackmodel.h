@@ -118,6 +118,14 @@ class TrackModel {
     /// still has to be fetched. An empty group is the first stopped deck,
     /// as a double click loads. The track table and menu ask this before
     /// getTrack(); when it returns true they load nothing themselves.
+    /// Whether requestTrackLoad() would load the track at `index`. A drag of
+    /// such a track carries no file, and the deck it is dropped on asks the
+    /// view to load it (TrackDragSource).
+    virtual bool canRequestTrackLoad(const QModelIndex& index) const {
+        Q_UNUSED(index);
+        return false;
+    }
+
     virtual bool requestTrackLoad(const QModelIndex& index, const QString& group, bool play) {
         Q_UNUSED(index);
         Q_UNUSED(group);

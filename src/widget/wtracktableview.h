@@ -8,6 +8,7 @@
 #include "library/dao/playlistdao.h"
 #include "library/trackmodel.h" // Can't forward declare enums
 #include "preferences/usersettings.h"
+#include "util/dnd.h"
 #include "util/duration.h"
 #include "util/parented_ptr.h"
 #include "widget/wlibrarytableview.h"
@@ -22,7 +23,7 @@ class ExternalTrackCollection;
 class Library;
 class WTrackMenu;
 
-class WTrackTableView : public WLibraryTableView {
+class WTrackTableView : public WLibraryTableView, public TrackDragSource {
     Q_OBJECT
   public:
     WTrackTableView(
@@ -53,6 +54,11 @@ class WTrackTableView : public WLibraryTableView {
     void loadSelectedTrackToGroup(const QString& group,
             bool play);
 #endif
+    // TrackDragSource: a dragged track the model loads itself (a Crate track
+    // that is not downloaded yet) goes to the deck it is dropped on, as with
+    // "Load to"
+    bool canLoadDraggedTracks() const override;
+    void loadDraggedTracks(const QString& group) override;
     void toggleBpmLock(bool locked);
     void assignNextTrackColor() override;
     void assignPreviousTrackColor() override;

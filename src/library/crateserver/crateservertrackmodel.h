@@ -126,6 +126,7 @@ class CrateServerTrackModel : public QAbstractTableModel, public TrackModel {
     // TrackModel
     TrackPointer getTrack(const QModelIndex& index) const override;
     TrackPointer getTrackByRef(const TrackRef& trackRef) const override;
+    bool canRequestTrackLoad(const QModelIndex& index) const override;
     bool requestTrackLoad(const QModelIndex& index, const QString& group, bool play) override;
     QList<QAction*> trackMenuActions(const QModelIndexList& indices, QObject* pParent) override;
     QUrl getTrackUrl(const QModelIndex& index) const override;
