@@ -236,6 +236,23 @@ void applySkinDefaults(const UserSettingsPointer& pConfig, const QString& skinPa
     }
 }
 
+namespace {
+
+/// The toolbar's buttons stack their text label over the push button
+/// (tb_button.xml). The label is on top, so without this it took every
+/// click and the button never toggled its control: FX, Samplers, Mic · Aux
+/// and 4 Decks did nothing. The text only shows; clicks and tooltips go to
+/// the button under it.
+void passToolbarClicksThrough(QWidget* pSkinRoot) {
+    const QList<QLabel*> labels =
+            pSkinRoot->findChildren<QLabel*>(QStringLiteral("MonoTbButtonText"));
+    for (QLabel* pLabel : labels) {
+        pLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
+    }
+}
+
+} // namespace
+
 void prepareLoadedSkin(QWidget* pSkinRoot,
         const QString& skinPath,
         Library* pLibrary,
@@ -251,6 +268,7 @@ void prepareLoadedSkin(QWidget* pSkinRoot,
     }
     applyFonts(pSkinRoot);
     paintMonoKeys(pSkinRoot);
+    passToolbarClicksThrough(pSkinRoot);
     styleMixer(pSkinRoot, variables);
     styleLibrary(pSkinRoot, variables, skinPath, pLibrary, pConfig);
 
