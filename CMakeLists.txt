@@ -3040,6 +3040,7 @@ if(BUILD_TESTING)
       src/test/ringdelaybuffer_test.cpp
       src/test/sampleutiltest.cpp
       src/test/waveform_upgrade_test.cpp
+      src/test/rendergraphglslshaderkeytest.cpp
     )
   endif()
   # Crate Decks: tests of the Crate code (src/test/crate/)

@@ -3,6 +3,10 @@
 #include <QFile>
 #ifdef USE_QSHADER_FOR_GL
 #include <rhi/qshader.h>
+
+#include <QOpenGLContext>
+
+#include "rendergraph/glslshaderkey.h"
 #endif
 
 #include "../../util/assert.h"
@@ -22,8 +26,8 @@ QByteArray loadShaderCodeFromFile(const QString& path) {
         return QByteArray();
     }
     QShader qsbShader = QShader::fromSerialized(file.readAll());
-    QShaderKey key(QShader::GlslShader, 120);
-    return qsbShader.shader(key).shader();
+    const QOpenGLContext* const pContext = QOpenGLContext::currentContext();
+    return qsbShader.shader(glslShaderKey(pContext && pContext->isOpenGLES())).shader();
 }
 #else
 QString resource(const QString& filename) {
