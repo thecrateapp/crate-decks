@@ -11,6 +11,7 @@
 #include <QtConcurrent/QtConcurrentRun>
 
 #include "controllers/defs_controllers.h"
+#include "controllers/hid/hidapilock.h"
 #include "moc_hidcontroller.cpp"
 #include "util/string.h"
 
@@ -185,6 +186,7 @@ int HidController::open(const QString& resourcePath) {
     qCInfo(m_logBase) << "Opening HID device" << getName() << "by HID path"
                       << m_deviceInfo.pathRaw();
 
+    std::unique_lock hidApiLock(mixxx::hid::apiMutex());
     hid_device* pHidDevice = hid_open_path(m_deviceInfo.pathRaw());
 
     // If that fails, try to open device with vendor/product/serial #
@@ -247,6 +249,7 @@ int HidController::open(const QString& resourcePath) {
                                                         kMaxHidErrorMessageSize));
         return -1;
     }
+    hidApiLock.unlock();
 #endif
 
     // Set hid controller to non-blocking
@@ -406,6 +409,7 @@ void HidController::fetchReportDescriptorInBackground() {
             return;
         }
 
+        std::unique_lock hidApiLock(mixxx::hid::apiMutex());
         hid_device* pHidDevice = hid_open_path(this->m_deviceInfo.pathRaw());
         if (!pHidDevice) {
             pHidDevice = hid_open(this->m_deviceInfo.getVendorId(),
@@ -417,6 +421,7 @@ void HidController::fetchReportDescriptorInBackground() {
                     this->m_deviceInfo.getProductId(),
                     nullptr);
         }
+        hidApiLock.unlock();
         if (!pHidDevice) {
             return;
         }
