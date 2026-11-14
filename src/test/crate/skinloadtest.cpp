@@ -679,6 +679,22 @@ const QList<ConfigKey> kRackKeys = {
         ConfigKey(QStringLiteral("[Skin]"), QStringLiteral("show_microphones")),
 };
 
+/// Marks the four decks loaded, so that they show their controls instead
+/// of the drop zone, and opens the three racks, at 1920 x 1080.
+void openRacksOverLoadedDecks(OffscreenDecks* pDecks) {
+    for (int deck = 1; deck <= 4; ++deck) {
+        // track_loaded is read-only to everyone but the deck
+        ControlObject* pLoaded = ControlObject::getControl(ConfigKey(
+                QStringLiteral("[Channel%1]").arg(deck), QStringLiteral("track_loaded")));
+        ASSERT_NE(nullptr, pLoaded);
+        pLoaded->forceSet(1.0);
+    }
+    for (const ConfigKey& key : kRackKeys) {
+        ControlObject::set(key, 1);
+    }
+    pDecks->mainWindow()->resize(1920, 1080);
+}
+
 TEST_F(CrateSkinLoadTest, RacksStartFolded) {
     // A first start: SkinControls creates the rack controls at 1 before the
     // skin loads, and the skin's defaults must still apply
@@ -1739,6 +1755,92 @@ TEST_F(CrateSkinScreenshots, Capture) {
         pPreferences->hide();
     }
     decks.answerModalDialogs(true);
+}
+
+/// Dev-only harness, like Capture: the window at 1920 x 1080 with the FX,
+/// sampler and Mic · Aux racks open over loaded decks, with two and four
+/// decks: folded, and with the effect units and the samplers expanded and
+/// the mic and aux inputs configured. Runs only with
+/// CRATE_SKIN_SCREENSHOTS=<output dir>.
+TEST_F(CrateSkinScreenshots, Racks) {
+    const QString outDir = qEnvironmentVariable("CRATE_SKIN_SCREENSHOTS");
+    if (outDir.isEmpty()) {
+        GTEST_SKIP() << "Set CRATE_SKIN_SCREENSHOTS=<dir> to render the racks";
+    }
+    QDir().mkpath(outDir);
+    QTemporaryDir profile;
+    ASSERT_TRUE(profile.isValid());
+    OffscreenDecks decks(profile.path() + QLatin1Char('/'));
+    decks.writeProfile(kCrateDecks,
+            {{ConfigKey("[Config]", "hide_menubar"), QStringLiteral("1")}});
+    decks.start(application());
+    ASSERT_NE(nullptr, decks.skin());
+    decks.mainWindow()->menuBar()->hide();
+    openRacksOverLoadedDecks(&decks);
+    // A few knobs off their default, and something on, to see the states
+    const QList<std::pair<ConfigKey, double>> values = {
+            {ConfigKey("[EffectRack1_EffectUnit1]", "mix"), 0.7},
+            {ConfigKey("[EffectRack1_EffectUnit1]", "super1"), 0.35},
+            {ConfigKey("[EffectRack1_EffectUnit1_Effect1]", "enabled"), 1},
+            {ConfigKey("[EffectRack1_EffectUnit1_Effect1]", "meta"), 0.6},
+            {ConfigKey("[EffectRack1_EffectUnit2]", "focused_effect"), 2},
+            {ConfigKey("[Sampler1]", "pregain"), 0.7},
+            {ConfigKey("[Sampler1]", "sync_enabled"), 1},
+            {ConfigKey("[Sampler2]", "pfl"), 1},
+            {ConfigKey("[Microphone]", "pregain"), 0.6},
+    };
+    for (const auto& [key, parameter] : values) {
+        if (ControlObject* pControl = ControlObject::getControl(key)) {
+            pControl->setParameter(parameter);
+        }
+    }
+    // An effect in each slot of the first two units, so that their
+    // parameters show
+    for (int unit = 1; unit <= 2; ++unit) {
+        for (int effect = 1; effect <= 3; ++effect) {
+            ControlObject::set(ConfigKey(QStringLiteral("[EffectRack1_EffectUnit%1_Effect%2]")
+                                                 .arg(unit)
+                                                 .arg(effect),
+                                       QStringLiteral("effect_selector")),
+                    effect);
+        }
+    }
+    for (const bool expanded : {false, true}) {
+        for (int unit = 1; unit <= 4; ++unit) {
+            ControlObject::set(ConfigKey(QStringLiteral("[EffectRack1_EffectUnit%1]").arg(unit),
+                                       QStringLiteral("show_parameters")),
+                    expanded ? 1 : 0);
+        }
+        for (const char* samplers : {"expand_samplers_1-4",
+                     "expand_samplers_1-8",
+                     "expand_samplers_9-16"}) {
+            ControlObject::set(ConfigKey("[LateNight]", samplers), expanded ? 1 : 0);
+        }
+        // Without sound devices no input is configured: the expanded shots
+        // show the units of configured inputs (input_configured is
+        // read-only to everyone but the sound manager)
+        for (const QString& group : {QStringLiteral("[Microphone]"),
+                     QStringLiteral("[Microphone2]"),
+                     QStringLiteral("[Auxiliary1]"),
+                     QStringLiteral("[Auxiliary2]")}) {
+            if (ControlObject* pConfigured = ControlObject::getControl(
+                        ConfigKey(group, QStringLiteral("input_configured")))) {
+                pConfigured->forceSet(expanded ? 1 : 0);
+            }
+        }
+        ControlObject::set(ConfigKey("[Microphone]", "talkover"), expanded ? 1 : 0);
+        ControlObject::set(ConfigKey("[Auxiliary1]", "main_mix"), expanded ? 1 : 0);
+        for (const int deckCount : {2, 4}) {
+            ControlObject::set(ConfigKey("[Skin]", "show_4decks"), deckCount == 4 ? 1 : 0);
+            waitFor([] { return false; }, 1500);
+            const QImage image = decks.skin()->grab().toImage();
+            const QString file = QDir(outDir).filePath(
+                    QStringLiteral("racks-%1deck-1920%2.png")
+                            .arg(deckCount)
+                            .arg(expanded ? QStringLiteral("-expanded") : QString()));
+            EXPECT_TRUE(image.save(file)) << file.toStdString();
+        }
+    }
 }
 
 /// The last menu that showed. In a Wayland compositor a popup opened
