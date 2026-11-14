@@ -9,41 +9,34 @@
     <Children>
 
       <WidgetGroup>
-        <ObjectName>MicAuxUnit</ObjectName>
+        <ObjectName>CrateMicAuxUnit</ObjectName>
         <Layout>horizontal</Layout>
         <SizePolicy>min,min</SizePolicy>
         <Children>
 
           <WidgetGroup>
-            <ObjectName>MicAuxMainControls</ObjectName>
+            <ObjectName>CrateMicAuxMainControls</ObjectName>
             <Layout>vertical</Layout>
             <SizePolicy>min,me</SizePolicy>
             <Children>
 
               <Label>
-                <ObjectName>MicAuxLabel</ObjectName>
-                <Size>,20f</Size>
+                <ObjectName>MonoMicAuxLabel</ObjectName>
                 <Text>Aux <Variable name="AuxNum"/></Text>
                 <Alignment>center</Alignment>
               </Label>
 
-              <Template src="skins:CrateDecks/controls/button_xfader_deck.xml">
-                <SetVariable name="DeckGroup">Aux</SetVariable>
-                <SetVariable name="xfaderLeft">default</SetVariable>
-                <SetVariable name="xfaderMid">default</SetVariable>
-                <SetVariable name="xfaderRight">default</SetVariable>
-              </Template>
+              <Template src="skins:CrateDecks/mic_aux/orientation_buttons.xml"/>
 
               <WidgetGroup>
-                <ObjectName>AuxPlayBox</ObjectName>
+                <ObjectName>CrateAuxPlayBox</ObjectName>
                 <Layout>vertical</Layout>
                 <SizePolicy>min,me</SizePolicy>
                 <Children>
-                  <Template src="skins:CrateDecks/controls/button_2state.xml">
+                  <Template src="skins:CrateDecks/controls/rack_button.xml">
                     <SetVariable name="TooltipId">main_enable</SetVariable>
-                    <SetVariable name="ObjectName">AuxPlay</SetVariable>
-                    <SetVariable name="Size">42f,26f</SetVariable>
-                    <SetVariable name="BtnSize">medium</SetVariable>
+                    <SetVariable name="ObjectName">CrateRackButtonOn</SetVariable>
+                    <SetVariable name="Text">On</SetVariable>
                     <SetVariable name="ConfigKey"><Variable name="Group"/>,main_mix</SetVariable>
                   </Template>
                 </Children>
@@ -53,45 +46,42 @@
           </WidgetGroup><!-- MicAuxMainControls -->
 
           <WidgetGroup>
-            <ObjectName>MicAuxVUMeter</ObjectName>
+            <ObjectName>CrateMicAuxVUMeter</ObjectName>
             <Layout>vertical</Layout>
             <SizePolicy>min,me</SizePolicy>
             <Children>
-              <Template src="skins:CrateDecks/mixer/vumeter_single.xml">
-                <SetVariable name="ChannelType">auxiliary</SetVariable>
-                <SetVariable name="VuSize">micaux</SetVariable>
+              <Template src="skins:CrateDecks/mixer_vu.xml">
+                <SetVariable name="VuKey">vu_meter</SetVariable>
+                <SetVariable name="PeakKey">peak_indicator</SetVariable>
+                <SetVariable name="Colour">Main</SetVariable>
               </Template>
             </Children>
           </WidgetGroup>
 
           <WidgetGroup><!-- Gain, Pfl, FX buttons-->
-            <ObjectName>MicAuxSubControls</ObjectName>
+            <ObjectName>CrateMicAuxSubControls</ObjectName>
             <Layout>vertical</Layout>
             <SizePolicy>min,me</SizePolicy>
             <Children>
               <WidgetGroup>
-                <ObjectName>MicAuxGainPFlContainer</ObjectName>
+                <ObjectName>CrateMicAuxGainPFlContainer</ObjectName>
                 <Layout>horizontal</Layout>
                 <SizePolicy>min,me</SizePolicy>
                 <Children>
-                  <Template src="skins:CrateDecks/controls/knob.xml">
+                  <Template src="skins:CrateDecks/controls/rack_knob.xml">
                     <SetVariable name="TooltipId">auxiliary_pregain</SetVariable>
-                    <SetVariable name="Size">35f,30f</SetVariable>
-                    <SetVariable name="KnobColor">orange</SetVariable>
-                    <SetVariable name="ArcColor"><Variable name="ArcColorGain"/></SetVariable>
+                    <SetVariable name="ArcUnipolar">true</SetVariable>
                     <SetVariable name="Control">pregain</SetVariable>
                   </Template>
-                  <WidgetGroup><Size>4f,0min</Size></WidgetGroup>
                   <WidgetGroup>
                     <ObjectName>AlignHCenter</ObjectName>
                     <Layout>vertical</Layout>
                     <SizePolicy>min,min</SizePolicy>
                     <Children>
-                      <Template src="skins:CrateDecks/controls/button_2state.xml">
+                      <Template src="skins:CrateDecks/controls/rack_button.xml">
                         <SetVariable name="TooltipId">pfl</SetVariable>
-                        <SetVariable name="ObjectName">PflButton</SetVariable>
-                        <SetVariable name="BtnSize">square</SetVariable>
-                        <SetVariable name="Size">26f,26f</SetVariable>
+                        <SetVariable name="ObjectName">CrateRackPfl</SetVariable>
+                        <SetVariable name="Text"></SetVariable>
                         <SetVariable name="ConfigKey"><Variable name="Group"/>,pfl</SetVariable>
                       </Template>
                     </Children>

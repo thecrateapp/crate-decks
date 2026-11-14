@@ -7,13 +7,13 @@
 -->
 <Template>
   <WidgetGroup>
-    <ObjectName>FxUnit<Variable name="FxUnit"/></ObjectName>
+    <ObjectName>CrateFxUnit<Variable name="FxUnit"/></ObjectName>
     <Layout>horizontal</Layout>
     <SizePolicy>me,min</SizePolicy>
     <Children>
 
       <WidgetGroup>
-        <ObjectName>FxSlotsCollapsed</ObjectName>
+        <ObjectName>CrateFxSlotsCollapsed</ObjectName>
         <SizePolicy>me,min</SizePolicy>
         <Layout>horizontal</Layout>
         <Children>
@@ -34,7 +34,7 @@
                     <Children>
                       <WidgetGroup><SizePolicy>me,me</SizePolicy></WidgetGroup>
                       <WidgetGroup>
-                        <ObjectName>FxMixerSeparatorCollapsed</ObjectName>
+                        <ObjectName>CrateFxMixerSeparatorCollapsed</ObjectName>
                         <Layout>horizontal</Layout>
                         <Children/>
                       </WidgetGroup>
@@ -60,7 +60,7 @@
           </WidgetGroup>
 
           <WidgetGroup>
-            <ObjectName>FxFlowIndicatorCollapsed</ObjectName>
+            <ObjectName>CrateFxFlowIndicatorCollapsed</ObjectName>
             <Layout>horizontal</Layout>
             <SizePolicy>min,me</SizePolicy>
             <Children/>
@@ -79,7 +79,7 @@
           </WidgetGroup>
 
           <WidgetGroup>
-            <ObjectName>FxFlowIndicatorCollapsed</ObjectName>
+            <ObjectName>CrateFxFlowIndicatorCollapsed</ObjectName>
             <Layout>horizontal</Layout>
             <Children/>
           </WidgetGroup>
@@ -97,7 +97,7 @@
           </WidgetGroup>
 
           <WidgetGroup>
-            <ObjectName>FxMixerSeparatorCollapsed</ObjectName>
+            <ObjectName>CrateFxMixerSeparatorCollapsed</ObjectName>
             <Layout>horizontal</Layout>
             <Children/>
           </WidgetGroup>
@@ -105,7 +105,7 @@
       </WidgetGroup><!-- FxSlotsCollapsed -->
 
       <WidgetGroup>
-        <ObjectName>FxUnitControlsCollapsed</ObjectName>
+        <ObjectName>CrateFxUnitControlsCollapsed</ObjectName>
         <Layout>horizontal</Layout>
         <SizePolicy>max,min</SizePolicy>
         <Children>
@@ -140,7 +140,7 @@
 
       <!-- Fx label + Expand_Collapsed -->
       <WidgetGroup>
-        <ObjectName>FxUnitHeaderCollapsed</ObjectName>
+        <ObjectName>CrateFxUnitHeaderCollapsed</ObjectName>
         <Layout>horizontal</Layout>
         <SizePolicy>max,min</SizePolicy>
         <Children>

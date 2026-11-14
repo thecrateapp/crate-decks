@@ -1,0 +1,90 @@
+<!--
+  The crossfader side of an auxiliary input: three rack text buttons, L, M
+  and R, that set it directly, as LateNight's row of three did; the side it
+  is on is lit.
+Variables: Group
+-->
+<Template>
+  <WidgetGroup>
+    <ObjectName>CrateRackSides</ObjectName>
+    <Layout>horizontal</Layout>
+    <SizePolicy>min,min</SizePolicy>
+    <Children>
+      <PushButton>
+        <TooltipId>orientation</TooltipId>
+        <ObjectName>CrateRackButtonSide</ObjectName>
+        <NumberStates>2</NumberStates>
+        <State>
+          <Number>0</Number>
+          <Text>L</Text>
+          <Alignment>center</Alignment>
+        </State>
+        <State>
+          <Number>1</Number>
+          <Text>L</Text>
+          <Alignment>center</Alignment>
+        </State>
+        <Connection>
+          <ConfigKey><Variable name="Group"/>,orientation_left</ConfigKey>
+          <ButtonState>LeftButton</ButtonState>
+          <ConnectValueToWidget>false</ConnectValueToWidget>
+        </Connection>
+        <Connection>
+          <ConfigKey><Variable name="Group"/>,orientation</ConfigKey>
+          <Transform><IsEqual>0</IsEqual></Transform>
+          <ConnectValueFromWidget>false</ConnectValueFromWidget>
+        </Connection>
+      </PushButton>
+      <PushButton>
+        <TooltipId>orientation</TooltipId>
+        <ObjectName>CrateRackButtonSide</ObjectName>
+        <NumberStates>2</NumberStates>
+        <State>
+          <Number>0</Number>
+          <Text>M</Text>
+          <Alignment>center</Alignment>
+        </State>
+        <State>
+          <Number>1</Number>
+          <Text>M</Text>
+          <Alignment>center</Alignment>
+        </State>
+        <Connection>
+          <ConfigKey><Variable name="Group"/>,orientation_center</ConfigKey>
+          <ButtonState>LeftButton</ButtonState>
+          <ConnectValueToWidget>false</ConnectValueToWidget>
+        </Connection>
+        <Connection>
+          <ConfigKey><Variable name="Group"/>,orientation</ConfigKey>
+          <Transform><IsEqual>1</IsEqual></Transform>
+          <ConnectValueFromWidget>false</ConnectValueFromWidget>
+        </Connection>
+      </PushButton>
+      <PushButton>
+        <TooltipId>orientation</TooltipId>
+        <ObjectName>CrateRackButtonSide</ObjectName>
+        <NumberStates>2</NumberStates>
+        <State>
+          <Number>0</Number>
+          <Text>R</Text>
+          <Alignment>center</Alignment>
+        </State>
+        <State>
+          <Number>1</Number>
+          <Text>R</Text>
+          <Alignment>center</Alignment>
+        </State>
+        <Connection>
+          <ConfigKey><Variable name="Group"/>,orientation_right</ConfigKey>
+          <ButtonState>LeftButton</ButtonState>
+          <ConnectValueToWidget>false</ConnectValueToWidget>
+        </Connection>
+        <Connection>
+          <ConfigKey><Variable name="Group"/>,orientation</ConfigKey>
+          <Transform><IsEqual>2</IsEqual></Transform>
+          <ConnectValueFromWidget>false</ConnectValueFromWidget>
+        </Connection>
+      </PushButton>
+    </Children>
+  </WidgetGroup>
+</Template>
