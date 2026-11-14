@@ -18,6 +18,7 @@
 #include <QImage>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMap>
 #include <QMenu>
 #include <QMenuBar>
 #include <QMessageBox>
@@ -25,7 +26,9 @@
 #include <QPainter>
 #include <QPointer>
 #include <QPushButton>
+#include <QRegularExpression>
 #include <QScrollBar>
+#include <QSet>
 #include <QSqlDatabase>
 #include <QSqlError>
 #include <QSqlQuery>
@@ -90,6 +93,8 @@
 #include "widget/wlibrary.h"
 #include "widget/wlibrarysidebar.h"
 #include "widget/wtracktableview.h"
+#include "widget/wwidgetgroup.h"
+#include "widget/wwidgetstack.h"
 
 #ifdef MIXXX_USE_QOPENGL
 #include <QOpenGLWindow>
@@ -707,7 +712,7 @@ TEST_F(CrateSkinLoadTest, RacksStartFolded) {
     for (const ConfigKey& key : kRackKeys) {
         EXPECT_EQ(0.0, ControlObject::get(key)) << key.item.toStdString();
     }
-    auto* pMicAux = decks.skin()->findChild<QWidget*>(QStringLiteral("MicAuxRack"));
+    auto* pMicAux = decks.skin()->findChild<QWidget*>(QStringLiteral("CrateMicAuxRack"));
     ASSERT_NE(nullptr, pMicAux);
     EXPECT_FALSE(pMicAux->isVisible());
 }
@@ -726,6 +731,204 @@ TEST_F(CrateSkinLoadTest, RacksKeepTheUsersChoice) {
     for (const ConfigKey& key : kRackKeys) {
         EXPECT_EQ(1.0, ControlObject::get(key)) << key.item.toStdString();
     }
+}
+
+/// The files of the racks' templates, from the three racks down
+QStringList rackTemplateFiles() {
+    const QDir skinDir(skinPath(kCrateDecks));
+    const QRegularExpression include(QStringLiteral("src=\"skins:CrateDecks/([^\"]+)\""));
+    QStringList pending = {QStringLiteral("fx_rack.xml"),
+            QStringLiteral("samplers_rack.xml"),
+            QStringLiteral("mic_aux_rack.xml")};
+    QStringList files;
+    while (!pending.isEmpty()) {
+        const QString file = pending.takeFirst();
+        if (files.contains(file)) {
+            continue;
+        }
+        files.append(file);
+        QFile xml(skinDir.filePath(file));
+        EXPECT_TRUE(xml.open(QIODevice::ReadOnly)) << file.toStdString();
+        const QString text = QString::fromUtf8(xml.readAll());
+        for (auto it = include.globalMatch(text); it.hasNext();) {
+            pending.append(it.next().captured(1));
+        }
+    }
+    return files;
+}
+
+/// The object names that LateNight's style, which the skin still loads
+/// first (skin.xml), selects by id
+QSet<QString> lateNightStyledNames() {
+    QFile qss(QDir(skinPath(kCrateDecks)).filePath(QStringLiteral("style.qss")));
+    EXPECT_TRUE(qss.open(QIODevice::ReadOnly));
+    const QString text = QString::fromUtf8(qss.readAll());
+    QSet<QString> names;
+    const QRegularExpression id(QStringLiteral("#([A-Za-z_][A-Za-z0-9_-]*)"));
+    for (auto it = id.globalMatch(text); it.hasNext();) {
+        names.insert(it.next().captured(1));
+    }
+    return names;
+}
+
+/// The skin's own widgets (not groups) in the open racks
+QList<QWidget*> rackControls(QWidget* pSkin) {
+    QList<QWidget*> controls;
+    const QList<QWidget*> racks = pSkin->findChildren<QWidget*>(QStringLiteral("CrateRack"));
+    for (QWidget* pRack : racks) {
+        if (!pRack->isVisible()) {
+            continue;
+        }
+        const QList<QWidget*> widgets = pRack->findChildren<QWidget*>();
+        for (QWidget* pWidget : widgets) {
+            if (pWidget->isVisible() && dynamic_cast<WBaseWidget*>(pWidget) &&
+                    !qobject_cast<WWidgetGroup*>(pWidget) &&
+                    !qobject_cast<WWidgetStack*>(pWidget)) {
+                controls.append(pWidget);
+            }
+        }
+    }
+    return controls;
+}
+
+/// Shows the racks in every state they have: effect units folded and
+/// expanded, samplers small and big, mic and aux inputs without and with a
+/// device, with two and four decks. Calls `check` in each.
+void forEachRackState(OffscreenDecks* pDecks, const std::function<void(const QString&)>& check) {
+    openRacksOverLoadedDecks(pDecks);
+    for (const bool expanded : {false, true}) {
+        for (int unit = 1; unit <= 4; ++unit) {
+            ControlObject::set(ConfigKey(QStringLiteral("[EffectRack1_EffectUnit%1]").arg(unit),
+                                       QStringLiteral("show_parameters")),
+                    expanded ? 1 : 0);
+            // An effect in the first slot shows its parameters
+            ControlObject::set(ConfigKey(QStringLiteral("[EffectRack1_EffectUnit%1_Effect1]")
+                                                 .arg(unit),
+                                       QStringLiteral("effect_selector")),
+                    1);
+        }
+        for (const char* samplers : {"expand_samplers_1-4",
+                     "expand_samplers_1-8",
+                     "expand_samplers_9-16"}) {
+            ControlObject::set(ConfigKey("[LateNight]", samplers), expanded ? 1 : 0);
+        }
+        for (const QString& group : {QStringLiteral("[Microphone]"),
+                     QStringLiteral("[Microphone2]"),
+                     QStringLiteral("[Auxiliary1]"),
+                     QStringLiteral("[Auxiliary2]")}) {
+            if (ControlObject* pConfigured = ControlObject::getControl(
+                        ConfigKey(group, QStringLiteral("input_configured")))) {
+                pConfigured->forceSet(expanded ? 1 : 0);
+            }
+        }
+        for (const int deckCount : {2, 4}) {
+            ControlObject::set(ConfigKey("[Skin]", "show_4decks"), deckCount == 4 ? 1 : 0);
+            waitFor([] { return false; }, 300);
+            check(QStringLiteral("%1 decks%2")
+                            .arg(deckCount)
+                            .arg(expanded ? QStringLiteral(", expanded") : QString()));
+        }
+    }
+}
+
+TEST_F(CrateSkinLoadTest, RacksUseNoLateNightStyle) {
+    // The racks' templates name no LateNight pixmap: every image they use
+    // is generated from the tokens
+    const QRegularExpression pixmap(
+            QStringLiteral("skins:CrateDecks/(?!generated/)[^<\"]*\\.(svg|png)"));
+    const QStringList files = rackTemplateFiles();
+    EXPECT_GT(files.size(), 20);
+    for (const QString& file : files) {
+        QFile xml(QDir(skinPath(kCrateDecks)).filePath(file));
+        ASSERT_TRUE(xml.open(QIODevice::ReadOnly)) << file.toStdString();
+        const QString text = QString::fromUtf8(xml.readAll());
+        EXPECT_FALSE(text.contains(QLatin1String("palemoon"))) << file.toStdString();
+        EXPECT_FALSE(text.contains(QRegularExpression(QStringLiteral(
+                "name=\"(Btn|Knob|Slider|Style)Scheme\""))))
+                << file.toStdString();
+        EXPECT_FALSE(text.contains(pixmap)) << file.toStdString();
+    }
+
+    QTemporaryDir profile;
+    ASSERT_TRUE(profile.isValid());
+    OffscreenDecks decks(profile.path() + QLatin1Char('/'));
+    decks.writeProfile(kCrateDecks);
+    decks.start(application());
+    ASSERT_NE(nullptr, decks.skin());
+    const QSet<QString> lateNight = lateNightStyledNames();
+    ASSERT_TRUE(lateNight.contains(QStringLiteral("FxUnitLabel")));
+    forEachRackState(&decks, [&](const QString& state) {
+        const QList<QWidget*> racks =
+                decks.skin()->findChildren<QWidget*>(QStringLiteral("CrateRack"));
+        EXPECT_EQ(3, racks.size()) << state.toStdString();
+        QMap<QString, int> crateNames;
+        for (QWidget* pRack : racks) {
+            const QList<QWidget*> widgets = pRack->findChildren<QWidget*>();
+            for (QWidget* pWidget : widgets) {
+                const QString name = pWidget->objectName();
+                // LateNight's layout helpers (AlignCenter...) only align
+                if (!pWidget->isVisible() || name.startsWith(QLatin1String("Align"))) {
+                    continue;
+                }
+                EXPECT_FALSE(lateNight.contains(name))
+                        << state.toStdString() << ": " << name.toStdString();
+            }
+        }
+        // Every control is a Crate one
+        const QList<QWidget*> controls = rackControls(decks.skin());
+        for (QWidget* pControl : controls) {
+            const QString name = pControl->objectName();
+            EXPECT_TRUE(name.startsWith(QLatin1String("Crate")) ||
+                    name.startsWith(QLatin1String("Mono")))
+                    << state.toStdString() << ": " << pControl->metaObject()->className()
+                    << " \"" << name.toStdString() << "\"";
+            ++crateNames[name];
+        }
+        // The mixer's knobs, the decks' buttons and the admin's fields
+        EXPECT_GE(crateNames.value(QStringLiteral("CrateRackKnob")), 6) << state.toStdString();
+        EXPECT_GE(crateNames.value(QStringLiteral("CrateRackButtonOn")), 6)
+                << state.toStdString();
+        EXPECT_GE(crateNames.value(QStringLiteral("CrateRackPfl")), 2) << state.toStdString();
+        EXPECT_GE(crateNames.value(QStringLiteral("CrateFxSelector")), 6) << state.toStdString();
+        EXPECT_GE(crateNames.value(QStringLiteral("CrateSamplerPlay")), 4) << state.toStdString();
+    });
+}
+
+TEST_F(CrateSkinLoadTest, RackControlsTakeTheirClicks) {
+    QTemporaryDir profile;
+    ASSERT_TRUE(profile.isValid());
+    OffscreenDecks decks(profile.path() + QLatin1Char('/'));
+    decks.writeProfile(kCrateDecks);
+    decks.start(application());
+    ASSERT_NE(nullptr, decks.skin());
+    // Covered on purpose by a transparent button that takes the same
+    // click: the effect unit's chevron and the samplers' (by the overlay
+    // over the header), and the preview indicator (by the play button)
+    const QStringList covered = {QStringLiteral("CrateFxExpand"),
+            QStringLiteral("CrateSamplerExpand"),
+            QStringLiteral("CrateSamplerPlayIndicator")};
+    forEachRackState(&decks, [&](const QString& state) {
+        QWidget* pWindow = decks.skin()->window();
+        int checked = 0;
+        const QList<QWidget*> controls = rackControls(decks.skin());
+        for (QWidget* pControl : controls) {
+            // Labels and meters only show
+            if (qobject_cast<QLabel*>(pControl) ||
+                    pControl->testAttribute(Qt::WA_TransparentForMouseEvents) ||
+                    covered.contains(pControl->objectName()) ||
+                    pControl->rect().isEmpty()) {
+                continue;
+            }
+            const QPoint centre = pControl->mapTo(pWindow, pControl->rect().center());
+            QWidget* pHit = pWindow->childAt(centre);
+            EXPECT_TRUE(pHit == pControl || pControl->isAncestorOf(pHit))
+                    << state.toStdString() << ": " << pControl->objectName().toStdString()
+                    << " is under "
+                    << (pHit ? pHit->objectName().toStdString() : std::string("nothing"));
+            ++checked;
+        }
+        EXPECT_GT(checked, 40) << state.toStdString();
+    });
 }
 
 /// The widget of `type` named `name` inside the strip of deck `letter`
@@ -863,9 +1066,10 @@ TEST_F(CrateSkinLoadTest, MetersIgnoreTheMouse) {
                     << pWidget->objectName().toStdString();
         }
     }
-    // Two channels and main with two decks, four and main with four, and
-    // the two toolbar lanes
-    EXPECT_EQ(2 + 2 + 4 + 2 + 2, meters);
+    // Two channels and main with two decks, four and main with four, the
+    // two toolbar lanes, and in the racks the 16 expanded samplers and the
+    // four mic and four aux inputs
+    EXPECT_EQ(2 + 2 + 4 + 2 + 2 + 16 + 4 + 4, meters);
 }
 
 /// The texts that `pLayout` shows, in its order, without blanks.

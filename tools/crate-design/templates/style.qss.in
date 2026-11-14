@@ -1215,6 +1215,352 @@ WBeatSpinBox[objectName^="CrateLoopSize"]::down-button {
   color: {{textMuted}};
 }
 
+/* ── Racks: FX, samplers, mic and aux (design 14.3, no mockup) ──────── */
+
+/* The racks have no mockup: they take the decks' and the mixer's parts.
+   A rack sits on the window's background under the decks, with their rule
+   below it and their side gutter; its units are not boxes, a hairline
+   parts them. Knobs are the mixer's at their compact size, buttons the
+   decks' small buttons, labels MonoLabels, and the accent stands in for the
+   deck colour that a rack does not have. */
+#CrateRack {
+  background-color: {{bgApp}};
+  border: 0;
+  border-bottom: {{strokeHairline}} solid {{border}};
+  qproperty-layoutAlignment: 'AlignTop';
+  qproperty-layoutContentsMargins: rect({{gutter.half.number}} {{deckRowGap.half.number}} {{gutter.half.number}} {{deckRowGap.half.number}});
+  qproperty-layoutSpacing: {{deckColumnGap.number}};
+}
+
+/* Gaps: the transport's between the units of a rack, the strip head's
+   inside a unit, the hotcues' inside a row of small buttons. WWidgetGroup
+   applies its spacing as is */
+#CrateFxUnitControlsCollapsed,
+#CrateMicAuxUnit,
+#CrateSamplerMini {
+  qproperty-layoutSpacing: {{transportGap.number}};
+}
+#CrateFxSlotControls,
+#CrateFxUnitButtons,
+#CrateFxUnitHeader,
+#CrateSamplerSettings,
+#CrateMicAuxSubControls,
+#CrateMicAuxMainControls,
+#CrateMicAuxGainPFlContainer,
+#CrateMicDuckingContainer,
+#CrateMicAuxAddFrame {
+  qproperty-layoutSpacing: {{stripHeadGap.number}};
+}
+#CrateFxAssignButtons,
+#CrateRackSides {
+  qproperty-layoutSpacing: {{hotcueGap.number}};
+}
+/* Between mic and aux units, the gap of a deck and its pitch column */
+#CrateMicRack,
+#CrateAuxRack,
+#CrateMicAuxRack {
+  qproperty-layoutSpacing: {{deckColumnGap.number}};
+}
+
+/* Knobs: the mixer's (mixer_knob.xml) at 30 px, the effect parameters at
+   26; the arc radius of each size is in generated/vars.xml */
+#CrateRackKnob {
+  min-width: {{knobSizeCompact}};
+  max-width: {{knobSizeCompact}};
+  min-height: {{knobSizeCompact}};
+  max-height: {{knobSizeCompact}};
+}
+#CrateRackKnobSmall {
+  min-width: {{knobSizeFourShort}};
+  max-width: {{knobSizeFourShort}};
+  min-height: {{knobSizeFourShort}};
+  max-height: {{knobSizeFourShort}};
+}
+
+/* Text buttons: the decks' small buttons (.tbtn[data-small]). One push
+   button paints the text, so the MonoLabel's font goes on the button */
+[objectName^="CrateRackButton"] {
+  font-family: "{{fontMono}}";
+  font-weight: {{fontWeightMono}};
+  font-size: {{fontSizeMonoLabel.fontsize}};
+  text-transform: uppercase;
+  letter-spacing: {{trackingCaps * fontSizeMonoLabel}};
+  color: {{textSecondary}};
+  background-color: transparent;
+  border: {{strokeHairline}} solid {{borderSubtle}};
+  border-radius: {{radiusMd}};
+  padding: 0;
+  min-width: {{transportButtonMinWidth - strokeHairline - strokeHairline}};
+  max-width: {{transportButtonMinWidth - strokeHairline - strokeHairline}};
+  min-height: {{smallButtonHeight - strokeHairline - strokeHairline}};
+  max-height: {{smallButtonHeight - strokeHairline - strokeHairline}};
+}
+/* Two letters or fewer: square */
+#CrateRackButtonOn,
+#CrateRackButtonOrientation,
+#CrateRackButtonSide,
+#CrateRackButtonAssign,
+#CrateRackButtonParameter {
+  min-width: {{smallButtonHeight - strokeHairline - strokeHairline}};
+  max-width: {{smallButtonHeight - strokeHairline - strokeHairline}};
+}
+/* Lit: outline and text in the accent, as a lit small button of deck A */
+[objectName^="CrateRackButton"][displayValue="1"],
+[objectName^="CrateRackButton"][displayValue="2"] {
+  color: {{accentHi}};
+  border-color: {{accentHiBorder}};
+}
+/* The mix mode and the crossfader side show their state in the text */
+#CrateRackButtonMixMode[displayValue="1"],
+#CrateRackButtonOrientation[displayValue="1"],
+#CrateRackButtonOrientation[displayValue="2"] {
+  color: {{textSecondary}};
+  border-color: {{borderSubtle}};
+}
+/* Sync and talk on: filled, as the decks' sync */
+#CrateRackButtonSync[displayValue="1"],
+#CrateRackButtonTalk[displayValue="1"] {
+  color: {{onAccent}};
+  background-color: {{accentHi}};
+  border-color: {{accentHi}};
+}
+
+/* Icon buttons: outlined as the mixer's headphones, filled in the accent
+   when on */
+#CrateRackPfl,
+#CrateRackRepeat,
+#CrateRackEject,
+#CrateRackAdd,
+#CrateFxChainButton {
+  background-color: transparent;
+  border: {{strokeHairline}} solid {{border}};
+  border-radius: {{radiusMd}};
+  padding: {{smallButtonHeight - iconSm - strokeHairline - strokeHairline.half}} 0;
+  min-width: {{iconSm + smallButtonPadding + smallButtonPadding}};
+  max-width: {{iconSm + smallButtonPadding + smallButtonPadding}};
+  min-height: {{iconSm}};
+  max-height: {{iconSm}};
+}
+#CrateRackPfl { image: url(skins:CrateDecks/generated/icons/headphones-round-sound_idle.svg); }
+#CrateRackPfl[displayValue="1"] { image: url(skins:CrateDecks/generated/icons/headphones-round-sound_onaccent.svg); }
+#CrateRackRepeat { image: url(skins:CrateDecks/generated/icons/repeat_idle.svg); }
+#CrateRackRepeat[displayValue="1"] { image: url(skins:CrateDecks/generated/icons/repeat_onaccent.svg); }
+#CrateRackEject { image: url(skins:CrateDecks/generated/icons/close-circle_idle.svg); }
+#CrateRackEject:hover { image: url(skins:CrateDecks/generated/icons/close-circle_hover.svg); }
+#CrateRackAdd { image: url(skins:CrateDecks/generated/icons/add-circle_idle.svg); }
+#CrateRackAdd:hover { image: url(skins:CrateDecks/generated/icons/add-circle_hover.svg); }
+#CrateFxChainButton { image: url(skins:CrateDecks/generated/icons/menu-dots_idle.svg); }
+#CrateFxChainButton:hover { image: url(skins:CrateDecks/generated/icons/menu-dots_hover.svg); }
+#CrateFxChainButton::menu-indicator {
+  image: none;
+  width: 0;
+}
+#CrateRackPfl[displayValue="1"],
+#CrateRackRepeat[displayValue="1"] {
+  background-color: {{accentHi}};
+  border-color: {{accentHi}};
+}
+
+/* Expand and fold: a bare chevron, right when folded and down when open */
+#CrateFxExpand,
+#CrateSamplerExpand {
+  background-color: transparent;
+  border: 0;
+  padding: 0;
+  image: url(skins:CrateDecks/generated/icons/alt-arrow-right_idle.svg);
+  min-width: {{iconSm}};
+  max-width: {{iconSm}};
+  min-height: {{iconSm}};
+  max-height: {{iconSm}};
+}
+#CrateFxExpand[displayValue="1"],
+#CrateSamplerExpand[displayValue="1"] {
+  image: url(skins:CrateDecks/generated/icons/alt-arrow-down_active.svg);
+}
+/* The transparent buttons over the header and the chevron take the click */
+#CrateFxExpandOverlay,
+#CrateSamplerExpandOverlay {
+  background-color: transparent;
+  border: 0;
+}
+
+/* Effect focus (controllers): a node, filled when focused */
+#CrateRackFocus {
+  background-color: transparent;
+  border: {{strokeHairline}} solid {{border}};
+  border-radius: {{iconXs.half}};
+  min-width: {{iconXs - strokeHairline - strokeHairline}};
+  max-width: {{iconXs - strokeHairline - strokeHairline}};
+  min-height: {{iconXs - strokeHairline - strokeHairline}};
+  max-height: {{iconXs - strokeHairline - strokeHairline}};
+}
+#CrateRackFocus[displayValue="1"] {
+  background-color: {{accentHi}};
+  border-color: {{accentHi}};
+}
+
+/* Parameter links to the meta knob: a lane, tinted in the accent when
+   linked */
+#CrateRackLink,
+#CrateRackLinkInvert {
+  background-color: transparent;
+  border: {{strokeHairline}} solid {{border}};
+  border-radius: {{radiusSm}};
+  min-height: {{sliderDot - strokeHairline - strokeHairline}};
+  max-height: {{sliderDot - strokeHairline - strokeHairline}};
+}
+#CrateRackLink {
+  min-width: {{knobSizeFourShort - strokeHairline - strokeHairline}};
+  max-width: {{knobSizeFourShort - strokeHairline - strokeHairline}};
+}
+#CrateRackLinkInvert {
+  min-width: {{sliderDot - strokeHairline - strokeHairline}};
+  max-width: {{sliderDot - strokeHairline - strokeHairline}};
+}
+#CrateRackLink[displayValue="1"],
+#CrateRackLink[displayValue="2"],
+#CrateRackLink[displayValue="3"],
+#CrateRackLink[displayValue="4"],
+#CrateRackLinkInvert[displayValue="1"] {
+  background-color: {{accentHiBorder}};
+  border-color: {{accentHiBorder}};
+}
+
+/* Effect selectors: the admin's fields at the small buttons' height, as
+   Auto DJ's transition mode */
+#CrateFxSelector {
+  font-family: "{{fontBody}}";
+  font-size: {{fontSizeTable}};
+  min-height: {{smallButtonHeight - strokeHairline - strokeHairline}};
+  max-height: {{smallButtonHeight - strokeHairline - strokeHairline}};
+  margin: 0;
+  padding: 0 {{iconSm + iconTextGap}} 0 {{iconTextGap}};
+  border: {{strokeHairline}} solid {{border}};
+  border-image: none;
+  border-radius: {{radiusMd}};
+  background-color: transparent;
+  color: {{textPrimary}};
+  selection-background-color: {{accentBorder}};
+  selection-color: {{textPrimary}};
+}
+#CrateFxSelector:hover {
+  border-color: {{borderHover}};
+}
+#CrateFxSelector:on {
+  border-color: {{accentHiBorder}};
+}
+#CrateFxSelector::drop-down {
+  subcontrol-origin: padding;
+  subcontrol-position: center right;
+  width: {{iconSm}};
+  border: 0;
+  image: none;
+}
+#CrateFxSelector::down-arrow {
+  image: url(skins:CrateDecks/generated/icons/alt-arrow-down_idle.svg);
+  width: {{iconXs}};
+  height: {{iconXs}};
+}
+#CrateFxSelector::down-arrow:on,
+#CrateFxSelector::down-arrow:hover {
+  image: url(skins:CrateDecks/generated/icons/alt-arrow-down_hover.svg);
+}
+#CrateFxSelector QAbstractItemView {
+  background-color: {{bgPopover}};
+  border: {{strokeHairline}} solid {{border}};
+  padding: {{menuPadding}};
+  outline: 0;
+  color: {{textSecondary}};
+  font-family: "{{fontBody}}";
+  font-size: {{fontSizeCaption}};
+  selection-background-color: {{hoverBg}};
+  selection-color: {{textPrimary}};
+}
+
+/* Labels */
+#MonoFxUnitLabel[highlight="1"] {
+  color: {{accentHi}};
+}
+/* The controller's unit: a bar as the sidebar's active one */
+#CrateFxUnitInput {
+  background-color: transparent;
+  min-width: {{activeBarWidth}};
+  max-width: {{activeBarWidth}};
+}
+#CrateFxUnitInput[highlight="1"] {
+  background-color: {{accentHi}};
+}
+#MonoFxParameterName {
+  font-size: {{fontSizeLabelSmall.fontsize}};
+  letter-spacing: {{trackingCaps * fontSizeLabelSmall}};
+  min-height: {{fontSizeLabelSmall}};
+  max-height: {{fontSizeLabelSmall}};
+}
+#CrateSamplerTitle {
+  font-family: "{{fontBody}}";
+  font-size: {{fontSizeCaption}};
+  color: {{textPrimary}};
+}
+#MonoSamplerBpm {
+  color: {{textMuted}};
+}
+
+/* Rules: a hairline between effect slots and units, a chevron for the
+   signal's way through the slots */
+#CrateFxSlotSeparatorH {
+  border: 0;
+  border-top: {{strokeHairline}} solid {{borderSubtle}};
+}
+#CrateFxMixerSeparatorCollapsed {
+  border: 0;
+  border-left: {{strokeHairline}} solid {{border}};
+  min-width: 0;
+  max-width: 0;
+}
+#CrateFxFlowIndicatorCollapsed {
+  image: url(skins:CrateDecks/generated/icons/alt-arrow-right_disabled.svg);
+  min-width: {{iconSm}};
+  max-width: {{iconSm}};
+}
+/* The focused slot (controllers): the accent's tint and border */
+#CrateFxParametersFocusBg {
+  border: {{strokeHairline}} solid {{accentHiBorder}};
+  border-radius: {{radiusMd}};
+  background-color: {{accentBg}};
+}
+
+/* Sampler play: the decks' play, square, filled in the accent while it
+   plays latched; the preview indicator under it tints while it plays */
+#CrateSamplerPlay,
+#CrateSamplerPlayIndicator {
+  background-color: transparent;
+  border: {{strokeHairline}} solid {{borderSubtle}};
+  border-radius: {{radiusMd}};
+  padding: {{transportButtonHeightFour - iconSm - strokeHairline - strokeHairline.half}} 0;
+  min-width: {{transportButtonHeightFour - strokeHairline - strokeHairline}};
+  max-width: {{transportButtonHeightFour - strokeHairline - strokeHairline}};
+  min-height: {{iconSm}};
+  max-height: {{iconSm}};
+}
+#CrateSamplerPlay {
+  image: url(skins:CrateDecks/generated/icons/play-bold_idle.svg);
+}
+#CrateSamplerPlay[displayValue="1"] {
+  image: url(skins:CrateDecks/generated/icons/pause-bold_onaccent.svg);
+  background-color: {{accentHi}};
+  border-color: {{accentHi}};
+}
+#CrateSamplerPlayIndicator[value="1"] {
+  background-color: {{accentBg}};
+}
+
+/* A sampler's pitch: the fader of the mixer in the accent */
+#CrateFaderSampler {
+  color: {{accentHi}};
+  min-width: {{faderWidth}};
+  max-width: {{faderWidth}};
+}
+
 /* ── Library (decks.css .lib, plan V2.PR4) ────────────────────────────── */
 
 /* C++ paints what QSS cannot (crate/ui/skin/librarystyle.cpp and

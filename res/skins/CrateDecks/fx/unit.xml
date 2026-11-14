@@ -9,10 +9,9 @@
 -->
 <Template>
   <SetVariable name="FxRack_FxUnit">[EffectRack1_EffectUnit<Variable name="FxUnit"/>]</SetVariable>
-  <SetVariable name="BtnType"><Variable name="TopRegion_BtnType"/></SetVariable>
 
   <WidgetGroup>
-    <ObjectName>FxUnitContainer</ObjectName>
+    <ObjectName>CrateFxUnitContainer</ObjectName>
     <Layout>horizontal</Layout>
     <SizePolicy>me,max</SizePolicy>
     <Children>

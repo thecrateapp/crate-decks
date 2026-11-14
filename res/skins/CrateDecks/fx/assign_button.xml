@@ -1,22 +1,15 @@
 <!--
 Description:
-  A button that has click or display controls.
+  Assigns a channel to an effect unit: a rack text button
+  (controls/rack_button.xml) that reads "FX 1", "2"...
 Variables:
-  ObjectName        : object name
-  ToolTipID         : standard Tooltip from mixxx db
-    see: https://github.com/mixxxdj/mixxx/blob/main/src/skin/legacy/tooltips.cpp
-  Size              : button size
-  state_X_text      : label text for state X
-  state_X_pressed   : background graphic for pressed state X
-  state_X_unpressed : background graphic for unpressed state X
-  Align             : alignment of text
-  ConfigKey         : left-click control
+  FxUnit, Group, Type : the effect unit, the channel and the tooltip's kind
+  Text                : what comes before the unit's number
 -->
 <Template>
   <PushButton>
     <TooltipId>EffectUnit_<Variable name="Type"/>_enabled</TooltipId>
-    <ObjectName>FxAssignButton<Variable name="FxUnit"/></ObjectName>
-    <Size><Variable name="Width"/>f,20f</Size>
+    <ObjectName>CrateRackButtonAssign</ObjectName>
     <NumberStates>2</NumberStates>
     <RightClickIsPushButton>false</RightClickIsPushButton>
     <State>

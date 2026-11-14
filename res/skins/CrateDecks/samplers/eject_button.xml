@@ -1,0 +1,17 @@
+<!--
+  Ejects the track of a sampler: an icon button of the racks with Solar's
+  close circle.
+Variables: Group
+-->
+<Template>
+  <PushButton>
+    <TooltipId>eject</TooltipId>
+    <ObjectName>CrateRackEject</ObjectName>
+    <NumberStates>1</NumberStates>
+    <State><Number>0</Number></State>
+    <Connection>
+      <ConfigKey><Variable name="Group"/>,eject</ConfigKey>
+      <ButtonState>LeftButton</ButtonState>
+    </Connection>
+  </PushButton>
+</Template>

@@ -4,13 +4,13 @@
     <Layout>vertical</Layout>
     <Children>
       <WidgetGroup>
-        <ObjectName>SamplerExpandBox</ObjectName>
+        <ObjectName>CrateSamplerExpandBox</ObjectName>
         <SizePolicy>max,me</SizePolicy>
         <Layout>stacked</Layout>
         <Children>
           <PushButton>
             <TooltipId>expand_samplers</TooltipId>
-            <ObjectName>SamplerExpandOverlay</ObjectName>
+            <ObjectName>CrateSamplerExpandOverlay</ObjectName>
             <Size>16f,36me</Size>
             <NumberStates>2</NumberStates>
             <State>
@@ -25,8 +25,7 @@
             </Connection>
           </PushButton>
           <PushButton>
-            <ObjectName>SamplerExpand</ObjectName>
-            <Size>16f,36f</Size>
+            <ObjectName>CrateSamplerExpand</ObjectName>
             <NumberStates>2</NumberStates>
             <State>
               <Number>0</Number>

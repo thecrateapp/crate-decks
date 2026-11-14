@@ -11,7 +11,6 @@
 -->
 <Template>
   <SetVariable name="FxRack_FxUnit">EffectRack1_EffectUnit<Variable name="FxUnit"/></SetVariable>
-  <SetVariable name="BtnType"><Variable name="TopRegion_BtnType"/></SetVariable>
 
 
   <SingletonDefinition>
@@ -31,7 +30,7 @@
               <!-- transparent expand button -->
               <PushButton>
                 <TooltipId>EffectUnit_show_parameters</TooltipId>
-                <ObjectName>FxExpandOverlay</ObjectName>
+                <ObjectName>CrateFxExpandOverlay</ObjectName>
                 <Size>0me,0me</Size>
                 <NumberStates>2</NumberStates>
                 <State>
@@ -48,42 +47,30 @@
 
               <!-- Fx label & icon -->
               <WidgetGroup>
-                <ObjectName>FxUnitHeader</ObjectName>
+                <ObjectName>CrateFxUnitHeader</ObjectName>
                 <SizePolicy>me,min</SizePolicy>
                 <Layout>horizontal</Layout>
                 <Children>
                   <!-- Indicates if this FxUnit can currently be accessed by controller.
                        To be used with default midi-components.js mapping -->
                   <Label>
-                    <ObjectName>FxUnitControllerInputIndicator</ObjectName>
-                    <Size>2f,0min</Size>
+                    <ObjectName>CrateFxUnitInput</ObjectName>
                     <Connection>
                       <ConfigKey>[<Variable name="FxRack_FxUnit"/>],controller_input_active</ConfigKey>
                       <BindProperty>highlight</BindProperty>
                     </Connection>
                   </Label>
-                  <WidgetGroup>
-                    <SizePolicy>me,min</SizePolicy>
-                    <MinimumSize>3,0</MinimumSize>
-                  </WidgetGroup>
                   <Label>
-                    <ObjectName>FxUnitLabel</ObjectName>
+                    <ObjectName>MonoFxUnitLabel</ObjectName>
                     <SizePolicy>min,me</SizePolicy>
-                    <MinimunSize>30,20</MinimunSize>
-                    <MaximumSize>38,</MaximumSize>
-                    <Text>FX&#8202;<Variable name="FxUnit"/></Text>
+                    <Text>FX <Variable name="FxUnit"/></Text>
                     <Connection>
                       <ConfigKey>[<Variable name="FxRack_FxUnit"/>],controller_input_active</ConfigKey>
                       <BindProperty>highlight</BindProperty>
                     </Connection>
                   </Label>
-                  <WidgetGroup>
-                    <SizePolicy>me,min</SizePolicy>
-                    <MinimumSize>1,0</MinimumSize>
-                  </WidgetGroup>
                   <PushButton>
-                    <ObjectName>FxExpand</ObjectName>
-                    <Size>16f,18me</Size>
+                    <ObjectName>CrateFxExpand</ObjectName>
                     <NumberStates>2</NumberStates>
                     <State>
                       <Number>0</Number>
@@ -110,36 +97,35 @@
     <ObjectName>FxUnit<Variable name="FxUnit"/>_MixmodePfl</ObjectName>
     <Children>
       <WidgetGroup>
-        <ObjectName>MixmodePflContainer</ObjectName>
+        <ObjectName>CrateFxUnitButtons</ObjectName>
         <SizePolicy>max,min</SizePolicy>
         <Layout>horizontal</Layout>
         <Children>
+          <!-- Dry/wet or dry+wet -->
           <PushButton>
             <TooltipId>EffectUnit_mix_mode</TooltipId>
-            <ObjectName>MixModeButton</ObjectName>
-            <Size>32f,26f</Size>
+            <ObjectName>CrateRackButtonMixMode</ObjectName>
             <NumberStates>2</NumberStates>
             <RightClickIsPushButton>false</RightClickIsPushButton>
             <State>
               <Number>0</Number>
-              <Unpressed scalemode="STRETCH">skins:CrateDecks/<Variable name="BtnScheme"/>/buttons/btn_<Variable name="BtnType"/>_mixmode.svg</Unpressed>
-              <Pressed scalemode="STRETCH">skins:CrateDecks/<Variable name="BtnScheme"/>/buttons/btn_<Variable name="BtnType"/>_mixmode_active.svg</Pressed>
+              <Text>D/W</Text>
+              <Alignment>center</Alignment>
             </State>
             <State>
               <Number>1</Number>
-              <Unpressed scalemode="STRETCH">skins:CrateDecks/<Variable name="BtnScheme"/>/buttons/btn_<Variable name="BtnType"/>_mixmode.svg</Unpressed>
-              <Pressed scalemode="STRETCH">skins:CrateDecks/<Variable name="BtnScheme"/>/buttons/btn_<Variable name="BtnType"/>_mixmode_active.svg</Pressed>
+              <Text>D+W</Text>
+              <Alignment>center</Alignment>
             </State>
             <Connection>
               <ConfigKey>[<Variable name="FxRack_FxUnit"/>],mix_mode</ConfigKey>
               <ButtonState>LeftButton</ButtonState>
             </Connection>
           </PushButton>
-          <Template src="skins:CrateDecks/controls/button_2state.xml">
+          <Template src="skins:CrateDecks/controls/rack_button.xml">
             <SetVariable name="TooltipId">EffectUnit_headphones_enabled</SetVariable>
-            <SetVariable name="ObjectName">PflButton</SetVariable>
-            <SetVariable name="Size">26f,26f</SetVariable>
-            <SetVariable name="BtnSize">square</SetVariable>
+            <SetVariable name="ObjectName">CrateRackPfl</SetVariable>
+            <SetVariable name="Text"></SetVariable>
             <SetVariable name="ConfigKey">[<Variable name="FxRack_FxUnit"/>],group_[Headphone]_enable</SetVariable>
           </Template>
         </Children>
@@ -151,14 +137,13 @@
     <ObjectName>FxUnit<Variable name="FxUnit"/>_PresetButton</ObjectName>
     <Children>
       <WidgetGroup>
-        <ObjectName>MixmodePflContainer</ObjectName>
+        <ObjectName>CrateFxChainBox</ObjectName>
         <SizePolicy>min,min</SizePolicy>
         <Layout>horizontal</Layout>
         <Children>
           <EffectChainPresetButton>
             <EffectUnit><Variable name="FxUnit"/></EffectUnit>
-            <Size>22f,22f</Size>
-            <ObjectName>EffectChainSelector</ObjectName>
+            <ObjectName>CrateFxChainButton</ObjectName>
           </EffectChainPresetButton>
         </Children>
       </WidgetGroup>
@@ -172,16 +157,11 @@
         <SizePolicy>me,min</SizePolicy>
         <Layout>vertical</Layout>
         <Children>
-          <Template src="skins:CrateDecks/controls/knob.xml">
-            <SetVariable name="Size">35f,30f</SetVariable>
-            <SetVariable name="ObjectName">SuperKnob</SetVariable>
-            <SetVariable name="KnobBg">small</SetVariable>
-            <SetVariable name="KnobIndicator">small</SetVariable>
-            <SetVariable name="ArcColor"><Variable name="ArcColorSuper"/></SetVariable>
+          <Template src="skins:CrateDecks/controls/rack_knob.xml">
             <SetVariable name="TooltipId">EffectUnit_super1</SetVariable>
             <SetVariable name="Group">[<Variable name="FxRack_FxUnit"/>]</SetVariable>
             <SetVariable name="Control">super1</SetVariable>
-            <SetVariable name="Label">Super</SetVariable>
+            <SetVariable name="ArcUnipolar">true</SetVariable>
           </Template>
         </Children>
       </WidgetGroup>
@@ -195,17 +175,11 @@
         <SizePolicy>me,min</SizePolicy>
         <Layout>vertical</Layout>
         <Children>
-          <Template src="skins:CrateDecks/controls/knob.xml">
-            <SetVariable name="Size">35f,30f</SetVariable>
-            <SetVariable name="ObjectName">DryWetKnob</SetVariable>
-            <SetVariable name="KnobBg">small</SetVariable>
-            <SetVariable name="KnobIndicator">small</SetVariable>
-            <SetVariable name="KnobColor">red</SetVariable>
-            <SetVariable name="ArcColor"><Variable name="ArcColorFxMix"/></SetVariable>
+          <Template src="skins:CrateDecks/controls/rack_knob.xml">
             <SetVariable name="TooltipId">EffectUnit_mix</SetVariable>
             <SetVariable name="Group">[<Variable name="FxRack_FxUnit"/>]</SetVariable>
             <SetVariable name="Control">mix</SetVariable>
-            <SetVariable name="Label">Mix</SetVariable>
+            <SetVariable name="ArcUnipolar">true</SetVariable>
           </Template>
         </Children>
       </WidgetGroup>

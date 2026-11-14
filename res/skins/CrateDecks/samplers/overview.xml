@@ -1,77 +1,54 @@
+<!--
+  Overview of a sampler, as a deck's (deck_overview.xml) in the neutral
+  palette of design 14.3, with the played part dimmed and cues in the
+  accent: a sampler has no deck colour.
+Variables: Group
+-->
 <Template>
   <Overview>
+    <ObjectName>CrateSamplerOverview</ObjectName>
     <TooltipId>waveform_overview</TooltipId>
     <Size>145me,20me</Size>
     <Group><Variable name="Group"/></Group>
     <Connection>
       <ConfigKey><Variable name="Group"/>,playposition</ConfigKey>
     </Connection>
-    <BgColor><Variable name="BgColorOverview_12"/></BgColor>
-    <SignalColor><Variable name="SignalColor_12"/></SignalColor>
-    <!-- Default colors are used for high/mid/low: blue/green/red -->
-    <SignalHighColor></SignalHighColor>
-    <SignalMidColor></SignalMidColor>
-    <SignalLowColor></SignalLowColor>
-    <SignalRGBHighColor></SignalRGBHighColor>
-    <SignalRGBMidColor></SignalRGBMidColor>
-    <SignalRGBLowColor></SignalRGBLowColor>
-    <PlayedOverlayColor><Variable name="PlayedOverlayColor"/></PlayedOverlayColor>
-    <PlayPosColor><Variable name="PlayPosColor"/></PlayPosColor>
-    <EndOfTrackColor><Variable name="EndOfTrackColor"/></EndOfTrackColor>
-    <LabelFontSize><Variable name="OverviewFontSizeSampler"/></LabelFontSize>
+    <BgColor><Variable name="CrateWaveOverviewBg"/></BgColor>
+    <SignalColor><Variable name="CrateWaveMidNeutral"/></SignalColor>
+    <SignalLowColor><Variable name="CrateWaveLowNeutral"/></SignalLowColor>
+    <SignalMidColor><Variable name="CrateWaveMidNeutral"/></SignalMidColor>
+    <SignalHighColor><Variable name="CrateWaveHighNeutral"/></SignalHighColor>
+    <SignalRGBLowColor><Variable name="CrateWaveLowNeutral"/></SignalRGBLowColor>
+    <SignalRGBMidColor><Variable name="CrateWaveMidNeutral"/></SignalRGBMidColor>
+    <SignalRGBHighColor><Variable name="CrateWaveHighNeutral"/></SignalRGBHighColor>
+    <PlayedOverlayColor><Variable name="CrateWaveOverviewPlayed"/></PlayedOverlayColor>
+    <PlayPosColor><Variable name="CrateWavePlayhead"/></PlayPosColor>
+    <EndOfTrackColor><Variable name="CrateWarning"/></EndOfTrackColor>
     <DefaultMark>
-      <Align>bottom|right</Align>
-      <Color>#FF0000</Color>
-      <TextColor>#FFFFFF</TextColor>
+      <Align>top|left</Align>
+      <Color><Variable name="CrateAccentHi"/></Color>
+      <TextColor><Variable name="CrateBgApp"/></TextColor>
       <Text> %1 </Text>
     </DefaultMark>
-    <!-- Cue -->
     <Mark>
       <Control>cue_point</Control>
-      <Text>C</Text>
-      <Align>top|right</Align>
-      <Color><Variable name="CueColor"/></Color>
-      <TextColor>#FFFFFF</TextColor>
+      <Align>bottom|left</Align>
+      <Color><Variable name="CrateAccentHi"/></Color>
+      <TextColor><Variable name="CrateBgApp"/></TextColor>
     </Mark>
-    <!-- Loop
-    <MarkRange>
-      <StartControl>loop_start_position</StartControl>
-      <EndControl>loop_end_position</EndControl>
-      <EnabledControl>loop_enabled</EnabledControl>
-      <Color><Variable name="LoopColor"/></Color>
-      <DisabledColor>#FFFFFF</DisabledColor>
-    </MarkRange>
-    <Mark>
-      <Control>loop_start_position</Control>
-      <Align>bottom|right</Align>
-      <Color><Variable name="LoopColor"/></Color>
-      <TextColor>#FFFFFF</TextColor>
-    </Mark>
-    <Mark>
-      <Control>loop_end_position</Control>
-      <Align>bottom|right</Align>
-      <Color><Variable name="LoopColor"/></Color>
-      <TextColor>#FFFFFF</TextColor>
-      <VisibilityControl><Variable name="Group"/>,loop_enabled</VisibilityControl>
-    </Mark> -->
-    <!-- Intro -->
     <MarkRange>
       <StartControl>intro_start_position</StartControl>
       <EndControl>intro_end_position</EndControl>
-      <Color><Variable name="IntroOutroColor"/></Color>
       <VisibilityControl>[Skin],show_intro_outro_cues</VisibilityControl>
-      <DurationTextColor>#ffffff</DurationTextColor>
-      <DurationTextLocation>after</DurationTextLocation>
+      <Color><Variable name="CrateAccentHi"/></Color>
+      <Opacity>0.12</Opacity>
     </MarkRange>
-    <!-- Outro -->
     <MarkRange>
       <StartControl>outro_start_position</StartControl>
       <EndControl>outro_end_position</EndControl>
-      <Color><Variable name="IntroOutroColor"/></Color>
       <VisibilityControl>[Skin],show_intro_outro_cues</VisibilityControl>
-      <DurationTextColor>#ffffff</DurationTextColor>
-      <DurationTextLocation>before</DurationTextLocation>
+      <Color><Variable name="CrateAccentHi"/></Color>
+      <Opacity>0.12</Opacity>
     </MarkRange>
-    <!-- Don't show intro/outro markers in samplers -->
   </Overview>
 </Template>

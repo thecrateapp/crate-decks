@@ -7,13 +7,13 @@
 -->
 <Template>
   <WidgetGroup>
-    <ObjectName>FxUnit<Variable name="FxUnit"/></ObjectName>
+    <ObjectName>CrateFxUnit<Variable name="FxUnit"/></ObjectName>
     <Layout>horizontal</Layout>
     <SizePolicy>me,min</SizePolicy>
     <Children>
 
       <WidgetGroup>
-        <ObjectName>FxSlotsExpanded</ObjectName>
+        <ObjectName>CrateFxSlotsExpanded</ObjectName>
         <SizePolicy>me,me</SizePolicy>
         <Layout>vertical</Layout>
         <Children>
@@ -45,7 +45,7 @@
             <Layout>horizontal</Layout>
             <Children>
               <WidgetGroup>
-                <ObjectName>FxSlotSeparatorH</ObjectName>
+                <ObjectName>CrateFxSlotSeparatorH</ObjectName>
                 <Layout>horizontal</Layout>
                 <Children/>
               </WidgetGroup>
@@ -82,7 +82,7 @@
             <Layout>horizontal</Layout>
             <Children>
               <WidgetGroup>
-                <ObjectName>FxSlotSeparatorH</ObjectName>
+                <ObjectName>CrateFxSlotSeparatorH</ObjectName>
                 <Layout>horizontal</Layout>
                 <Children/>
               </WidgetGroup>
@@ -124,7 +124,7 @@
         <Children>
 
           <WidgetGroup>
-            <ObjectName>FxUnitHeaderExpanded</ObjectName>
+            <ObjectName>CrateFxUnitHeaderExpanded</ObjectName>
             <Layout>horizontal</Layout>
             <Size>0min,35f</Size>
             <Children>
@@ -135,7 +135,7 @@
           </WidgetGroup>
 
           <WidgetGroup>
-            <ObjectName>FxUnitControlsExpanded</ObjectName>
+            <ObjectName>CrateFxUnitControlsExpanded</ObjectName>
             <Layout>vertical</Layout>
             <SizePolicy>max,min</SizePolicy>
             <Children>

@@ -14,14 +14,13 @@ Variables:
     <Children>
       <!-- wrapper to apply padding -->
       <WidgetGroup>
-        <ObjectName>FxFocusButtonBox</ObjectName>
+        <ObjectName>CrateFxFocusBox</ObjectName>
         <Layout>horizontal</Layout>
         <SizePolicy>min,min</SizePolicy>
         <Children>
           <PushButton>
             <TooltipId>EffectSlot_focus</TooltipId>
-            <ObjectName>FxFocusButton</ObjectName>
-            <Size>16f,16f</Size>
+            <ObjectName>CrateRackFocus</ObjectName>
             <NumberStates>2</NumberStates>
             <RightClickIsPushButton>true</RightClickIsPushButton>
             <State>

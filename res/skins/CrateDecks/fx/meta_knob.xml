@@ -1,28 +1,28 @@
 <!DOCTYPE template>
 <!--
   Description:
-    A standard knob used for Meta parameter of effect units.
+    The meta knob of an effect slot: a rack knob (controls/rack_knob.xml)
+    that is an EffectMetaKnob.
   Variables:
     FxRack_FxUnit_FxNum : [EffectRack1_EffectUnitX_EffectY]
 -->
 <Template>
   <WidgetGroup>
     <Layout>horizontal</Layout>
-    <ObjectName>FxMetaKnob</ObjectName>
+    <ObjectName>CrateRackKnobBox</ObjectName>
     <SizePolicy>f,max</SizePolicy>
     <Children>
       <EffectMetaKnob>
         <TooltipId>EffectSlot_metaknob</TooltipId>
-        <Size>35f,30f</Size>
-        <Knob>skins:CrateDecks/<Variable name="KnobScheme"/>/knobs/knob_indicator_small_<Variable name="KnobColor"/>.svg</Knob>
-        <BackPath>skins:CrateDecks/<Variable name="KnobScheme"/>/knobs/knob_bg_small.svg</BackPath>
-        <MinAngle><Variable name="PotiMinAngle"/></MinAngle>
-        <MaxAngle><Variable name="PotiMaxAngle"/></MaxAngle>
-        <KnobCenterYOffset>1.883</KnobCenterYOffset>
-        <ArcRadius><Variable name="ArcRadius"/></ArcRadius>
-        <ArcThickness><Variable name="ArcThickness"/></ArcThickness>
-        <ArcRoundCaps><Variable name="ArcRoundCaps"/></ArcRoundCaps>
-        <ArcColor><Variable name="ArcColorSuper"/></ArcColor>
+        <ObjectName>CrateRackKnob</ObjectName>
+        <BackPath scalemode="STRETCH">skins:CrateDecks/generated/controls/knob-scale.svg</BackPath>
+        <Knob scalemode="STRETCH">skins:CrateDecks/generated/controls/knob-dot.svg</Knob>
+        <MinAngle>-<Variable name="CrateKnobHalfSweep"/></MinAngle>
+        <MaxAngle><Variable name="CrateKnobHalfSweep"/></MaxAngle>
+        <ArcRadius><Variable name="CrateKnobArcRadiusCompact"/></ArcRadius>
+        <ArcThickness><Variable name="CrateKnobArcWidth"/></ArcThickness>
+        <ArcRoundCaps>true</ArcRoundCaps>
+        <ArcColor><Variable name="CrateKnobArcColor"/></ArcColor>
         <EffectUnit><Variable name="FxUnit"/></EffectUnit>
         <Effect><Variable name="FxNum"/></Effect>
         <Connection>

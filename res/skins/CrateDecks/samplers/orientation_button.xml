@@ -1,0 +1,31 @@
+<!--
+  The crossfader side of a sampler: a rack text button that steps through
+  left, main and right, as LateNight's three-state button did.
+Variables: Group
+-->
+<Template>
+  <PushButton>
+    <TooltipId>orientation</TooltipId>
+    <ObjectName>CrateRackButtonOrientation</ObjectName>
+    <NumberStates>3</NumberStates>
+    <State>
+      <Number>0</Number>
+      <Text>L</Text>
+      <Alignment>center</Alignment>
+    </State>
+    <State>
+      <Number>1</Number>
+      <Text>M</Text>
+      <Alignment>center</Alignment>
+    </State>
+    <State>
+      <Number>2</Number>
+      <Text>R</Text>
+      <Alignment>center</Alignment>
+    </State>
+    <Connection>
+      <ConfigKey><Variable name="Group"/>,orientation</ConfigKey>
+      <ButtonState>LeftButton</ButtonState>
+    </Connection>
+  </PushButton>
+</Template>
