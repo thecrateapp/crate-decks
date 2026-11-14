@@ -15,7 +15,7 @@
   <WidgetGroup>
     <ObjectName>CrateFxParameter</ObjectName>
     <Layout>vertical</Layout>
-    <MinimumSize>55,35</MinimumSize>
+    <MinimumSize>55,</MinimumSize>
     <MaximumSize>60,</MaximumSize>
     <SizePolicy>me,min</SizePolicy>
     <Children>

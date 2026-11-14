@@ -1252,8 +1252,19 @@ WBeatSpinBox[objectName^="CrateLoopSize"]::down-button {
   qproperty-layoutSpacing: {{stripHeadGap.number}};
 }
 #CrateFxAssignButtons,
-#CrateRackSides {
+#CrateRackSides,
+#CrateFxLinkButtons {
   qproperty-layoutSpacing: {{hotcueGap.number}};
+}
+/* An effect parameter: knob, name and links, as the mixer's knob and its
+   label; the row of the slot grows to hold them */
+#CrateFxParameter {
+  qproperty-layoutSpacing: {{knobLabelGap.number}};
+}
+/* Clear of the rules between the slots: the strip head's gap above and
+   below (WWidgetGroup applies its margins twice) */
+#CrateFxSlotParameters {
+  qproperty-layoutContentsMargins: rect(0 {{stripHeadGap.half.number}} 0 {{stripHeadGap.half.number}});
 }
 /* Between mic and aux units, the gap of a deck and its pitch column */
 #CrateMicRack,
