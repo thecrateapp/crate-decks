@@ -361,6 +361,29 @@ QtObject {
     readonly property real levelRingRadius: {{levelRingRadius}}
     readonly property real levelRingMinimum: {{levelRingMinimum}}
 
+    // instrument
+    readonly property var dashSpoke: [{{dashSpoke.list}}]
+    readonly property real arrowMarkerSize: {{arrowMarkerSize}}
+    readonly property real arrowMarkerBox: {{arrowMarkerBox}}
+    readonly property real arrowMarkerTip: {{arrowMarkerTip}}
+    readonly property real arrowMarkerBack: {{arrowMarkerBack}}
+    readonly property real arrowMarkerSpread: {{arrowMarkerSpread}}
+    readonly property real glowSelectedRadius: {{glowSelectedRadius}}
+    readonly property real glowSelectedAlpha: {{glowSelectedAlpha}}
+    readonly property real glowHoverRadius: {{glowHoverRadius}}
+    readonly property real glowHoverAlpha: {{glowHoverAlpha}}
+    readonly property real camelotWheelSize: {{camelotWheelSize}}
+    readonly property real camelotLabelGap: {{camelotLabelGap}}
+    readonly property real camelotNameGap: {{camelotNameGap}}
+    readonly property real camelotLabelShift: {{camelotLabelShift}}
+    readonly property real camelotEdgeBow: {{camelotEdgeBow}}
+    readonly property real camelotFigureBaseline: {{camelotFigureBaseline}}
+    readonly property real camelotSubtitleBaseline: {{camelotSubtitleBaseline}}
+    readonly property real fontSizeWheelLabel: {{fontSizeWheelLabel}}
+    readonly property real trackingWheelLabel: {{trackingWheelLabel}}
+    readonly property real trackingWheelFigure: {{trackingWheelFigure}}
+    readonly property real levelRingInset: {{levelRingInset}}
+
     // knob
     readonly property real knobSize: {{knobSize}}
     readonly property real knobSizeCompact: {{knobSizeCompact}}

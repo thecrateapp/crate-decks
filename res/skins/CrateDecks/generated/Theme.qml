@@ -361,6 +361,29 @@ QtObject {
     readonly property real levelRingRadius: 7
     readonly property real levelRingMinimum: 0.04
 
+    // instrument
+    readonly property var dashSpoke: [1.5, 4]
+    readonly property real arrowMarkerSize: 5
+    readonly property real arrowMarkerBox: 10
+    readonly property real arrowMarkerTip: 8
+    readonly property real arrowMarkerBack: 1
+    readonly property real arrowMarkerSpread: 4
+    readonly property real glowSelectedRadius: 5
+    readonly property real glowSelectedAlpha: 0.35
+    readonly property real glowHoverRadius: 4
+    readonly property real glowHoverAlpha: 0.5
+    readonly property real camelotWheelSize: 470
+    readonly property real camelotLabelGap: 7
+    readonly property real camelotNameGap: 5
+    readonly property real camelotLabelShift: 0.35
+    readonly property real camelotEdgeBow: 0.86
+    readonly property real camelotFigureBaseline: 4
+    readonly property real camelotSubtitleBaseline: 24
+    readonly property real fontSizeWheelLabel: 10
+    readonly property real trackingWheelLabel: 0.04
+    readonly property real trackingWheelFigure: -0.04
+    readonly property real levelRingInset: 2
+
     // knob
     readonly property real knobSize: 36
     readonly property real knobSizeCompact: 30
