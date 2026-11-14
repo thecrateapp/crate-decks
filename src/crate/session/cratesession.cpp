@@ -328,6 +328,13 @@ QString Session::accessToken() const {
 }
 
 void Session::renewAccessToken(const std::function<void(Renewal renewal)>& done) {
+    if (m_refreshToken.isEmpty() && m_state == State::SigningIn && m_pClient) {
+        // A request got 401 before the keychain gave the refresh token, as
+        // the library's first ones at start-up: wait for the sign-in instead
+        // of ending a session that is being restored.
+        m_renewalsAfterSignIn.append(done);
+        return;
+    }
     if (m_refreshToken.isEmpty() || !m_pClient) {
         done(Renewal::SessionEnded);
         return;
@@ -378,7 +385,17 @@ void Session::setState(State state) {
         return;
     }
     m_state = state;
+    const QPointer<Session> pGuard(this);
     emit stateChanged(state);
+    if (!pGuard || state == State::SigningIn || m_renewalsAfterSignIn.isEmpty()) {
+        return;
+    }
+    const Renewal renewal = state == State::SignedIn ? Renewal::Renewed : Renewal::SessionEnded;
+    const QList<std::function<void(Renewal renewal)>> waiting =
+            std::exchange(m_renewalsAfterSignIn, {});
+    for (const auto& done : waiting) {
+        done(renewal);
+    }
 }
 
 void Session::onLoginAnswer(int attempt, const JsonResult& result) {

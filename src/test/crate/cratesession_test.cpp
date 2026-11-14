@@ -227,6 +227,58 @@ TEST_F(CrateSessionTest, RefreshUsesStoredToken) {
     EXPECT_EQ(1, signedIn.count());
 }
 
+// At start-up the library asks the server before the keychain has answered:
+// the request gets 401 with no token yet. Its renewal waits for the restore
+// instead of ending the session, which left the sidebar without its sections.
+TEST_F(CrateSessionTest, RequestDuringRestoreWaitsForTheRestoredSession) {
+    m_store.secrets.insert(kRefreshKey, QStringLiteral("refresh-0"));
+    m_store.holdReads = true;
+    m_pSession->restore();
+    ASSERT_EQ(Session::State::SigningIn, m_pSession->state());
+
+    std::optional<JsonResult> result;
+    Reply* pLibrary = m_pClient->get(QStringLiteral("/api/library"));
+    QObject::connect(pLibrary,
+            &Reply::finished,
+            pLibrary,
+            [pResult = &result](const JsonResult& finished) { *pResult = finished; });
+    lastSent().pReply->respond(401);
+    EXPECT_FALSE(result.has_value());
+
+    m_store.releaseReads();
+    const FakeNetworkAccessManager::Sent refresh = lastSent();
+    EXPECT_EQ(QStringLiteral("/api/auth/refresh"), refresh.request.url().path());
+    refresh.pReply->respond(200,
+            QByteArrayLiteral(R"({"token": "access-9", "refresh_token": "refresh-1"})"));
+
+    EXPECT_EQ(Session::State::SignedIn, m_pSession->state());
+    EXPECT_EQ(QStringLiteral("/api/library"), lastSent().request.url().path());
+    EXPECT_EQ(QByteArrayLiteral("Bearer access-9"), lastSent().request.rawHeader("Authorization"));
+    lastSent().pReply->respond(200, QByteArrayLiteral("{}"));
+    ASSERT_TRUE(result.has_value());
+    EXPECT_TRUE(result->ok());
+}
+
+TEST_F(CrateSessionTest, RequestDuringARestoreThatEndsSignedOutFails) {
+    m_store.holdReads = true;
+    m_pSession->restore();
+
+    std::optional<JsonResult> result;
+    Reply* pLibrary = m_pClient->get(QStringLiteral("/api/library"));
+    QObject::connect(pLibrary,
+            &Reply::finished,
+            pLibrary,
+            [pResult = &result](const JsonResult& finished) { *pResult = finished; });
+    lastSent().pReply->respond(401);
+    EXPECT_FALSE(result.has_value());
+
+    // No stored session: signed out, and the request fails
+    m_store.releaseReads();
+    EXPECT_EQ(Session::State::SignedOut, m_pSession->state());
+    ASSERT_TRUE(result.has_value());
+    EXPECT_FALSE(result->ok());
+}
+
 TEST_F(CrateSessionTest, RestoreWithoutStoredTokenStaysSignedOut) {
     QSignalSpy signedOut(m_pSession.get(), &Session::signedOut);
 
