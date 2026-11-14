@@ -275,8 +275,24 @@ class FakeSecretStore : public crate::SecretStore {
   public:
     QHash<QString, QString> secrets;
     bool unavailable = false;
+    /// Holds reads until releaseReads(), as a keychain that answers late at
+    /// start-up
+    bool holdReads = false;
+    QList<std::function<void()>> heldReads;
+
+    void releaseReads() {
+        holdReads = false;
+        const QList<std::function<void()>> reads = std::exchange(heldReads, {});
+        for (const auto& read : reads) {
+            read();
+        }
+    }
 
     void read(const QString& key, const ReadDone& done) override {
+        if (holdReads) {
+            heldReads.append([this, key, done] { read(key, done); });
+            return;
+        }
         if (unavailable) {
             done(crate::SecretStore::Status::Unavailable, QString());
             return;
