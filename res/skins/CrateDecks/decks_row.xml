@@ -21,6 +21,7 @@
               <Template src="skins:CrateDecks/deck_left.xml">
                 <SetVariable name="ChanNum">1</SetVariable>
                 <SetVariable name="Letter">A</SetVariable>
+                <SetVariable name="LoadHint">Or select a track · Shift + ←</SetVariable>
                 <SetVariable name="Pair">AC</SetVariable>
                 <SetVariable name="CrateDeck"><Variable name="CrateDeckAC"/></SetVariable>
                 <SetVariable name="WaveLow"><Variable name="CrateWaveLowAC"/></SetVariable>
@@ -41,6 +42,7 @@
               <Template src="skins:CrateDecks/deck_compact_left.xml">
                 <SetVariable name="ChanNum">1</SetVariable>
                 <SetVariable name="Letter">A</SetVariable>
+                <SetVariable name="LoadHint">Or select a track · Shift + ←</SetVariable>
                 <SetVariable name="Pair">AC</SetVariable>
                 <SetVariable name="CrateDeck"><Variable name="CrateDeckAC"/></SetVariable>
                 <SetVariable name="WaveLow"><Variable name="CrateWaveLowAC"/></SetVariable>
@@ -51,6 +53,7 @@
               <Template src="skins:CrateDecks/deck_compact_left.xml">
                 <SetVariable name="ChanNum">3</SetVariable>
                 <SetVariable name="Letter">C</SetVariable>
+                <SetVariable name="LoadHint">Or use Load to in a track's menu</SetVariable>
                 <SetVariable name="Pair">AC</SetVariable>
                 <SetVariable name="CrateDeck"><Variable name="CrateDeckAC"/></SetVariable>
                 <SetVariable name="WaveLow"><Variable name="CrateWaveLowAC"/></SetVariable>
@@ -93,6 +96,7 @@
               <Template src="skins:CrateDecks/deck_right.xml">
                 <SetVariable name="ChanNum">2</SetVariable>
                 <SetVariable name="Letter">B</SetVariable>
+                <SetVariable name="LoadHint">Or select a track · Shift + →</SetVariable>
                 <SetVariable name="Pair">BD</SetVariable>
                 <SetVariable name="CrateDeck"><Variable name="CrateDeckBD"/></SetVariable>
                 <SetVariable name="WaveLow"><Variable name="CrateWaveLowBD"/></SetVariable>
@@ -113,6 +117,7 @@
               <Template src="skins:CrateDecks/deck_compact_right.xml">
                 <SetVariable name="ChanNum">2</SetVariable>
                 <SetVariable name="Letter">B</SetVariable>
+                <SetVariable name="LoadHint">Or select a track · Shift + →</SetVariable>
                 <SetVariable name="Pair">BD</SetVariable>
                 <SetVariable name="CrateDeck"><Variable name="CrateDeckBD"/></SetVariable>
                 <SetVariable name="WaveLow"><Variable name="CrateWaveLowBD"/></SetVariable>
@@ -123,6 +128,7 @@
               <Template src="skins:CrateDecks/deck_compact_right.xml">
                 <SetVariable name="ChanNum">4</SetVariable>
                 <SetVariable name="Letter">D</SetVariable>
+                <SetVariable name="LoadHint">Or use Load to in a track's menu</SetVariable>
                 <SetVariable name="Pair">BD</SetVariable>
                 <SetVariable name="CrateDeck"><Variable name="CrateDeckBD"/></SetVariable>
                 <SetVariable name="WaveLow"><Variable name="CrateWaveLowBD"/></SetVariable>

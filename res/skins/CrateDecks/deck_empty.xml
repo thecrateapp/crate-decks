@@ -1,7 +1,7 @@
 <!--
   Empty deck (GU1 proposal): a drop zone for a track, dashed, with the vinyl
   icon and how to load the selected track instead.
-Variables: ChanNum, Letter
+Variables: ChanNum, Letter, LoadHint (the deck's load key, from decks_row.xml)
 -->
 <Template>
   <TrackWidgetGroup>
@@ -23,7 +23,7 @@ Variables: ChanNum, Letter
           </Label>
           <Label>
             <ObjectName>MonoDropHint</ObjectName>
-            <Text>Or select a track · Shift + <Variable name="Letter"/></Text>
+            <Text><Variable name="LoadHint"/></Text>
           </Label>
         </Children>
       </WidgetGroup>
