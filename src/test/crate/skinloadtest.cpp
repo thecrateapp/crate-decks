@@ -81,7 +81,6 @@
 #include "track/keyutils.h"
 #include "track/track.h"
 #include "track/trackref.h"
-#include "util/cmdlineargs.h"
 #include "util/font.h"
 #include "util/versionstore.h"
 #include "waveform/visualplayposition.h"
@@ -838,10 +837,26 @@ TEST_F(CrateSkinLoadTest, EveryVisibleControlTakesItsClicks) {
     decks.start(application());
     ASSERT_NE(nullptr, decks.skin());
     decks.skin()->window()->resize(1920, 1080);
+    // An empty deck shows its drop zone and hides every deck control
+    for (int deck = 1; deck <= 4; ++deck) {
+        // track_loaded is read-only to everyone but the deck
+        ControlObject* pLoaded = ControlObject::getControl(ConfigKey(
+                QStringLiteral("[Channel%1]").arg(deck), QStringLiteral("track_loaded")));
+        ASSERT_NE(nullptr, pLoaded);
+        pLoaded->forceSet(1.0);
+    }
     const ConfigKey fourDecks(QStringLiteral("[Skin]"), QStringLiteral("show_4decks"));
     for (const double deckCount : {0.0, 1.0}) {
         ControlObject::set(fourDecks, deckCount);
         QCoreApplication::processEvents();
+        int visibleSyncButtons = 0;
+        const QList<QWidget*> syncButtons = decks.skin()->findChildren<QWidget*>(
+                QRegularExpression(QStringLiteral("^CrateDeckButtonFrameSync")));
+        for (QWidget* pButton : syncButtons) {
+            visibleSyncButtons += pButton->isVisible() ? 1 : 0;
+        }
+        // The deck controls are part of the inventory
+        EXPECT_GE(visibleSyncButtons, deckCount ? 4 : 2);
         const QStringList covered = coveredControls(decks.skin());
         EXPECT_TRUE(covered.isEmpty())
                 << (deckCount ? "4 decks" : "2 decks") << ", " << covered.size()
