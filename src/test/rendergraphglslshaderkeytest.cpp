@@ -1,4 +1,11 @@
 #include <gtest/gtest.h>
+
+#include <QtGlobal>
+
+// The waveforms read their shaders from .qsb bundles from Qt 6.6 on
+// (USE_QSHADER_FOR_GL in src/rendergraph/CMakeLists.txt); older Qt has no
+// QShader and uses GLSL extracted at build time.
+#if QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)
 #include <rhi/qshader.h>
 
 #include <QFile>
@@ -34,3 +41,5 @@ TEST(RenderGraphGlslShaderKeyTest, KeepsGlsl120ForDesktopOpenGL) {
 }
 
 } // namespace
+
+#endif
