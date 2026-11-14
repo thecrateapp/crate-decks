@@ -974,7 +974,8 @@ TEST_F(CrateSkinLoadTest, EmptyDecksNameTheirLoadKey) {
     // The keyboard mappings load the selected track into deck 1 and 2 with
     // Shift + Left and Shift + Right; decks 3 and 4 have no key
     QStringList hints;
-    const QList<QLabel*> labels = decks.skin()->findChildren<QLabel*>(QStringLiteral("MonoDropHint"));
+    const QList<QLabel*> labels =
+            decks.skin()->findChildren<QLabel*>(QStringLiteral("MonoDropHint"));
     for (const QLabel* pLabel : labels) {
         hints.append(pLabel->text());
     }

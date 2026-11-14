@@ -275,13 +275,13 @@ QDrag* DragAndDropHelper::dragTrackLocations(
     return dragUrls(trackUrls, pDragSource, sourceIdentifier);
 }
 
-//static
+// static
 bool DragAndDropHelper::canLoadByDragSource(QObject* pSource) {
     const auto* pTrackSource = dynamic_cast<TrackDragSource*>(pSource);
     return pTrackSource && pTrackSource->canLoadDraggedTracks();
 }
 
-//static
+// static
 bool DragAndDropHelper::loadByDragSource(QObject* pSource, const QString& group) {
     auto* pTrackSource = dynamic_cast<TrackDragSource*>(pSource);
     if (!pTrackSource || !pTrackSource->canLoadDraggedTracks()) {

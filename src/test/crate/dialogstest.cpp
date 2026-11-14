@@ -1,7 +1,5 @@
 #include <gtest/gtest.h>
 
-#include <limits>
-
 #include <QAbstractButton>
 #include <QApplication>
 #include <QDialog>
@@ -23,6 +21,7 @@
 #include <QWindow>
 #include <functional>
 #include <initializer_list>
+#include <limits>
 
 #include "crate/ui/crateaddserverwidget.h"
 #include "crate/ui/dialogs/dialogscrim.h"
