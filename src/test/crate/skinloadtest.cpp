@@ -26,6 +26,7 @@
 #include <QPainter>
 #include <QPointer>
 #include <QPushButton>
+#include <QRegularExpression>
 #include <QScrollBar>
 #include <QSqlDatabase>
 #include <QSqlError>
@@ -36,7 +37,6 @@
 #include <QWidget>
 #include <algorithm>
 #include <functional>
-#include <iostream>
 #include <memory>
 #include <vector>
 
@@ -85,7 +85,6 @@
 #include "track/keyutils.h"
 #include "track/track.h"
 #include "track/trackref.h"
-#include "util/cmdlineargs.h"
 #include "util/font.h"
 #include "util/logging.h"
 #include "util/versionstore.h"
@@ -779,6 +778,159 @@ TEST_F(CrateSkinLoadTest, RacksKeepTheUsersChoice) {
     ASSERT_NE(nullptr, decks.skin());
     for (const ConfigKey& key : kRackKeys) {
         EXPECT_EQ(1.0, ControlObject::get(key)) << key.item.toStdString();
+    }
+}
+
+/// A click where the user sees the visible toolbar button `iconName`: the
+/// event goes to whatever widget is under that point, as with a real mouse.
+void clickToolbarButton(QWidget* pSkin, const QString& iconName) {
+    QWidget* pButton = nullptr;
+    // By prefix: deck buttons end in their size and deck pair (…SyncAC)
+    const QList<QWidget*> buttons = pSkin->findChildren<QWidget*>(
+            QRegularExpression(QStringLiteral("^%1").arg(QRegularExpression::escape(iconName))));
+    for (QWidget* pCandidate : buttons) {
+        if (pCandidate->isVisible() && !pButton) {
+            pButton = pCandidate;
+        }
+    }
+    ASSERT_NE(nullptr, pButton) << iconName.toStdString();
+    QWidget* pWindow = pButton->window();
+    const QPoint inWindow = pButton->mapTo(pWindow, pButton->rect().center());
+    QWidget* pHit = pWindow->childAt(inWindow);
+    ASSERT_NE(nullptr, pHit) << iconName.toStdString();
+    EXPECT_TRUE(pHit == pButton || pButton->isAncestorOf(pHit))
+            << iconName.toStdString() << " is covered by "
+            << pHit->metaObject()->className() << " "
+            << pHit->objectName().toStdString();
+    const QPoint local = pHit->mapFrom(pWindow, inWindow);
+    for (const QEvent::Type type : {QEvent::MouseButtonPress, QEvent::MouseButtonRelease}) {
+        QMouseEvent event(type,
+                local,
+                pHit->mapToGlobal(local),
+                Qt::LeftButton,
+                type == QEvent::MouseButtonPress ? Qt::LeftButton : Qt::NoButton,
+                Qt::NoModifier);
+        QCoreApplication::sendEvent(pHit, &event);
+    }
+}
+
+TEST_F(CrateSkinLoadTest, ToolbarButtonsOpenTheirRacks) {
+    QTemporaryDir profile;
+    ASSERT_TRUE(profile.isValid());
+    OffscreenDecks decks(profile.path() + QLatin1Char('/'));
+    decks.writeProfile(kCrateDecks);
+    decks.start(application());
+    ASSERT_NE(nullptr, decks.skin());
+    const QList<std::pair<QString, ConfigKey>> buttons = {
+            {QStringLiteral("TbIconFx"), kRackKeys[0]},
+            {QStringLiteral("TbIconSamplers"), kRackKeys[1]},
+            {QStringLiteral("TbIconMicAux"), kRackKeys[2]},
+    };
+    const ConfigKey fourDecks(QStringLiteral("[Skin]"), QStringLiteral("show_4decks"));
+    // The full layout (the user's window) and the narrow one below 1366 px
+    for (const QSize size : {QSize(1920, 1080), QSize(1280, 800)}) {
+        decks.skin()->window()->resize(size);
+        QCoreApplication::processEvents();
+        for (const auto& [iconName, key] : buttons) {
+            const double before = ControlObject::get(key);
+            clickToolbarButton(decks.skin(), iconName);
+            QCoreApplication::processEvents();
+            EXPECT_NE(before, ControlObject::get(key))
+                    << iconName.toStdString() << " at " << size.width() << " px";
+        }
+        // 2 Decks and 4 Decks select a value of show_4decks; they do not toggle
+        clickToolbarButton(decks.skin(), QStringLiteral("TbIconDecks4"));
+        QCoreApplication::processEvents();
+        EXPECT_EQ(1.0, ControlObject::get(fourDecks)) << size.width() << " px";
+        clickToolbarButton(decks.skin(), QStringLiteral("TbIconDecks2"));
+        QCoreApplication::processEvents();
+        EXPECT_EQ(0.0, ControlObject::get(fourDecks)) << size.width() << " px";
+    }
+    decks.skin()->window()->resize(1920, 1080);
+    QCoreApplication::processEvents();
+    clickToolbarButton(decks.skin(), QStringLiteral("TbIconMicAux"));
+    QCoreApplication::processEvents();
+    auto* pMicAux = decks.skin()->findChild<QWidget*>(QStringLiteral("MicAuxRack"));
+    ASSERT_NE(nullptr, pMicAux);
+    EXPECT_TRUE(pMicAux->isVisible());
+    EXPECT_GT(pMicAux->height(), 20);
+}
+
+/// The controls the user sees but cannot click: another widget is over their
+/// centre. "Class objectName under Class objectName", one per control.
+QStringList coveredControls(QWidget* pSkin) {
+    QStringList covered;
+    const QList<QWidget*> widgets = pSkin->findChildren<QWidget*>();
+    for (QWidget* pWidget : widgets) {
+        if (!pWidget->inherits("WWidget") || !pWidget->isVisible() ||
+                pWidget->width() < 4 || pWidget->height() < 4 ||
+                pWidget->testAttribute(Qt::WA_TransparentForMouseEvents)) {
+            continue;
+        }
+        QWidget* pWindow = pWidget->window();
+        const QPoint centre = pWidget->mapTo(pWindow, pWidget->rect().center());
+        QWidget* pHit = pWindow->childAt(centre);
+        if (pHit == pWidget || (pHit && pWidget->isAncestorOf(pHit))) {
+            continue;
+        }
+        // Overlays from LateNight that take the click on purpose: a transparent
+        // expand button over the FX and sampler headers, and a sampler's play
+        // button over its preview indicator (same control)
+        static const QStringList kIntendedOverlays = {
+                QStringLiteral("FxExpandOverlay"),
+                QStringLiteral("SamplerExpandOverlay"),
+                QStringLiteral("PlaySampler"),
+        };
+        if (pHit && kIntendedOverlays.contains(pHit->objectName())) {
+            continue;
+        }
+        covered.append(QStringLiteral("%1 %2 under %3 %4")
+                        .arg(QString::fromLatin1(pWidget->metaObject()->className()),
+                                pWidget->objectName(),
+                                pHit ? QString::fromLatin1(pHit->metaObject()->className())
+                                     : QStringLiteral("nothing"),
+                                pHit ? pHit->objectName() : QString()));
+    }
+    covered.removeDuplicates();
+    return covered;
+}
+
+TEST_F(CrateSkinLoadTest, EveryVisibleControlTakesItsClicks) {
+    QTemporaryDir profile;
+    ASSERT_TRUE(profile.isValid());
+    OffscreenDecks decks(profile.path() + QLatin1Char('/'));
+    OffscreenDecks::Settings settings;
+    for (const ConfigKey& key : kRackKeys) {
+        settings.append({key, QStringLiteral("1")});
+    }
+    decks.writeProfile(kCrateDecks, settings);
+    decks.start(application());
+    ASSERT_NE(nullptr, decks.skin());
+    decks.skin()->window()->resize(1920, 1080);
+    // An empty deck shows its drop zone and hides every deck control
+    for (int deck = 1; deck <= 4; ++deck) {
+        // track_loaded is read-only to everyone but the deck
+        ControlObject* pLoaded = ControlObject::getControl(ConfigKey(
+                QStringLiteral("[Channel%1]").arg(deck), QStringLiteral("track_loaded")));
+        ASSERT_NE(nullptr, pLoaded);
+        pLoaded->forceSet(1.0);
+    }
+    const ConfigKey fourDecks(QStringLiteral("[Skin]"), QStringLiteral("show_4decks"));
+    for (const double deckCount : {0.0, 1.0}) {
+        ControlObject::set(fourDecks, deckCount);
+        QCoreApplication::processEvents();
+        int visibleSyncButtons = 0;
+        const QList<QWidget*> syncButtons = decks.skin()->findChildren<QWidget*>(
+                QRegularExpression(QStringLiteral("^CrateDeckButtonFrameSync")));
+        for (QWidget* pButton : syncButtons) {
+            visibleSyncButtons += pButton->isVisible() ? 1 : 0;
+        }
+        // The deck controls are part of the inventory
+        EXPECT_GE(visibleSyncButtons, deckCount ? 4 : 2);
+        const QStringList covered = coveredControls(decks.skin());
+        EXPECT_TRUE(covered.isEmpty())
+                << (deckCount ? "4 decks" : "2 decks") << ", " << covered.size()
+                << " covered:\n  " << covered.join(QStringLiteral("\n  ")).toStdString();
     }
 }
 

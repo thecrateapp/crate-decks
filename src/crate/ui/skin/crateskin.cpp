@@ -8,6 +8,7 @@
 #include <QLabel>
 #include <QPainter>
 #include <QPointer>
+#include <QStackedLayout>
 #include <QStyle>
 #include <QStyleOption>
 #include <QWidget>
@@ -21,6 +22,7 @@
 #include "crate/ui/skin/mixerstyle.h"
 #include "crate/ui/skin/preferencescontrol.h"
 #include "util/logger.h"
+#include "widget/wpushbutton.h"
 
 namespace crate {
 
@@ -236,6 +238,31 @@ void applySkinDefaults(const UserSettingsPointer& pConfig, const QString& skinPa
     }
 }
 
+namespace {
+
+/// Buttons with text stack a label over the push button in a stacked
+/// group (tb_button.xml, deck_text_button.xml): the label shows the text
+/// and the button takes the click. The label sat on top and took every
+/// click, so FX, Samplers, Mic · Aux, 4 Decks and the decks' Sync, Key and Q
+/// did nothing. A label stacked with a push button lets the mouse through to
+/// it; clicks and tooltips go to the button.
+void passStackedLabelClicksThrough(QWidget* pSkinRoot) {
+    const QList<QLabel*> labels = pSkinRoot->findChildren<QLabel*>();
+    for (QLabel* pLabel : labels) {
+        QWidget* pGroup = pLabel->parentWidget();
+        if (!pGroup || !qobject_cast<QStackedLayout*>(pGroup->layout())) {
+            continue;
+        }
+        const QList<WPushButton*> buttons =
+                pGroup->findChildren<WPushButton*>(Qt::FindDirectChildrenOnly);
+        if (!buttons.isEmpty()) {
+            pLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
+        }
+    }
+}
+
+} // namespace
+
 void prepareLoadedSkin(QWidget* pSkinRoot,
         const QString& skinPath,
         Library* pLibrary,
@@ -251,6 +278,7 @@ void prepareLoadedSkin(QWidget* pSkinRoot,
     }
     applyFonts(pSkinRoot);
     paintMonoKeys(pSkinRoot);
+    passStackedLabelClicksThrough(pSkinRoot);
     styleMixer(pSkinRoot, variables);
     styleLibrary(pSkinRoot, variables, skinPath, pLibrary, pConfig);
 
