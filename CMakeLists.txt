@@ -2055,12 +2055,14 @@ target_include_directories(
   mixxx-lib
   PUBLIC src "${CMAKE_CURRENT_BINARY_DIR}/src"
 )
-# Crate Decks: application identity (src/crate/appidentity.cpp) and the brand
+# Crate Decks: application identity (src/crate/appidentity.cpp and the X11
+# window class, src/crate/windowclass.cpp) and the brand
 # layer that keeps Mixxx's name out of the interface (src/crate/brand/)
 target_sources(
   mixxx-lib
   PRIVATE
     src/crate/appidentity.cpp
+    src/crate/windowclass.cpp
     src/crate/brand/brandtext.cpp
     src/crate/brand/brandtranslator.cpp
     src/crate/brand/helpurl.cpp

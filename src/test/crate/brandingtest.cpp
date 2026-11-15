@@ -384,9 +384,26 @@ TEST_F(CrateBrandingTest, DesktopEntryMatchesDesktopFileName) {
     EXPECT_QSTRING_EQ(QStringLiteral("Application"), entry.value(QStringLiteral("Type")));
     EXPECT_QSTRING_EQ(QStringLiteral("Decks"), entry.value(QStringLiteral("Name")));
     EXPECT_QSTRING_EQ(desktopFileName, entry.value(QStringLiteral("Icon")));
+    // Docks and window managers match it with the windows' WM_CLASS on X11
+    // and XWayland (crate::applyWindowClass()); "crate-decks" matched none
+    EXPECT_QSTRING_EQ(desktopFileName, entry.value(QStringLiteral("StartupWMClass")));
     const QString exec = entry.value(QStringLiteral("Exec"));
     EXPECT_TRUE(exec.contains(QStringLiteral("crate-decks"))) << qPrintable(exec);
     EXPECT_FALSE(exec.contains(QStringLiteral("mixxx"))) << qPrintable(exec);
+}
+
+// The window class of X11 and XWayland is the desktop file name, both as
+// the instance and as the class, like the Wayland app_id.
+// TEST_GAP: writing it on the windows needs an X server (the tests run
+// offscreen); checked by hand with xprop under QT_QPA_PLATFORM=xcb.
+TEST_F(CrateBrandingTest, WindowClassIsTheDesktopFileName) {
+    const QByteArray name(crate::kDesktopFileName);
+    EXPECT_EQ(name + '\0' + name + '\0', crate::windowClassProperty());
+    if (QGuiApplication::platformName() != QLatin1String("xcb")) {
+        EXPECT_FALSE(crate::applyWindowClass(qobject_cast<QGuiApplication*>(
+                QCoreApplication::instance())));
+    }
+    EXPECT_FALSE(crate::applyWindowClass(nullptr));
 }
 
 TEST_F(CrateBrandingTest, MetainfoMatchesDesktopFileName) {

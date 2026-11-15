@@ -1,8 +1,11 @@
 #pragma once
 
+#include <QByteArray>
 #include <QStandardPaths>
 #include <QString>
 #include <QUrl>
+
+class QGuiApplication;
 
 namespace crate {
 
@@ -31,7 +34,9 @@ inline constexpr char kOrganizationName[] = "Crate";
 /// the application is, so that renaming the application moves no user data.
 inline constexpr char kDataFolderName[] = "Crate Decks";
 inline constexpr char kOrganizationDomain[] = "cratemusic.app";
-/// Wayland app_id, which must match the basename of the .desktop file.
+/// Wayland app_id, which must match the basename of the .desktop file. On
+/// X11 and XWayland it is also both parts of every window's WM_CLASS
+/// (applyWindowClass()), which StartupWMClass in the desktop entry names.
 inline constexpr char kDesktopFileName[] = "app.cratemusic.decks";
 /// The Linux settings folder in the home folder (MIXXX_SETTINGS_PATH).
 inline constexpr char kSettingsFolderName[] = ".cratedecks";
@@ -87,6 +92,21 @@ QString inDataFolder(const QString& path, const QString& organization, const QSt
 /// The writable location of QStandardPaths `type` for the application, in
 /// kDataFolderName (inDataFolder()).
 QString dataLocation(QStandardPaths::StandardLocation type);
+
+/// The X11 WM_CLASS property of every window: kDesktopFileName as the
+/// instance and as the class, each ending in a null byte (ICCCM 4.1.2.5).
+/// Qt would write the executable and the application's visible name
+/// ("crate-decks", "Decks"), which match no desktop entry, so docks and
+/// window managers that group windows by WM_CLASS would guess.
+QByteArray windowClassProperty();
+
+/// On X11 (and XWayland), gives every window of `pApplication` the
+/// WM_CLASS of windowClassProperty() as Qt creates it, before it is
+/// mapped. Returns whether it did: false on any other platform, where
+/// the desktop file name already identifies the windows.
+/// Must be called after the QGuiApplication is constructed and before
+/// any window is created.
+bool applyWindowClass(QGuiApplication* pApplication);
 
 /// Sets the organization, the desktop file name and the application version
 /// on the Qt application.

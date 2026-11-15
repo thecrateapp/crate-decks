@@ -8,6 +8,6 @@ Exec=sh -c "pasuspender -- crate-decks || crate-decks"
 Icon=app.cratemusic.decks
 Terminal=false
 StartupNotify=true
-StartupWMClass=crate-decks
+StartupWMClass=app.cratemusic.decks
 Categories=Qt;AudioVideo;Audio;Midi;Mixer;Player;Recorder;Sequencer;
 Keywords=dj;music;mix;crate;
