@@ -1003,6 +1003,45 @@ grep -rn "smart-mix-v2" app/crate | head
   - `FallsBackToFullIntroOutroWithoutPlan`
   - `OtherModesUnchanged` (parametrizado con los 5 modos de upstream)
 
+**Decidido (Diego, 2026-11-15)**, a las preguntas abiertas de F6.C-PR2:
+
+1. "Fade now" antes del cue de salida del plan: el director no empieza antes; AutoDJ hace su transición normal (respaldo).
+2. Tras un beatmatch, el tempo del entrante vuelve al que tenía antes (lo que ya hace el director), no a 1,0 ni se queda.
+3. Keylock durante Smart Mix: activado por defecto, con una preferencia de Crate para desactivarlo.
+
+**Implementado (F6.C-PR3, 2026-11-15).** Rama `feat/decks-smart-mix-autodj`, sobre F6.C-PR2.
+
+- **Hook de AutoDJ** (`autodjprocessor.{h,cpp}`, +125/−2; el plan estimaba unas 60 líneas): una interfaz `AutoDJProcessor::TransitionDirector` (`startTransition`, `fadeNow`, `cancelTransition`) en vez de una función suelta, porque AutoDJ también tiene que preguntar por "Fade now" y avisar al desactivarse, y un método público `handBackTransition()` para que el director devuelva lo que no ha tocado. `CrateSmartMix` usa los puntos de `FullIntroOutro`; con director, el traspaso se adelanta `kTransitionDirectorLeadSeconds` (30 s).
+  - Si el director no toma la transición (aristas que no son de dos pistas de un mismo servidor Crate, un director que no puede armarse) o la devuelve sin haber arrancado el entrante (sin plan a los 3 s, plan que no cabe, `insufficient_window`, cancelada antes de empezar), AutoDJ recalcula sin adelanto y hace su `FullIntroOutro` en su propio punto de fundido. No se le vuelve a ofrecer esa transición.
+  - Diferencia con el plan: la pista entrante sale de la cola cuando el saliente se para, no al empezar el fundido, para que una transición devuelta no la quite dos veces (con pistas repetidas en la cola quitaría otra).
+  - Si el deck entrante carga otra pista mientras el director espera su cue, AutoDJ no la arranca: el director cancela (`track_changed`) y la devuelve.
+  - Mientras el director tiene la transición, AutoDJ no mueve el crossfader. Sin director, y en los otros cinco modos, nada cambia: los 29 tests de `AutoDJProcessorTest` pasan sin tocarlos.
+- **Combo de AutoDJ** (`dlgautodj.cpp`, +10): "Crate Smart Mix" solo si algún servidor guardado anuncia `beatmatch` en la última respuesta de `GET /api/capabilities` que se guardó. Se calcula al crear el diálogo; un servidor que se añade después aparece al reiniciar.
+- **`crate::AutoDJSmartMixAdapter`** (`src/crate/smartmix/autodjsmartmixadapter.{h,cpp}`), creado por `CrateServerFeature` junto al prefetcher, con un `PlanClient` por servidor:
+  - Pide por adelantado los planes de las 2 aristas siguientes (pista en el aire → siguiente, siguiente → la de después) cada vez que cambia la cola (`PlaylistDAO`) o la pista de un deck (`PlayerInfo`), solo con AutoDJ activo en modo Crate Smart Mix. La cola se lee fuera del hilo principal con `readAutoDjQueue()`, que ahora comparte con el prefetcher.
+  - **Armado al pedir el plan**: en el traspaso arma el director en el acto y le da el plan de la caché o el que traiga la petición, así el plazo de 3 s cuenta desde la petición.
+  - **`finished` en cola**: el `finished()` del director llega por una conexión `Qt::QueuedConnection`; si no mezcló, devuelve la transición a AutoDJ y vuelve a pedir los planes siguientes.
+  - **Contexto de los planes**: `smart-mix-v3` (las stems solo se aplican en v3); `preferredDurationMs` = el tiempo de transición de AutoDJ, acotado por el `maximumTransitionMs` de los `policyLimits` del servidor y por los 12 000 ms del esquema (0, el del servidor, si el tiempo es negativo); `allowBeatmatch`, `allowBassHandoff` y `allowLongBeatmatch` según `capabilities.decks.features`.
+  - **Intercambio de bajos**: con el EQ desactivado ("Bypass EQ"), sin EQ o con otro EQ que no sea el por defecto en los decks de AutoDJ, se piden planes con `allowBassHandoff=false` (`crate::eqmap::isDefaultEqOn()`). Para leer el EQ de cada deck, `CrateServers` recibe el `EffectsManager` (una línea en el bloque de Crate de `coreservices.cpp`).
+  - **"Fade now"** (decisión 1): con el entrante aún parado, cancela el director y AutoDJ funde él mismo; mientras el director mezcla, no cambia nada.
+  - **Keylock** (decisión 3): `CratePreferences::smartMixKeylock()` (`[Crate],SmartMixKeylock`, activado por defecto). Activado, el director pone keylock en el entrante; desactivado, deja el keylock que tenga cada deck. El interruptor está en la sección "Auto DJ and Smart Mix" de la página Crate, que ahora se ve; sus otras filas (chips de transición, asistente, bass swap, long beatmatch e IA) siguen ocultas hasta su plan. Es una fila que no estaba en la maqueta GU1.
+  - **Tempo** (decisión 2): el director ya vuelve al tempo anterior; lo cubre `EasesBackToTheIncomingDecksOwnTempo`.
+- **Crossfader centrado**: el director empieza con el crossfader en el extremo del saliente. Si el DJ lo dejó en otro sitio (centrado, por ejemplo), el `pregain` del saliente conserva el nivel que tenía en vez de subir +3 dB con una curva de potencia constante. AutoDJ ya lo deja en el extremo del saliente.
+- **Tests**:
+  - `autodjsmartmix_test.cpp` (24): con un director falso, `DelegatesTransitionToDirector`, `DeclinedTransitionStartsAtAutoDJsFadePoint`, `FallsBackToFullIntroOutroWithoutPlan`, `QueueAndEjectBehaviourUnchanged` (con y sin director), `OtherModesUnchanged` (los 5 modos de upstream: punto de fundido, crossfader y estados idénticos con y sin director), "Fade now" antes y después del traspaso y con el director mezclando, desactivar AutoDJ y una pista nueva en el entrante. Con el adaptador, el `PlanClient` y el director reales (red, reloj y posiciones falsos): el plan de beatmatch real tocado desde su cue a través de AutoDJ, la petición (`smart-mix-v3`, 10 000 ms, sin bajos sin el EQ por defecto, 12 000 ms como máximo), los planes pedidos por adelantado, la devolución sin plan, "Fade now", desactivar, pistas que no son de Crate y la oferta del modo.
+  - `smartmixdirector_test.cpp`: `KeepsTheOutgoingLevelOfACentredCrossfader` y `EasesBackToTheIncomingDecksOwnTempo`; `dlgprefcrate_test.cpp`: `SmartMixKeylockSwitchSetsThePreference`; `eqmap_test.cpp`: `DefaultEqIsOnOnlyWhenLoadedAndEnabled`; `crateprefetcher_test.cpp`: `ReadsTheFirstPlacesOfTheAutoDjQueue`.
+  - `autodjsmartmixlive_test.cpp`, en vivo contra el stack dev, se salta sin `CRATE_DECKS_LIVE_URL`: con el contexto del adaptador, los planes de 11 aristas de "G3 · Auto DJ (industrial EBM)" llegan en 7–33 ms (el plazo es de 3 s), todos caben en sus pistas y todos traen `policyLimits`. Hubo 1 beatmatch y 10 adaptativos con `fallbackReason`; en "G3 · Electronic (Q3 Q5 grids)", 2 beatmatch, con stems en las 11.
+
+`TEST_GAP:` la precisión real de las transiciones de AutoDJ con el motor (desviación del arranque, fase, niveles) se mide en G4. Nada de esto se ha escuchado ni probado con un AutoDJ real en la app.
+
+**Pendiente para F6.C-PR4 y G4:**
+
+- El traspaso se adelanta 30 s fijos. Un plan cuyo cue cae más de 30 s antes del punto de fundido de AutoDJ (por ejemplo, un outro largo sin cues en Decks) empieza tarde: el director hace saltar el entrante hacia delante. Para G4 conviene medir con qué frecuencia pasa y, si hace falta, que el director diga qué adelanto necesita según el plan en caché.
+- Las aristas se piden sin `profileRevision`, porque la cola solo da rutas: la caché de planes de la sesión no se invalida si el perfil de una pista cambia mientras la app está abierta.
+- Si el director se cancela después de arrancar el entrante (seek atrás o bucle en el saliente), AutoDJ espera a que el saliente acabe su pista en vez de terminar el fundido.
+- F6.C-PR4 reutiliza el director y el `PlanClient` por servidor de `CrateServerFeature`. El adaptador no comparte el director con el asistente: hace falta decidir quién lo tiene cuando AutoDJ y el asistente coinciden.
+- G4: renderizar los 10 pares como los tocaría AutoDJ con este modo (traspaso a 30 s, plan v3 y keylock) frente a Android, más los CSV de desviación del director (`SmartMixDirector::Report`).
+
 ### F6.C-PR4 · Modo asistente
 
 | Fichero | Contenido |
