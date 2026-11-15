@@ -1089,12 +1089,15 @@ grep -rn "smart-mix-v2" app/crate | head
 - **El inspector cabe en el panel de la biblioteca.** A 1366 × 768 el asistente hacía la ventana de 1009 px de alto: sus etiquetas con salto de línea pasaban la altura según el ancho hasta la ventana principal, cuyo mínimo era la altura del panel en su ancho más estrecho. El panel ya no la pasa (`AssistPanel::hasHeightForWidth()` es `false`) y toma la altura del panel de la biblioteca (unos 400 px a 1920 × 1080 y 210 px a 1366 × 768, menos que en la maqueta). Los detalles se desplazan encima de Preparar, Ejecutar y Cancelar, que siguen fijos al pie sin nada debajo: la línea "Mappable" pasa al final de los detalles (en la maqueta va debajo de los botones). A 1920 × 1080 la fila de confianza, entrada y longitud se ve entera; a 1366 × 768 caben unos 80 px de detalles y se desplazan. Test: `CrateSkinLoadTest.SmartMixDetailsStayAboveTheActions`, con la skin y un plan a los dos tamaños. Capturas: `CrateSkinScreenshots.SmartMix`, también del estado preparado a 1366 × 768.
 - **Duración preferida del asistente como preferencia.** `[Crate],SmartMixAssistTransition`, en segundos como el tiempo de transición de AutoDJ: 8 s por defecto, de 1 s (la transición más corta del planner) a 12 s (lo que acepta la petición). En Preferencias · Crate, sección "Auto DJ and Smart Mix", "Assistant transition" con chips de 4, 6, 8, 10 y 12 s, como "Auto DJ transition" (que sigue oculto). Cambiarla vuelve a pedir el plan. Las mezclas largas, hasta `policyLimits.maximumLongBeatmatchMs`, siguen siendo cosa del planner. Tests: `CrateAddServerFlowTest.AssistTransitionStaysWithinTheServersLimits`, `CrateAddServerFlowTest.AssistTransitionChipsSetThePreference` y `CrateSmartMixAssistTest.AsksForTheTransitionLengthOfThePreferences`.
 
-**Pendiente de Diego:**
+**Decidido (Diego, 2026-11-15):**
 
-- Confirmar la regla "AutoDJ manda" (decisión 3).
-- Detalles visuales que la maqueta no cubre: el botón Preparar (la maqueta solo muestra Ejecutar y Cancelar, ya en estado "Prepared"), los textos sin plan, el pie fijo de acciones y la fila de búsqueda, que se queda encima del panel como en la vista de caché (la maqueta no la tiene).
-- ~~La duración preferida del asistente (8 s, la del contexto por defecto) podría ser una preferencia.~~ Hecho en el seguimiento.
-- El asistente de aprendizaje de controladoras aún no ofrece los controles `[CrateSmartMix]` en su lista (es de Mixxx); se mapean a mano en el XML o el script del mapeo.
+- AutoDJ manda: mientras está activo, el asistente no planifica ni ejecuta, y activarlo cancela la transición del asistente (decisión 3).
+- Tres botones: Preparar, Ejecutar y Cancelar. Preparar deja el deck entrante colocado y en tempo, a la espera, para escucharlo antes de lanzar.
+- Los textos sin plan, el pie fijo de acciones y la fila de búsqueda encima del panel se quedan como están.
+- La nota de controles mapeables va al final de los detalles, encima de los botones (en la maqueta, debajo).
+- La duración preferida del asistente es una preferencia (`[Crate],SmartMixAssistTransition`, 8 s por defecto, de 1 a 12 s).
+
+**Nota:** el asistente de aprendizaje de controladoras aún no ofrece los controles `[CrateSmartMix]` en su lista (es de Mixxx); se mapean a mano en el XML o el script del mapeo.
 
 **Gate G4 (Diego):** prueba de escucha A/B de 10 transiciones (Android Smart Mix frente a Decks AutoDJ) con los mismos pares, más los CSV de desviación. **No se sigue sin su aprobación.**
 
@@ -1474,13 +1477,13 @@ La vista del plan de Smart Mix sale de este PR y pasa a V3.PR1b (Diego, 2026-11-
   - `assistpanel_test.cpp`: `ShowsThePlanTimeline`. `CrateSkinLoadTest.SmartMixDetailsStayAboveTheActions` comprueba la línea de tiempo a los dos tamaños, entera en el panel y sin tocar el inspector.
   - Capturas: `CrateSkinScreenshots.SmartMix`, que ahora da a cada pista un hotcue.
 
-**Pendiente de Diego (V3.PR1b):**
+**Decidido (Diego, 2026-11-15), V3.PR1b:**
 
-- Que la línea compacta ocupe el sitio del host a 1366 × 768, y que la leyenda salga solo con el panel alto.
-- El tempo: el deslizamiento va después de la salida, como lo toca el director, no dentro de la ventana como en la maqueta.
+- A 1366 × 768 la línea compacta ocupa el sitio del host, y la leyenda sale solo con el panel alto.
+- El tempo se dibuja como lo toca el director: el deslizamiento va después de la salida, no dentro de la ventana como en la maqueta.
 - El carril de ganancia muestra los niveles que toca el director (curva × ganancia), no solo la ganancia del plan.
-- `Intro end` se pinta como cue de pista; en la maqueta, como cue de plan.
-- Lo que no tiene fuente: el drop. Las frases son de 8 compases fijos (no de `policyLimits.phraseLengths`) y los compases, de 4 tiempos (el `timeSignature` del perfil no llega al asistente, y la rejilla de upstream no lo tiene).
+- `Intro end` se pinta como cue de pista.
+- Lo que no tiene fuente queda para cuando el perfil de Crate lo traiga (también en el servidor): el drop, la longitud de frase (8 compases fijos, no `policyLimits.phraseLengths`) y el compás (4 tiempos; el `timeSignature` del perfil no llega al asistente y la rejilla de upstream no lo tiene).
 
 **V3.PR2 · Vistas de Crate**
 - Compatibles (F5) con la rueda Camelot arriba y la lista con reglas debajo.
