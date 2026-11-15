@@ -5508,6 +5508,7 @@ if(CRATE)
         src/test/crate/controlautomation_test.cpp
         src/test/crate/curves_test.cpp
         src/test/crate/eqmap_test.cpp
+        src/test/crate/waveformoverviewcolors_test.cpp
         src/test/crate/skinloadtest.cpp
         src/test/crate/mixerstyletest.cpp
         src/test/crate/delegatestest.cpp
