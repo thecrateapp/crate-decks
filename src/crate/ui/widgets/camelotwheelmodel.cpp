@@ -19,6 +19,20 @@ int indexOfPosition(int number, bool major) {
     return (major ? kKeysPerRing : 0) + number - 1;
 }
 
+/// The notation of the wheel's own labels: a combined notation ("8A (Am)")
+/// labels each key with its code only, and keeps the full name for the
+/// selected key
+KeyUtils::KeyNotation codeNotationOf(KeyUtils::KeyNotation notation) {
+    switch (notation) {
+    case KeyUtils::KeyNotation::LancelotAndTraditional:
+        return KeyUtils::KeyNotation::Lancelot;
+    case KeyUtils::KeyNotation::OpenKeyAndTraditional:
+        return KeyUtils::KeyNotation::OpenKey;
+    default:
+        return notation;
+    }
+}
+
 } // namespace
 
 CamelotWheelModel::CamelotWheelModel(double contextOpacity, QObject* pParent)
@@ -54,9 +68,10 @@ CamelotWheelModel::CamelotWheelModel(double contextOpacity, QObject* pParent)
 void CamelotWheelModel::setNotation(KeyUtils::KeyNotation notation) {
     m_notation = notation == KeyUtils::KeyNotation::Invalid ? KeyUtils::KeyNotation::Custom
                                                             : notation;
+    const KeyUtils::KeyNotation code = codeNotationOf(m_notation);
     bool renamed = false;
     for (Node& node : m_nodes) {
-        QString label = labelOf(node.key);
+        QString label = KeyUtils::keyToString(node.key, code);
         if (label != node.label) {
             node.label = std::move(label);
             renamed = true;

@@ -135,13 +135,20 @@ TEST_F(CrateCamelotWheelModelTest, NamesKeysInTheChosenNotation) {
     EXPECT_EQ(labelAt(model, a8), QStringLiteral("Am"));
     EXPECT_EQ(labelAt(model, b2), QStringLiteral("F♯/G♭"));
 
+    // A combined notation labels the wheel with its code only; the full
+    // name is for the selected key, in the centre
     model.setNotation(Notation::LancelotAndTraditional);
-    EXPECT_EQ(labelAt(model, a8), QStringLiteral("8A (Am)"));
-    EXPECT_EQ(labelAt(model, b2), QStringLiteral("2B (F♯/G♭)"));
+    EXPECT_EQ(labelAt(model, a8), QStringLiteral("8A"));
+    EXPECT_EQ(labelAt(model, b2), QStringLiteral("2B"));
+    EXPECT_EQ(model.labelOf(key(a8)), QStringLiteral("8A (Am)"));
+    EXPECT_EQ(model.labelOf(key(b2)), QStringLiteral("2B (F♯/G♭)"));
 
     model.setNotation(Notation::OpenKeyAndTraditional);
-    EXPECT_EQ(labelAt(model, a8), QStringLiteral("1m (Am)"));
-    EXPECT_EQ(labelAt(model, b2), QStringLiteral("7d (F♯/G♭)"));
+    EXPECT_EQ(labelAt(model, a1), QStringLiteral("6m"));
+    EXPECT_EQ(labelAt(model, a8), QStringLiteral("1m"));
+    EXPECT_EQ(labelAt(model, b2), QStringLiteral("7d"));
+    EXPECT_EQ(model.labelOf(key(a8)), QStringLiteral("1m (Am)"));
+    EXPECT_EQ(model.labelOf(key(b2)), QStringLiteral("7d (F♯/G♭)"));
 
     // The custom notation is the one the user typed in the preferences
     KeyUtils::setNotation({{mixxx::track::io::key::A_MINOR, QStringLiteral("a-moll")}});
@@ -149,19 +156,24 @@ TEST_F(CrateCamelotWheelModelTest, NamesKeysInTheChosenNotation) {
     EXPECT_EQ(labelAt(model, a8), QStringLiteral("a-moll"));
 
     // The wheel stays a Camelot wheel whatever the notation: every label is
-    // the key of its Camelot position, as KeyUtils writes it
-    for (const Notation notation : {Notation::Lancelot,
-                 Notation::OpenKey,
-                 Notation::Traditional,
-                 Notation::LancelotAndTraditional,
-                 Notation::OpenKeyAndTraditional}) {
+    // the key of its Camelot position, as KeyUtils writes it in the
+    // notation (the code of a combined one)
+    const QList<QPair<Notation, Notation>> notations = {
+            {Notation::Lancelot, Notation::Lancelot},
+            {Notation::OpenKey, Notation::OpenKey},
+            {Notation::Traditional, Notation::Traditional},
+            {Notation::LancelotAndTraditional, Notation::Lancelot},
+            {Notation::OpenKeyAndTraditional, Notation::OpenKey},
+    };
+    for (const auto& [notation, code] : notations) {
         model.setNotation(notation);
         EXPECT_EQ(model.notation(), notation);
         for (const CamelotWheelModel::Node& node : model.nodes()) {
             EXPECT_EQ(node.key, key(node.camelot)) << node.camelot.toStdString();
-            EXPECT_EQ(node.label, KeyUtils::keyToString(node.key, notation))
+            EXPECT_EQ(node.label, KeyUtils::keyToString(node.key, code))
                     << node.camelot.toStdString();
-            EXPECT_EQ(model.labelOf(node.key), node.label) << node.camelot.toStdString();
+            EXPECT_EQ(model.labelOf(node.key), KeyUtils::keyToString(node.key, notation))
+                    << node.camelot.toStdString();
         }
     }
     EXPECT_TRUE(model.labelOf(mixxx::track::io::key::INVALID).isEmpty());

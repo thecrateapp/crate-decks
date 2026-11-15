@@ -23,7 +23,9 @@ namespace crate::widgets {
 /// The wheel is always a Camelot wheel, but it names each key in the
 /// notation of Preferences > Key detection, as the library's key column and
 /// the decks do: it follows the [Library],key_notation control that the
-/// preferences set, so it must be created after Library creates it.
+/// preferences set, so it must be created after Library creates it. A
+/// combined notation labels the keys of the wheel with their code ("8A")
+/// and keeps the full name ("8A (Am)") for the selected key (labelOf()).
 class CamelotWheelModel : public QObject {
     Q_OBJECT
   public:
@@ -52,7 +54,7 @@ class CamelotWheelModel : public QObject {
         /// "8A"
         QString camelot;
         /// The key in the chosen notation, as KeyUtils writes it ("8A",
-        /// "1m", "Am", "8A (Am)")
+        /// "1m", "Am"); only the code of a combined notation ("8A")
         QString label;
         Relation relation = Relation::Rest;
         double opacity = 1;
@@ -94,7 +96,8 @@ class CamelotWheelModel : public QObject {
 
     /// `key` in Camelot ("8A"), or an empty string.
     static QString camelotOf(ChromaticKey key);
-    /// `key` in the chosen notation, or an empty string.
+    /// `key` in the chosen notation, in full ("8A (Am)"), or an empty
+    /// string.
     QString labelOf(ChromaticKey key) const;
 
   signals:

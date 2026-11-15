@@ -220,7 +220,8 @@ TEST_F(CrateCamelotWheelTest, FigureKeepsClearOfTheLabelsBesideIt) {
         m_pModel->setNotation(notation);
         const QImage image = render();
         const auto widthOf = [&](const QString& camelot) {
-            return metrics.horizontalAdvance(m_pModel->labelOf(key(camelot)));
+            const int index = m_pModel->indexOf(key(camelot));
+            return metrics.horizontalAdvance(m_pModel->nodes().at(index).label);
         };
         // Background in the label gap before each label: the figure, made
         // smaller for a long notation, does not reach it
