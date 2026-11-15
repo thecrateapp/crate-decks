@@ -8,7 +8,7 @@
   </SingletonDefinition>
 
   <WidgetGroup>
-    <ObjectName>SamplerContainer</ObjectName>
+    <ObjectName>CrateSamplerContainer</ObjectName>
     <Layout>horizontal</Layout>
     <SizePolicy>me,max</SizePolicy>
     <Children>
@@ -20,7 +20,7 @@
 
           <!-- 8 small Samplers -->
           <WidgetGroup>
-            <ObjectName>SamplerRow</ObjectName>
+            <ObjectName>CrateSamplerRow</ObjectName>
             <Layout>horizontal</Layout>
             <SizePolicy>min,min</SizePolicy>
             <Children>
@@ -77,7 +77,7 @@
 
               <!-- First row 1 2 | 5 6 -->
               <WidgetGroup>
-                <ObjectName>SamplerRow</ObjectName>
+                <ObjectName>CrateSamplerRow</ObjectName>
                 <Layout>horizontal</Layout>
                 <SizePolicy>min,min</SizePolicy>
                 <Children>
@@ -107,7 +107,7 @@
 
               <!-- Second row 3 4 | 7 8 -->
               <WidgetGroup>
-                <ObjectName>SamplerRow</ObjectName>
+                <ObjectName>CrateSamplerRow</ObjectName>
                 <SizePolicy>min,min</SizePolicy>
                 <Layout>horizontal</Layout>
                 <Children>
@@ -121,7 +121,7 @@
                   </SingletonContainer>
 
                   <WidgetGroup>
-                    <ObjectName>MicAuxRackFiller</ObjectName>
+                    <ObjectName>CrateRackFiller</ObjectName>
                     <Size>20f,1me</Size>
                   </WidgetGroup>
 

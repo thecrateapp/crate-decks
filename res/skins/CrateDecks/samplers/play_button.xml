@@ -1,0 +1,38 @@
+<!--
+  The play button of a sampler, as the decks' play (deck_transport.xml):
+  outlined with Solar's play, filled in the accent with pause while it
+  plays latched. Left click goes to the cue and plays, right click is the
+  cue. Under it, the preview indicator fills while the sampler plays
+  without a latch (a held cue); the play button is on top and takes the
+  clicks. Both go in a stacked group.
+Variables: Group
+-->
+<Template>
+  <PushButton>
+    <TooltipId>cue_gotoandplay_cue_default</TooltipId>
+    <ObjectName>CrateSamplerPlay</ObjectName>
+    <NumberStates>2</NumberStates>
+    <RightClickIsPushButton>true</RightClickIsPushButton>
+    <State><Number>0</Number></State>
+    <State><Number>1</Number></State>
+    <Connection>
+      <ConfigKey><Variable name="Group"/>,cue_gotoandplay</ConfigKey>
+      <ButtonState>LeftButton</ButtonState>
+    </Connection>
+    <Connection>
+      <ConfigKey><Variable name="Group"/>,cue_default</ConfigKey>
+      <ButtonState>RightButton</ButtonState>
+    </Connection>
+    <Connection>
+      <ConfigKey><Variable name="Group"/>,play_latched</ConfigKey>
+      <ConnectValueFromWidget>false</ConnectValueFromWidget>
+    </Connection>
+  </PushButton>
+  <PushButton>
+    <ObjectName>CrateSamplerPlayIndicator</ObjectName>
+    <NumberStates>2</NumberStates>
+    <Connection>
+      <ConfigKey><Variable name="Group"/>,play</ConfigKey>
+    </Connection>
+  </PushButton>
+</Template>

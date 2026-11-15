@@ -1,6 +1,4 @@
 <Template>
-  <SetVariable name="BtnType"><Variable name="SubRegion_BtnType"/></SetVariable>
-
   <!-- Create Singletons for samplers 1-4 because they're needed when
     showing 4 or 8 samplers... -->
   <Template src="skins:CrateDecks/samplers/singletons.xml"/>
@@ -33,6 +31,7 @@
   </SingletonDefinition>
 
   <WidgetGroup>
+    <ObjectName>CrateRack</ObjectName>
     <Layout>horizontal</Layout>
     <SizePolicy>me,max</SizePolicy>
     <Children>

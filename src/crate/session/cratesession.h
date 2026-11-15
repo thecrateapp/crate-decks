@@ -129,6 +129,9 @@ class Session : public QObject, public TokenSource {
     SessionOptions m_options;
 
     State m_state = State::SignedOut;
+    /// Renewals asked while signing in, with no refresh token yet (it is on
+    /// its way from the keychain): answered once the sign-in ends.
+    QList<std::function<void(Renewal renewal)>> m_renewalsAfterSignIn;
     QString m_accessToken;
     QString m_refreshToken;
     /// Tells the answers of the current sign-in from those of an older one.

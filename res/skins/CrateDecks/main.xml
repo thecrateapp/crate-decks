@@ -6,9 +6,9 @@
   folded racks and the library.
 
   The variables below are LateNight's PaleMoon scheme. The parts of LateNight
-  that V2 has not redone yet (effects, samplers, mic and aux) still use
-  them; each V2 PR that redoes a part moves it to the Crate*
-  variables and the generated style.
+  that V2 has not redone yet still use them; each PR that redoes a part
+  moves it to the Crate* variables and the generated style, as the FX,
+  sampler and mic and aux racks did.
 -->
 <Template>
   <!-- LateNight PaleMoon scheme -->

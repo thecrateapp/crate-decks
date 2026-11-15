@@ -8,33 +8,27 @@
     <Children>
 
       <WidgetGroup>
-        <ObjectName>MicAuxAddFrame</ObjectName>
+        <ObjectName>CrateMicAuxAddFrame</ObjectName>
         <Layout>vertical</Layout>
         <SizePolicy>me,min</SizePolicy>
         <Children>
 
           <Label>
-            <ObjectName>MicAuxLabelUnconfigured</ObjectName>
-            <Size>0min,21min</Size>
-            <Text>mic <Variable name="Mic1Hack"/><Variable name="MicNum"/></Text>
+            <ObjectName>MonoMicAuxLabel</ObjectName>
+            <Text>Mic <Variable name="Mic1Hack"/><Variable name="MicNum"/></Text>
             <Alignment>center</Alignment>
           </Label>
 
           <WidgetGroup>
-            <ObjectName>MicAuxAddBox</ObjectName>
+            <ObjectName>CrateMicAuxAddBox</ObjectName>
             <Layout>vertical</Layout>
             <SizePolicy>min,me</SizePolicy>
             <Children>
               <PushButton>
                 <TooltipId>configure_input</TooltipId>
-                <ObjectName>MicAuxAdd</ObjectName>
-                <Size>26f,26f</Size>
+                <ObjectName>CrateRackAdd</ObjectName>
                 <NumberStates>1</NumberStates>
-                <State>
-                  <Number>0</Number>
-                  <Unpressed scalemode="STRETCH">skins:CrateDecks/<Variable name="BtnScheme"/>/buttons/btn_flat_square.svg</Unpressed>
-                  <Pressed scalemode="STRETCH">skins:CrateDecks/<Variable name="BtnScheme"/>/buttons/btn_flat_square.svg</Pressed>
-                </State>
+                <State><Number>0</Number></State>
                 <Connection>
                   <ConfigKey><Variable name="Group"/>,talkover</ConfigKey>
                 </Connection>

@@ -1,0 +1,36 @@
+<!--
+  A knob of the racks (FX, samplers, mic and aux): the mixer's knob
+  (mixer_knob.xml) at its compact size, knobSizeCompact, without its label.
+  The instrument scale of knob-scale.svg, the dot of knob-dot.svg and the
+  value arc of WKnobComposed in the accent: the racks have no deck colour.
+Variables:
+  Group, Control, TooltipId
+  ArcUnipolar : false when the arc grows from the centre
+  ArcReversed : true when the arc grows from the right (ducking strength)
+-->
+<Template>
+  <WidgetGroup>
+    <ObjectName>CrateRackKnobBox</ObjectName>
+    <Layout>horizontal</Layout>
+    <SizePolicy>min,max</SizePolicy>
+    <Children>
+      <KnobComposed>
+        <ObjectName>CrateRackKnob</ObjectName>
+        <TooltipId><Variable name="TooltipId"/></TooltipId>
+        <BackPath scalemode="STRETCH">skins:CrateDecks/generated/controls/knob-scale.svg</BackPath>
+        <Knob scalemode="STRETCH">skins:CrateDecks/generated/controls/knob-dot.svg</Knob>
+        <MinAngle>-<Variable name="CrateKnobHalfSweep"/></MinAngle>
+        <MaxAngle><Variable name="CrateKnobHalfSweep"/></MaxAngle>
+        <ArcRadius><Variable name="CrateKnobArcRadiusCompact"/></ArcRadius>
+        <ArcThickness><Variable name="CrateKnobArcWidth"/></ArcThickness>
+        <ArcColor><Variable name="CrateKnobArcColor"/></ArcColor>
+        <ArcUnipolar><Variable name="ArcUnipolar"/></ArcUnipolar>
+        <ArcReversed><Variable name="ArcReversed"/></ArcReversed>
+        <ArcRoundCaps>true</ArcRoundCaps>
+        <Connection>
+          <ConfigKey><Variable name="Group"/>,<Variable name="Control"/></ConfigKey>
+        </Connection>
+      </KnobComposed>
+    </Children>
+  </WidgetGroup>
+</Template>

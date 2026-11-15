@@ -58,6 +58,7 @@
 #include "test/soundsourceproviderregistration.h"
 #include "track/taglib/trackmetadata_file.h"
 #include "track/track.h"
+#include "util/dnd.h"
 #include "widget/wtrackmenu.h"
 #include "widget/wtracktableview.h"
 #ifdef __RUBBERBAND__
@@ -394,6 +395,26 @@ TEST_F(CrateLoadIntoDecksTest, LoadSelectedTrackDownloadsThenLoadsTheDeck) {
     ASSERT_TRUE(serveDownload(QStringLiteral("e1")));
     ASSERT_TRUE(deckHasLoaded(kDeck1, QStringLiteral("e1")));
     EXPECT_TRUE(pDeck1->getLoadedTrack()->getId().isValid());
+}
+
+TEST_F(CrateLoadIntoDecksTest, DroppingAnUncachedTrackOnADeckDownloadsThenLoadsIt) {
+    CrateServerTrackModel* pModel = showPlaylist();
+    ASSERT_NE(nullptr, pModel);
+    Deck* pDeck1 = m_pPlayerManager->getDeck(0);
+    ASSERT_EQ(nullptr, pDeck1->getLoadedTrack());
+    m_pView->selectionModel()->select(pModel->index(0, 0),
+            QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
+
+    // A drag from the table carries no file for a track that is not
+    // downloaded, so the deck it is dropped on asks the table to load it
+    EXPECT_FALSE(DragAndDropHelper::canLoadByDragSource(nullptr));
+    EXPECT_FALSE(DragAndDropHelper::canLoadByDragSource(pModel));
+    ASSERT_TRUE(DragAndDropHelper::canLoadByDragSource(m_pView.get()));
+    ASSERT_TRUE(DragAndDropHelper::loadByDragSource(m_pView.get(), kDeck1));
+    EXPECT_EQ(nullptr, pDeck1->getLoadedTrack());
+
+    ASSERT_TRUE(serveDownload(QStringLiteral("e1")));
+    ASSERT_TRUE(deckHasLoaded(kDeck1, QStringLiteral("e1")));
 }
 
 TEST_F(CrateLoadIntoDecksTest, TrackMenuLoadsAnUncachedTrackIntoDeck2) {

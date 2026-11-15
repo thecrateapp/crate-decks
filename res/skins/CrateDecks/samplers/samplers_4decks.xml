@@ -9,7 +9,7 @@
   </SingletonDefinition>
 
   <WidgetGroup>
-    <ObjectName>SamplerContainer</ObjectName>
+    <ObjectName>CrateSamplerContainer</ObjectName>
     <Layout>horizontal</Layout>
     <SizePolicy>me,max</SizePolicy>
     <Children>
@@ -20,7 +20,7 @@
 
           <!-- 4 small Samplers -->
           <WidgetGroup>
-            <ObjectName>SamplerRow</ObjectName>
+            <ObjectName>CrateSamplerRow</ObjectName>
             <Layout>horizontal</Layout>
             <SizePolicy>min,min</SizePolicy>
             <Children>
@@ -51,7 +51,7 @@
 
           <!-- 4 big Samplers -->
           <WidgetGroup trigger="[LateNight],expand_samplers_1-4" on_hide_select="0">
-            <ObjectName>SamplerRow</ObjectName>
+            <ObjectName>CrateSamplerRow</ObjectName>
             <Layout>horizontal</Layout>
             <SizePolicy>min,min</SizePolicy>
             <Children>

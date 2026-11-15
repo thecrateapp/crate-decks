@@ -296,6 +296,16 @@ void DlgAutoDJ::autoDJError(AutoDJProcessor::AutoDJError error) {
                 tr("Decks not used for Auto DJ must be stopped to enable Auto DJ mode."),
                 QMessageBox::Ok);
         break;
+    case AutoDJProcessor::ADJ_QUEUE_EMPTY:
+        // Sent only when Auto DJ is turned on: the toggle fell back to off
+        // without a word (Crate Decks).
+        // TEST_GAP: a modal QMessageBox from a slot; no Auto DJ dialog
+        // harness in the tests. AutoDJProcessor's tests cover the error.
+        QMessageBox::warning(nullptr,
+                tr("Auto DJ"),
+                tr("The Auto DJ queue is empty. Add tracks to it to start Auto DJ."),
+                QMessageBox::Ok);
+        break;
     case AutoDJProcessor::ADJ_OK:
     default:
         break;
