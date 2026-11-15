@@ -80,10 +80,14 @@ InstrumentStyle InstrumentStyle::fromVariables(const SkinVariables& variables) {
     style.textPrimary = colour(variables, QStringLiteral("CrateTextPrimary"));
     style.textMuted = colour(variables, QStringLiteral("CrateTextMuted"));
     style.textSubtle = colour(variables, QStringLiteral("CrateTextSubtle"));
+    style.textSecondary = colour(variables, QStringLiteral("CrateTextSecondary"));
+    style.textFaint = colour(variables, QStringLiteral("CrateTextFaint"));
     style.border = colour(variables, QStringLiteral("CrateBorder"));
     style.borderSubtle = colour(variables, QStringLiteral("CrateBorderSubtle"));
     style.accent = colour(variables, QStringLiteral("CrateAccent"));
     style.accentHi = colour(variables, QStringLiteral("CrateAccentHi"));
+    style.deckA = colour(variables, QStringLiteral("CrateDeckA"));
+    style.deckB = colour(variables, QStringLiteral("CrateDeckB"));
 
     style.fontMono = variables.value(QStringLiteral("CrateFontMono"));
     style.fontDisplay = variables.value(QStringLiteral("CrateFontDisplay"));
@@ -103,22 +107,27 @@ InstrumentStyle InstrumentStyle::fromVariables(const SkinVariables& variables) {
     style.strokeNodeActive = token(variables, "StrokeNodeActive");
     style.strokeSelected = token(variables, "StrokeSelected");
     style.strokeConnection = token(variables, "StrokeConnection");
+    style.nodeSibling = token(variables, "NodeSibling");
     style.nodeRoot = token(variables, "NodeRoot");
     style.nodeSelected = token(variables, "NodeSelected");
     style.glowSelectedRadius = token(variables, "GlowSelectedRadius");
     style.glowSelectedAlpha = token(variables, "GlowSelectedAlpha");
     style.glowHoverRadius = token(variables, "GlowHoverRadius");
     style.glowHoverAlpha = token(variables, "GlowHoverAlpha");
+    style.glowPulseRadius = token(variables, "GlowPulseRadius");
+    style.glowPulseAlpha = token(variables, "GlowPulseAlpha");
     style.tickCount = wholeToken(variables, "TickCount");
     style.tickEvery = wholeToken(variables, "TickEvery");
     style.tickLong = token(variables, "TickLong");
     style.tickShort = token(variables, "TickShort");
+    style.tickPhrase = token(variables, "TickPhrase");
     style.dashData = patternToken(variables, "DashData");
     style.dashQueue = patternToken(variables, "DashQueue");
     style.dashTelemetry = patternToken(variables, "DashTelemetry");
     style.dashAxis = patternToken(variables, "DashAxis");
     style.dashSpoke = patternToken(variables, "DashSpoke");
     style.opacityContext = token(variables, "OpacityContext");
+    style.opacityRest = token(variables, "OpacityRest");
     style.opacityGuide = token(variables, "OpacityGuide");
     style.arrowMarkerSize = token(variables, "ArrowMarkerSize");
     style.arrowMarkerBox = token(variables, "ArrowMarkerBox");
@@ -141,6 +150,52 @@ InstrumentStyle InstrumentStyle::fromVariables(const SkinVariables& variables) {
     style.levelRingTrackWidth = number(variables, QStringLiteral("CrateLevelRingTrackWidth"));
     style.levelRingMinimum = number(variables, QStringLiteral("CrateLevelRingMinimum"));
     style.levelRingInset = token(variables, "LevelRingInset");
+
+    InstrumentStyle::Plan& plan = style.plan;
+    plan.gutter = token(variables, "PlanGutter");
+    plan.paddingRight = token(variables, "PlanPaddingRight");
+    plan.rulerInset = token(variables, "PlanRulerInset");
+    plan.laneInset = token(variables, "PlanLaneInset");
+    plan.laneMinGap = token(variables, "PlanLaneMinGap");
+    plan.windowRise = token(variables, "PlanWindowRise");
+    plan.windowDrop = token(variables, "PlanWindowDrop");
+    plan.windowLabelRise = token(variables, "PlanWindowLabelRise");
+    plan.cueLabelRise = token(variables, "PlanCueLabelRise");
+    plan.cueLabelDrop = token(variables, "PlanCueLabelDrop");
+    plan.barLabelRise = token(variables, "PlanBarLabelRise");
+    plan.barLabelDrop = token(variables, "PlanBarLabelDrop");
+    plan.barLabelGap = token(variables, "PlanBarLabelGap");
+    plan.deckLabelRise = token(variables, "PlanDeckLabelRise");
+    plan.deckRoleDrop = token(variables, "PlanDeckRoleDrop");
+    plan.laneLabelDrop = token(variables, "PlanLaneLabelDrop");
+    plan.tempoSwing = token(variables, "PlanTempoSwing");
+    plan.gainSwing = token(variables, "PlanGainSwing");
+    plan.valueGap = token(variables, "PlanValueGap");
+    plan.tempoLabelRise = token(variables, "PlanTempoLabelRise");
+    plan.tempoLabelDrop = token(variables, "PlanTempoLabelDrop");
+    plan.gainLabelDrop = token(variables, "PlanGainLabelDrop");
+    plan.bassLabelGap = token(variables, "PlanBassLabelGap");
+    plan.entryBow = token(variables, "PlanEntryBow");
+    plan.arrowRise = token(variables, "PlanArrowRise");
+    plan.arrowGap = token(variables, "PlanArrowGap");
+    plan.playheadOvershoot = token(variables, "PlanPlayheadOvershoot");
+    plan.playheadOpacity = token(variables, "PlanPlayheadOpacity");
+    plan.pulseRadius = token(variables, "PlanPulseRadius");
+    plan.nowLabelGap = token(variables, "PlanNowLabelGap");
+    plan.activeOpacity = token(variables, "PlanActiveOpacity");
+    plan.dimOpacity = token(variables, "PlanDimOpacity");
+    plan.phraseBars = wholeToken(variables, "PlanPhraseBars");
+    plan.fontSizeCue = token(variables, "FontSizePlanCue");
+    plan.fontSizeValue = token(variables, "FontSizePlanValue");
+    plan.fontSizeDeck = token(variables, "FontSizePlanDeck");
+    plan.fontSizeBar = token(variables, "FontSizePlanBar");
+    plan.trackingCue = token(variables, "TrackingPlanCue");
+    plan.legendSample = token(variables, "PlanLegendSample");
+    plan.legendGap = token(variables, "PlanLegendGap");
+    plan.legendRowGap = token(variables, "PlanLegendRowGap");
+    plan.legendItemGap = token(variables, "PlanLegendItemGap");
+    plan.legendPaddingY = token(variables, "PlanLegendPaddingY");
+    plan.legendNode = token(variables, "PlanLegendNode");
     return style;
 }
 
@@ -413,6 +468,23 @@ QString monoLabelText(const QStringList& parts) {
         }
     }
     return shown.join(QStringLiteral(" · "));
+}
+
+double monoLabelWidth(const QStringList& parts, double pixelSize, const InstrumentStyle& style) {
+    const QFontMetricsF metrics(style.monoLabelFont(pixelSize));
+    const double separator = metrics.horizontalAdvance(QStringLiteral("·")) +
+            2 * style.separatorPadding;
+    double width = 0;
+    bool first = true;
+    for (const QString& part : parts) {
+        const QString text = part.trimmed();
+        if (text.isEmpty()) {
+            continue;
+        }
+        width += (first ? 0 : separator) + metrics.horizontalAdvance(text);
+        first = false;
+    }
+    return width;
 }
 
 double paintMonoLabel(QPainter* pPainter,

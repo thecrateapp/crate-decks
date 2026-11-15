@@ -350,18 +350,18 @@ void TransitionPlanViewModel::placeTicks(Side side) {
     if (!hasGrid(pBeats)) {
         return;
     }
-    // The part of the track the range shows, in its own time
-    double fromMs = std::max(m_rangeStartMs, 0.0);
+    // The part of the track the range shows, in its own time, from a beat
+    // on its first millisecond
+    double fromMs = std::max(m_rangeStartMs - 1.0, 0.0);
     double toMs = std::min(m_rangeEndMs, m_outgoing.durationMs);
     if (side == Side::Incoming) {
-        fromMs = m_entryMs;
+        fromMs = m_entryMs - 1.0;
         toMs = std::min(incomingPositionAt(m_rangeEndMs), m_incoming.durationMs);
     }
     if (toMs < fromMs) {
         return;
     }
     const int beatsPerBar = beatsPerBarOf(planDeck);
-    const int beatsPerPhrase = beatsPerBar * kPhraseBars;
     const auto first = pBeats->cfirstmarker();
     auto beat = pBeats->iteratorFrom(frameAt(pBeats, fromMs));
     for (int count = 0; count < kMaxTicks; ++count, ++beat) {
@@ -373,9 +373,7 @@ void TransitionPlanViewModel::placeTicks(Side side) {
         Tick tick;
         tick.atMs = side == Side::Outgoing ? trackMs : atMsOfIncoming(trackMs);
         tick.bar = floorDiv(index, beatsPerBar) + 1;
-        if (index - floorDiv(index, beatsPerPhrase) * beatsPerPhrase == 0) {
-            tick.kind = TickKind::Phrase;
-        } else if (index - floorDiv(index, beatsPerBar) * beatsPerBar == 0) {
+        if (index - (tick.bar - 1) * beatsPerBar == 0) {
             tick.kind = TickKind::Bar;
         }
         ticks.append(tick);

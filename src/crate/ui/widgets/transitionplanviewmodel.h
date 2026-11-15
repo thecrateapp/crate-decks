@@ -107,14 +107,13 @@ class TransitionPlanViewModel : public QObject {
     };
     enum class TickKind {
         Beat,
+        /// The first beat of a bar
         Bar,
-        /// Every plan phrase (8 bars of the deck's grid)
-        Phrase,
     };
     struct Tick {
         double atMs = 0.0;
         TickKind kind = TickKind::Beat;
-        /// The bar a Bar or Phrase tick starts
+        /// The bar of the beat, from 1 at the grid's first marker
         int bar = 0;
     };
     struct Point {
@@ -141,9 +140,6 @@ class TransitionPlanViewModel : public QObject {
         QVector<Point> incoming;
     };
 
-    /// A phrase is this many bars (the planner's shortest, policyLimits
-    /// phraseLengths, and the mockup's 32 beats).
-    static constexpr int kPhraseBars = 8;
     /// How many points a curve has over the transition
     static constexpr int kCurvePoints = 64;
 

@@ -26,10 +26,15 @@ struct InstrumentStyle {
     QColor textPrimary;
     QColor textMuted;
     QColor textSubtle;
+    QColor textSecondary;
+    QColor textFaint;
     QColor border;
     QColor borderSubtle;
     QColor accent;
     QColor accentHi;
+    /// Decks A and C, and B and D
+    QColor deckA;
+    QColor deckB;
 
     // Type
     QString fontMono;
@@ -52,17 +57,21 @@ struct InstrumentStyle {
     double strokeSelected = 0;
     double strokeConnection = 0;
     // Nodes
+    double nodeSibling = 0;
     double nodeRoot = 0;
     double nodeSelected = 0;
     double glowSelectedRadius = 0;
     double glowSelectedAlpha = 0;
     double glowHoverRadius = 0;
     double glowHoverAlpha = 0;
+    double glowPulseRadius = 0;
+    double glowPulseAlpha = 0;
     // Scales
     int tickCount = 0;
     int tickEvery = 0;
     double tickLong = 0;
     double tickShort = 0;
+    double tickPhrase = 0;
     // Stroke patterns, in pixels
     QVector<qreal> dashData;
     QVector<qreal> dashQueue;
@@ -71,6 +80,7 @@ struct InstrumentStyle {
     QVector<qreal> dashSpoke;
     // Opacities
     double opacityContext = 0;
+    double opacityRest = 0;
     double opacityGuide = 0;
     // Arrows: SVG markers in units of the stroke width
     double arrowMarkerSize = 0;
@@ -97,9 +107,67 @@ struct InstrumentStyle {
     double levelRingMinimum = 0;
     double levelRingInset = 0;
 
+    /// The Smart Mix plan's timeline (GU1 mockup smart-mix-assistant,
+    /// decks.js planView; CrateInstPlan<Token>)
+    struct Plan {
+        // The stage
+        double gutter = 0;
+        double paddingRight = 0;
+        double rulerInset = 0;
+        double laneInset = 0;
+        double laneMinGap = 0;
+        // Heights of the window, the labels and the curves, from the rulers
+        // and lanes
+        double windowRise = 0;
+        double windowDrop = 0;
+        double windowLabelRise = 0;
+        double cueLabelRise = 0;
+        double cueLabelDrop = 0;
+        double barLabelRise = 0;
+        double barLabelDrop = 0;
+        double barLabelGap = 0;
+        double deckLabelRise = 0;
+        double deckRoleDrop = 0;
+        double laneLabelDrop = 0;
+        double tempoSwing = 0;
+        double gainSwing = 0;
+        double valueGap = 0;
+        double tempoLabelRise = 0;
+        double tempoLabelDrop = 0;
+        double gainLabelDrop = 0;
+        double bassLabelGap = 0;
+        // Connections and the playhead
+        double entryBow = 0;
+        double arrowRise = 0;
+        double arrowGap = 0;
+        double playheadOvershoot = 0;
+        double playheadOpacity = 0;
+        double pulseRadius = 0;
+        double nowLabelGap = 0;
+        double activeOpacity = 0;
+        double dimOpacity = 0;
+        /// A long tick and a bar number every this many bars
+        int phraseBars = 0;
+        // Type
+        double fontSizeCue = 0;
+        double fontSizeValue = 0;
+        double fontSizeDeck = 0;
+        double fontSizeBar = 0;
+        double trackingCue = 0;
+        // The legend (stack-map.css .stack-map__legend)
+        double legendSample = 0;
+        double legendGap = 0;
+        double legendRowGap = 0;
+        double legendItemGap = 0;
+        double legendPaddingY = 0;
+        double legendNode = 0;
+    };
+    Plan plan;
+
     bool isValid() const {
         return strokeHairline > 0 && tickCount > 0 && wheelCanvas > 0 &&
-                levelRingRadius > 0 && textPrimary.isValid() && !fontMono.isEmpty();
+                levelRingRadius > 0 && plan.gutter > 0 && plan.phraseBars > 0 &&
+                textPrimary.isValid() && !fontMono.isEmpty();
     }
     static InstrumentStyle fromVariables(const SkinVariables& variables);
     /// The style of the installed CrateDecks skin, whatever skin is loaded:
@@ -230,6 +298,9 @@ void paintArrow(QPainter* pPainter,
 /// The MonoLabel text of `parts`: capitals, joined by " · " with the
 /// separator's padding.
 QString monoLabelText(const QStringList& parts);
+
+/// The width paintMonoLabel() gives `parts`.
+double monoLabelWidth(const QStringList& parts, double pixelSize, const InstrumentStyle& style);
 
 /// Paints a MonoLabel (design 14.1) of `parts` with its baseline starting at
 /// `baseline`, and returns its width.

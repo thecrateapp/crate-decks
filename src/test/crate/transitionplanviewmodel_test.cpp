@@ -195,8 +195,8 @@ class CrateTransitionPlanViewModelTest : public MixxxTest, SoundSourceProviderRe
 
 // The assistant's long blend (96 s, dj-blend, bass handoff at 0.5): the
 // window where the director plays it and its length in the outgoing deck's
-// bars, the moments on both rulers with their bars, and the rulers' bars
-// and phrases.
+// bars, the moments on both rulers with their bars, and the rulers' beats
+// and bars.
 TEST_F(CrateTransitionPlanViewModelTest, MapsPlanToSegments) {
     const TransitionPlan longBlend = plan(QStringLiteral("synthetic-assist-long-blend.json"));
     const double outgoingMs = durationMs(kOutgoingUid);
@@ -271,32 +271,27 @@ TEST_F(CrateTransitionPlanViewModelTest, MapsPlanToSegments) {
     EXPECT_NEAR(32600.0, model.incomingPositionAt(pHotcue->atMs), 1e-6);
     EXPECT_EQ(incomingBar(32600.0), pHotcue->bar);
 
-    // The outgoing ruler: every beat of the range up to the track's end,
-    // bars every 4 and phrases every 8 bars, numbered as the grid
+    // The outgoing ruler: every beat of the range up to the track's end, a
+    // bar every 4, numbered as the grid
     const auto& outgoingTicks = model.ticks(Side::Outgoing);
     ASSERT_FALSE(outgoingTicks.isEmpty());
     EXPECT_LE(outgoingTicks.last().atMs, outgoingMs);
-    int phrases = 0;
-    for (const auto& tick : outgoingTicks) {
+    // From a bar line 24 bars or more before the window to the track's end,
+    // 97 s later
+    EXPECT_GE(outgoingTicks.size(), 4 * 74);
+    for (int index = 0; index < outgoingTicks.size(); ++index) {
+        const auto& tick = outgoingTicks[index];
         EXPECT_GE(tick.atMs, model.rangeStartMs() - 1e-6);
-        if (tick.kind == TickKind::Phrase) {
-            ++phrases;
-            EXPECT_EQ(0, (tick.bar - 1) % TransitionPlanViewModel::kPhraseBars);
-        }
-        if (tick.kind != TickKind::Beat) {
-            EXPECT_EQ(outgoingBar(tick.atMs + 1.0), tick.bar);
-        }
+        EXPECT_EQ(outgoingBar(tick.atMs + 1.0), tick.bar);
+        EXPECT_EQ(index % 4 == 0, tick.kind == TickKind::Bar) << index;
     }
-    EXPECT_GE(phrases, 9);
     // The incoming ruler starts at the entry, in the track's first bar
     const auto& incomingTicks = model.ticks(Side::Incoming);
     ASSERT_FALSE(incomingTicks.isEmpty());
     EXPECT_GE(incomingTicks.first().atMs, start);
     EXPECT_EQ(1, incomingTicks.first().bar);
     for (const auto& tick : incomingTicks) {
-        if (tick.kind != TickKind::Beat) {
-            EXPECT_EQ(incomingBar(model.incomingPositionAt(tick.atMs) + 1.0), tick.bar);
-        }
+        EXPECT_EQ(incomingBar(model.incomingPositionAt(tick.atMs) + 1.0), tick.bar);
     }
 }
 
