@@ -1,4 +1,4 @@
-# Crate Decks
+# Decks
 
 [![Build](https://github.com/thecrateapp/crate-decks/actions/workflows/develop.yml/badge.svg?branch=main)](https://github.com/thecrateapp/crate-decks/actions/workflows/develop.yml?query=branch%3Amain)
 [![License: GPL-2.0-or-later](https://img.shields.io/badge/license-GPL--2.0--or--later-blue)](LICENSE)
@@ -7,14 +7,15 @@
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-00599C)](CMakeLists.txt)
 [![Qt 6](https://img.shields.io/badge/Qt-6-41CD52)](#build-requirements)
 
-![Crate Decks icon](res/images/icons/128x128/apps/app.cratemusic.decks.png)
+![Decks icon](res/images/icons/128x128/apps/app.cratemusic.decks.png)
 
 **DJ software that uses your Crate server as its library and its brain.**
 
-Crate Decks is a desktop DJ application for [Crate](https://cratemusic.app), the self-hosted music platform.
+Decks is a desktop DJ application for [Crate](https://cratemusic.app), the self-hosted music platform.
 It browses the library of a Crate server next to the music on your computer, and is being built to load Crate's tracks into the decks with Crate's analysis, recommendations and Smart Mix transitions.
 
-Crate Decks is a fork based on [Mixxx](https://mixxx.org), under the same GPL license.
+Decks is a fork based on [Mixxx](https://mixxx.org), under the same GPL license.
+It was called Decks until 2026-11-15; the technical names keep the old one: the executable `crate-decks`, the app id `app.cratemusic.decks`, the settings folder `~/.cratedecks` and the package `crate-decks`.
 
 > **Status: in development, no release yet.**
 > The features below are on `main`.
@@ -24,13 +25,13 @@ Crate Decks is a fork based on [Mixxx](https://mixxx.org), under the same GPL li
 
 | Component | Version |
 | --- | --- |
-| Crate Decks | `0.1.0`, unreleased. Builds report `0.1.0-dev+g<commit>` until the first `decks-vX.Y.Z` tag |
+| Decks | `0.1.0`, unreleased. Builds report `0.1.0-dev+g<commit>` until the first `decks-vX.Y.Z` tag |
 | Crate server | Crate 3.2.0 or later to connect; the library in the sidebar needs a server release that is not out yet (below) |
 | Decks server contract | `contract_version` 1 |
 
 ### What each feature needs from the server
 
-Crate Decks reads `GET /api/capabilities` and only turns on what the server announces in its `decks` section.
+Decks reads `GET /api/capabilities` and only turns on what the server announces in its `decks` section.
 A server without a feature keeps working: Decks hides or skips what depends on it.
 
 | Server feature | What Decks uses it for | Crate release |
@@ -81,9 +82,9 @@ The scanner commits new tracks in short batches and yields as soon as another co
 
 ### Its own brand
 
-The interface names Crate Decks everywhere: window titles, menus, dialogs, Preferences, tooltips, the command line, the stream name of new broadcast profiles and the folders Decks creates.
+The interface names Decks everywhere: window titles, menus, dialogs, Preferences, tooltips, the command line, the stream name of new broadcast profiles and the folders Decks creates.
 The first start folds the usual setup questions into one Crate flow, the local library's sidebar section is called "Local", and the About dialog keeps only the credits and the license.
-A test starts the application without a screen and fails on any visible text that names the upstream project.
+A test starts the application without a screen and fails on any visible text that names the upstream project or says "Decks", and `tools/crate-brand/inventory.py --check` fails on any string that does.
 
 ### Stems: inference runtime and separator core
 
@@ -135,29 +136,29 @@ build/crate-decks --settingsPath "$(mktemp -d)"
 ```
 
 `--settingsPath` with a throwaway folder keeps a test run away from your real settings.
-Without it, Crate Decks keeps its settings and local library in `~/.cratedecks/` on Linux.
+Without it, Decks keeps its settings and local library in `~/.cratedecks/` on Linux.
 
 ## Connecting to a Crate server
 
-1. Start Crate Decks. With no server yet, the first start offers to connect one; later, use *Preferences → Crate → Add server*.
+1. Start Decks. With no server yet, the first start offers to connect one; later, use *Preferences → Crate → Add server*.
 2. Enter the server's address, for example `https://crate.example.com`.
-3. Decks checks the server's capabilities. It refuses a server that does not accept Crate Decks or needs a newer version.
+3. Decks checks the server's capabilities. It refuses a server that does not accept Decks or needs a newer version.
 4. Sign in with your Crate account, by password or in the browser.
 
 To browse the Crate library in the sidebar, the server must announce `library_cursor` (see [Versions](#versions)).
 
 ## Contributing
 
-- Report bugs and ideas in [Crate's issues](https://github.com/thecrateapp/crate/issues): Crate Decks has no issue tracker of its own.
+- Report bugs and ideas in [Crate's issues](https://github.com/thecrateapp/crate/issues): Decks has no issue tracker of its own.
 - Code style, the build in depth and the pre-commit hooks: [CONTRIBUTING.md](CONTRIBUTING.md). Commits follow conventional commits, such as `feat(decks): …`.
 - Crate's own code lives in `src/crate/`, `src/library/crateserver/` and `src/test/crate/`. Every change to an inherited file is listed in [CRATE_PATCHES.md](CRATE_PATCHES.md).
 - Project notes and rules: [CRATE.md](CRATE.md) and [AGENTS.md](AGENTS.md).
 
 ## License and credits
 
-Crate Decks is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 2 of the License or (at your option) any later version.
+Decks is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 2 of the License or (at your option) any later version.
 See [LICENSE](LICENSE), which keeps the original notice: Copyright (C) 2001-2026 Mixxx Development Team.
 
-- **Mixxx:** Crate Decks builds on the work of the Mixxx contributors.
+- **Mixxx:** Decks builds on the work of the Mixxx contributors.
 - **Fonts:** Roboto, Bricolage Grotesque and JetBrains Mono, under the SIL Open Font License 1.1 (`res/fonts/`).
 - **Icons:** Solar Icons Set by 480 Design, under CC BY 4.0, recoloured for the skin (`tools/crate-design/svg/solar/`).

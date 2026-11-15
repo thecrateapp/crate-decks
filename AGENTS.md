@@ -1,6 +1,6 @@
-# AGENTS.md — Crate Decks
+# AGENTS.md — Decks
 
-Crate Decks es un producto independiente basado en el código de [Mixxx](https://github.com/mixxxdj/mixxx) (GPL-2.0-or-later) que usa un servidor Crate como biblioteca y cerebro: biblioteca remota, análisis de Crate, recomendaciones y Smart Mix en los decks.
+Decks (hasta el 2026-11-15, Crate Decks) es un producto independiente basado en el código de [Mixxx](https://github.com/mixxxdj/mixxx) (GPL-2.0-or-later) que usa un servidor Crate como biblioteca y cerebro: biblioteca remota, análisis de Crate, recomendaciones y Smart Mix en los decks.
 
 - **Qué y por qué:** [diseño de Crate Decks](docs/plans/2026-11-02-crate-decks-design.md).
 - **Cómo y en qué orden:** [plan de implementación de Crate Decks](docs/plans/2026-11-02-crate-decks-implementation-plan.md).
@@ -63,7 +63,7 @@ Ningún cambio de servidor se hace desde este repositorio.
 - **Hilo del motor:** audio en tiempo real, sin reservas de memoria ni locks. Puede emitir señales de Qt, pero no recibirlas.
 - **`parented_ptr`/`make_parented`:** propiedad en el árbol de objetos de Qt. El objeto debe tener padre antes de que se destruya el `parented_ptr`.
 
-### 5.2. Reglas de Crate Decks
+### 5.2. Reglas de Decks
 
 - **Código propio aislado** en `src/crate/`, `src/library/crateserver/`, `src/test/crate/`, `res/skins/CrateDecks/`, `res/crate-design/` y `tools/crate-design/`, detrás de la opción de CMake `CRATE`. La excepción es la identidad de la aplicación (`src/crate/appidentity.*` y sus tests): se compila siempre, también con `CRATE=OFF`, para que ningún build escriba en `~/.mixxx`.
 - **Parches a ficheros de Mixxx:** la lista cerrada está en §5.2 del diseño. Cualquier otro necesita justificación en el PR. Desde F1, todo PR que toque un fichero de Mixxx actualiza `CRATE_PATCHES.md`. Se prefieren señales, slots y hooks a reescribir lógica de upstream.
@@ -124,7 +124,7 @@ Desde F1.PR2 el ejecutable se llama `crate-decks` y, en Linux, su carpeta de aju
 - **Disciplina de aislamiento:** por eso sigue vigente la de §5.2. Cuanto menos se toque de Mixxx, más baratos son esos merges.
 - **Licencia:** GPL-2.0-or-later.
   - Se conservan `LICENSE`, los avisos de copyright y los créditos de Mixxx en *About*.
-  - Crate Decks se distribuye bajo GPL con su código fuente, y el código de Crate que se compila en Decks también.
+  - Decks se distribuye bajo GPL con su código fuente, y el código de Crate que se compila en Decks también.
   - El servidor Crate no queda afectado, porque habla con Decks por HTTP.
   - No se usan el nombre ni los logos de Mixxx en el producto, salvo en los créditos.
 - **CI:** los workflows de `.github/workflows/` que vienen de Mixxx se recortan antes del primer push al repositorio independiente (F1.PR1).
@@ -141,7 +141,7 @@ res/                      Recursos de Mixxx (controllers/, skins/, qml/)
 res/skins/CrateDecks/     Skin propia (desde V2)
 res/crate-design/         tokens.json (desde V1)
 tools/                    Scripts de Mixxx; tools/crate-design/ es el generador de tokens (desde V1)
-docs/plans/               Diseños, planes e informes de Crate Decks
+docs/plans/               Diseños, planes e informes de Decks
 cmake/                    Módulos de CMake
 ```
 
