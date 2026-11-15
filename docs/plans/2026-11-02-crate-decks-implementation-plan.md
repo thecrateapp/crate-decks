@@ -97,6 +97,8 @@ flowchart TD
   G3b --> F9
   G3 --> F5[F5 · Recomendaciones]
   G3 --> F6[F6 · Smart Mix en AutoDJ · S5]
+  V2 --> HL[HL · Portátiles híbridos]
+  HL --> F6
   F6 --> G4{{G4}}
   SM2[[smart-mix-3 · SM2]] --> F6b[F6b · Planner v3 en Decks]
   G4 --> F6b
@@ -132,6 +134,7 @@ con la skin `CrateDecks`.
 | F4 | Cargar cualquier pista Crate en un deck con el análisis de Crate | 1 servidor + 4 cliente | 7–10 días |
 | F4b | Reproducción progresiva (D14) como preferencia; G3b decide si va activada por defecto | 3 | 15–25 días |
 | F5 | Compatibles, Radio y Paths | 3 cliente | 4–6 días |
+| HL | Portátiles híbridos ([plan](2026-11-14-crate-decks-hybrid-laptops-plan.md)): preferencia de GPU dedicada, comprobación del sistema y ayudante del límite de potencia; antes de F6 (Diego, 2026-11-15) | 1 | 3–5 días |
 | F6 | Modo AutoDJ "Crate Smart Mix" y asistente | 1 servidor + 4 cliente | 10–14 días |
 | F6b | Planner v3 in Decks: the v3 candidate menu and limits the server serves (AI refinement dropped after SG3) | 1 | 2–4 días |
 | F7 | Historial, now playing, likes, valoraciones y playlists | 1 servidor + 3 cliente | 5–7 días |
