@@ -42,8 +42,14 @@ struct PlanContext {
     bool allowBassHandoff = false;
     bool allowLongBeatmatch = false;
     /// The assistant's longer transitions (S5). Sent only when set: a server
-    /// without S5 rejects the field.
+    /// without S5 rejects the field. It also asks for localRefinement, since
+    /// a long blend is only valid within the ceiling the server sends there.
     bool assist = false;
+    /// Asks for the candidate menu and each plan's `policyLimits` (STEM-D10),
+    /// which TransitionPlan::validate() then uses. The server sends them only
+    /// to `smart-mix-v3`, and the limits only when both tracks have a
+    /// profile. Sent only when set (or with assist).
+    bool localRefinement = false;
 
     QJsonObject toJson() const;
 };

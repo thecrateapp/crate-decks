@@ -10,14 +10,24 @@
 namespace crate {
 
 /// The policy a TransitionPlan must keep to be played, beyond what any plan
-/// from the server keeps. The defaults are the server's `PlannerPolicy` for
-/// automatic mixing, which AutoDJ shares with Android (D8, G0); the assistant
-/// may allow longer transitions once F6 fixes its limit.
+/// from the server keeps: the parts of the server's `policyLimits` (the
+/// planner policy resolved for one edge, `PolicyLimitsResponse`) that
+/// TransitionPlan::validate() checks. The defaults are what the server
+/// applies when it sends no limits: its `PlannerPolicy` for automatic mixing,
+/// which AutoDJ shares with Android (D8, G0), and the schema's tempo bound.
 struct TransitionPlanLimits {
-    /// The longest equal-power transition.
+    /// The longest transition that is not a long blend
+    /// (`maximumTransitionMs`).
     qint64 maxTransitionMs = 12000;
-    /// The longest beatmatched `dj-blend`.
+    /// The longest beatmatched `dj-blend` (`maximumLongBeatmatchMs`): 48 s,
+    /// and longer in Decks' assist mode (S5), as the server sets it.
     qint64 maxLongBeatmatchMs = 48000;
+    /// How far from 1 a beatmatch may take the incoming tempo
+    /// (`maximumTempoAdjustment`).
+    double maxTempoAdjustment = 0.06;
+    /// Both tracks' tempo is steady enough for a long blend
+    /// (`longBeatmatchEligible`).
+    bool longBeatmatchEligible = true;
 };
 
 /// One Smart Mix transition as the server planned it: one item of `plans` in
@@ -98,30 +108,41 @@ struct TransitionPlan {
     std::optional<bool> structureUsed;
     /// `smart-mix-v3` only: the stems layer of both tracks scored the plan.
     bool stemsUsed = false;
+    /// The server's limits for the edge (`policyLimits`). Only `smart-mix-v3`
+    /// in the decks context with `localRefinement` sends them, and only when
+    /// both tracks have a profile.
+    std::optional<Limits> policyLimits;
 
     /// Reads one plan strictly: every field the server always sends must be
     /// there with its type, enumerations must hold a known value, and numbers
     /// must keep the server schema's bounds (times not negative, tempo ratio
     /// from kMinTempoRatio to kMaxTempoRatio, progress and confidence from 0
-    /// to 1, finite gains). Another plan version, or a uid that is not one, is
-    /// a Decode error. Fields this client does not know are ignored.
+    /// to 1, finite gains), and `policyLimits`, if any, the fields Limits
+    /// reads. Another plan version, or a uid that is not one, is a Decode
+    /// error. Fields this client does not know are ignored.
     static Result<TransitionPlan> fromJson(const QJsonObject& object);
     static Result<TransitionPlan> fromJson(const QByteArray& json);
 
     /// Whether the plan can be played on tracks of these durations (from
     /// their mix profiles, which the planner used), as the problem if not:
     ///
-    /// - the tempo ratio is within its bounds, and exactly 1 outside beatmatch;
+    /// - the tempo ratio is within its bounds and Limits::maxTempoAdjustment,
+    ///   and exactly 1 outside beatmatch;
     /// - a gapless plan has no duration; any other has one, up to
     ///   Limits::maxTransitionMs, or Limits::maxLongBeatmatchMs for a
-    ///   beatmatched `dj-blend`;
+    ///   beatmatched `dj-blend` of tracks eligible for it;
     /// - a beat phase offset, a bass handoff and the `dj-blend` curve only
     ///   come with beatmatch, and the offset falls within the transition;
     /// - the transition fits in both tracks: the outgoing one from its cue,
     ///   the incoming one from its cue at its tempo ratio.
+    ///
+    /// The limits are the plan's own policyLimits, or the defaults of Limits
+    /// when the server sent none.
+    std::optional<QString> validate(qint64 outgoingDurationMs, qint64 incomingDurationMs) const;
+    /// The same with other limits than the plan's.
     std::optional<QString> validate(qint64 outgoingDurationMs,
             qint64 incomingDurationMs,
-            const Limits& limits = Limits()) const;
+            const Limits& limits) const;
 
     /// Where the incoming track starts playing, in its own time. Beatmatch
     /// adds the phase offset at the incoming tempo; it is never subtracted.

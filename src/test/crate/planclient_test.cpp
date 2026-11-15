@@ -168,6 +168,7 @@ TEST_F(CratePlanClientTest, BatchesEdges) {
             EXPECT_EQ(8000, sentContext.value(QStringLiteral("preferredDurationMs")).toInt());
             // Only what a server without S5 accepts.
             EXPECT_FALSE(sentContext.contains(QStringLiteral("assist")));
+            EXPECT_FALSE(sentContext.contains(QStringLiteral("localRefinement")));
         }
     }
     EXPECT_EQ(32, bodyOf(m_network.sent.at(0)).value(QStringLiteral("edges")).toArray().size());
@@ -359,6 +360,9 @@ TEST_F(CratePlanClientTest, SendsAssistOnlyWhenAsked) {
                                         .value(QStringLiteral("context"))
                                         .toObject();
     EXPECT_TRUE(context.value(QStringLiteral("assist")).toBool());
+    // The assist mode's long blends are only valid within the ceiling the
+    // server sends with localRefinement (policyLimits).
+    EXPECT_TRUE(context.value(QStringLiteral("localRefinement")).toBool());
     EXPECT_FALSE(context.value(QStringLiteral("automatic")).toBool());
     EXPECT_TRUE(context.value(QStringLiteral("allowBassHandoff")).toBool());
     EXPECT_FALSE(context.contains(QStringLiteral("allowLongBeatmatch")));

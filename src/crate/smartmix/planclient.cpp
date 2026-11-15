@@ -73,6 +73,9 @@ QJsonObject PlanContext::toJson() const {
     if (assist) {
         context.insert(QStringLiteral("assist"), true);
     }
+    if (localRefinement || assist) {
+        context.insert(QStringLiteral("localRefinement"), true);
+    }
     return context;
 }
 

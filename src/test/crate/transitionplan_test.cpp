@@ -78,6 +78,8 @@ TEST_F(CrateTransitionPlanTest, ParsesAllModes) {
     EXPECT_FALSE(beatmatch.fallbackReason.has_value());
     EXPECT_EQ(std::optional<bool>(false), beatmatch.structureUsed);
     EXPECT_FALSE(beatmatch.stemsUsed);
+    // Without localRefinement the server sends no limits.
+    EXPECT_FALSE(beatmatch.policyLimits.has_value());
     // The phase offset is output time: at the incoming tempo, 298 ms are
     // 305 ms of the incoming track, added to its cue (never subtracted).
     EXPECT_EQ(198 + 305, beatmatch.startIncomingCueMs());
@@ -234,6 +236,91 @@ TEST_F(CrateTransitionPlanTest, KeepsThePolicyOfEachMode) {
     gapless.outgoingCueMs -= 1000;
     EXPECT_EQ(QStringLiteral("plan.durationMs overlaps a gapless plan"),
             validateBeatmatchEdge(gapless));
+}
+
+// The assist mode's long blend (S5), built from the server's code because no
+// dev stack serves it yet: synthetic-assist-long-blend.json, from
+// make_synthetic_assist_plan.py.
+TEST_F(CrateTransitionPlanTest, TakesTheLongBlendCeilingFromTheServer) {
+    const TransitionPlan plan = parse(QStringLiteral("synthetic-assist-long-blend.json"));
+    ASSERT_TRUE(plan.policyLimits.has_value());
+    EXPECT_EQ(96000, plan.policyLimits->maxLongBeatmatchMs);
+    EXPECT_EQ(12000, plan.policyLimits->maxTransitionMs);
+    EXPECT_DOUBLE_EQ(0.04, plan.policyLimits->maxTempoAdjustment);
+    EXPECT_TRUE(plan.policyLimits->longBeatmatchEligible);
+    EXPECT_EQ(TransitionPlan::Curve::DjBlend, plan.curve);
+    EXPECT_EQ(96000, plan.durationMs);
+    // At the server's ceiling.
+    EXPECT_EQ(std::nullopt, validateBeatmatchEdge(plan));
+
+    // One second more is beyond it, although it still fits the tracks.
+    TransitionPlan longer = plan;
+    longer.durationMs = 97000;
+    longer.outgoingCueMs -= 1000;
+    EXPECT_EQ(QStringLiteral("plan.durationMs is longer than the policy allows"),
+            validateBeatmatchEdge(longer));
+
+    // Only a long blend gets the ceiling; an equal-power one stays at 12 s.
+    TransitionPlan equalPower = plan;
+    equalPower.curve = TransitionPlan::Curve::EqualPower;
+    EXPECT_EQ(QStringLiteral("plan.durationMs is longer than the policy allows"),
+            validateBeatmatchEdge(equalPower));
+
+    // Tracks the server says are not steady enough get no long blend.
+    TransitionPlan unsteady = plan;
+    unsteady.policyLimits->longBeatmatchEligible = false;
+    EXPECT_EQ(QStringLiteral(
+                      "plan.durationMs is a long blend of tracks whose tempo is not "
+                      "steady enough"),
+            validateBeatmatchEdge(unsteady));
+
+    // The server's tempo limit applies too: 4 %, not the schema's 6 %.
+    TransitionPlan faster = plan;
+    faster.incomingTempoRatio = 1.05;
+    EXPECT_EQ(QStringLiteral("plan.incomingTempoRatio is out of range"),
+            validateBeatmatchEdge(faster));
+}
+
+TEST_F(CrateTransitionPlanTest, FallsBackWithoutPolicyLimits) {
+    QJsonObject json = object(QStringLiteral("synthetic-assist-long-blend.json"));
+    json.remove(QStringLiteral("policyLimits"));
+    const auto result = TransitionPlan::fromJson(json);
+    ASSERT_TRUE(result.ok());
+    TransitionPlan plan = result.value();
+    EXPECT_FALSE(plan.policyLimits.has_value());
+
+    // Today's ceiling: 48 s.
+    EXPECT_EQ(QStringLiteral("plan.durationMs is longer than the policy allows"),
+            validateBeatmatchEdge(plan));
+    plan.durationMs = 48000;
+    EXPECT_EQ(std::nullopt, validateBeatmatchEdge(plan));
+    plan.durationMs = 48001;
+    EXPECT_EQ(QStringLiteral("plan.durationMs is longer than the policy allows"),
+            validateBeatmatchEdge(plan));
+}
+
+TEST_F(CrateTransitionPlanTest, ReadsPolicyLimitsStrictly) {
+    const QString name = QStringLiteral("synthetic-assist-long-blend.json");
+    const auto withLimits = [&](const QString& key, const QJsonValue& value) {
+        QJsonObject plan = object(name);
+        QJsonObject limits = plan.value(QStringLiteral("policyLimits")).toObject();
+        if (value.isUndefined()) {
+            limits.remove(key);
+        } else {
+            limits.insert(key, value);
+        }
+        plan.insert(QStringLiteral("policyLimits"), limits);
+        const auto result = TransitionPlan::fromJson(plan);
+        return result.ok() ? QString() : result.error().message;
+    };
+    EXPECT_EQ(QStringLiteral("plan.policyLimits.maximumLongBeatmatchMs is missing"),
+            withLimits(QStringLiteral("maximumLongBeatmatchMs"), QJsonValue::Undefined));
+    EXPECT_EQ(QStringLiteral("plan.policyLimits has no room for a transition"),
+            withLimits(QStringLiteral("maximumLongBeatmatchMs"), 6000));
+    EXPECT_EQ(QStringLiteral("plan.policyLimits.maximumTempoAdjustment is out of range"),
+            withLimits(QStringLiteral("maximumTempoAdjustment"), 0.1));
+    // The fields validate() does not read are not required.
+    EXPECT_EQ(QString(), withLimits(QStringLiteral("phraseLengths"), QJsonValue::Undefined));
 }
 
 } // namespace

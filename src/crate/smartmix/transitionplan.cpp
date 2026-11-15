@@ -86,6 +86,28 @@ class Problem {
     std::optional<QString> m_problem;
 };
 
+/// The parts of a plan's `policyLimits` that validate() checks.
+Result<TransitionPlanLimits> limitsFromJson(const QJsonObject& object) {
+    const QString path = kPath + QStringLiteral(".policyLimits");
+    json::ObjectReader reader(object, path);
+    TransitionPlanLimits limits;
+    limits.maxTransitionMs = reader.requiredInteger(u"maximumTransitionMs");
+    limits.maxLongBeatmatchMs = reader.requiredInteger(u"maximumLongBeatmatchMs");
+    limits.maxTempoAdjustment = reader.requiredDouble(u"maximumTempoAdjustment");
+    limits.longBeatmatchEligible = reader.requiredBool(u"longBeatmatchEligible");
+    if (!reader.ok()) {
+        return reader.error();
+    }
+    if (limits.maxTransitionMs <= 0 || limits.maxLongBeatmatchMs < limits.maxTransitionMs) {
+        return Error::decode(path + QStringLiteral(" has no room for a transition"));
+    }
+    if (!(limits.maxTempoAdjustment >= 0.0 &&
+                limits.maxTempoAdjustment <= TransitionPlan::kMaxTempoRatio - 1.0)) {
+        return Error::decode(path + QStringLiteral(".maximumTempoAdjustment is out of range"));
+    }
+    return limits;
+}
+
 QString uidOf(const QString& text) {
     const QUuid uid = QUuid::fromString(text);
     return uid.isNull() ? QString() : uid.toString(QUuid::WithoutBraces);
@@ -117,8 +139,16 @@ Result<TransitionPlan> TransitionPlan::fromJson(const QJsonObject& object) {
         plan.structureUsed = reader.optionalBool(u"structureUsed", false);
     }
     plan.stemsUsed = reader.optionalBool(u"stemsUsed", false);
+    const std::optional<QJsonObject> policyLimits = reader.optionalObject(u"policyLimits");
     if (!reader.ok()) {
         return reader.error();
+    }
+    if (policyLimits) {
+        const Result<Limits> limits = limitsFromJson(*policyLimits);
+        if (!limits.ok()) {
+            return limits.error();
+        }
+        plan.policyLimits = limits.value();
     }
 
     plan.outgoingTrackEntityUid = uidOf(outgoingUid);
@@ -193,6 +223,11 @@ Result<TransitionPlan> TransitionPlan::fromJson(const QByteArray& json) {
     return fromJson(object.value());
 }
 
+std::optional<QString> TransitionPlan::validate(
+        qint64 outgoingDurationMs, qint64 incomingDurationMs) const {
+    return validate(outgoingDurationMs, incomingDurationMs, policyLimits.value_or(Limits()));
+}
+
 std::optional<QString> TransitionPlan::validate(qint64 outgoingDurationMs,
         qint64 incomingDurationMs,
         const Limits& limits) const {
@@ -200,7 +235,9 @@ std::optional<QString> TransitionPlan::validate(qint64 outgoingDurationMs,
         return QStringLiteral("The durations of the tracks are unknown");
     }
     Problem problem;
-    problem.check(incomingTempoRatio >= kMinTempoRatio && incomingTempoRatio <= kMaxTempoRatio,
+    problem.check(incomingTempoRatio >= kMinTempoRatio && incomingTempoRatio <= kMaxTempoRatio &&
+                    std::abs(incomingTempoRatio - 1.0) <=
+                            limits.maxTempoAdjustment + kUnitRatioTolerance,
             QStringLiteral("incomingTempoRatio"),
             "is out of range");
     problem.check(isBeatmatch() || std::abs(incomingTempoRatio - 1.0) <= kUnitRatioTolerance,
@@ -215,6 +252,9 @@ std::optional<QString> TransitionPlan::validate(qint64 outgoingDurationMs,
                         (longBlend ? limits.maxLongBeatmatchMs : limits.maxTransitionMs),
                 QStringLiteral("durationMs"),
                 "is longer than the policy allows");
+        problem.check(durationMs <= limits.maxTransitionMs || limits.longBeatmatchEligible,
+                QStringLiteral("durationMs"),
+                "is a long blend of tracks whose tempo is not steady enough");
     }
     problem.check(isBeatmatch() || beatPhaseOffsetMs == 0,
             QStringLiteral("beatPhaseOffsetMs"),
