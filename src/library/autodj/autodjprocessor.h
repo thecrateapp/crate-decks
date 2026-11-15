@@ -174,8 +174,36 @@ class AutoDJProcessor : public QObject {
         FadeAtOutroStart,
         FixedFullTrack,
         FixedSkipSilence,
-        FixedStartCenterSkipSilence
+        FixedStartCenterSkipSilence,
+        // Crate Decks: the TransitionDirector plays the transition, on
+        // FullIntroOutro's fade points
+        CrateSmartMix
     };
+
+    /// Crate Decks: plays the transitions of TransitionMode::CrateSmartMix in
+    /// Auto DJ's place. Auto DJ keeps the queue, the loads and the ejects;
+    /// the director starts the incoming deck, moves the mixer and stops the
+    /// outgoing deck.
+    class TransitionDirector {
+      public:
+        virtual ~TransitionDirector() = default;
+        /// A CrateSmartMix fade starts, kTransitionDirectorLeadSeconds before
+        /// Auto DJ's own: true if the director takes it. Auto DJ then waits in
+        /// FADING, moving nothing, until the outgoing deck stops or the
+        /// director hands the transition back (handBackTransition()). If the
+        /// director does not take it, Auto DJ makes its own at its own fade
+        /// point.
+        virtual bool startTransition(AutoDJProcessor* pProcessor,
+                const QString& fromGroup,
+                const QString& toGroup) = 0;
+        /// "Fade now" during the director's transition: true if the director
+        /// plays it; false hands the transition back and Auto DJ fades now.
+        virtual bool fadeNow() = 0;
+        /// Auto DJ was disabled during the director's transition.
+        virtual void cancelTransition() = 0;
+    };
+    static void setTransitionDirector(TransitionDirector* pDirector);
+    static constexpr double kTransitionDirectorLeadSeconds = 30.0;
 
     AutoDJProcessor(QObject* pParent,
                     UserSettingsPointer pConfig,
@@ -220,6 +248,9 @@ class AutoDJProcessor : public QObject {
     AutoDJError skipNext();
     void fadeNow();
     AutoDJError toggleAutoDJ(bool enable);
+    /// Crate Decks: the director gives back a transition it took without
+    /// playing it; Auto DJ makes its own (TransitionDirector).
+    void handBackTransition();
 
   signals:
 #ifdef __STEM__
@@ -297,6 +328,8 @@ class AutoDJProcessor : public QObject {
     /// Loads `pTrack`, or the queue's first track once its file is there.
     void loadTrackOrWaitForIt(const TrackPointer& pTrack, const QString& group, bool play);
     void stopWaitingForPendingTrack();
+    /// Crate Decks: whether the director takes the transition that starts now
+    bool offerTransitionToDirector(DeckAttributes* pFromDeck, DeckAttributes* pToDeck);
     void calculateTransition(DeckAttributes* pFromDeck,
             DeckAttributes* pToDeck,
             bool seekToStartPoint);
@@ -347,6 +380,11 @@ class AutoDJProcessor : public QObject {
     QString m_pendingTrackGroup;
     bool m_pendingTrackPlay = false;
     QTimer m_pendingTrackTimer;
+
+    /// Crate Decks: the director has the transition; the next one is Auto
+    /// DJ's own (handed back, or "Fade now")
+    bool m_directorTransition = false;
+    bool m_ownTransition = false;
 
     DISALLOW_COPY_AND_ASSIGN(AutoDJProcessor);
 };

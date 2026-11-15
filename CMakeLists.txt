@@ -5441,6 +5441,7 @@ if(CRATE)
         src/test/crate/analysisimporter_test.cpp
         src/test/crate/audiocache_test.cpp
         src/test/crate/autodjcratepending_test.cpp
+        src/test/crate/autodjsmartmix_test.cpp
         src/test/crate/cachestatusview_test.cpp
         src/test/crate/profilestore_test.cpp
         src/test/crate/cratecapabilities_test.cpp
