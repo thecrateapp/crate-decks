@@ -225,10 +225,12 @@ TEST_F(CrateCamelotWheelTest, FigureKeepsClearOfTheLabelsBesideIt) {
         };
         // Background in the label gap before each label: the figure, made
         // smaller for a long notation, does not reach it
-        const double right = centreOf(QStringLiteral("3A")).x() - offset - widthOf(QStringLiteral("3A"));
+        const double right = centreOf(QStringLiteral("3A")).x() - offset -
+                widthOf(QStringLiteral("3A"));
         EXPECT_TRUE(blank(image, right - m_style.camelotLabelGap, right - 1))
                 << static_cast<int>(notation);
-        const double left = centreOf(QStringLiteral("9A")).x() + offset + widthOf(QStringLiteral("9A"));
+        const double left = centreOf(QStringLiteral("9A")).x() + offset +
+                widthOf(QStringLiteral("9A"));
         EXPECT_TRUE(blank(image, left + 1, left + m_style.camelotLabelGap))
                 << static_cast<int>(notation);
     }

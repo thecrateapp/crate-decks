@@ -153,7 +153,8 @@ void CamelotWheel::paintEdges(QPainter* pPainter) const {
     pPainter->save();
     pPainter->setRenderHint(QPainter::Antialiasing);
     pPainter->setBrush(Qt::NoBrush);
-    for (const auto key : m_pModel->compatibleKeys()) {
+    const auto compatible = m_pModel->compatibleKeys();
+    for (const auto key : compatible) {
         const int target = m_pModel->indexOf(key);
         const CamelotWheelModel::Node& to = m_pModel->nodes().at(target);
         const QPointF end = nodeCentre(target);

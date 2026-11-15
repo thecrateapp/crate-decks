@@ -68,6 +68,7 @@ TEST_F(CrateCamelotWheelModelTest, MarksAdjacentAndRelativeKeysCompatible) {
 
     CamelotWheelModel model(m_contextOpacity);
     ASSERT_EQ(model.nodes().size(), 24);
+    QStringList compatible;
     for (const QChar letter : {QLatin1Char('A'), QLatin1Char('B')}) {
         const QChar other = letter == QLatin1Char('A') ? QLatin1Char('B') : QLatin1Char('A');
         for (int number = 1; number <= 12; ++number) {
@@ -82,8 +83,9 @@ TEST_F(CrateCamelotWheelModelTest, MarksAdjacentAndRelativeKeysCompatible) {
                     camelot(number, other),
                     camelot(wrap(number + 7), letter),
             };
-            QStringList compatible;
-            for (const ChromaticKey compatibleKey : model.compatibleKeys()) {
+            compatible.clear();
+            const auto compatibleKeys = model.compatibleKeys();
+            for (const ChromaticKey compatibleKey : compatibleKeys) {
                 compatible.append(CamelotWheelModel::camelotOf(compatibleKey));
             }
             EXPECT_EQ(compatible, expected) << master.toStdString();
