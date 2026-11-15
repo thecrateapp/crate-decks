@@ -5402,11 +5402,14 @@ if(CRATE)
       src/crate/session/crateloopbackserver.cpp
       src/crate/session/cratesecretstore.cpp
       src/crate/session/cratesession.cpp
+      src/crate/smartmix/assistpanel.cpp
       src/crate/smartmix/autodjsmartmixadapter.cpp
+      src/crate/smartmix/autodjsmartmixmode.cpp
       src/crate/smartmix/controlautomation.cpp
       src/crate/smartmix/curves.cpp
       src/crate/smartmix/eqmap.cpp
       src/crate/smartmix/planclient.cpp
+      src/crate/smartmix/smartmixassist.cpp
       src/crate/smartmix/smartmixdirector.cpp
       src/crate/smartmix/transitionplan.cpp
       src/crate/stems/resampler.cpp
@@ -5463,6 +5466,7 @@ if(CRATE)
       mixxx-test
       PRIVATE
         src/test/crate/analysisimporter_test.cpp
+        src/test/crate/assistpanel_test.cpp
         src/test/crate/audiocache_test.cpp
         src/test/crate/autodjcratepending_test.cpp
         src/test/crate/autodjsmartmix_test.cpp

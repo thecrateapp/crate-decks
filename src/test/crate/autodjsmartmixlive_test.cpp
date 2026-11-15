@@ -1,5 +1,5 @@
-// F6.C-PR3, live: the plans Auto DJ's Crate Smart Mix asks a Crate dev stack
-// for, with the adapter's own planner context, the plan client and the
+// F6.C-PR3 and F6.C-PR4, live: the plans Auto DJ's Crate Smart Mix and the
+// assist mode ask a Crate dev stack for, with their own planner contexts, the plan client and the
 // server's capabilities as AddServerFlow keeps them. It measures how long the
 // plans take against the director's 3 s deadline and checks that every plan
 // fits its tracks (TransitionPlan::validate()).
@@ -23,6 +23,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QNetworkAccessManager>
+#include <QScopeGuard>
 #include <QSignalSpy>
 #include <QTest>
 #include <QUrl>
@@ -38,6 +39,8 @@
 #include "crate/session/cratesession.h"
 #include "crate/smartmix/autodjsmartmixadapter.h"
 #include "crate/smartmix/planclient.h"
+#include "crate/smartmix/smartmixassist.h"
+#include "mixer/playerinfo.h"
 #include "test/mixxxdbtest.h"
 
 namespace {
@@ -288,6 +291,78 @@ TEST_F(AutoDJSmartMixLive, PlansAutoDJsEdgesWithinTheDeadline) {
     // The handover finds what was asked ahead in the cache
     EXPECT_TRUE(planClient.cachedPlan(edges[0], context).has_value());
     EXPECT_TRUE(planClient.cachedPlan(edges[1], context).has_value());
+}
+
+// F6.C-PR4: the assistant's context (smart-mix-v3, assist=true, the server's
+// own length) gets plans that fit their tracks, with the assist mode's
+// limits: long blends up to 96 s.
+TEST_F(AutoDJSmartMixLive, PlansAssistEdgesWithTheAssistLimits) {
+    const QByteArray capabilities = m_pServers->lastCapabilities(m_serverId);
+    PlayerInfo::create();
+    const auto destroyPlayerInfo = qScopeGuard([] { PlayerInfo::destroy(); });
+    crate::SmartMixAssist::Options options;
+    options.mappable = false;
+    options.capabilitiesOf = [capabilities](const QString&) -> std::optional<crate::Capabilities> {
+        const auto parsed = crate::Capabilities::fromJson(QJsonDocument::fromJson(capabilities));
+        if (!parsed.ok()) {
+            return std::nullopt;
+        }
+        return parsed.value();
+    };
+    options.defaultEqOn = [](const QStringList&) {
+        return true;
+    };
+    crate::SmartMixAssist assist(std::move(options));
+    const crate::PlanContext context = assist.contextFor(
+            m_serverId, {QStringLiteral("[Channel1]"), QStringLiteral("[Channel2]")});
+    EXPECT_TRUE(context.assist);
+    EXPECT_TRUE(context.automatic);
+    EXPECT_EQ(QStringLiteral("smart-mix-v3"), context.plannerVersion);
+
+    const QString playlist = qEnvironmentVariable("CRATE_DECKS_LIVE_PLAYLIST", kDefaultPlaylist);
+    QStringList uids = playlistTracks(playlist);
+    ASSERT_GE(uids.size(), 4) << "Too few profiled tracks in " << playlist.toStdString();
+    uids = uids.mid(0, kTracks);
+    QHash<QString, qint64> durations;
+    for (const QString& uid : std::as_const(uids)) {
+        durations.insert(uid.toLower(), durationMs(uid));
+    }
+    QList<PlanEdge> edges;
+    for (int i = 0; i + 1 < uids.size(); ++i) {
+        edges.append(PlanEdge{uids[i], uids[i + 1], QString(), QString()});
+    }
+    crate::PlanClient planClient(m_pClient);
+    // The assistant asks one edge when a deck loads
+    const auto [first, firstMs] = plans(&planClient, edges.mid(0, 1), context);
+    const auto [rest, restMs] = plans(&planClient, edges.mid(1), context);
+    measure("assist plan (1 edge) " + std::to_string(firstMs) + " ms");
+
+    QHash<QString, int> modes;
+    qint64 longest = 0;
+    int checked = 0;
+    int longBlends = 0;
+    for (const PlanResults* pResults : {&first, &rest}) {
+        for (const crate::Result<TransitionPlan>& result : pResults->plans) {
+            ASSERT_TRUE(result.ok()) << result.error().message.toStdString();
+            const TransitionPlan& plan = result.value();
+            const auto problem = plan.validate(durations.value(plan.outgoingTrackEntityUid),
+                    durations.value(plan.incomingTrackEntityUid));
+            EXPECT_FALSE(problem.has_value()) << problem.value_or(QString()).toStdString();
+            ASSERT_TRUE(plan.policyLimits.has_value());
+            // The assist mode's ceiling for long blends (S5, 96 s)
+            EXPECT_EQ(96000, plan.policyLimits->maxLongBeatmatchMs);
+            modes[crate::toString(plan.mode)] += 1;
+            longest = std::max(longest, plan.durationMs);
+            longBlends += plan.curve == TransitionPlan::Curve::DjBlend ? 1 : 0;
+            ++checked;
+        }
+    }
+    EXPECT_EQ(edges.size(), checked);
+    for (auto it = modes.cbegin(); it != modes.cend(); ++it) {
+        measure("assist mode " + it.key().toStdString() + ": " + std::to_string(it.value()));
+    }
+    measure("assist long blends " + std::to_string(longBlends) + " of " +
+            std::to_string(checked) + ", longest " + std::to_string(longest) + " ms");
 }
 
 } // namespace

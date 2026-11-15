@@ -1831,6 +1831,204 @@ WTrackPropertyEditor {
   padding: 0 10px;
 }
 
+/* ── Smart Mix assistant of the Crate section (plan F6.C-PR4) ──────────
+   GU1 mockups smart-mix-assistant (decks.css .assist, stack-map.css): the
+   view head, the edge as a StackMap host and the plan's inspector. C++
+   lays it out with the dialog metrics (crate/smartmix/assistpanel.cpp). */
+#CrateSmartMixAssist,
+#CrateAssistBody,
+#CrateAssistScroll,
+#CrateAssistPlan {
+  background-color: #0a0a0f;
+  border: 0;
+}
+#CrateAssistHead {
+  background-color: #0a0a0f;
+  border: 0;
+  border-bottom: 1px solid rgba(241, 245, 249, 26);
+}
+#MonoAssistEyebrow {
+  color: #67e8f9;
+  font-size: 8.625pt;
+  letter-spacing: 2.07px;
+}
+#MonoAssistPlanEyebrow {
+  color: #67e8f9;
+}
+#MonoAssistStatus[crateState="ready"] {
+  color: #67e8f9;
+}
+#CrateAssistStatusDot {
+  background-color: #7e8084;
+  border-radius: 3px;
+  min-width: 6px;
+  max-width: 6px;
+  min-height: 6px;
+  max-height: 6px;
+}
+#CrateAssistStatusDot[crateState="ready"] { background-color: #67e8f9; }
+#CrateAssistStatusDot[crateState="busy"] { background-color: #999ca0; }
+#CrateAssistStatusDot[crateState="warning"] { background-color: #fbbf24; }
+#CrateSmartMixAssist #CrateChip {
+  min-height: 30px;
+  max-height: 30px;
+  padding: 0 12px;
+  border: 1px solid rgba(241, 245, 249, 26);
+  border-radius: 16px;
+  background-color: transparent;
+  color: rgba(241, 245, 249, 199);
+  font-family: "JetBrains Mono";
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.48px;
+}
+#CrateSmartMixAssist #CrateChip:hover {
+  border-color: rgba(103, 232, 249, 102);
+  color: #f1f5f9;
+}
+#CrateSmartMixAssist #CrateChip:checked {
+  border-color: #67e8f9;
+  background-color: #67e8f9;
+  color: #0a0a0f;
+}
+#CrateAssistHost {
+  border: 0;
+  border-bottom: 1px solid rgba(241, 245, 249, 26);
+}
+#CrateAssistTitle,
+#CrateAssistMode {
+  color: #f1f5f9;
+  font-family: "Bricolage Grotesque";
+  font-size: 30px;
+  letter-spacing: -1.35px;
+}
+#CrateAssistTitle {
+  font-weight: 700;
+}
+#CrateAssistMode {
+  font-weight: 600;
+}
+#CrateAssistArtists,
+#CrateAssistHostUnit,
+#CrateAssistQuiet {
+  color: #999ca0;
+  font-family: "JetBrains Mono";
+  font-size: 11px;
+}
+#CrateAssistQuiet {
+  color: #7e8084;
+}
+#CrateAssistHostReading,
+#CrateAssistReadingValue {
+  color: #f1f5f9;
+  font-family: "JetBrains Mono";
+}
+#CrateAssistHostReading {
+  font-size: 26px;
+  letter-spacing: -1.3px;
+}
+#CrateAssistReadingValue {
+  font-size: 22px;
+  letter-spacing: -1.1px;
+}
+#CrateAssistInspector {
+  border: 0;
+  border-left: 1px solid rgba(241, 245, 249, 26);
+}
+#CrateAssistDescription {
+  color: #999ca0;
+  font-family: "Roboto";
+  font-size: 13px;
+}
+#CrateAssistState {
+  min-height: 22px;
+  max-height: 22px;
+  padding: 0 9px;
+  border: 1px solid rgba(241, 245, 249, 26);
+  border-radius: 12px;
+  background-color: transparent;
+  color: rgba(241, 245, 249, 199);
+  font-family: "JetBrains Mono";
+  font-size: 12px;
+}
+#CrateAssistState[crateState="ready"] {
+  border-color: rgba(103, 232, 249, 102);
+  background-color: rgba(6, 182, 212, 26);
+  color: #67e8f9;
+}
+#CrateAssistState[crateState="warning"] {
+  border-color: rgba(251, 191, 36, 64);
+  background-color: rgba(251, 191, 36, 26);
+  color: #f9c94a;
+}
+#CrateAssistState[crateState="off"] {
+  border-color: rgba(241, 245, 249, 10);
+  color: rgba(241, 245, 249, 79);
+}
+#CrateAssistStateCaption,
+#CrateAssistMetaKey,
+#CrateAssistMetaValue {
+  font-family: "JetBrains Mono";
+  font-size: 10px;
+  color: #999ca0;
+}
+#CrateAssistMetaKey {
+  color: #7e8084;
+}
+#CrateAssistReadings,
+#CrateAssistMeta,
+#CrateAssistActions {
+  border: 0;
+  border-top: 1px solid rgba(241, 245, 249, 26);
+}
+/* The admin's buttons (base.css .crate-button), as in the dialogs: neutral,
+   cyan outline for the action, ghost for Cancel */
+#CrateSmartMixAssist QPushButton {
+  min-height: 30px;
+  padding: 0 12px;
+  border: 1px solid rgba(241, 245, 249, 26);
+  border-radius: 4px;
+  background-color: transparent;
+  color: rgba(241, 245, 249, 199);
+  font-family: "Roboto";
+  font-size: 14px;
+  font-weight: 500;
+  qproperty-iconSize: 18px 18px;
+}
+#CrateSmartMixAssist QPushButton:hover {
+  border-color: rgba(241, 245, 249, 51);
+  color: #f1f5f9;
+}
+#CrateSmartMixAssist QPushButton:pressed {
+  background-color: rgba(241, 245, 249, 13);
+}
+#CrateSmartMixAssist QPushButton:disabled {
+  border-color: rgba(241, 245, 249, 15);
+  color: #4a4c52;
+}
+#CrateSmartMixAssist QPushButton[crateButton="primary"] {
+  border-color: #06b6d4;
+  color: #06b6d4;
+}
+#CrateSmartMixAssist QPushButton[crateButton="primary"]:hover {
+  border-color: #67e8f9;
+  color: #67e8f9;
+}
+#CrateSmartMixAssist QPushButton[crateButton="primary"]:disabled {
+  border-color: rgba(6, 182, 212, 76);
+  color: #4a4c52;
+}
+#CrateSmartMixAssist QPushButton[crateButton="ghost"] {
+  border-color: transparent;
+  color: rgba(241, 245, 249, 199);
+}
+#CrateSmartMixAssist QPushButton[crateButton="ghost"]:hover {
+  background-color: rgba(241, 245, 249, 13);
+  color: #f1f5f9;
+}
+#CrateSmartMixAssist QPushButton[crateButton="ghost"]:disabled {
+  color: #4a4c52;
+}
 /* ── Auto DJ and Analyze: the button bars of the library (plan V2.PR5) ─ */
 
 /* The admin's small buttons, outlined and neutral, with Solar icons; the

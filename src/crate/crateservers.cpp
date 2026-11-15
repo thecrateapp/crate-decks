@@ -176,6 +176,7 @@ void CrateServers::rememberCapabilities(
                     pServer->pProfileStore->setCapabilities(capabilities.value());
                 }
             }
+            emit capabilitiesChanged(serverId);
             return;
         }
     }

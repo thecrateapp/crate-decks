@@ -67,7 +67,7 @@ TEST_F(CrateServersTest, StartRestoresTheSavedServers) {
     pServers->start();
 
     ASSERT_EQ(1, pServers->sessions().size());
-    EXPECT_EQ(QStringLiteral("a"), pServers->sessions().first()->profile().id);
+    EXPECT_EQ(QStringLiteral("a"), pServers->sessions().constFirst()->profile().id);
     ASSERT_FALSE(m_network.sent.isEmpty());
     EXPECT_EQ(QUrl(QStringLiteral("https://a.test/api/auth/refresh")), lastSent().request.url());
     EXPECT_EQ(QStringLiteral("refresh-a"),
@@ -99,6 +99,27 @@ TEST_F(CrateServersTest, AddedServerIsSavedOnceSignedIn) {
     EXPECT_EQ(QStringLiteral("Club"), profiles.first().displayName);
     EXPECT_EQ(QStringLiteral("7"), profiles.first().accountId);
     EXPECT_GE(changed.count(), 1);
+}
+
+// A saved server's new capabilities are kept and announced, so Auto DJ can
+// offer Crate Smart Mix without a restart; an unsaved server's are not.
+TEST_F(CrateServersTest, AnnouncesTheCapabilitiesItKeeps) {
+    ASSERT_TRUE(crate::db::createCrateServerSchema(dbConnection()));
+    ServerProfile saved;
+    saved.id = QStringLiteral("a");
+    saved.baseUrl = QUrl(QStringLiteral("https://a.test"));
+    ASSERT_TRUE(crate::db::saveServerProfile(dbConnection(), saved));
+    const auto pServers = makeServers();
+    pServers->start();
+    QSignalSpy changed(pServers.get(), &CrateServers::capabilitiesChanged);
+    const QByteArray json = R"({"decks": {"features": ["beatmatch"]}})";
+
+    pServers->rememberCapabilities(QStringLiteral("a"), json);
+    pServers->rememberCapabilities(QStringLiteral("unknown"), json);
+
+    ASSERT_EQ(1, changed.count());
+    EXPECT_EQ(QStringLiteral("a"), changed.first().first().toString());
+    EXPECT_EQ(json, pServers->lastCapabilities(QStringLiteral("a")));
 }
 
 TEST_F(CrateServersTest, RemoveServerSignsOutAndForgets) {

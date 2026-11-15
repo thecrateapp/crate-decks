@@ -542,4 +542,33 @@ QtObject {
     readonly property real aboutWidth: 560
     readonly property real aboutMetaGap: 6
     readonly property real aboutTextHeight: 160
+    readonly property real viewHeadHeight: 56
+    readonly property real viewHeadGap: 18
+    readonly property real assistPaddingTop: 16
+    readonly property real assistColumnGap: 32
+    readonly property real assistInspectorWidth: 300
+    readonly property real assistInspectorPaddingLeft: 26
+    readonly property real assistHostGap: 32
+    readonly property real assistHostPaddingBottom: 14
+    readonly property real assistHostNameTop: 6
+    readonly property real assistHostNameBottom: 4
+    readonly property real assistHostReadingGap: 12
+    readonly property real fontSizeAssistHostReading: 26
+    readonly property real assistModeTop: 8
+    readonly property real assistModeBottom: 6
+    readonly property real fontWeightAssistMode: 600
+    readonly property real assistDescriptionBottom: 16
+    readonly property real assistStateGap: 10
+    readonly property real fontSizeAssistCaption: 10
+    readonly property real assistReadingRowPaddingY: 16
+    readonly property real assistReadingRowGap: 12
+    readonly property real assistReadingValueTop: 6
+    readonly property real fontSizeAssistReading: 22
+    readonly property real assistMetaPaddingY: 16
+    readonly property real assistMetaKeyWidth: 78
+    readonly property real assistMetaGap: 12
+    readonly property real assistMetaRowPaddingY: 5
+    readonly property real assistActionsGap: 8
+    readonly property real assistActionsPaddingY: 14
+    readonly property real assistQuietTop: 8
 }

@@ -109,6 +109,8 @@ class CrateServers : public QObject {
 
   signals:
     void serversChanged();
+    /// rememberCapabilities() kept a new answer of the saved server.
+    void capabilitiesChanged(const QString& serverId);
     /// audioCache() created the cache.
     void audioCacheCreated();
 

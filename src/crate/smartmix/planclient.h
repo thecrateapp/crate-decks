@@ -30,7 +30,9 @@ struct PlanContext {
     /// `smart-mix-v2` or `smart-mix-v3`; empty asks for the server's default
     /// (`capabilities.smart_mix.planner_version`).
     QString plannerVersion;
-    /// AutoDJ plans automatic transitions; the assistant asks for manual ones.
+    /// A planned transition, as Auto DJ's and the assistant's; false is a
+    /// skip the DJ asks for now (Listen's manual next), which the server
+    /// plans as a short crossfade.
     bool automatic = true;
     bool offline = false;
     /// The transition length the DJ prefers; the server takes up to 12 s.

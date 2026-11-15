@@ -17,6 +17,7 @@
 #include <iostream>
 #include <memory>
 
+#include "control/controlobject.h"
 #include "crate/cache/audiocache.h"
 #include "crate/cratepreferences.h"
 #include "crate/crateservers.h"
@@ -26,6 +27,8 @@
 #include "crate/library/cratelibrarystore.h"
 #include "crate/library/crateloadcoordinator.h"
 #include "crate/library/crateprefetcher.h"
+#include "crate/smartmix/assistpanel.h"
+#include "crate/smartmix/smartmixassist.h"
 #include "crate/ui/cachestatusmodel.h"
 #include "crate/ui/delegates/delegateroles.h"
 #include "library/crateserver/crateservertrackmodel.h"
@@ -36,6 +39,7 @@
 #include "test/crate/fakecratenetwork.h"
 #include "test/librarytest.h"
 #include "track/track.h"
+#include "widget/wlibrary.h"
 
 namespace {
 
@@ -300,12 +304,14 @@ TEST_F(CrateServerFeatureTest, SidebarShowsServerAndSections) {
                       QStringLiteral("Crates (1)"),
                       QStringLiteral("Genres"),
                       QStringLiteral("Likes (2)"),
+                      QStringLiteral("Smart Mix"),
                       QStringLiteral("Cache")}),
             labels(root()));
     // Their Solar icons, by name, for the CrateDecks sidebar
     EXPECT_EQ(QStringLiteral("crate-library"), root()->child(0)->getIcon().name());
     EXPECT_EQ(QStringLiteral("crate-likes"), root()->child(4)->getIcon().name());
-    EXPECT_EQ(QStringLiteral("crate-cache"), root()->child(5)->getIcon().name());
+    EXPECT_EQ(QStringLiteral("crate-smartmix"), root()->child(5)->getIcon().name());
+    EXPECT_EQ(QStringLiteral("crate-cache"), root()->child(6)->getIcon().name());
     // The server's order, and its count when there is one
     EXPECT_EQ(QStringList({QStringLiteral("Peak hour"), QStringLiteral("Warm-up (52)")}),
             labels(root()->child(1)));
@@ -588,7 +594,7 @@ TEST_F(CrateServerFeatureTest, ReadsASmartMixPlaylistByItsIdOnTheServer) {
             {remoteTrack(QStringLiteral("e1"), QStringLiteral("Lattice"), 0.7, QString()),
                     remoteTrack(QStringLiteral("e2"), QStringLiteral("Glass"), 0.5, QString())});
     CrateServerFeature* pFeature = makeFeature();
-    ASSERT_TRUE(QTest::qWaitFor([&] { return labels(root()).size() == 6; }, 5000));
+    ASSERT_TRUE(QTest::qWaitFor([&] { return labels(root()).size() == 7; }, 5000));
     const qsizetype sent = m_network.sent.size();
 
     std::optional<std::optional<QList<crate::library::CrateTrackRef>>> read;
@@ -794,6 +800,7 @@ TEST_F(CrateServerFeatureTest, LazyExpansionFetchesOnce) {
     EXPECT_EQ(QStringList({QStringLiteral("Library"),
                       QStringLiteral("Playlists"),
                       QStringLiteral("Crates"),
+                      QStringLiteral("Smart Mix"),
                       QStringLiteral("Cache")}),
             labels(root()));
 
@@ -805,7 +812,7 @@ TEST_F(CrateServerFeatureTest, LazyExpansionFetchesOnce) {
     const QString tree = QStringLiteral("/api/decks/containers");
     ASSERT_TRUE(QTest::qWaitFor([&] { return sentTo(tree) == 1; }, 5000));
     lastTo(tree)->pReply->respond(200, kTree);
-    ASSERT_TRUE(QTest::qWaitFor([&] { return labels(root()).size() == 6; }, 5000));
+    ASSERT_TRUE(QTest::qWaitFor([&] { return labels(root()).size() == 7; }, 5000));
     EXPECT_EQ(QStringLiteral("Library (136512)"), root()->child(0)->getLabel());
     pPlaylists = childLabelled(root(), QStringLiteral("Playlists"));
     EXPECT_EQ(QStringLiteral("Playlists (2)"), pPlaylists->getLabel());
@@ -925,7 +932,7 @@ TEST_F(CrateServerFeatureTest, SearchInTheCrateSectionAsksTheServer) {
     EXPECT_EQ(QStringLiteral("bpm:120-128 key:8A"), pResults->currentSearch());
     // Not a sidebar node
     EXPECT_EQ(2, labels(childLabelled(root(), QStringLiteral("Playlists"))).size());
-    EXPECT_EQ(6, labels(root()).size());
+    EXPECT_EQ(7, labels(root()).size());
 
     // Clearing the search shows the playlist again, unfiltered
     pResults->search(QString());
@@ -973,6 +980,48 @@ class MainThreadStalls {
 // TEST_GAP: the dev stack's latency is not in it (G3 session).
 // The Cache item (plan F4.C-PR4): the cache's use as its count, and the
 // cache's view in the library pane, with the tracks' titles
+// The Smart Mix item (plan F6.C-PR4) shows the assistant, which the skin's
+// toolbar button [CrateDecks],show_smart_mix shows and hides; the button
+// follows the library pane.
+TEST_F(CrateServerFeatureTest, SmartMixShowsTheAssistant) {
+    storeTree();
+    ControlObject showSmartMix(CrateServerFeature::showSmartMixKey());
+    CrateServerFeature* pFeature = makeFeature();
+    ASSERT_NE(nullptr, pFeature->smartMixAssist());
+    WLibrary library(nullptr);
+    pFeature->bindLibraryWidget(&library, nullptr);
+    QObject::connect(pFeature, &LibraryFeature::switchToView, &library, &WLibrary::switchToView);
+    auto* pPanel = library.findChild<crate::AssistPanel*>();
+    ASSERT_NE(nullptr, pPanel);
+    EXPECT_EQ(pFeature->smartMixAssist(), pPanel->assist());
+    TreeItem* pItem = childLabelled(root(), QStringLiteral("Smart Mix"));
+    ASSERT_NE(nullptr, pItem);
+    // The cache's view first, as if the DJ were there
+    pFeature->activateChild(indexOf(childLabelled(root(), QStringLiteral("Cache"))));
+    ASSERT_NE(pPanel, library.currentWidget());
+
+    // The toolbar's button
+    QSignalSpy selected(pFeature, &LibraryFeature::featureSelect);
+    showSmartMix.set(1.0);
+    EXPECT_EQ(pPanel, library.currentWidget());
+    ASSERT_EQ(1, selected.size());
+    EXPECT_EQ(indexOf(pItem), selected.first().at(1).value<QModelIndex>());
+    // Off again: back to the Crate library without a sidebar to go back to
+    QSignalSpy shown(pFeature, &LibraryFeature::showTrackModel);
+    showSmartMix.set(0.0);
+    EXPECT_EQ(1, shown.size());
+    // What the library does with the track model
+    library.switchToView(CrateServerFeature::kCacheViewName);
+    EXPECT_EQ(0.0, showSmartMix.get());
+
+    // The sidebar item, and the button follows the pane
+    pFeature->activateChild(indexOf(pItem));
+    EXPECT_EQ(pPanel, library.currentWidget());
+    EXPECT_EQ(1.0, showSmartMix.get());
+    pFeature->activateChild(indexOf(childLabelled(root(), QStringLiteral("Cache"))));
+    EXPECT_EQ(0.0, showSmartMix.get());
+}
+
 TEST_F(CrateServerFeatureTest, CacheItemShowsTheCacheView) {
     storeTree();
     storeContainerTracks(containerId(QStringLiteral("likes"), QStringLiteral("me")),

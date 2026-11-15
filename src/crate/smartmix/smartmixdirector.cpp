@@ -318,6 +318,7 @@ bool SmartMixDirector::arm(const QString& outgoingGroup,
     m_plan.reset();
     m_startDueMs.reset();
     m_prepared = false;
+    m_held = options.holdStart;
     m_armedAtMs = m_pEnvironment->nowMs();
     m_previousOutgoingMs = positionMs(*m_pOutgoing);
     kLogger.info() << "Armed" << outgoingGroup << "->" << incomingGroup;
@@ -339,14 +340,7 @@ bool SmartMixDirector::setPlan(const TransitionPlan& plan) {
         return false;
     }
     m_plan = plan;
-    // As Android's NativeMixTrigger.effectiveCueMs(): the transition ends
-    // before the outgoing track does.
-    const double latestCueMs = std::max(0.0,
-            durationMs(*m_pOutgoing) - static_cast<double>(plan.durationMs) -
-                    kStartSafetyLeadMs);
-    m_startAtMs = plan.outgoingCueMs > 0
-            ? std::min(static_cast<double>(plan.outgoingCueMs), latestCueMs)
-            : latestCueMs;
+    m_startAtMs = startAtMs(plan, durationMs(*m_pOutgoing));
     m_report.plannedStartOutgoingMs = m_startAtMs;
     const double waitMs = (m_startAtMs - positionMs(*m_pOutgoing)) / outgoingRate();
     m_cueDeadlineMs = m_pEnvironment->nowMs() + std::max(0.0, waitMs) + kCueDeadlineMarginMs;
@@ -357,6 +351,25 @@ bool SmartMixDirector::setPlan(const TransitionPlan& plan) {
                    << (plan.bassHandoff == TransitionPlan::BassHandoff::Balanced ? "balanced"
                                                                                  : "none")
                    << "at" << plan.handoffProgress;
+    tick();
+    return true;
+}
+
+double SmartMixDirector::startAtMs(const TransitionPlan& plan, double outgoingDurationMs) {
+    // As Android's NativeMixTrigger.effectiveCueMs(): the transition ends
+    // before the outgoing track does.
+    const double latestCueMs = std::max(0.0,
+            outgoingDurationMs - static_cast<double>(plan.durationMs) - kStartSafetyLeadMs);
+    return plan.outgoingCueMs > 0 ? std::min(static_cast<double>(plan.outgoingCueMs), latestCueMs)
+                                  : latestCueMs;
+}
+
+bool SmartMixDirector::release() {
+    if (!isHeld()) {
+        return false;
+    }
+    kLogger.info() << "Released: starts at its cue";
+    m_held = false;
     tick();
     return true;
 }
@@ -457,7 +470,7 @@ void SmartMixDirector::stepWaiting(double nowMs) {
     const double rate = outgoingRate();
     const double outgoingMs = positionMs(*m_pOutgoing);
     const double remainingMs = (m_startAtMs - outgoingMs) / rate;
-    if (m_state == State::Armed && remainingMs <= kPrepareLeadMs) {
+    if (m_state == State::Armed && (remainingMs <= kPrepareLeadMs || m_held)) {
         prepare();
     }
     if (m_state != State::Preparing) {
@@ -466,6 +479,9 @@ void SmartMixDirector::stepWaiting(double nowMs) {
     if (m_plan->isBeatmatch()) {
         // Follows the outgoing deck's tempo until the start.
         m_pIncoming->rate->set(m_plan->incomingTempoRatio * rate);
+    }
+    if (m_held) {
+        return;
     }
     if (!m_startDueMs && remainingMs <= 2.0 * kTickMs) {
         // The start is within the next tick: fix its time once, from the

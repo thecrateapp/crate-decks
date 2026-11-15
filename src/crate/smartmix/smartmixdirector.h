@@ -36,6 +36,18 @@ class SmartMixEnvironment {
     static std::unique_ptr<SmartMixEnvironment> engine();
 };
 
+/// Options of SmartMixDirector::arm().
+struct SmartMixDirectorOptions {
+    /// Keylock on the incoming deck while it plays at another tempo;
+    /// empty leaves the deck's setting alone (the DJ's preference).
+    std::optional<bool> keylock;
+    /// Prepares the incoming deck as soon as the plan comes, and holds
+    /// it there: the start waits for SmartMixDirector::release(). The assist mode's
+    /// "Prepare" (plan F6.C-PR4). A held transition still ends at its
+    /// deadline if its cue passes.
+    bool holdStart = false;
+};
+
 /// Plays one Smart Mix transition (design D8) between two decks, as the
 /// server planned it (TransitionPlan), with the deck and mixer controls and
 /// the curves of the Android player (curves.h). It runs on the main thread,
@@ -81,11 +93,7 @@ class SmartMixDirector : public QObject {
     };
     Q_ENUM(State)
 
-    struct Options {
-        /// Keylock on the incoming deck while it plays at another tempo;
-        /// empty leaves the deck's setting alone (the DJ's preference).
-        std::optional<bool> keylock;
-    };
+    using Options = SmartMixDirectorOptions;
 
     /// What happened, for the caller and for the G4 metrics.
     struct Report {
@@ -154,14 +162,27 @@ class SmartMixDirector : public QObject {
     /// later than kPrepareLeadMs before its start is prepared at once.
     /// Returns whether the plan was taken.
     bool setPlan(const TransitionPlan& plan);
+    /// Lets a transition armed with Options::holdStart start at its cue.
+    /// Returns false, and does nothing, if no transition is held.
+    bool release();
     /// Stops the transition, and the tempo restore after one.
     void cancel();
+
+    /// Where the outgoing deck starts `plan` on a track of
+    /// `outgoingDurationMs`: its cue, or earlier so that the transition ends
+    /// kStartSafetyLeadMs before the track does (as Android's
+    /// NativeMixTrigger.effectiveCueMs()).
+    static double startAtMs(const TransitionPlan& plan, double outgoingDurationMs);
 
     State state() const {
         return m_state;
     }
     /// Armed, Preparing or Running.
     bool isActive() const;
+    /// Armed or Preparing with Options::holdStart, not released yet.
+    bool isHeld() const {
+        return isActive() && m_held;
+    }
     /// The incoming deck is still easing back to its tempo after a
     /// completed transition.
     bool isRestoringTempo() const;
@@ -225,6 +246,7 @@ class SmartMixDirector : public QObject {
     double m_runStartMs = 0.0;
     double m_runRate = 1.0;
     bool m_prepared = false;
+    bool m_held = false;
     /// Diagnostics: the last running progress and the tenth of it last logged
     double m_lastProgress = -1.0;
     int m_loggedStep = -1;
