@@ -279,8 +279,8 @@ double TransitionPlanView::xOf(double atMs) const {
             (atMs - m_pModel->rangeStartMs()) / span * (m_layout.plotRight - m_layout.plotLeft);
 }
 
-QRect TransitionPlanView::playheadRect() const {
-    return m_playhead.rect;
+QRegion TransitionPlanView::playheadRegion() const {
+    return m_playhead.region;
 }
 
 TransitionPlanView::Playhead TransitionPlanView::playhead() const {
@@ -303,14 +303,39 @@ TransitionPlanView::Playhead TransitionPlanView::playhead() const {
     QRectF rect(playhead.x - reach, top, 2 * reach + 1, bottom - top);
     const QFont font = m_style.monoFont(plan.fontSizeCue, m_style.trackingCaps);
     const QPointF baseline(playhead.x - plan.nowLabelGap, m_layout.incomingY + plan.cueLabelDrop);
-    QRectF label = textRect(baseline, playhead.label, font, Anchor::End);
+    // Left of the playhead, as the mockup, clear of the incoming deck's
+    // names on its row by the legend's gap between items; right of it when
+    // there is no room on the left
+    const auto clear = [this, &plan](QRectF label, double step) {
+        for (int pass = 0; pass <= m_incomingNames.size(); ++pass) {
+            bool moved = false;
+            for (const QRectF& name : std::as_const(m_incomingNames)) {
+                if (name.adjusted(-plan.legendGap, 0, plan.legendGap, 0).intersects(label)) {
+                    if (step < 0) {
+                        label.moveRight(name.left() - plan.legendGap);
+                    } else {
+                        label.moveLeft(name.right() + plan.legendGap);
+                    }
+                    moved = true;
+                }
+            }
+            if (!moved) {
+                break;
+            }
+        }
+        return label;
+    };
+    QRectF label = clear(textRect(baseline, playhead.label, font, Anchor::End), -1);
     if (label.left() < 0) {
-        label = textRect(QPointF(playhead.x + plan.nowLabelGap, baseline.y()),
-                playhead.label,
-                font,
-                Anchor::Start);
+        label = clear(textRect(QPointF(playhead.x + plan.nowLabelGap, baseline.y()),
+                              playhead.label,
+                              font,
+                              Anchor::Start),
+                1);
     }
-    playhead.rect = rect.united(label).toAlignedRect().adjusted(-1, -1, 1, 1);
+    playhead.labelRect = label;
+    playhead.region = QRegion(rect.toAlignedRect().adjusted(-1, -1, 1, 1))
+                              .united(label.toAlignedRect().adjusted(-1, -1, 1, 1));
     return playhead;
 }
 
@@ -331,7 +356,7 @@ void TransitionPlanView::onNowChanged() {
             next.inRange == m_playhead.inRange) {
         return;
     }
-    const QRect dirty = m_playhead.rect.united(next.rect);
+    const QRegion dirty = m_playhead.region.united(next.region);
     m_playhead = next;
     update(dirty);
 }
@@ -346,8 +371,8 @@ void TransitionPlanView::paintEvent(QPaintEvent* /*pEvent*/) {
     const qreal ratio = devicePixelRatioF();
     if (m_static.isNull() || m_static.devicePixelRatio() != ratio ||
             m_static.deviceIndependentSize() != QSizeF(size())) {
-        m_playhead = playhead();
         paintStatic();
+        m_playhead = playhead();
     }
     QPainter painter(this);
     painter.drawPixmap(0, 0, m_static);
@@ -363,6 +388,7 @@ void TransitionPlanView::paintStatic() {
     m_static = QPixmap(size() * ratio);
     m_static.setDevicePixelRatio(ratio);
     m_static.fill(Qt::transparent);
+    m_incomingNames.clear();
     if (!m_layout.timeline) {
         return;
     }
@@ -532,7 +558,6 @@ void TransitionPlanView::paintLanes(QPainter* pPainter) const {
     pPainter->setBrush(Qt::NoBrush);
     const QPen active = connectionPen(
             StrokePattern::Solid, m_style.accentHi, m_style.strokeConnection, m_style);
-    LabelRow values(plan.valueGap);
 
     // The incoming deck's tempo, solid: its tempo during the transition
     // and, after a beatmatch, back to its own
@@ -693,8 +718,10 @@ void TransitionPlanView::paintMoments(QPainter* pPainter) const {
     const double right = m_layout.plotRight;
     const QFont font = m_style.monoFont(plan.fontSizeCue, plan.trackingCue);
     const QFont windowFont = m_style.monoFont(plan.fontSizeValue, m_style.trackingCaps);
-    LabelRow outgoingRow(plan.valueGap);
-    LabelRow incomingRow(plan.valueGap);
+    // Names on a row keep the legend's gap between items apart
+    LabelRow outgoingRow(plan.legendGap);
+    LabelRow incomingRow(plan.legendGap);
+    m_incomingNames.clear();
     const auto moments = m_pModel->moments();
 
     // Nodes: track cues first, so that the plan's sit on top
@@ -749,6 +776,9 @@ void TransitionPlanView::paintMoments(QPainter* pPainter) const {
                         0,
                         width());
         if ((outgoing ? outgoingRow : incomingRow).take(rect)) {
+            if (!outgoing) {
+                m_incomingNames.append(rect);
+            }
             drawText(pPainter,
                     rect,
                     label,
@@ -881,15 +911,7 @@ void TransitionPlanView::paintPlayhead(QPainter* pPainter, const Playhead& playh
     pPainter->drawEllipse(QPointF(x, yA), plan.pulseRadius, plan.pulseRadius);
     pPainter->setOpacity(1);
     const QFont font = m_style.monoFont(plan.fontSizeCue, m_style.trackingCaps);
-    const QPointF baseline(playhead.x - plan.nowLabelGap, m_layout.incomingY + plan.cueLabelDrop);
-    QRectF label = textRect(baseline, playhead.label, font, Anchor::End);
-    if (label.left() < 0) {
-        label = textRect(QPointF(playhead.x + plan.nowLabelGap, baseline.y()),
-                playhead.label,
-                font,
-                Anchor::Start);
-    }
-    drawText(pPainter, label, playhead.label, font, m_style.textPrimary);
+    drawText(pPainter, playhead.labelRect, playhead.label, font, m_style.textPrimary);
     pPainter->restore();
 }
 

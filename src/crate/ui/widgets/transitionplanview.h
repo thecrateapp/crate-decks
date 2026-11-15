@@ -2,8 +2,10 @@
 
 #include <QPixmap>
 #include <QRect>
+#include <QRegion>
 #include <QSize>
 #include <QString>
+#include <QVector>
 #include <QWidget>
 #include <array>
 
@@ -74,8 +76,14 @@ class TransitionPlanView : public QWidget {
     const std::array<double, 3>& laneYs() const {
         return stage().lanes3;
     }
-    /// What a move of the playhead repaints.
-    QRect playheadRect() const;
+    /// What a move of the playhead repaints: its line and pulse, and its
+    /// label.
+    QRegion playheadRegion() const;
+    /// Where "Now · bar N" is: left of the playhead, clear of the incoming
+    /// deck's names.
+    QRectF nowLabelRect() const {
+        return m_playhead.labelRect;
+    }
 
     /// The cache key of the pixmap with everything but the playhead; it
     /// changes only when that is painted again.
@@ -103,8 +111,9 @@ class TransitionPlanView : public QWidget {
     struct Playhead {
         int x = 0;
         QString label;
+        QRectF labelRect;
         bool inRange = false;
-        QRect rect;
+        QRegion region;
     };
 
     /// The layout of the current size: a hidden widget is resized without
@@ -132,6 +141,8 @@ class TransitionPlanView : public QWidget {
     QPixmap m_static;
     /// The playhead as painted last
     Playhead m_playhead;
+    /// The incoming deck's names as painted last, which "Now" keeps clear of
+    mutable QVector<QRectF> m_incomingNames;
 };
 
 } // namespace crate::widgets

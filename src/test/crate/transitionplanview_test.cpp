@@ -10,6 +10,7 @@
 
 #include <QDir>
 #include <QFile>
+#include <QFontMetricsF>
 #include <QImage>
 #include <QPaintEvent>
 #include <QTest>
@@ -228,7 +229,7 @@ TEST_F(CrateTransitionPlanViewTest, BassHandoffUsesQueueDash) {
 TEST_F(CrateTransitionPlanViewTest, PlayheadFollowsPosition) {
     const double yA = m_pView->outgoingRulerY();
     const double first = m_pView->xOf(m_pModel->nowMs());
-    EXPECT_TRUE(m_pView->playheadRect().contains(
+    EXPECT_TRUE(m_pView->playheadRegion().contains(
             QPoint(static_cast<int>(first), static_cast<int>(yA))));
     QImage image = render();
     EXPECT_GT(share(image, QPointF(first + 0.5, yA), m_style.accentHi), 0.8);
@@ -237,9 +238,9 @@ TEST_F(CrateTransitionPlanViewTest, PlayheadFollowsPosition) {
     m_pModel->setOutgoingPositionMs(m_pModel->windowStartMs() + 20000.0);
     const double second = m_pView->xOf(m_pModel->nowMs());
     EXPECT_GT(second, first + 50);
-    EXPECT_TRUE(m_pView->playheadRect().contains(
+    EXPECT_TRUE(m_pView->playheadRegion().contains(
             QPoint(static_cast<int>(second), static_cast<int>(yA))));
-    EXPECT_FALSE(m_pView->playheadRect().contains(
+    EXPECT_FALSE(m_pView->playheadRegion().contains(
             QPoint(static_cast<int>(first), static_cast<int>(yA))));
     image = render();
     EXPECT_GT(share(image, QPointF(second + 0.5, yA), m_style.accentHi), 0.8);
@@ -252,6 +253,24 @@ TEST_F(CrateTransitionPlanViewTest, PlayheadFollowsPosition) {
                     m_style.background),
             0.1);
     EXPECT_EQ(QStringLiteral("Now · bar %1").arg(*m_pModel->nowBar()), m_pModel->nowLabel());
+}
+
+// "Now · bar N" stays clear of the incoming deck's names on its row: close
+// to the entry it moves left of "Entry".
+TEST_F(CrateTransitionPlanViewTest, NowStaysClearOfTheEntry) {
+    render();
+    const double entry = m_pView->xOf(m_pModel->windowStartMs());
+    const QFont font = m_style.monoFont(m_style.plan.fontSizeCue, m_style.plan.trackingCue);
+    const double half = QFontMetricsF(font).horizontalAdvance(QStringLiteral("ENTRY")) / 2;
+    // A beat before the entry: the playhead almost on it
+    m_pModel->setOutgoingPositionMs(m_pModel->windowStartMs() - 500.0);
+    const double now = m_pView->xOf(m_pModel->nowMs());
+    ASSERT_LT(entry - now, half);
+    const QRectF label = m_pView->nowLabelRect();
+    EXPECT_FALSE(label.isEmpty());
+    EXPECT_LE(label.right(), entry - half - m_style.plan.legendGap + 1);
+    EXPECT_GE(label.left(), 0);
+    EXPECT_TRUE(m_pView->playheadRegion().contains(label.toAlignedRect()));
 }
 
 // Everything but the playhead is painted once into a pixmap: a moving
@@ -284,24 +303,45 @@ TEST_F(CrateTransitionPlanViewTest, RepaintsOnlyDirtyRegionDuringRun) {
     // The platform may size a new window its own way first
     m_pView->resize(kMockupStage);
     ASSERT_TRUE(QTest::qWaitFor([this] { return m_pView->size() == kMockupStage; }, 2000));
-    QTest::qWait(100);
     PaintSpy spy;
     m_pView->installEventFilter(&spy);
+    // Until the platform is done exposing the window
+    const auto settle = [&spy] {
+        for (int attempt = 0; attempt < 20; ++attempt) {
+            spy.regions.clear();
+            QTest::qWait(100);
+            if (spy.regions.isEmpty()) {
+                return;
+            }
+        }
+    };
+    settle();
 
-    const QRect before = m_pView->playheadRect();
+    const QRegion before = m_pView->playheadRegion();
     m_pModel->setOutgoingPositionMs(m_pModel->windowStartMs() + 2000.0);
-    const QRect after = m_pView->playheadRect();
+    const QRegion after = m_pView->playheadRegion();
     ASSERT_TRUE(QTest::qWaitFor([&spy] { return !spy.regions.isEmpty(); }, 2000));
     QCoreApplication::processEvents();
     ASSERT_EQ(1, spy.regions.size());
-    const QRect painted = spy.regions.first().boundingRect();
-    EXPECT_TRUE(painted.contains(before.intersected(m_pView->rect())));
-    EXPECT_TRUE(painted.contains(after.intersected(m_pView->rect())));
-    EXPECT_LT(painted.width(), m_pView->width() / 4);
+    const QRegion painted = spy.regions.first();
+    const QRegion expected = before.united(after).intersected(m_pView->rect());
+    EXPECT_TRUE(expected.subtracted(painted).isEmpty());
+    // Strips: a fifth of the view at most
+    qint64 area = 0;
+    for (const QRect& rect : painted) {
+        area += static_cast<qint64>(rect.width()) * rect.height();
+    }
+    EXPECT_LT(area, static_cast<qint64>(m_pView->width()) * m_pView->height() / 5);
 
-    // Less than a pixel: 10 ms are a hundredth of one here
-    spy.regions.clear();
-    m_pModel->setOutgoingPositionMs(m_pModel->nowMs() + 10.0);
+    // Less than a pixel, within the bar: to the middle of the pixel the
+    // playhead is in
+    const double now = m_pModel->nowMs();
+    const double pxPerMs = (m_pView->xOf(now + 1000.0) - m_pView->xOf(now)) / 1000.0;
+    const double x = m_pView->xOf(now);
+    const double centre = now + (std::floor(x) + 0.5 - x) / pxPerMs;
+    ASSERT_EQ(m_pModel->barAt(Side::Outgoing, now), m_pModel->barAt(Side::Outgoing, centre));
+    settle();
+    m_pModel->setOutgoingPositionMs(centre);
     QTest::qWait(50);
     EXPECT_TRUE(spy.regions.isEmpty());
     m_pView->removeEventFilter(&spy);
