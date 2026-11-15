@@ -5387,6 +5387,9 @@ if(CRATE)
       src/crate/stems/stemsidecar.cpp
       src/crate/stems/stemsync.cpp
       src/crate/system/gpus.cpp
+      src/crate/system/powerhelper.cpp
+      src/crate/system/systemcheck.cpp
+      src/crate/system/systemprobes.cpp
       src/crate/crateaddserverflow.cpp
       src/crate/cratepreferences.cpp
       src/crate/crateserverrows.cpp
@@ -5454,6 +5457,7 @@ if(CRATE)
         src/test/crate/stemjobs_test.cpp
         src/test/crate/stemsidecar_test.cpp
         src/test/crate/stemsync_test.cpp
+        src/test/crate/systemcheck_test.cpp
         src/test/crate/systemgpus_test.cpp
         src/test/crate/skinloadtest.cpp
         src/test/crate/mixerstyletest.cpp
