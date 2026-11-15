@@ -78,7 +78,7 @@ TEST_F(CrateTransitionPlanTest, ParsesAllModes) {
     EXPECT_FALSE(beatmatch.fallbackReason.has_value());
     EXPECT_EQ(std::optional<bool>(false), beatmatch.structureUsed);
     EXPECT_FALSE(beatmatch.stemsUsed);
-    // Without localRefinement the server sends no limits.
+    // The dev stack's server predates S5 and sends no limits.
     EXPECT_FALSE(beatmatch.policyLimits.has_value());
     // The phase offset is output time: at the incoming tempo, 298 ms are
     // 305 ms of the incoming track, added to its cue (never subtracted).

@@ -8,15 +8,16 @@ real-*.json plans. It follows the server's code instead (Crate monorepo,
 branch feat/smart-mix-decks-context):
 
 - the plan fields: `TransitionPlan.to_dict` in app/crate/smart_mix/models.py,
-  as `_plan_edge` in app/crate/api/smart_mix.py serves a smart-mix-v3 plan of
-  the decks context with `localRefinement` (`structureUsed`, `candidates`,
-  `policyLimits`);
+  as `_plan_edge` in app/crate/api/smart_mix.py serves a plan of the decks
+  context with `assist`, without `localRefinement`: every decks plan carries
+  `policyLimits` (Diego, 2026-11-15, option B), so there is no candidate
+  menu;
 - `policyLimits`: `policy_limits()` and `PolicyLimits.to_dict` in
   app/crate/smart_mix/evaluation.py, with `PLANNER_POLICY_V3` of
   app/crate/smart_mix/policy.py. `maximumLongBeatmatchMs` is
   `long_beatmatch_ceiling_ms(policy, context)` for a decks context with
-  `assist`: `assist_maximum_long_beatmatch_ms`, proposed at 96 000 ms
-  (pending Diego). The constants below were checked against that branch.
+  `assist`: `assist_maximum_long_beatmatch_ms`, 96 000 ms (decided by Diego
+  on 2026-11-15). The constants below were checked against that branch.
 
 The edge, its tempo ratio, phase offset and gains are those of the real
 beatmatch plan (real-beatmatch.json) and the durations those of its tracks
@@ -93,16 +94,7 @@ def main() -> None:
         "incomingLatestEndMs": incoming_ms - MINIMUM_INCOMING_BODY_MS + 1,
         "phraseLengths": PHRASE_LENGTHS,
     }
-    candidate = {
-        "index": 0,
-        "structureUsed": True,
-        "score": real["confidence"],
-        "breakdown": {"alignment": 0.9, "energy": 0.7, "harmonic": 0.6,
-                      "stability": 0.95, "bass": 0.8, "position": 0.75, "vocal": None},
-        "plan": plan,
-    }
-    payload = {**plan, "structureUsed": True, "candidates": [candidate],
-               "policyLimits": limits}
+    payload = {**plan, "structureUsed": True, "policyLimits": limits}
     text = json.dumps(payload, indent=1, ensure_ascii=False) + "\n"
     (out / "synthetic-assist-long-blend.json").write_text(text, encoding="utf-8")
     print("Wrote synthetic-assist-long-blend.json", file=sys.stderr)

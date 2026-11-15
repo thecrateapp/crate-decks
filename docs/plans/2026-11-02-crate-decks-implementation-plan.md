@@ -909,7 +909,8 @@ grep -rn "smart-mix-v2" app/crate | head
 **Cambios:**
 - `context.source` admite `"decks"`.
 - El intercambio de bajos para `decks` se gobierna por `capabilities.decks.features ∋ "bass_handoff"` (ajuste propio y no la flag de Android).
-- Si G0 lo aprobó: `context.assist=true` permite duraciones mayores para el modo asistente, sin tocar los límites de tempo.
+- `context.assist=true` permite duraciones mayores para el modo asistente, sin tocar los límites de tempo. **Decidido (Diego, 2026-11-15):** mezclas largas de hasta 96 000 ms en el modo asistente (`assist_maximum_long_beatmatch_ms`); el resto de clientes sigue en 48 s.
+- **Decidido (Diego, 2026-11-15, opción B):** todo plan con `context.source == "decks"` lleva `policyLimits` (v2 y v3, con o sin `localRefinement`; misma forma y valores). Los interruptores de beatmatch e intercambio de bajos de Decks vienen activados por defecto.
 - `capabilities.decks.features += ["beatmatch", "bass_handoff", "long_beatmatch"]` según la configuración.
 - `docs/technical/smart-mix-design.md`: sección "Consumidor Crate Decks".
 
@@ -917,14 +918,14 @@ grep -rn "smart-mix-v2" app/crate | head
 - `test_decks_context_enables_bass_handoff_independent_of_android_flag`
 - `test_android_behaviour_unchanged` (parametrizado)
 - `test_tempo_limits_unchanged_for_decks`
-- `test_assist_context_allows_longer_duration` (solo si se aprueba)
+- `test_assist_context_allows_longer_duration`
 - `test_plan_schema_unchanged`
 
 ### F6.C-PR1 · `crate::TransitionPlan` y cliente de planes
 
 | Fichero | Contenido |
 |---|---|
-| `src/crate/smartmix/transitionplan.{h,cpp}` | Tipo de valor con todos los campos del plan; parseo estricto; `validate()` (rangos de tempo, duración y cues dentro de la pista) |
+| `src/crate/smartmix/transitionplan.{h,cpp}` | Tipo de valor con todos los campos del plan; parseo estricto; `validate()` (rangos de tempo, duración y cues dentro de la pista). Los límites de duración y tempo salen de `policyLimits` del plan (el techo de mezcla larga, 96 s en el modo asistente); sin ellos (servidores sin S5), los de hoy: 12 s, 48 s y ±6 % |
 | `src/crate/smartmix/planclient.{h,cpp}` | `requestPlans(edges, context)`, que agrupa hasta 32 aristas por petición; caché por `(from_uid, to_uid, profile_revisions, context)`; reintento único |
 
 **Tests:**

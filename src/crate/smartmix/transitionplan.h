@@ -20,7 +20,8 @@ struct TransitionPlanLimits {
     /// (`maximumTransitionMs`).
     qint64 maxTransitionMs = 12000;
     /// The longest beatmatched `dj-blend` (`maximumLongBeatmatchMs`): 48 s,
-    /// and longer in Decks' assist mode (S5), as the server sets it.
+    /// and 96 s in Decks' assist mode (S5, decided by Diego on 2026-11-15),
+    /// as the server sets it.
     qint64 maxLongBeatmatchMs = 48000;
     /// How far from 1 a beatmatch may take the incoming tempo
     /// (`maximumTempoAdjustment`).
@@ -108,9 +109,10 @@ struct TransitionPlan {
     std::optional<bool> structureUsed;
     /// `smart-mix-v3` only: the stems layer of both tracks scored the plan.
     bool stemsUsed = false;
-    /// The server's limits for the edge (`policyLimits`). Only `smart-mix-v3`
-    /// in the decks context with `localRefinement` sends them, and only when
-    /// both tracks have a profile.
+    /// The server's limits for the edge (`policyLimits`). A server with S5
+    /// sends them with every plan of the decks context when both tracks have
+    /// a profile; older servers, and the dev stack's plans in the fixtures,
+    /// send none.
     std::optional<Limits> policyLimits;
 
     /// Reads one plan strictly: every field the server always sends must be

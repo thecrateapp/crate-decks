@@ -15,39 +15,6 @@
  "bassHandoff": "balanced",
  "confidence": 0.6761,
  "structureUsed": true,
- "candidates": [
-  {
-   "index": 0,
-   "structureUsed": true,
-   "score": 0.6761,
-   "breakdown": {
-    "alignment": 0.9,
-    "energy": 0.7,
-    "harmonic": 0.6,
-    "stability": 0.95,
-    "bass": 0.8,
-    "position": 0.75,
-    "vocal": null
-   },
-   "plan": {
-    "plannerVersion": 2,
-    "outgoingTrackEntityUid": "637bd7c0-380e-5bc7-b841-dc2234cdfaf7",
-    "incomingTrackEntityUid": "34137088-fcab-5f93-8866-31f1bf6d0871",
-    "mode": "beatmatch",
-    "durationMs": 96000,
-    "outgoingCueMs": 330298,
-    "incomingCueMs": 198,
-    "incomingTempoRatio": 1.023355,
-    "beatPhaseOffsetMs": 298,
-    "handoffProgress": 0.5,
-    "outgoingGainDb": -4.2867,
-    "incomingGainDb": -3.7616,
-    "curve": "dj-blend",
-    "bassHandoff": "balanced",
-    "confidence": 0.6761
-   }
-  }
- ],
  "policyLimits": {
   "rulesRevision": 6,
   "beatmatchAllowed": true,

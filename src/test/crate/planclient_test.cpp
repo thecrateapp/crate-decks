@@ -360,9 +360,9 @@ TEST_F(CratePlanClientTest, SendsAssistOnlyWhenAsked) {
                                         .value(QStringLiteral("context"))
                                         .toObject();
     EXPECT_TRUE(context.value(QStringLiteral("assist")).toBool());
-    // The assist mode's long blends are only valid within the ceiling the
-    // server sends with localRefinement (policyLimits).
-    EXPECT_TRUE(context.value(QStringLiteral("localRefinement")).toBool());
+    // The server sends policyLimits with every decks plan: assist does not
+    // need the candidate menu.
+    EXPECT_FALSE(context.contains(QStringLiteral("localRefinement")));
     EXPECT_FALSE(context.value(QStringLiteral("automatic")).toBool());
     EXPECT_TRUE(context.value(QStringLiteral("allowBassHandoff")).toBool());
     EXPECT_FALSE(context.contains(QStringLiteral("allowLongBeatmatch")));
