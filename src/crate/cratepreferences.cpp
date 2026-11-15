@@ -19,6 +19,7 @@ constexpr const char* kStemsOnGpu = "StemsOnGpu";
 constexpr const char* kStemsFineTuned = "StemsFineTuned";
 constexpr const char* kSeparateWhilePlaying = "SeparateWhilePlaying";
 constexpr const char* kGainFromLufs = "GainFromLufs";
+constexpr const char* kSmartMixKeylock = "SmartMixKeylock";
 
 ConfigKey keyOf(const char* item) {
     return ConfigKey(kGroup, QLatin1String(item));
@@ -111,6 +112,16 @@ bool CratePreferences::prefetchAutoDj() const {
 void CratePreferences::setPrefetchAutoDj(bool enabled) {
     if (setFlag(kPrefetchAutoDj, enabled, true)) {
         emit prefetchAutoDjChanged(enabled);
+    }
+}
+
+bool CratePreferences::smartMixKeylock() const {
+    return flag(kSmartMixKeylock, true);
+}
+
+void CratePreferences::setSmartMixKeylock(bool enabled) {
+    if (setFlag(kSmartMixKeylock, enabled, true)) {
+        emit smartMixKeylockChanged(enabled);
     }
 }
 

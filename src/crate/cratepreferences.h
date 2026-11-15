@@ -19,6 +19,8 @@ namespace crate {
 /// - the cache limit: the audio cache evicts at once what it leaves out;
 /// - Auto DJ prefetch: CratePrefetcher keeps the next tracks of the queue
 ///   downloaded, or not;
+/// - keylock during Crate Smart Mix: the Auto DJ adapter's director turns it
+///   on for the incoming deck, or leaves it;
 /// - the key from Crate and the gain from loudness: the AnalysisImporter
 ///   policy of the tracks taken from then on.
 /// Without settings it keeps the defaults in memory.
@@ -53,6 +55,12 @@ class CratePreferences : public QObject {
     bool gainFromLufs() const;
     void setGainFromLufs(bool enabled);
 
+    /// Keylock on the incoming deck of a Crate Smart Mix transition, so a
+    /// beatmatch changes its tempo and not its key. On by default (Diego,
+    /// 2026-11-15); off leaves each deck's own keylock as it is.
+    bool smartMixKeylock() const;
+    void setSmartMixKeylock(bool enabled);
+
     /// Smart Mix Stems (STEM-D7): separate on the GPU when there is one
     /// that can, else on the CPU. On by default.
     bool stemsOnGpu() const;
@@ -81,6 +89,7 @@ class CratePreferences : public QObject {
     void cacheDirectoryChanged(const QString& directory);
     void cacheLimitChanged(qint64 limitBytes);
     void prefetchAutoDjChanged(bool enabled);
+    void smartMixKeylockChanged(bool enabled);
     void analysisPolicyChanged();
     void stemsChanged();
     void discreteGpuChanged(bool enabled);

@@ -149,8 +149,10 @@ class StemsSection : public PrefsSection {
 
 /// The Auto DJ and Smart Mix section of the Crate page, as the GU1 mockups
 /// show it: the Auto DJ transition (Crate Smart Mix, full intro and outro,
-/// fade at the outro) and the Smart Mix switches. Smart Mix is plan F6: the
-/// page keeps it hidden until F6 connects it.
+/// fade at the outro) and the Smart Mix switches, with keylock during Smart
+/// Mix (F6.C-PR3). The rows of later plans (the transition chips, the
+/// assistant of F6.C-PR4, bass swap, long beatmatch and AI assisted mixing)
+/// stay hidden until their plan connects them.
 class SmartMixSection : public PrefsSection {
     Q_OBJECT
   public:
@@ -159,9 +161,13 @@ class SmartMixSection : public PrefsSection {
     QPushButton* smartMix() const {
         return m_pSmartMix;
     }
+    QCheckBox* keylock() const {
+        return m_pKeylock;
+    }
 
   private:
     QPushButton* m_pSmartMix;
+    QCheckBox* m_pKeylock;
 };
 
 /// "This computer" (hybrid laptop plan §2 and §3): drawing with the discrete
