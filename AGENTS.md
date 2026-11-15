@@ -81,6 +81,7 @@ Ningún cambio de servidor se hace desde este repositorio.
 ## 6. Estilo, tests y commits
 
 - **Estilo:** el de Mixxx ([CONTRIBUTING.md](CONTRIBUTING.md)): C++20, Qt6, clang-format con pre-commit y `kLogger` por fichero.
+- **Antes de cada push:** `tools/crate-checks.sh` pasa en segundos a los ficheros cambiados respecto a `origin/main` lo que miran los jobs `pre-commit`, `checks / clang-tidy` y `checks / clazy` del CI, con los mismos `CLAZY_CHECKS`. Usa el `build/` normal (hace falta un build) y necesita `clang`, `clazy` y `pre-commit` (Arch: `pacman -S --needed clang clazy pre-commit`). `pre-commit install` hace que clang-format y markdownlint salten ya en cada commit. Los tests (job `checks / coverage`) siguen siendo `ctest` en `build/`.
 - **Idioma:** código, comentarios y mensajes de commit en inglés, como el código de Mixxx. Planes y documentación de Crate en español.
 - **Tests:**
   - GoogleTest en `src/test/crate/`, añadidos a mano a la lista de fuentes de `mixxx-test` en `CMakeLists.txt` (no hay glob).
