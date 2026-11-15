@@ -1,0 +1,11 @@
+[Unit]
+Description=Raise the CPU package power limit on AC (crate-power-limit)
+After=multi-user.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/etc/default/crate-power-limit
+ExecStart=/usr/local/bin/crate-power-limit
+
+[Install]
+WantedBy=multi-user.target

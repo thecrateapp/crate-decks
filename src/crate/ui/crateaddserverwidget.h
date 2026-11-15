@@ -22,7 +22,8 @@ class CrateServers;
 /// Laid out as the GU1 first-run mockup (plan V2.PR5): a MonoLabel over each
 /// field, the address field with the server icon and the HTTPS helper, and
 /// one row of actions under the steps: the step's own (Connect, Connect
-/// without encryption, Sign in...) and Cancel.
+/// over HTTP, Sign in...) and Cancel, with the sign-in providers on a row
+/// of their own under it.
 class AddServerWidget : public QWidget {
     Q_OBJECT
   public:

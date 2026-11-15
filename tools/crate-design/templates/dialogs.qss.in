@@ -668,6 +668,70 @@ QDialog[crateChrome="true"] {
   background-color: {{warningBg}};
   color: {{warningText}};
 }
+#CrateStateBadge[crateState="ok"] {
+  border-color: {{accentHiBorder}};
+  background-color: {{accentBg}};
+  color: {{accentHi}};
+}
+#CrateStateBadge[crateState="warning"] {
+  border-color: {{warningBorder}};
+  background-color: {{warningBg}};
+  color: {{warningText}};
+}
+#CrateStateBadge[crateState="blocking"] {
+  border-color: {{dangerBorder}};
+  background-color: {{dangerBg}};
+  color: {{dangerText}};
+}
+#CrateStateBadge[crateState="unavailable"] {
+  border-color: {{badgeOffBorder}};
+  color: {{badgeOffText}};
+}
+
+/* The system check (hybrid laptop plan): rows as the server rows */
+#CrateCheckRow {
+  border: 0;
+  border-bottom: {{strokeHairline}} solid {{borderSubtle}};
+  background-color: transparent;
+}
+#CrateCheckDot {
+  min-width: {{statusDot}};
+  max-width: {{statusDot}};
+  min-height: {{statusDot}};
+  max-height: {{statusDot}};
+  margin-top: {{statusDot}};
+  border-radius: {{statusDot.half}};
+  background-color: {{textSubtle}};
+}
+#CrateCheckDot[crateState="ok"] {
+  background-color: {{accentHi}};
+}
+#CrateCheckDot[crateState="warning"] {
+  background-color: {{warningText}};
+}
+#CrateCheckDot[crateState="blocking"] {
+  background-color: {{dangerText}};
+}
+#CrateCheckTitle {
+  color: {{textPrimary}};
+  font-size: {{fontSizeBody}};
+  font-weight: {{fontWeightButton}};
+}
+#CrateCheckDetail {
+  color: {{textMuted}};
+  font-family: "{{fontMono}}";
+  font-size: {{fontSizeLabel}};
+}
+#CrateCheckAdvice {
+  color: {{textSecondary}};
+  font-size: {{fontSizeCaption}};
+}
+#crateSystemCheckProgress {
+  padding: {{serverPaddingY}} 0;
+}
+#crateRunSystemCheck {
+  qproperty-icon: url(skins:CrateDecks/generated/icons/pulse_primary.svg);
+}
 #crateAddServer {
   qproperty-icon: url(skins:CrateDecks/generated/icons/add-circle_accent.svg);
 }

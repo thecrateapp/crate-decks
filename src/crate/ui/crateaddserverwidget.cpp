@@ -103,7 +103,7 @@ AddServerWidget::AddServerWidget(CrateServers* pServers, QWidget* parent)
           m_pActions(new QHBoxLayout()),
           m_pConnect(button(tr("Connect"), "crateConnect", "primary", this)),
           m_pConnectAnyway(button(
-                  tr("Connect without encryption"), "crateConnectAnyway", "primary", this)),
+                  tr("Connect over HTTP"), "crateConnectAnyway", "primary", this)),
           m_pSignIn(button(tr("Sign in"), "crateSignIn", "primary", this)),
           m_pGoogle(button(tr("Sign in with Google"), "crateSignInGoogle", "ghost", this)),
           m_pApple(button(tr("Sign in with Apple"), "crateSignInApple", "ghost", this)),
@@ -157,14 +157,21 @@ AddServerWidget::AddServerWidget(CrateServers* pServers, QWidget* parent)
     pSignInLayout->addWidget(m_pPassword);
     m_pSteps->insertWidget(kSignInPage, pSignInPage);
 
-    // One row of actions under the steps
+    // One row of actions under the steps, and the sign-in providers on their
+    // own row under it: all of them in one row do not fit the first start's
+    // width. The providers' row is empty, without height, on the other steps
     m_pActions->setContentsMargins(0, metrics.px("firstRunActionsTop"), 0, 0);
     m_pActions->setSpacing(metrics.px("dialogButtonGap"));
-    for (QPushButton* pButton :
-            {m_pConnect, m_pConnectAnyway, m_pSignIn, m_pGoogle, m_pApple, m_pCancel}) {
+    for (QPushButton* pButton : {m_pConnect, m_pConnectAnyway, m_pSignIn, m_pCancel}) {
         m_pActions->addWidget(pButton);
     }
     m_pActions->addStretch(1);
+    auto* pProviders = new QHBoxLayout();
+    pProviders->setContentsMargins(0, 0, 0, 0);
+    pProviders->setSpacing(metrics.px("dialogButtonGap"));
+    pProviders->addWidget(m_pGoogle);
+    pProviders->addWidget(m_pApple);
+    pProviders->addStretch(1);
 
     auto* pLayout = new QVBoxLayout(this);
     pLayout->setContentsMargins(0, 0, 0, 0);
@@ -172,6 +179,7 @@ AddServerWidget::AddServerWidget(CrateServers* pServers, QWidget* parent)
     pLayout->addWidget(m_pSteps);
     pLayout->addWidget(m_pError);
     pLayout->addLayout(m_pActions);
+    pLayout->addLayout(pProviders);
 
     connect(m_pConnect, &QPushButton::clicked, this, [this] {
         m_pFlow->setAddress(m_pAddress->text());

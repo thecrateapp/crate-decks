@@ -17,6 +17,10 @@
 #include "crate/cratepreferences.h"
 #include "crate/crateservers.h"
 #include "crate/session/cratesession.h"
+#include "crate/system/gpus.h"
+#include "crate/system/powerhelper.h"
+#include "crate/system/systemcheck.h"
+#include "crate/system/systemprobes.h"
 #include "crate/ui/cachestatusmodel.h"
 #include "crate/ui/crateaddserverwidget.h"
 #include "crate/ui/crateprefsections.h"
@@ -36,7 +40,7 @@ QLabel* plainLabel(const QString& text, const char* objectName, QWidget* pParent
 
 } // namespace
 
-DlgPrefCrate::DlgPrefCrate(QWidget* pParent, CrateServers* pServers)
+DlgPrefCrate::DlgPrefCrate(QWidget* pParent, CrateServers* pServers, const QString& systemRoot)
         : DlgPreferencePage(pParent),
           m_pServers(pServers),
           m_pServerList(new QListWidget(this)),
@@ -49,7 +53,17 @@ DlgPrefCrate::DlgPrefCrate(QWidget* pParent, CrateServers* pServers)
           m_pSmartMix(new SmartMixSection(this)),
           m_pAnalysis(new AnalysisSection(this)),
           m_pStems(new StemsSection(this)),
+          m_pPowerHelper(new system::PowerHelper(this)),
+          m_pSystemCheck(nullptr),
+          m_pSystem(nullptr),
           m_pColumns(new QWidget(this)) {
+    CratePreferences* const pPreferences = pServers ? pServers->preferences() : nullptr;
+    system::Probes probes = system::applicationProbes(pPreferences, m_pPowerHelper);
+    probes.root = systemRoot;
+    m_pSystemCheck = new system::SystemCheck(probes, this);
+    m_pSystem = new SystemSection(m_pSystemCheck, pPreferences, m_pPowerHelper, this);
+    // Offered where there is a discrete GPU (plan §2)
+    m_pSystem->setDiscreteGpuOffered(system::isHybrid(system::readGpus(systemRoot)));
     const DialogMetrics& metrics = DialogMetrics::installed();
     m_pServerList->setObjectName(QStringLiteral("crateServers"));
     m_pServerList->setSelectionMode(QAbstractItemView::NoSelection);
@@ -122,6 +136,7 @@ DlgPrefCrate::DlgPrefCrate(QWidget* pParent, CrateServers* pServers)
     pLayout->addSpacing(metrics.px("prefsIntroGap"));
     pLayout->addWidget(pServersSection);
     pLayout->addWidget(m_pColumns);
+    pLayout->addWidget(m_pSystem);
     pLayout->addStretch(1);
 
     connect(m_pAdd, &QPushButton::clicked, m_pAddBox, &QWidget::show);
@@ -263,6 +278,7 @@ void DlgPrefCrate::slotResetToDefaults() {
     pPreferences->setStemsOnGpu(true);
     pPreferences->setFineTunedStemModel(false);
     pPreferences->setSeparateWhilePlaying(false);
+    pPreferences->setDiscreteGpu(false);
     showPreferences();
 }
 
