@@ -5379,6 +5379,7 @@ if(CRATE)
       src/crate/session/crateloopbackserver.cpp
       src/crate/session/cratesecretstore.cpp
       src/crate/session/cratesession.cpp
+      src/crate/smartmix/transitionplan.cpp
       src/crate/stems/resampler.cpp
       src/crate/stems/nistemexport.cpp
       src/crate/stems/stemanalyzer.cpp
@@ -5464,6 +5465,7 @@ if(CRATE)
         src/test/crate/stemsync_test.cpp
         src/test/crate/systemcheck_test.cpp
         src/test/crate/systemgpus_test.cpp
+        src/test/crate/transitionplan_test.cpp
         src/test/crate/skinloadtest.cpp
         src/test/crate/mixerstyletest.cpp
         src/test/crate/delegatestest.cpp

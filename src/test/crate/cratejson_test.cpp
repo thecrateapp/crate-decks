@@ -134,6 +134,21 @@ TEST(CrateJsonTest, OptionalDoubleReadsAnyNumber) {
     EXPECT_FALSE(wrong.ok());
 }
 
+TEST(CrateJsonTest, RequiredDoubleReadsAnyNumber) {
+    ObjectReader reader(parse(R"({"ratio": 1.023355, "gain": -4, "none": null})"));
+
+    EXPECT_EQ(1.023355, reader.requiredDouble(u"ratio"));
+    EXPECT_EQ(-4.0, reader.requiredDouble(u"gain"));
+    EXPECT_TRUE(reader.ok());
+    reader.requiredDouble(u"none");
+    EXPECT_FALSE(reader.ok());
+    EXPECT_EQ(QStringLiteral("none is missing"), reader.error().message);
+
+    ObjectReader wrong(parse(R"({"ratio": "1.02"})"));
+    wrong.requiredDouble(u"ratio");
+    EXPECT_FALSE(wrong.ok());
+}
+
 TEST(CrateJsonTest, IdIsAStringOrAnInteger) {
     ObjectReader reader(parse(R"({"uuid": "4f1c", "id": 42, "parent": null})"));
 
