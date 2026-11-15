@@ -29,21 +29,21 @@ enum class DecksFeature {
 /// bumps it on every incompatible change; additive changes only add features.
 inline constexpr int kDecksContractVersion = 1;
 
-/// What a Crate server says about Crate Decks in `GET /api/capabilities`.
+/// What a Crate server says about Decks in `GET /api/capabilities`.
 class Capabilities {
   public:
     enum class Compatibility {
         Compatible,
-        /// The server does not accept Crate Decks.
+        /// The server does not accept Decks.
         DecksUnavailable,
-        /// The server needs a newer Crate Decks (`min_client_version`).
+        /// The server needs a newer Decks (`min_client_version`).
         ClientTooOld,
         /// The server speaks another version of the Decks contract.
         UnsupportedContract,
     };
 
     /// Parses the answer of `GET /api/capabilities`. A server without a
-    /// `decks` section is valid and does not accept Crate Decks; a `decks`
+    /// `decks` section is valid and does not accept Decks; a `decks`
     /// section with missing or mistyped fields is a Decode error. Features
     /// this client does not know are ignored.
     static Result<Capabilities> fromJson(const QJsonDocument& document);

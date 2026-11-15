@@ -9,7 +9,7 @@ namespace crate {
 
 namespace {
 
-/// The Crate Decks pages of the documentation site and their sections. The
+/// The Decks pages of the documentation site and their sections. The
 /// anchors are the ids that the site gives the pages' headings (docs/decks/
 /// in the Crate monorepo).
 constexpr std::array kPages = {

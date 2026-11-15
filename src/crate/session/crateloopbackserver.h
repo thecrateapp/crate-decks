@@ -15,7 +15,7 @@ namespace crate {
 /// the native sign-in flow (RFC 8252 loopback redirect).
 ///
 /// It answers the first `GET /callback` with a short page telling the user
-/// to go back to Crate Decks, stops listening and emits callbackReceived()
+/// to go back to Decks, stops listening and emits callbackReceived()
 /// with the query (`code` and `state`, or `error`). Any other request gets a
 /// 404 and the server keeps waiting. It never checks the query itself: that
 /// is the Session's job.

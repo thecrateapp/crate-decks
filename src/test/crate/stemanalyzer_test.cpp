@@ -1,4 +1,4 @@
-// stem-analysis/1 in Crate Decks (plan ST5.PR2, STEM-D1): the same level bytes
+// stem-analysis/1 in Decks (plan ST5.PR2, STEM-D1): the same level bytes
 // as the server's producer for the same stems.
 
 #include "crate/stems/stemanalyzer.h"

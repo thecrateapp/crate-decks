@@ -92,8 +92,9 @@ class CrateBrandingTest : public testing::Test {
     QString m_applicationName;
 };
 
-TEST_F(CrateBrandingTest, ApplicationNameIsCrateDecks) {
-    EXPECT_QSTRING_EQ(QStringLiteral("Crate Decks"), VersionStore::applicationName());
+// Diego, 2026-11-15: the product is called Decks, no longer Crate Decks.
+TEST_F(CrateBrandingTest, ApplicationNameIsDecks) {
+    EXPECT_QSTRING_EQ(QStringLiteral("Decks"), VersionStore::applicationName());
 }
 
 TEST_F(CrateBrandingTest, ApplyApplicationIdentitySetsCrateIdentity) {
@@ -310,13 +311,13 @@ TEST_F(CrateBrandingTest, BroadcastKeychainPrefixIsNotMixxxs) {
     EXPECT_STREQ("Crate - ", crate::kBroadcastKeychainPrefix);
 }
 
-// Plan "Own brand", BR.PR2: what leaves the window names Crate Decks. A new
+// Plan "Own brand", BR.PR2: what leaves the window names Decks. A new
 // broadcast profile streams as the application, with Crate's website, which
 // listeners and Preferences see.
 TEST_F(CrateBrandingTest, DefaultStreamNameIsTheApplication) {
 #ifdef __BROADCAST__
     const BroadcastProfile profile(QStringLiteral("Test"));
-    EXPECT_QSTRING_EQ(QStringLiteral("Crate Decks"), profile.getStreamName());
+    EXPECT_QSTRING_EQ(QStringLiteral("Decks"), profile.getStreamName());
     EXPECT_QSTRING_EQ(QStringLiteral("https://cratemusic.app"), profile.getStreamWebsite());
 #else
     GTEST_SKIP() << "Built without broadcasting";
@@ -332,7 +333,7 @@ TEST_F(CrateBrandingTest, RecordingsFolderIsNamedAfterTheApplication) {
             new UserSettings(settings.filePath(QStringLiteral("mixxx.cfg"))));
     const DlgPrefRecord page(nullptr, pConfig);
     const QString folder = pConfig->getValueString(ConfigKey(RECORDING_PREF_KEY, "Directory"));
-    EXPECT_TRUE(folder.endsWith(QStringLiteral("/Crate Decks/Recordings"))) << qPrintable(folder);
+    EXPECT_TRUE(folder.endsWith(QStringLiteral("/Decks/Recordings"))) << qPrintable(folder);
     EXPECT_FALSE(folder.contains(QLatin1String("Mixxx"))) << qPrintable(folder);
 }
 
@@ -437,10 +438,10 @@ TEST_F(CrateBrandingTest, SourceCodeUrlPointsAtTheBuiltSource) {
 TEST_F(CrateBrandingTest, AboutCreditsMixxxAndLinksTheSourceCode) {
     const DlgAbout about;
 
-    EXPECT_QSTRING_EQ(QStringLiteral("About Crate Decks"), about.windowTitle());
+    EXPECT_QSTRING_EQ(QStringLiteral("About Decks"), about.windowTitle());
     const auto* pVersion = about.findChild<QLabel*>(QStringLiteral("version_label"));
     ASSERT_NE(nullptr, pVersion);
-    EXPECT_QSTRING_EQ(QStringLiteral("Crate Decks ") +
+    EXPECT_QSTRING_EQ(QStringLiteral("Decks ") +
                     crate::buildVersion(VersionStore::gitDescribe()),
             pVersion->text());
     const auto* pBasedOn = about.findChild<QLabel*>(QStringLiteral("crate_based_on"));
@@ -470,7 +471,7 @@ TEST_F(CrateBrandingTest, AboutOffersNoDonation) {
     const DlgAbout about;
 
     // Of Mixxx, About keeps only the legal line, the credits and the
-    // licence (design D2); Crate Decks asks for no donations to Mixxx
+    // licence (design D2); Decks asks for no donations to Mixxx
     const auto* pDonate = about.findChild<QPushButton*>(QStringLiteral("btnDonate"));
     if (pDonate) {
         EXPECT_TRUE(pDonate->isHidden());
@@ -511,7 +512,7 @@ TEST_F(CrateBrandingTest, AboutHasTheFirstStartLook) {
     EXPECT_NE(nullptr, about.findChild<QWidget*>(QStringLiteral("CrateDialogFrame")));
     const auto* pTitle = about.findChild<QLabel*>(QStringLiteral("CrateAboutTitle"));
     ASSERT_NE(nullptr, pTitle);
-    EXPECT_QSTRING_EQ(QStringLiteral("Crate Decks"), pTitle->text());
+    EXPECT_QSTRING_EQ(QStringLiteral("Decks"), pTitle->text());
     EXPECT_NE(nullptr, about.findChild<QLabel*>(QStringLiteral("MonoAboutKicker")));
 }
 #endif

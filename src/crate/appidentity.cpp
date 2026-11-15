@@ -15,7 +15,7 @@ namespace {
 const QString kModifiedSuffix = QStringLiteral("-modified");
 // `git describe` of a commit after a tag: "<tag>-<commits>-g<hash>".
 const QRegularExpression kCommitAfterTag(QStringLiteral("-[0-9]+-g([0-9a-f]+)$"));
-// Tags of Crate Decks versions, the only ones GitInfo.cmake describes with.
+// Tags of Decks versions, the only ones GitInfo.cmake describes with.
 const QString kTagPrefix = QStringLiteral("decks-v");
 // `git describe --always` without a tag: the abbreviated commit hash.
 const QRegularExpression kCommitOnly(QStringLiteral("^([0-9a-f]+)(-modified)?$"));
@@ -113,7 +113,7 @@ QString attributionText(const QString& linkStyle) {
                 .arg(linkStyle, QLatin1String(url), QLatin1String(text));
     };
     return QCoreApplication::translate("crate::About",
-            "Icons: %1 by 480 Design, under %2, recoloured for Crate Decks. "
+            "Icons: %1 by 480 Design, under %2, recoloured for Decks. "
             "Fonts: Roboto, Bricolage Grotesque and JetBrains Mono, under the "
             "SIL Open Font License 1.1.")
             .arg(link("https://www.figma.com/community/file/1166831539721848736",

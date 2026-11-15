@@ -1,5 +1,5 @@
 #!/bin/sh
-# Installs and enables the crate-power-limit service system-wide. Crate Decks
+# Installs and enables the crate-power-limit service system-wide. Decks
 # runs it with pkexec from its system check, only after the user accepts.
 #   install.sh               installs, enables and starts it
 #   install.sh --uninstall   stops, disables and removes it; keeps the values

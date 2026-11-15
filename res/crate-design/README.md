@@ -1,6 +1,6 @@
-# Tokens de diseño de Crate Decks
+# Tokens de diseño de Decks
 
-`tokens.json` es la única fuente de los valores visuales de Crate Decks: colores, fuentes, tamaños, radios, geometría de instrumento y las adaptaciones DJ. Desde V1, ningún color, tamaño, radio ni fuente se escribe a mano en QSS, XML de skin ni C++ (AGENTS.md §5.2): todo sale de aquí a través de `tools/crate-design/generate.py`.
+`tokens.json` es la única fuente de los valores visuales de Decks: colores, fuentes, tamaños, radios, geometría de instrumento y las adaptaciones DJ. Desde V1, ningún color, tamaño, radio ni fuente se escribe a mano en QSS, XML de skin ni C++ (AGENTS.md §5.2): todo sale de aquí a través de `tools/crate-design/generate.py`.
 
 Diseño: §14 del [documento de diseño](../../docs/plans/2026-11-02-crate-decks-design.md). Plan: fase V del [plan de implementación](../../docs/plans/2026-11-02-crate-decks-implementation-plan.md).
 
@@ -107,7 +107,7 @@ Python 3 estándar, sin dependencias. Las salidas se commitean, y el job `design
 | `cover-default.svg` | `tools/crate-design/templates/cover-default.svg.in` | Carátula de una pista sin carátula |
 | `default.qss` | `tools/crate-design/templates/default.qss.in` | El estilo por defecto (V2.PR5): menús y tooltips, y las reglas de `res/skins/default.qss` de upstream con iconos Solar. Con `CRATE`, la ventana principal lo carga en vez de `res/skins/default.qss` (`src/crate/ui/dialogs/dialogstyle.h`) |
 | `dialogs.qss` | `tools/crate-design/templates/dialogs.qss.in` | El estilo de los diálogos (V2.PR5): Preferencias, About, primer arranque y los demás diálogos heredados. Cada diálogo lo recibe, junto con `default.qss`, como estilo propio al pulirse: en la aplicación, Qt pasaría por QSS todos los widgets, también los cientos de Preferencias al arrancar |
-| `launch.qss` | `tools/crate-design/templates/launch.qss.in` | La pantalla de arranque con la marca de Crate Decks, para cualquier skin |
+| `launch.qss` | `tools/crate-design/templates/launch.qss.in` | La pantalla de arranque con la marca de Decks, para cualquier skin |
 | `controls/switch-{off,on}[-disabled].svg` | Tokens de `dialog` | El interruptor del admin (`.switch` de las maquetas): las casillas de los diálogos |
 | `icons/<icono>_{accent,danger}.svg` | `tools/crate-design/svg/solar/` | El icono de un botón de acción o destructivo, solo para los iconos de `ICON_STATES_FOR` |
 

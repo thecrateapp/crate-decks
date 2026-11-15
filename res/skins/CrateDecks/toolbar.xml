@@ -31,7 +31,7 @@
               </Label>
               <Label>
                 <ObjectName>CrateToolbarBrandName</ObjectName>
-                <Text>Crate Decks</Text>
+                <Text>Decks</Text>
               </Label>
             </Children>
           </WidgetGroup>

@@ -4,7 +4,7 @@ analysisimporter_test.cpp and profilestore_test.cpp (the real-*.json files).
 
 make_mix_profiles.py writes fixtures that follow the server's schema; these
 come from the analyzer itself, so the tests also see what it really writes. It
-signs in like Crate Decks, reads one playlist and picks, in playlist order:
+signs in like Decks, reads one playlist and picks, in playlist order:
 
 - real-full-whole-bpm.json: the first `full` profile at a whole BPM with a
   steady tempo (tempoStability of at least 0.99).

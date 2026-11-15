@@ -519,8 +519,8 @@ TEST_F(CrateSkinLoadTest, FirstStartAsksNoMixxxQuestions) {
 }
 
 // Plan BR2: no file or folder of a new profile carries upstream's name (the
-// settings, the library database and the log are named after Crate Decks),
-// and the log says Crate Decks where a message of the inherited code says
+// settings, the library database and the log are named after Decks),
+// and the log says Decks where a message of the inherited code says
 // upstream's name.
 TEST_F(CrateSkinLoadTest, SettingsFolderNamesNoMixxx) {
     QTemporaryDir profile;
@@ -554,7 +554,10 @@ TEST_F(CrateSkinLoadTest, SettingsFolderNamesNoMixxx) {
         GTEST_SKIP() << "Another test of this process opened the log file";
     }
     const QString text = QString::fromUtf8(log.readAll());
-    EXPECT_TRUE(text.contains(QLatin1String("Crate Decks shutdown complete with code")));
+    EXPECT_TRUE(text.contains(QLatin1String("Decks shutdown complete with code")));
+    // Not the name it had before it was called Decks (crate::kDataFolderName)
+    EXPECT_FALSE(text.contains(
+            QString::fromUtf8(crate::kDataFolderName) + QStringLiteral(" shutdown")));
     QStringList lines;
     const QStringList logLines = text.split(QLatin1Char('\n'));
     for (const QString& line : logLines) {
@@ -664,7 +667,7 @@ TEST_F(CrateSkinLoadTest, PreferencesHaveTheMockupsDialog) {
     EXPECT_TRUE(pPreferences->windowFlags().testFlag(Qt::FramelessWindowHint));
     auto* pTitle = pPreferences->findChild<QLabel*>(QStringLiteral("MonoDialogTitle"));
     ASSERT_NE(nullptr, pTitle);
-    EXPECT_QSTRING_EQ(QStringLiteral("Crate Decks · Preferences"), pTitle->text());
+    EXPECT_QSTRING_EQ(QStringLiteral("Decks · Preferences"), pTitle->text());
 
     // The Crate page last, with the Crate logo
     auto* pTree = pPreferences->findChild<QTreeWidget*>(QStringLiteral("contentsTreeWidget"));

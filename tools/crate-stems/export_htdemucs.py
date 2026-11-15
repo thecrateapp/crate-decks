@@ -1,4 +1,4 @@
-"""Export Demucs `htdemucs` to ONNX for Crate Decks (STEM-D3, ST4.PR2).
+"""Export Demucs `htdemucs` to ONNX for Decks (STEM-D3, ST4.PR2).
 
 The graph holds only the network, cut as in the ST0 spike (and
 sevagh/demucs.onnx):
@@ -100,7 +100,7 @@ ATTRIBUTION = {
     "use_in_crate": "Accepted at STEM-G0 for Crate, a free and non-commercial "
     "project, and shipped with this attribution.",
     "conversion": "Exported to ONNX by tools/crate-stems/export_htdemucs.py "
-    "in Crate Decks: network only, attention split by query chunks, no "
+    "in Decks: network only, attention split by query chunks, no "
     "retraining.",
 }
 

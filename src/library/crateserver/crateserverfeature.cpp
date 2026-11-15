@@ -904,7 +904,7 @@ void CrateServerFeature::confirmSmartMixDownload(const QString& serverId,
 void CrateServerFeature::confirmModelDownload(qint64 bytes, std::function<void(bool)> answer) {
     auto* pBox = new QMessageBox(QMessageBox::Question,
             tr("Stems"),
-            //: Asked the first time Crate Decks separates a track into stems
+            //: Asked the first time Decks separates a track into stems
             //: on this computer
             tr("Separating stems on this computer needs the separation model, %1. "
                "Download it now?")

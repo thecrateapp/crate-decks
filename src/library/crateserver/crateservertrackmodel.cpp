@@ -539,7 +539,7 @@ QVariant CrateServerTrackModel::headerData(
         //: Crate's Smart Mix profile of the track
         return tr("Profile");
     case kCacheColumn:
-        //: Whether the track's audio is in Crate Decks' cache
+        //: Whether the track's audio is in Decks' cache
         return tr("Cache");
     case kAlbumColumn:
         return tr("Album");
@@ -650,7 +650,7 @@ QList<QAction*> CrateServerTrackModel::trackMenuActions(
         const CrateTrackRef track = trackRef(index.row());
         (cachedPathOf(m_rows[index.row()]) ? cached : uncached).append(track);
     }
-    //: Downloads the selected Crate tracks into Crate Decks' audio cache
+    //: Downloads the selected Crate tracks into Decks' audio cache
     auto* pDownload = new QAction(tr("Download"), pParent);
     pDownload->setEnabled(!uncached.isEmpty());
     connect(pDownload,
@@ -661,7 +661,7 @@ QList<QAction*> CrateServerTrackModel::trackMenuActions(
                     pCoordinator->download(uncached, cache::Priority::Prefetch);
                 }
             });
-    //: Deletes the selected tracks' files from Crate Decks' audio cache
+    //: Deletes the selected tracks' files from Decks' audio cache
     auto* pRemove = new QAction(tr("Remove from cache"), pParent);
     pRemove->setEnabled(!cached.isEmpty());
     connect(pRemove,

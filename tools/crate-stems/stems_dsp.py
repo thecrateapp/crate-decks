@@ -2,7 +2,7 @@
 
 The graph exported by export_htdemucs.py contains only the network. Everything
 else in Demucs' `apply_model` and `HTDemucs.forward` happens outside it, and
-this module is the reference for that code in Crate Decks (C++) and on the
+this module is the reference for that code in Decks (C++) and on the
 server:
 
 - normalisation of the whole track by the mean and standard deviation of its

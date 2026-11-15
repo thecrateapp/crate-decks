@@ -1,4 +1,4 @@
-# Solar icons used by Crate Decks: <style>/<name> from @solar-icons/react 2.3.3.
+# Solar icons used by Decks: <style>/<name> from @solar-icons/react 2.3.3.
 # Outline by default; bold only for Play, Pause and Heart, as in the admin.
 # Regenerate with tools/crate-design/extract_solar.py (see its docstring).
 

@@ -39,7 +39,8 @@ const QRegularExpression kNamesMixxx(
                        "(?![A-Za-z0-9_@]|[./\\\\][A-Za-z0-9_]|::)"),
         QRegularExpression::UseUnicodePropertiesOption);
 
-const QString kCrateDecks = QStringLiteral("Crate Decks");
+/// What the rule writes for "Mixxx": the visible name of the application.
+const QString kApplication = QString::fromUtf8(kApplicationName);
 
 /// Mixxx's names for the files and the folder of its settings, which the
 /// texts of the inherited code show (plan BR2): the database (Czech writes
@@ -57,7 +58,7 @@ const QRegularExpression kAllowedMixxx(
         QStringLiteral("MiniMixxx|BeMixxx"),
         QRegularExpression::CaseInsensitiveOption);
 
-/// `text` with Crate Decks' files and folder where it names Mixxx's.
+/// `text` with Decks' files and folder where it names Mixxx's.
 QString renameMixxxFiles(const QString& text) {
     QString result;
     qsizetype last = 0;
@@ -118,15 +119,15 @@ QString brandRule(const QString& input) {
     while (matches.hasNext()) {
         const QRegularExpressionMatch match = matches.next();
         result += QStringView(text).mid(last, match.capturedStart() - last);
-        result += match.capturedView(1) == QLatin1String("MIXXX") ? kCrateDecks.toUpper()
-                                                                  : kCrateDecks;
-        // Finnish declines foreign names after a colon ("Crate Decks:in");
+        result += match.capturedView(1) == QLatin1String("MIXXX") ? kApplication.toUpper()
+                                                                  : kApplication;
+        // Finnish declines foreign names after a colon ("Decks:in");
         // a declension glued to the name (Czech "Mixxxu") is dropped
         if (match.capturedView(3).startsWith(QLatin1Char(':'))) {
             result += match.capturedView(3);
         }
         if (match.capturedStart(4) >= 0) {
-            // "Mixxx's" -> "Crate Decks'"
+            // "Mixxx's" -> "Decks'"
             result += QLatin1Char('\'');
         }
         last = match.capturedEnd();

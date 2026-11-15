@@ -5,7 +5,7 @@
 
 namespace crate {
 
-/// What Crate Decks makes of the address of a Crate server typed by the user.
+/// What Decks makes of the address of a Crate server typed by the user.
 struct ServerAddress {
     enum class Security {
         /// HTTPS, or HTTP to this computer.

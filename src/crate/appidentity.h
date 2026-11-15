@@ -6,9 +6,9 @@
 
 namespace crate {
 
-// Identity of Crate Decks as an application (design D3), gathered in one
+// Identity of Decks as an application (design D3), gathered in one
 // place so that it can be reviewed and changed without touching the inherited
-// code that uses it. It differs from upstream's so that Crate Decks never shares
+// code that uses it. It differs from upstream's so that Decks never shares
 // settings, the desktop entry or keychain entries with an installed Mixxx.
 //
 // The Linux settings directory (~/.cratedecks/) is fixed at compile time by
@@ -16,8 +16,8 @@ namespace crate {
 // the texts that show it.
 
 /// Visible name of the application: window title, dialogs, JACK client.
-inline constexpr char kApplicationName[] = "Crate Decks";
-/// Product version of Crate Decks. Builds show it with the commit until there
+inline constexpr char kApplicationName[] = "Decks";
+/// Product version of Decks. Builds show it with the commit until there
 /// is a decks-vX.Y.Z tag (buildVersion()). It is not VersionStore::version(),
 /// the version of the inherited code, which Upgrade stores in the settings
 /// file as the version of the settings.
@@ -40,7 +40,7 @@ inline constexpr char kSettingsFolderName[] = ".cratedecks";
 /// to "<name>.1" up to "<name>.10".
 inline constexpr char kLogFileName[] = "crate-decks.log";
 inline constexpr char kDatabaseFileName[] = "crate-decks.sqlite";
-/// Crate Decks reads and writes only its own settings folder (plan BR2):
+/// Decks reads and writes only its own settings folder (plan BR2):
 /// upstream's migrations from its old settings folders would read, move and
 /// delete the files of a Mixxx installed on the same computer.
 inline constexpr bool kReadsMixxxSettings = false;
@@ -52,7 +52,7 @@ inline constexpr char kBroadcastKeychainPrefix[] = "Crate - ";
 
 /// Website of Crate, linked from the About dialog.
 inline constexpr char kHomepageUrl[] = "https://cratemusic.app";
-/// Repository with the source code of Crate Decks (GPL, design D2).
+/// Repository with the source code of Decks (GPL, design D2).
 inline constexpr char kSourceRepositoryUrl[] = "https://github.com/thecrateapp/crate-decks";
 
 /// Link to the source code of the build described by `git describe`
@@ -71,7 +71,7 @@ QUrl sourceCodeUrl(const QString& gitDescribe);
 /// computes the same version for the package file names.
 QString buildVersion(const QString& gitDescribe);
 
-/// The visible credits of what Crate Decks ships from others, for About, as
+/// The visible credits of what Decks ships from others, for About, as
 /// rich text with links in `linkStyle`: the Solar icons, whose CC BY 4.0
 /// licence asks for attribution and to say what changed (design 14.3, plan
 /// V2.PR5), and the admin's fonts under the SIL Open Font License.

@@ -1,5 +1,5 @@
 <!--
-  Crate Decks skin variables, from res/crate-design/tokens.json.
+  Decks skin variables, from res/crate-design/tokens.json.
   Template for tools/crate-design/generate.py. Colours are #rrggbb, or
   #aarrggbb when they have alpha; lengths are in pixels.
 

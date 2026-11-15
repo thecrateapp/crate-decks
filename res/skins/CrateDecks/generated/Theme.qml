@@ -1,4 +1,4 @@
-// Crate Decks design tokens for QML (stage 2, design section 14.4).
+// Decks design tokens for QML (stage 2, design section 14.4).
 // Template for tools/crate-design/generate.py: every token in
 // res/crate-design/tokens.json has a property here. Lengths are in pixels,
 // tracking in em, durations in milliseconds and sweeps in degrees.

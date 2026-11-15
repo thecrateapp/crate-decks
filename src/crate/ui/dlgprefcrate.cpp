@@ -77,12 +77,12 @@ DlgPrefCrate::DlgPrefCrate(QWidget* pParent, CrateServers* pServers, const QStri
     m_pKeychainWarning->setWordWrap(true);
     m_pKeychainWarning->setText(
             tr("The system keychain is not available: you will have to sign in again "
-               "after Crate Decks restarts."));
+               "after Decks restarts."));
     m_pKeychainWarning->hide();
 
     auto* pIntro = plainLabel(QString(), "CratePrefsIntro", this);
     setParagraph(pIntro,
-            tr("Crate servers are the library and the brain of Crate Decks: your tracks, "
+            tr("Crate servers are the library and the brain of Decks: your tracks, "
                "Crate's analysis, recommendations and Smart Mix. Sessions are kept in the "
                "system keychain; nothing is stored in mixxx.cfg."),
             "fontSizeCaption");

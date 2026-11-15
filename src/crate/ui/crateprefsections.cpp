@@ -229,7 +229,7 @@ CacheSection::CacheSection(QWidget* pParent)
     m_pChoose->setObjectName(QStringLiteral("crateChooseCache"));
     setButtonVariant(m_pChoose, "ghost");
     pLocation->addWidget(m_pChoose);
-    m_pLocationHint->setText(tr("takes effect the next time Crate Decks starts"));
+    m_pLocationHint->setText(tr("takes effect the next time Decks starts"));
     m_pLocationHint->setContentsMargins(
             metrics.px("prefsRowLabelWidthColumn") + metrics.px("prefsRowGap"), 0, 0, 0);
     m_pLocationHint->hide();
@@ -274,7 +274,7 @@ void CacheSection::setMinimumLimit(qint64 bytes) {
 AnalysisSection::AnalysisSection(QWidget* pParent)
         : PrefsSection(tr("Crate analysis"), pParent),
           m_pKey(addToggle(tr("Key from Crate"),
-                  tr("instead of the key detection of Crate Decks"))),
+                  tr("instead of the key detection of Decks"))),
           m_pGain(addToggle(tr("Gain from loudness"),
                   tr("ReplayGain from Crate's LUFS for tracks without one"))) {
 }

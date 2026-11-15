@@ -31,9 +31,9 @@ QByteArray httpResponse(int status, const QByteArray& reason, const QByteArray& 
 QByteArray page(const QString& text) {
     return QStringLiteral(
             "<!doctype html><html><head><meta charset=\"utf-8\">"
-            "<title>Crate Decks</title></head>"
+            "<title>Decks</title></head>"
             "<body style=\"font-family: sans-serif; margin: 4em; text-align: center\">"
-            "<h1>Crate Decks</h1><p>%1</p></body></html>")
+            "<h1>Decks</h1><p>%1</p></body></html>")
             .arg(text.toHtmlEscaped())
             .toUtf8();
 }
@@ -162,7 +162,7 @@ void LoopbackCallbackServer::onReadyRead(QTcpSocket* pSocket) {
         answer(pSocket,
                 httpResponse(400,
                         "Bad Request",
-                        page(tr("This is not the sign-in Crate Decks is waiting for."))));
+                        page(tr("This is not the sign-in Decks is waiting for."))));
         return;
     }
 
@@ -170,7 +170,7 @@ void LoopbackCallbackServer::onReadyRead(QTcpSocket* pSocket) {
     answer(pSocket,
             httpResponse(200,
                     "OK",
-                    page(tr("You can close this window and go back to Crate Decks."))));
+                    page(tr("You can close this window and go back to Decks."))));
     // Last: a slot may delete this server.
     emit callbackReceived(query);
 }

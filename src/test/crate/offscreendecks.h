@@ -1,6 +1,6 @@
 #pragma once
 
-// Crate Decks started offscreen for the tests that need the real application:
+// Decks started offscreen for the tests that need the real application:
 // the core services, the main window and the skin, as main.cpp builds them.
 // Shared by the skin tests and the test of what the interface shows.
 
@@ -67,7 +67,7 @@ inline bool waitFor(const std::function<bool()>& done, int timeoutMs) {
     return true;
 }
 
-/// Crate Decks started offscreen on a disposable profile, with no sound
+/// Decks started offscreen on a disposable profile, with no sound
 /// devices: the real main window and skin, as main.cpp builds them.
 class OffscreenDecks {
   public:

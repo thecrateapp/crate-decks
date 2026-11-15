@@ -238,7 +238,7 @@ TEST_F(CrateDialogsTest, SplashShowsTheCrateBrand) {
     EXPECT_TRUE(splash.styleSheet().contains(QLatin1String("crate-logo.svg")));
     auto* pName = splash.findChild<QLabel*>(QStringLiteral("CrateSplashName"));
     ASSERT_NE(nullptr, pName);
-    EXPECT_QSTRING_EQ(QStringLiteral("Crate Decks"), pName->text());
+    EXPECT_QSTRING_EQ(QStringLiteral("Decks"), pName->text());
     EXPECT_NE(nullptr, splash.findChild<QLabel*>(QStringLiteral("CrateSplashLogo")));
     // Painted on the app's background, not upstream's grey
     splash.resize(400, 300);

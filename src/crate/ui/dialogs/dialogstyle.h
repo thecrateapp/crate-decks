@@ -12,7 +12,7 @@ class QWidget;
 
 namespace crate {
 
-/// The sizes that the dialogs of Crate Decks lay out with in C++ (plan
+/// The sizes that the dialogs of Decks lay out with in C++ (plan
 /// V2.PR5): the "dialog" tokens of res/crate-design/tokens.json, which the
 /// generator writes into the CrateDecks skin's generated/vars.xml as
 /// CrateDlg<Token>. The dialogs read them from there whatever skin is
@@ -61,7 +61,7 @@ QString defaultStyleSheet(const QString& resourcePath);
 /// The style of dialogs: the generated dialogs.qss, with absolute URLs.
 QString dialogStyleSheet(const QString& resourcePath);
 
-/// Styles Crate Decks: `pMainWindow` gets `styleSheet` (defaultStyleSheet()),
+/// Styles Decks: `pMainWindow` gets `styleSheet` (defaultStyleSheet()),
 /// as upstream sets res/skins/default.qss on it, and each dialog gets
 /// `styleSheet` and `dialogStyleSheet` as its own style when it is
 /// polished: Preferences and About have no parent, so the main window's
@@ -81,7 +81,7 @@ void applyStyles(QWidget* pMainWindow, const QString& styleSheet, const QString&
 /// they cannot be read.
 bool applyApplicationStyle(QWidget* pMainWindow, const QString& resourcePath);
 
-/// Gives upstream's splash screen (LaunchImage) the Crate Decks brand instead
+/// Gives upstream's splash screen (LaunchImage) the Decks brand instead
 /// of the upstream logo, for every skin: the logo, the name and a 1 px progress
 /// lane (generated/launch.qss). It replaces the skin's own splash style and
 /// Upstream's holiday logo.
