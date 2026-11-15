@@ -20,6 +20,8 @@ constexpr const char* kStemsFineTuned = "StemsFineTuned";
 constexpr const char* kSeparateWhilePlaying = "SeparateWhilePlaying";
 constexpr const char* kGainFromLufs = "GainFromLufs";
 constexpr const char* kSmartMixKeylock = "SmartMixKeylock";
+// In seconds, as Auto DJ's own transition time ([Auto DJ],Transition)
+constexpr const char* kSmartMixAssistTransition = "SmartMixAssistTransition";
 
 ConfigKey keyOf(const char* item) {
     return ConfigKey(kGroup, QLatin1String(item));
@@ -123,6 +125,33 @@ void CratePreferences::setSmartMixKeylock(bool enabled) {
     if (setFlag(kSmartMixKeylock, enabled, true)) {
         emit smartMixKeylockChanged(enabled);
     }
+}
+
+int CratePreferences::smartMixAssistTransitionSeconds() const {
+    if (!m_pConfig) {
+        return m_assistTransitionSeconds;
+    }
+    bool ok = false;
+    const int seconds =
+            m_pConfig->getValueString(keyOf(kSmartMixAssistTransition)).toInt(&ok);
+    return ok ? std::clamp(seconds,
+                        kMinimumAssistTransitionSeconds,
+                        kMaximumAssistTransitionSeconds)
+              : kDefaultAssistTransitionSeconds;
+}
+
+void CratePreferences::setSmartMixAssistTransitionSeconds(int seconds) {
+    const int bounded = std::clamp(
+            seconds, kMinimumAssistTransitionSeconds, kMaximumAssistTransitionSeconds);
+    if (bounded == smartMixAssistTransitionSeconds()) {
+        return;
+    }
+    if (m_pConfig) {
+        m_pConfig->setValue(keyOf(kSmartMixAssistTransition), QString::number(bounded));
+    } else {
+        m_assistTransitionSeconds = bounded;
+    }
+    emit smartMixAssistTransitionChanged(bounded);
 }
 
 bool CratePreferences::stemsOnGpu() const {

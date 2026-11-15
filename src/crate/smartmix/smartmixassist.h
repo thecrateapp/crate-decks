@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QJsonObject>
 #include <QList>
 #include <QObject>
 #include <QPointer>
@@ -38,7 +39,9 @@ class CratePreferences;
 ///   changes, the plan of that edge is asked of the tracks' Crate server
 ///   (`smart-mix-v3`, `assist=true`: long blends up to the server's
 ///   `maximumLongBeatmatchMs`, 96 s; Diego, 2026-11-15), unless a
-///   transition is under way.
+///   transition is under way. It prefers the transition length of the
+///   preferences (CratePreferences::smartMixAssistTransitionSeconds(), 8 s
+///   by default) and asks again when it changes.
 /// - Prepare arms the director with the plan and holds it: the other deck is
 ///   cued, its tempo matched and its EQ neutral, and the transition waits.
 ///   Execute lets it start at the plan's entry; without Prepare, it arms the
@@ -85,7 +88,8 @@ class SmartMixAssist : public QObject {
     struct Options {
         /// The decks' tracks. Defaults to PlayerInfo::instance().
         PlayerInfo* pPlayerInfo = nullptr;
-        /// Keylock during the transition; on without one.
+        /// Keylock during the transition and the preferred transition
+        /// length; on and 8 s without one.
         CratePreferences* pPreferences = nullptr;
         /// The Crate track whose cached file `location` is, if any.
         std::function<std::optional<cache::TrackKey>(const QString& location)> trackOfFile;
@@ -192,6 +196,8 @@ class SmartMixAssist : public QObject {
     QString m_incoming;
     PlanEdge m_edge;
     QString m_serverId;
+    /// The context the plan was asked with: another one asks again.
+    QJsonObject m_context;
     std::optional<TransitionPlan> m_plan;
     QString m_problem;
     qint64 m_latencyMs = 0;

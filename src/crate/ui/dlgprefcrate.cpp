@@ -178,6 +178,10 @@ void DlgPrefCrate::bindPreferences() {
             &QCheckBox::toggled,
             pPreferences,
             &CratePreferences::setSmartMixKeylock);
+    connect(m_pSmartMix,
+            &SmartMixSection::assistTransitionChosen,
+            pPreferences,
+            &CratePreferences::setSmartMixAssistTransitionSeconds);
     connect(m_pAnalysis->keyFromCrate(),
             &QCheckBox::toggled,
             pPreferences,
@@ -217,6 +221,7 @@ void DlgPrefCrate::showPreferences() {
     const CratePreferences* pPreferences = m_pServers->preferences();
     m_pCache->prefetchAutoDj()->setChecked(pPreferences->prefetchAutoDj());
     m_pSmartMix->keylock()->setChecked(pPreferences->smartMixKeylock());
+    m_pSmartMix->showAssistTransition(pPreferences->smartMixAssistTransitionSeconds());
     m_pAnalysis->keyFromCrate()->setChecked(pPreferences->keyFromCrate());
     m_pAnalysis->gainFromLufs()->setChecked(pPreferences->gainFromLufs());
     m_pStems->useGpu()->setChecked(pPreferences->stemsOnGpu());
@@ -280,6 +285,8 @@ void DlgPrefCrate::slotResetToDefaults() {
     pPreferences->setCacheDirectory(QString());
     pPreferences->setPrefetchAutoDj(true);
     pPreferences->setSmartMixKeylock(true);
+    pPreferences->setSmartMixAssistTransitionSeconds(
+            CratePreferences::kDefaultAssistTransitionSeconds);
     pPreferences->setKeyFromCrate(false);
     pPreferences->setGainFromLufs(false);
     pPreferences->setStemsOnGpu(true);

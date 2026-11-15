@@ -71,7 +71,7 @@ class AutoDJSmartMixAdapter : public QObject, public AutoDJProcessor::Transition
     /// The planner Auto DJ asks.
     static inline const QString kPlannerVersion = QStringLiteral("smart-mix-v3");
     /// The most `preferredDurationMs` the server takes (its request schema).
-    static constexpr int kMaxPreferredDurationMs = 12000;
+    static constexpr int kMaxPreferredDurationMs = PlanContext::kMaxPreferredDurationMs;
 
     struct Options {
         /// Auto DJ's mode and transition time.

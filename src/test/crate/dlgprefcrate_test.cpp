@@ -2,6 +2,7 @@
 
 #include <gtest/gtest.h>
 
+#include <QButtonGroup>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDialog>
@@ -924,6 +925,92 @@ TEST_F(CrateAddServerFlowTest, SmartMixKeylockSwitchSetsThePreference) {
     page.slotResetToDefaults();
     EXPECT_TRUE(pPreferences->smartMixKeylock());
     EXPECT_TRUE(pKeylock->isChecked());
+}
+
+// The assistant's transition length is a Crate preference: 8 s by default,
+// within what the plan request takes (1 s to 12 s) whatever is asked or
+// written in the settings file.
+TEST_F(CrateAddServerFlowTest, AssistTransitionStaysWithinTheServersLimits) {
+    using crate::CratePreferences;
+    EXPECT_EQ(8, CratePreferences(nullptr).smartMixAssistTransitionSeconds());
+    CratePreferences preferences(config());
+    EXPECT_EQ(8, preferences.smartMixAssistTransitionSeconds());
+    QSignalSpy changed(&preferences, &CratePreferences::smartMixAssistTransitionChanged);
+
+    preferences.setSmartMixAssistTransitionSeconds(30);
+    EXPECT_EQ(12, preferences.smartMixAssistTransitionSeconds());
+    preferences.setSmartMixAssistTransitionSeconds(0);
+    EXPECT_EQ(1, preferences.smartMixAssistTransitionSeconds());
+    preferences.setSmartMixAssistTransitionSeconds(-5);
+    ASSERT_EQ(2, changed.size());
+    EXPECT_EQ(12, changed.at(0).first().toInt());
+    EXPECT_EQ(1, changed.at(1).first().toInt());
+    preferences.setSmartMixAssistTransitionSeconds(10);
+    EXPECT_EQ(QStringLiteral("10"),
+            config()->getValueString(ConfigKey("[Crate]", "SmartMixAssistTransition")));
+    EXPECT_EQ(10, CratePreferences(config()).smartMixAssistTransitionSeconds());
+
+    // Edited by hand
+    config()->setValue(ConfigKey("[Crate]", "SmartMixAssistTransition"), QStringLiteral("40"));
+    EXPECT_EQ(12, preferences.smartMixAssistTransitionSeconds());
+    config()->setValue(ConfigKey("[Crate]", "SmartMixAssistTransition"), QStringLiteral("long"));
+    EXPECT_EQ(8, preferences.smartMixAssistTransitionSeconds());
+
+    CratePreferences withoutSettings(nullptr);
+    withoutSettings.setSmartMixAssistTransitionSeconds(99);
+    EXPECT_EQ(12, withoutSettings.smartMixAssistTransitionSeconds());
+}
+
+// Preferences · Crate shows the assistant's transition under the (hidden)
+// Auto DJ transition, in the same chips: picking one sets the preference,
+// and Restore Defaults puts back 8 s.
+TEST_F(CrateAddServerFlowTest, AssistTransitionChipsSetThePreference) {
+    crate::DlgPrefCrate page(nullptr, m_pServers.get());
+    crate::CratePreferences* pPreferences = m_pServers->preferences();
+    crate::SmartMixSection* pSmartMix = page.smartMixSection();
+    QButtonGroup* pChips = pSmartMix->assistTransition();
+    ASSERT_EQ(5, pChips->buttons().size());
+    QStringList texts;
+    for (QAbstractButton* pChip : pChips->buttons()) {
+        EXPECT_FALSE(pChip->isHidden());
+        EXPECT_FALSE(pChip->parentWidget()->parentWidget()->isHidden());
+        EXPECT_EQ(QStringLiteral("CrateChip"), pChip->objectName());
+        texts.append(pChip->text());
+    }
+    EXPECT_EQ(QStringList({QStringLiteral("4 s"),
+                      QStringLiteral("6 s"),
+                      QStringLiteral("8 s"),
+                      QStringLiteral("10 s"),
+                      QStringLiteral("12 s")}),
+            texts);
+    // Labelled as the Auto DJ transition it sits under
+    QStringList labels;
+    for (const QLabel* pLabel : pSmartMix->findChildren<QLabel*>()) {
+        if (pLabel->objectName() == QLatin1String("MonoPrefsLabel")) {
+            labels.append(pLabel->text());
+        }
+    }
+    EXPECT_TRUE(labels.contains(QStringLiteral("Assistant transition")))
+            << labels.join(u',').toStdString();
+    EXPECT_EQ(8, pChips->checkedId());
+
+    QSignalSpy changed(pPreferences, &crate::CratePreferences::smartMixAssistTransitionChanged);
+    pChips->button(12)->click();
+    ASSERT_EQ(1, changed.size());
+    EXPECT_EQ(12, changed.first().first().toInt());
+    EXPECT_EQ(12, pPreferences->smartMixAssistTransitionSeconds());
+    EXPECT_EQ(12, crate::CratePreferences(config()).smartMixAssistTransitionSeconds());
+    crate::DlgPrefCrate again(nullptr, m_pServers.get());
+    EXPECT_EQ(12, again.smartMixSection()->assistTransition()->checkedId());
+
+    // A length no chip offers checks none
+    pPreferences->setSmartMixAssistTransitionSeconds(5);
+    crate::DlgPrefCrate edited(nullptr, m_pServers.get());
+    EXPECT_EQ(-1, edited.smartMixSection()->assistTransition()->checkedId());
+
+    page.slotResetToDefaults();
+    EXPECT_EQ(8, pPreferences->smartMixAssistTransitionSeconds());
+    EXPECT_EQ(8, pChips->checkedId());
 }
 
 TEST_F(CrateAddServerFlowTest, CacheSectionShowsTheCacheUse) {

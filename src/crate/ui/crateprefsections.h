@@ -2,7 +2,9 @@
 
 #include <QFrame>
 #include <QString>
+#include <array>
 
+class QButtonGroup;
 class QCheckBox;
 class QLabel;
 class QLineEdit;
@@ -150,12 +152,19 @@ class StemsSection : public PrefsSection {
 /// The Auto DJ and Smart Mix section of the Crate page, as the GU1 mockups
 /// show it: the Auto DJ transition (Crate Smart Mix, full intro and outro,
 /// fade at the outro) and the Smart Mix switches, with keylock during Smart
-/// Mix (F6.C-PR3). The rows of later plans (the transition chips, the
-/// assistant of F6.C-PR4, bass swap, long beatmatch and AI assisted mixing)
-/// stay hidden until their plan connects them.
+/// Mix (F6.C-PR3). Under the Auto DJ transition, the assistant's transition
+/// length in the same chips (CratePreferences::
+/// smartMixAssistTransitionSeconds()). The rows of later plans (the Auto DJ
+/// transition chips, the assistant following the master deck, bass swap,
+/// long beatmatch and AI assisted mixing) stay hidden until their plan
+/// connects them.
 class SmartMixSection : public PrefsSection {
     Q_OBJECT
   public:
+    /// The assistant's transition lengths offered, in seconds, within
+    /// CratePreferences' bounds.
+    static constexpr std::array<int, 5> kAssistTransitionChoices{4, 6, 8, 10, 12};
+
     explicit SmartMixSection(QWidget* pParent);
 
     QPushButton* smartMix() const {
@@ -164,10 +173,21 @@ class SmartMixSection : public PrefsSection {
     QCheckBox* keylock() const {
         return m_pKeylock;
     }
+    /// The assistant's transition chips; each one's id is its seconds.
+    QButtonGroup* assistTransition() const {
+        return m_pAssistTransition;
+    }
+    /// Checks the chip of `seconds`, or none if no chip offers it.
+    void showAssistTransition(int seconds);
+
+  signals:
+    /// The DJ picked the chip of `seconds`.
+    void assistTransitionChosen(int seconds);
 
   private:
     QPushButton* m_pSmartMix;
     QCheckBox* m_pKeylock;
+    QButtonGroup* m_pAssistTransition;
 };
 
 /// "This computer" (hybrid laptop plan §2 and §3): drawing with the discrete

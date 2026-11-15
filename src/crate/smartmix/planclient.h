@@ -35,6 +35,9 @@ struct PlanContext {
     /// plans as a short crossfade.
     bool automatic = true;
     bool offline = false;
+    /// The most `preferredDurationMs` the server takes (its request schema).
+    static constexpr int kMaxPreferredDurationMs = 12000;
+
     /// The transition length the DJ prefers; the server takes up to 12 s.
     int preferredDurationMs = 8000;
     QString userCueProfile = QStringLiteral("default");

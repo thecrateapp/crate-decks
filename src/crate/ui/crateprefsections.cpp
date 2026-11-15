@@ -386,7 +386,8 @@ QWidget* addSegment(QVBoxLayout* pRows,
 SmartMixSection::SmartMixSection(QWidget* pParent)
         : PrefsSection(tr("Auto DJ and Smart Mix"), pParent),
           m_pSmartMix(nullptr),
-          m_pKeylock(nullptr) {
+          m_pKeylock(nullptr),
+          m_pAssistTransition(new QButtonGroup(this)) {
     // The transition chips, hidden until they choose Auto DJ's mode
     auto* pGroup = new QButtonGroup(this);
     QWidget* pTransitionBox = addSegment(rows(),
@@ -403,6 +404,21 @@ SmartMixSection::SmartMixSection(QWidget* pParent)
     m_pSmartMix->setChecked(true);
     pTransitionBox->hide();
 
+    // The length the assistant asks for, beside Auto DJ's
+    QStringList lengths;
+    for (const int seconds : kAssistTransitionChoices) {
+        lengths.append(tr("%1 s").arg(seconds));
+    }
+    addSegment(rows(), tr("Assistant transition"), lengths, m_pAssistTransition, this);
+    const QList<QAbstractButton*> chips = m_pAssistTransition->buttons();
+    for (int index = 0; index < chips.size(); ++index) {
+        m_pAssistTransition->setId(chips[index], kAssistTransitionChoices[index]);
+    }
+    connect(m_pAssistTransition,
+            &QButtonGroup::idClicked,
+            this,
+            &SmartMixSection::assistTransitionChosen);
+
     m_pKeylock = addToggle(tr("Keylock during Smart Mix"),
             tr("keeps the key when a beatmatch changes the tempo"));
     // Plans F6.C-PR4 and F6b
@@ -415,6 +431,21 @@ SmartMixSection::SmartMixSection(QWidget* pParent)
     for (const auto& [title, hint] : later) {
         addToggle(title, hint)->parentWidget()->hide();
     }
+}
+
+void SmartMixSection::showAssistTransition(int seconds) {
+    QAbstractButton* pChip = m_pAssistTransition->button(seconds);
+    if (pChip) {
+        pChip->setChecked(true);
+        return;
+    }
+    // A length of the settings file that no chip offers: none is checked
+    m_pAssistTransition->setExclusive(false);
+    const QList<QAbstractButton*> chips = m_pAssistTransition->buttons();
+    for (QAbstractButton* pOther : chips) {
+        pOther->setChecked(false);
+    }
+    m_pAssistTransition->setExclusive(true);
 }
 
 QString cacheUsageNumber(qint64 usedBytes) {

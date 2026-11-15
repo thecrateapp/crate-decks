@@ -1,6 +1,7 @@
 #include "crate/smartmix/smartmixassist.h"
 
 #include <QElapsedTimer>
+#include <QJsonObject>
 #include <algorithm>
 
 #include "control/controlobject.h"
@@ -18,6 +19,9 @@ namespace {
 const mixxx::Logger kLogger("crate::SmartMixAssist");
 
 const ConfigKey kAutoDjEnabled(QStringLiteral("[AutoDJ]"), QStringLiteral("enabled"));
+static_assert(CratePreferences::kMaximumAssistTransitionSeconds * 1000 <=
+                PlanContext::kMaxPreferredDurationMs,
+        "the assistant's longest transition is more than the server takes");
 // The decks the assistant looks at
 constexpr int kMaxDecks = 4;
 
@@ -71,6 +75,13 @@ SmartMixAssist::SmartMixAssist(Options options, QObject* pParent)
             this,
             &SmartMixAssist::onDirectorFinished,
             Qt::QueuedConnection);
+    if (m_options.pPreferences) {
+        // Its plan's context changes: refresh() asks again
+        connect(m_options.pPreferences,
+                &CratePreferences::smartMixAssistTransitionChanged,
+                this,
+                &SmartMixAssist::scheduleRefresh);
+    }
     connect(m_pPlayerInfo, &PlayerInfo::trackChanged, this, &SmartMixAssist::scheduleRefresh);
     connect(m_pPlayerInfo,
             &PlayerInfo::currentPlayingDeckChanged,
@@ -202,9 +213,12 @@ PlanContext SmartMixAssist::contextFor(const QString& serverId, const QStringLis
     context.allowBassHandoff = has(DecksFeature::BassHandoff) && m_options.defaultEqOn &&
             m_options.defaultEqOn(decks);
     context.allowLongBeatmatch = has(DecksFeature::LongBeatmatch);
-    // A DJ mixing by hand has no Auto DJ time: the context's default, 8 s;
-    // long blends follow allowLongBeatmatch and the assist limits
-    context.preferredDurationMs = PlanContext().preferredDurationMs;
+    // A DJ mixing by hand has no Auto DJ time: the assistant's own, 8 s by
+    // default; long blends follow allowLongBeatmatch and the assist limits
+    const int seconds = m_options.pPreferences
+            ? m_options.pPreferences->smartMixAssistTransitionSeconds()
+            : CratePreferences::kDefaultAssistTransitionSeconds;
+    context.preferredDurationMs = seconds * 1000;
     return context;
 }
 
@@ -227,6 +241,7 @@ void SmartMixAssist::refresh() {
         m_problem.clear();
         m_edge = PlanEdge();
         m_serverId.clear();
+        m_context = QJsonObject();
         ++m_request;
         emit changed();
     };
@@ -256,17 +271,20 @@ void SmartMixAssist::refresh() {
         return;
     }
     const PlanEdge edge{outgoing->entityUid, incoming->entityUid, QString(), QString()};
+    const PlanContext context = contextFor(outgoing->serverId, {m_outgoing, m_incoming});
+    const QJsonObject contextJson = context.toJson();
     if (m_plan && m_serverId == outgoing->serverId &&
             m_edge.outgoingTrackEntityUid == edge.outgoingTrackEntityUid &&
-            m_edge.incomingTrackEntityUid == edge.incomingTrackEntityUid) {
-        // The same edge: its plan holds
+            m_edge.incomingTrackEntityUid == edge.incomingTrackEntityUid &&
+            m_context == contextJson) {
+        // The same edge and context: its plan holds
         emit changed();
         return;
     }
     keep(Status::Requesting);
     m_edge = edge;
     m_serverId = outgoing->serverId;
-    const PlanContext context = contextFor(m_serverId, {m_outgoing, m_incoming});
+    m_context = contextJson;
     if (const auto cached = pPlans->cachedPlan(edge, context)) {
         m_latencyMs = 0;
         setPlan(*cached);

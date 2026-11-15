@@ -18,6 +18,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QPushButton>
+#include <QSignalSpy>
 #include <QTest>
 #include <map>
 #include <memory>
@@ -26,6 +27,7 @@
 #include "control/controlproxy.h"
 #include "control/controlpushbutton.h"
 #include "crate/client/crateclient.h"
+#include "crate/cratepreferences.h"
 #include "crate/smartmix/eqmap.h"
 #include "crate/smartmix/planclient.h"
 #include "crate/smartmix/smartmixassist.h"
@@ -177,6 +179,7 @@ class CrateSmartMixAssistTest : public MixxxTest {
         options.pDirector = std::make_unique<SmartMixDirector>(
                 std::make_unique<FakeEnvironment>(&m_now));
         options.settleTime = std::chrono::milliseconds(1);
+        options.pPreferences = m_pPreferences;
         m_pAssist = std::make_unique<SmartMixAssist>(std::move(options));
     }
 
@@ -277,6 +280,8 @@ class CrateSmartMixAssistTest : public MixxxTest {
     crate::test::FakeScheduler m_scheduler;
     std::unique_ptr<crate::Client> m_pClient;
     std::unique_ptr<crate::PlanClient> m_pPlans;
+    /// The assistant's preferences; none by default.
+    crate::CratePreferences* m_pPreferences = nullptr;
     std::unique_ptr<SmartMixAssist> m_pAssist;
 };
 
@@ -318,6 +323,60 @@ TEST_F(CrateSmartMixAssistTest, AsksThePlanOfTheLoadedDecks) {
     // The long blend starts at its own cue, 88 s before the real plan's
     ASSERT_TRUE(m_pAssist->msToEntry().has_value());
     EXPECT_NEAR(120000.0 - (kCueMs - 330298.0), *m_pAssist->msToEntry(), 1.0);
+}
+
+/// The transition length of each plan request, in milliseconds.
+QList<int> preferredDurations(const QList<crate::test::FakeNetworkAccessManager::Sent>& requests) {
+    QList<int> durations;
+    for (const auto& sent : requests) {
+        const QJsonObject edge = QJsonDocument::fromJson(sent.body)
+                                         .object()
+                                         .value(QStringLiteral("edges"))
+                                         .toArray()
+                                         .first()
+                                         .toObject();
+        durations.append(edge.value(QStringLiteral("context"))
+                        .toObject()
+                        .value(QStringLiteral("preferredDurationMs"))
+                        .toInt());
+    }
+    return durations;
+}
+
+// The assistant asks for the transition length of the preferences, and
+// asks again for the plan of the same decks when it changes.
+TEST_F(CrateSmartMixAssistTest, AsksForTheTransitionLengthOfThePreferences) {
+    crate::CratePreferences preferences(nullptr);
+    preferences.setSmartMixAssistTransitionSeconds(12);
+    m_pPreferences = &preferences;
+    readyPlan();
+    EXPECT_EQ(QList<int>{12000}, preferredDurations(planRequests()));
+    EXPECT_EQ(12000, m_pAssist->contextFor(kServer, {kDeck1, kDeck2}).preferredDurationMs);
+
+    preferences.setSmartMixAssistTransitionSeconds(4);
+    ASSERT_TRUE(waitFor([this] { return m_pAssist->status() == Status::Requesting; }));
+    EXPECT_EQ(QList<int>({12000, 4000}), preferredDurations(planRequests()));
+    EXPECT_FALSE(m_pAssist->plan().has_value());
+    answerPlans();
+    ASSERT_TRUE(waitFor([this] { return m_pAssist->status() == Status::Ready; }));
+
+    // Without a change, the plan holds
+    preferences.setSmartMixAssistTransitionSeconds(4);
+    m_pAssist->refresh();
+    EXPECT_EQ(Status::Ready, m_pAssist->status());
+    EXPECT_EQ(2, planRequests().size());
+    // Beyond what the server takes, it asks for the most: the first plan,
+    // which the plan client keeps
+    preferences.setSmartMixAssistTransitionSeconds(60);
+    EXPECT_EQ(12000, m_pAssist->contextFor(kServer, {kDeck1, kDeck2}).preferredDurationMs);
+    QSignalSpy changed(m_pAssist.get(), &SmartMixAssist::changed);
+    m_pAssist->refresh();
+    EXPECT_GE(changed.size(), 2) << "it asked again";
+    EXPECT_EQ(Status::Ready, m_pAssist->status());
+    EXPECT_EQ(0, m_pAssist->planLatencyMs());
+    EXPECT_EQ(2, planRequests().size());
+    // Before the preferences go
+    m_pAssist.reset();
 }
 
 // The other deck must hold a stopped track of the same Crate server.
