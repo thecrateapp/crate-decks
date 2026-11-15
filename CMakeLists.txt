@@ -2676,34 +2676,55 @@ install(
   DESTINATION "${MIXXX_INSTALL_DOCDIR}"
 )
 
+# Crate Decks: the desktop identity, in one place. CRATE_APP_ID is the app
+# id: the Wayland app_id and the X11 WM_CLASS (crate::kDesktopFileName,
+# which CrateBrandingTest checks against these files), and the name of the
+# desktop entry, the metainfo and the icons. The icons are the files
+# res/images/icons/<size>x<size>/apps/<app id>.png (and scalable/apps/
+# <app id>.svg if there is one): the window icon (res/crate.qrc), the
+# installed hicolor icons, the AppImage's and `make install-desktop` all
+# read them there, so new icon files replace them everywhere.
+set(CRATE_APP_ID "app.cratemusic.decks")
+set(CRATE_APP_ICON_DIR "${CMAKE_CURRENT_SOURCE_DIR}/res/images/icons")
+set(
+  CRATE_APP_DESKTOP_FILE
+  "${CMAKE_CURRENT_SOURCE_DIR}/res/linux/${CRATE_APP_ID}.desktop"
+)
+set(
+  CRATE_APP_METAINFO_FILE
+  "${CMAKE_CURRENT_SOURCE_DIR}/res/linux/${CRATE_APP_ID}.metainfo.xml"
+)
+# For packaging/CPackConfig.cmake
+set(CPACK_CRATE_APP_ID "${CRATE_APP_ID}")
+
 # Additional Linux-only files
 if(UNIX AND NOT APPLE)
   # .desktop file for KDE/GNOME menu
-  # Crate Decks: own desktop entry and metainfo (app.cratemusic.decks)
-  install(
-    FILES "${CMAKE_CURRENT_SOURCE_DIR}/res/linux/app.cratemusic.decks.desktop"
-    DESTINATION "${CMAKE_INSTALL_DATADIR}/applications"
-  )
-
-  # AppImage-specific install rules (desktop file, shared libraries).
+  # Crate Decks: own desktop entry and metainfo (app.cratemusic.decks). The
+  # AppImage installs its own copy of the desktop entry under the same name.
   if(MIXXX_APPIMAGE)
+    # AppImage-specific install rules (desktop file, shared libraries).
     include("${CMAKE_CURRENT_SOURCE_DIR}/packaging/appimage/appimage.cmake")
+  else()
+    install(
+      FILES "${CRATE_APP_DESKTOP_FILE}"
+      DESTINATION "${CMAKE_INSTALL_DATADIR}/applications"
+    )
   endif()
 
   # Icon files for menu entry
+  # Crate Decks: only the application's icons, not Mixxx's
   install(
-    DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/res/images/icons/"
+    DIRECTORY "${CRATE_APP_ICON_DIR}/"
     DESTINATION "${CMAKE_INSTALL_DATADIR}/icons/hicolor"
-    # This file is for Windows.
-    PATTERN ic_mixxx.ico EXCLUDE
-    # Crate Decks: install the Crate Decks icon, not Mixxx's
-    PATTERN "mixxx*" EXCLUDE
+    FILES_MATCHING
+    PATTERN "${CRATE_APP_ID}.png"
+    PATTERN "${CRATE_APP_ID}.svg"
   )
 
   # .metainfo.xml file for KDE/GNOME AppStream initiative
   install(
-    FILES
-      "${CMAKE_CURRENT_SOURCE_DIR}/res/linux/app.cratemusic.decks.metainfo.xml"
+    FILES "${CRATE_APP_METAINFO_FILE}"
     DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/metainfo"
   )
 
