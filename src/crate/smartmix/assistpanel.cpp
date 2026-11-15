@@ -125,6 +125,14 @@ AssistPanel::AssistPanel(QWidget* pParent)
 
 AssistPanel::~AssistPanel() = default;
 
+bool AssistPanel::hasHeightForWidth() const {
+    // Its wrapping labels would pass height-for-width up to the main
+    // window, whose minimum height then followed the panel's height at its
+    // narrowest: at 1366 x 768 the window grew to 1009 px. The details
+    // scroll instead, so the panel takes the pane's height
+    return false;
+}
+
 QWidget* AssistPanel::makeHead() {
     const DialogMetrics& metrics = DialogMetrics::installed();
     auto* pHead = new QWidget(this);
@@ -225,8 +233,10 @@ QWidget* AssistPanel::makeHost() {
 
 QWidget* AssistPanel::makeInspector() {
     const DialogMetrics& metrics = DialogMetrics::installed();
-    // The column with its rule; the plan scrolls in it when the library pane
-    // is short, and the actions stay at its foot
+    // The column with its rule. The library pane is shorter than the
+    // mockup's (402 px at 1920 x 1080, 213 px at 1366 x 768): the details
+    // scroll above the actions, which stay at its foot with nothing under
+    // them
     auto* pColumn = new QWidget(this);
     pColumn->setObjectName(QStringLiteral("CrateAssistInspector"));
     pColumn->setAttribute(Qt::WA_StyledBackground);
@@ -334,6 +344,15 @@ QWidget* AssistPanel::makeInspector() {
         ++row;
     }
     pLayout->addWidget(m_pMeta);
+    // Last of the details, so that nothing sits under the actions
+    QLabel* pQuiet = textLabel("CrateAssistQuiet", pInspector);
+    pQuiet->setWordWrap(true);
+    //: The controls a controller mapping can use; not translated
+    pQuiet->setText(tr("Mappable: %1")
+                    .arg(QStringLiteral(
+                            "[CrateSmartMix],prepare · execute · cancel")));
+    pLayout->addWidget(pQuiet);
+    pLayout->addSpacing(metrics.px("assistQuietTop"));
     pLayout->addStretch(1);
     pScroll->setWidget(pInspector);
 
@@ -378,15 +397,8 @@ QWidget* AssistPanel::makeInspector() {
         }
     });
     pColumnLayout->addWidget(pActions);
-
-    QLabel* pQuiet = textLabel("CrateAssistQuiet", pColumn);
-    pQuiet->setWordWrap(true);
-    //: The controls a controller mapping can use; not translated
-    pQuiet->setText(tr("Mappable: %1")
-                    .arg(QStringLiteral(
-                            "[CrateSmartMix],prepare · execute · cancel")));
-    pColumnLayout->addWidget(pQuiet);
-    pColumnLayout->addSpacing(metrics.px("assistQuietTop"));
+    m_pDetails = pScroll;
+    m_pActions = pActions;
     return pColumn;
 }
 

@@ -9,6 +9,7 @@
 
 class QLabel;
 class QPushButton;
+class QScrollArea;
 class QVBoxLayout;
 
 namespace crate {
@@ -31,8 +32,10 @@ class LevelRing;
 ///   the artists, the plan's length and the time to its entry.
 /// - The inspector: the mode, a sentence of the plan, its state, the
 ///   confidence, the time to the entry and the length, then mode, entry,
-///   tempo adjustment, bass swap, gain and planner, and the Prepare, Execute
-///   and Cancel buttons with the controls a controller maps.
+///   tempo adjustment, bass swap, gain and planner and the controls a
+///   controller maps. These details scroll when the library pane is short;
+///   the Prepare, Execute and Cancel buttons stay at the column's foot,
+///   with nothing under them.
 ///
 /// The plan's timeline (TransitionPlanView, plan V3.PR1b) is not drawn yet:
 /// the mockup's stage under the host stays empty.
@@ -53,6 +56,10 @@ class AssistPanel : public QWidget, public LibraryView {
     // LibraryView
     void onShow() override;
     bool hasFocus() const override;
+
+    /// False: the panel takes the library pane's height, whatever its
+    /// labels wrap to.
+    bool hasHeightForWidth() const override;
 
     // What it shows, for tests
     QString statusText() const;
@@ -77,6 +84,14 @@ class AssistPanel : public QWidget, public LibraryView {
     }
     QPushButton* autoDjChip() const {
         return m_pAutoDjChip;
+    }
+    /// The inspector's details, which scroll above its actions.
+    QScrollArea* details() const {
+        return m_pDetails;
+    }
+    /// Prepare, Execute and Cancel, pinned at the inspector's foot.
+    QWidget* actions() const {
+        return m_pActions;
     }
 
   private:
@@ -115,6 +130,8 @@ class AssistPanel : public QWidget, public LibraryView {
     QWidget* m_pMeta = nullptr;
     QHash<QString, QLabel*> m_metadata;
     QHash<QString, QWidget*> m_metadataRows;
+    QScrollArea* m_pDetails = nullptr;
+    QWidget* m_pActions = nullptr;
     QPushButton* m_pPrepare = nullptr;
     QPushButton* m_pExecute = nullptr;
     QPushButton* m_pCancel = nullptr;
