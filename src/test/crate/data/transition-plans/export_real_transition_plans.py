@@ -2,7 +2,7 @@
 """Exports real transition plans from a Crate dev stack as anonymised fixtures
 for transitionplan_test.cpp and planclient_test.cpp.
 
-It signs in like Crate Decks, reads one playlist and asks
+It signs in like Decks, reads one playlist and asks
 `POST /api/playback/transition-plans` for the edges between consecutive tracks
 with a mix profile, in the `decks` context, until it has one plan of each
 kind:

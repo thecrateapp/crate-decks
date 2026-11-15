@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Writes synthetic-assist-long-blend.json, a SYNTHETIC transition plan for
-transitionplan_test.cpp: the longest blend the assist mode of Crate Decks may
+transitionplan_test.cpp: the longest blend the assist mode of Decks may
 get (S5, plan F6.S-PR1), with the `policyLimits` the server sends with it.
 
 No dev stack serves the assist mode yet, so it cannot be exported like the
