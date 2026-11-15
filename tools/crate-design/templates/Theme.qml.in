@@ -374,7 +374,6 @@ QtObject {
     readonly property real glowHoverAlpha: {{glowHoverAlpha}}
     readonly property real camelotWheelSize: {{camelotWheelSize}}
     readonly property real camelotLabelGap: {{camelotLabelGap}}
-    readonly property real camelotNameGap: {{camelotNameGap}}
     readonly property real camelotLabelShift: {{camelotLabelShift}}
     readonly property real camelotEdgeBow: {{camelotEdgeBow}}
     readonly property real camelotFigureBaseline: {{camelotFigureBaseline}}

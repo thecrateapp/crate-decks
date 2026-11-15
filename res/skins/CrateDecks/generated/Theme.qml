@@ -374,7 +374,6 @@ QtObject {
     readonly property real glowHoverAlpha: 0.5
     readonly property real camelotWheelSize: 470
     readonly property real camelotLabelGap: 7
-    readonly property real camelotNameGap: 5
     readonly property real camelotLabelShift: 0.35
     readonly property real camelotEdgeBow: 0.86
     readonly property real camelotFigureBaseline: 4

@@ -85,7 +85,6 @@ struct InstrumentStyle {
     double camelotRingB = 0;
     int camelotWheelSize = 0;
     double camelotLabelGap = 0;
-    double camelotNameGap = 0;
     double camelotLabelShift = 0; // em
     double camelotEdgeBow = 0;
     double camelotFigureBaseline = 0;
