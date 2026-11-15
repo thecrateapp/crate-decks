@@ -65,8 +65,19 @@ bool isDevStack(const QUrl& url) {
         return true;
     }
     const QHostAddress address(host);
-    return !address.isNull() &&
-            (address.isLoopback() || address.isPrivateUse() || address.isLinkLocal());
+    if (address.isNull()) {
+        return false;
+    }
+    if (address.isLoopback() || address.isLinkLocal()) {
+        return true;
+    }
+    // QHostAddress::isPrivateUse() needs Qt 6.6; the CI builds with Qt 6.4
+    for (const char* subnet : {"10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "fc00::/7"}) {
+        if (address.isInSubnet(QHostAddress::parseSubnet(QString::fromLatin1(subnet)))) {
+            return true;
+        }
+    }
+    return false;
 }
 
 class AutoDJSmartMixLive : public MixxxDbTest {

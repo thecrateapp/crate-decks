@@ -301,7 +301,8 @@ TEST_F(CrateSmartMixAssistTest, AsksThePlanOfTheLoadedDecks) {
     EXPECT_EQ(kDeck2, m_pAssist->incomingGroup());
     ASSERT_EQ(1, planRequests().size());
     const QJsonObject body = bodyOf(planRequests().constFirst());
-    EXPECT_EQ(QStringLiteral("smart-mix-v3"), body.value(QStringLiteral("plannerVersion")));
+    EXPECT_EQ(QStringLiteral("smart-mix-v3"),
+            body.value(QStringLiteral("plannerVersion")).toString());
     const QJsonObject edge = body.value(QStringLiteral("edges")).toArray().first().toObject();
     EXPECT_EQ(kOutgoingUid, edge.value(QStringLiteral("outgoingTrackEntityUid")).toString());
     EXPECT_EQ(kIncomingUid, edge.value(QStringLiteral("incomingTrackEntityUid")).toString());

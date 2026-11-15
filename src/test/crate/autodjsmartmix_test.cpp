@@ -906,7 +906,8 @@ TEST_F(AutoDJSmartMixAdapterTest, AsksSmartMixV3ForAutoDJsTransition) {
     ASSERT_TRUE(playDeck1Until([this] { return fading(); }).has_value());
     ASSERT_TRUE(waitFor([this] { return !planRequests().isEmpty(); }));
     const QJsonObject body = bodyOf(planRequests().constLast());
-    EXPECT_EQ(QStringLiteral("smart-mix-v3"), body.value(QStringLiteral("plannerVersion")));
+    EXPECT_EQ(QStringLiteral("smart-mix-v3"),
+            body.value(QStringLiteral("plannerVersion")).toString());
     const QJsonObject context = body.value(QStringLiteral("edges"))
                                         .toArray()
                                         .first()
@@ -942,10 +943,22 @@ TEST_F(AutoDJSmartMixAdapterTest, AsksForTheNextTwoEdgesAhead) {
     const QJsonArray edges =
             bodyOf(planRequests().constFirst()).value(QStringLiteral("edges")).toArray();
     ASSERT_EQ(2, edges.size());
-    EXPECT_EQ(kUids[0], edges[0].toObject().value(QStringLiteral("outgoingTrackEntityUid")));
-    EXPECT_EQ(kUids[1], edges[0].toObject().value(QStringLiteral("incomingTrackEntityUid")));
-    EXPECT_EQ(kUids[1], edges[1].toObject().value(QStringLiteral("outgoingTrackEntityUid")));
-    EXPECT_EQ(kUids[2], edges[1].toObject().value(QStringLiteral("incomingTrackEntityUid")));
+    EXPECT_EQ(kUids[0],
+            edges[0].toObject()
+                    .value(QStringLiteral("outgoingTrackEntityUid"))
+                    .toString());
+    EXPECT_EQ(kUids[1],
+            edges[0].toObject()
+                    .value(QStringLiteral("incomingTrackEntityUid"))
+                    .toString());
+    EXPECT_EQ(kUids[1],
+            edges[1].toObject()
+                    .value(QStringLiteral("outgoingTrackEntityUid"))
+                    .toString());
+    EXPECT_EQ(kUids[2],
+            edges[1].toObject()
+                    .value(QStringLiteral("incomingTrackEntityUid"))
+                    .toString());
     answerPlans();
     ASSERT_TRUE(waitFor([this] { return m_pPlans->cachedPlans() == 2; }));
     const int requests = static_cast<int>(planRequests().size());
