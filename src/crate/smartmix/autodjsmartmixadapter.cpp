@@ -318,7 +318,8 @@ void AutoDJSmartMixAdapter::requestAhead(const QStringList& queue) {
     QStringList tracks;
     QString onAir;
     int playing = 0;
-    for (const QString& group : autoDjDecks()) {
+    const QStringList decks = autoDjDecks();
+    for (const QString& group : decks) {
         const TrackPointer pTrack = trackOn(group);
         if (pTrack && deckControl(group, QStringLiteral("play")).value_or(0.0) > 0.0) {
             ++playing;

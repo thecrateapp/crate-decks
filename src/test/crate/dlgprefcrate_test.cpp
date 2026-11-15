@@ -904,7 +904,8 @@ TEST_F(CrateAddServerFlowTest, SmartMixKeylockSwitchSetsThePreference) {
     EXPECT_FALSE(pKeylock->parentWidget()->isHidden());
     EXPECT_TRUE(pSmartMix->smartMix()->parentWidget()->parentWidget()->isHidden());
     int shownSwitches = 0;
-    for (const QCheckBox* pSwitch : pSmartMix->findChildren<QCheckBox*>()) {
+    const QList<QCheckBox*> switches = pSmartMix->findChildren<QCheckBox*>();
+    for (const QCheckBox* pSwitch : switches) {
         shownSwitches += pSwitch->parentWidget()->isHidden() ? 0 : 1;
     }
     EXPECT_EQ(1, shownSwitches);

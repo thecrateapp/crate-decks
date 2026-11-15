@@ -112,7 +112,7 @@ class AutoDJSmartMixLive : public MixxxDbTest {
                 kNetworkWaitMs));
         ASSERT_EQ(Step::Done, flow.step()) << flow.error().toStdString();
         ASSERT_EQ(1, m_pServers->sessions().size());
-        m_serverId = m_pServers->sessions().first()->profile().id;
+        m_serverId = m_pServers->sessions().constFirst()->profile().id;
         m_pClient = m_pServers->client(m_serverId);
         ASSERT_NE(nullptr, m_pClient);
     }
@@ -123,25 +123,25 @@ class AutoDJSmartMixLive : public MixxxDbTest {
 
   protected:
     std::optional<QJsonDocument> get(const QString& path, const QUrlQuery& query = QUrlQuery()) {
-        std::optional<QJsonDocument> document;
-        bool done = false;
         crate::RequestOptions options;
         options.query = query;
         crate::Reply* pReply = m_pClient->get(path, options);
+        // Shared with the slot, which may outlive this call on a timeout
+        auto pAnswer = std::make_shared<std::optional<crate::JsonResult>>();
         QObject::connect(pReply,
                 &crate::Reply::finished,
-                [&document, &done](const crate::JsonResult& result) {
-                    if (result.ok()) {
-                        document = result.value();
-                    }
-                    done = true;
+                [pAnswer](const crate::JsonResult& result) {
+                    *pAnswer = result;
                 });
         EXPECT_TRUE(QTest::qWaitFor(
-                [&done] {
-                    return done;
+                [pAnswer] {
+                    return pAnswer->has_value();
                 },
                 kNetworkWaitMs));
-        return document;
+        if (!pAnswer->has_value() || !(*pAnswer)->ok()) {
+            return std::nullopt;
+        }
+        return (*pAnswer)->value();
     }
 
     /// The uids of the playlist's tracks with a mix profile, in order.
@@ -163,9 +163,10 @@ class AutoDJSmartMixLive : public MixxxDbTest {
                                                             .toString()),
                     QUrlQuery(QStringLiteral("limit=100")));
             QStringList uids;
-            for (const QJsonValue& track :
-                    tracks ? tracks->object().value(QStringLiteral("tracks")).toArray()
-                           : QJsonArray()) {
+            const QJsonArray rows = tracks
+                    ? tracks->object().value(QStringLiteral("tracks")).toArray()
+                    : QJsonArray();
+            for (const QJsonValue& track : rows) {
                 const QString quality =
                         track.toObject().value(QStringLiteral("profile_quality")).toString();
                 if (quality == QLatin1String("full") || quality == QLatin1String("partial")) {

@@ -413,7 +413,7 @@ TEST_F(AutoDJSmartMixTest, DelegatesTransitionToDirector) {
     EXPECT_EQ(1, director.starts.size());
     // The incoming track leaves the queue only once it is on air
     EXPECT_EQ(2, queuedIds().size());
-    EXPECT_EQ(m_tracks[1]->getId(), queuedIds().first());
+    EXPECT_EQ(m_tracks[1]->getId(), queuedIds().constFirst());
 
     directorPlays();
     EXPECT_EQ(AutoDJProcessor::ADJ_IDLE, pProcessor->getState());
@@ -902,7 +902,7 @@ TEST_F(AutoDJSmartMixAdapterTest, AsksSmartMixV3ForAutoDJsTransition) {
     startSmartMix();
     ASSERT_TRUE(playDeck1Until([this] { return fading(); }).has_value());
     ASSERT_TRUE(waitFor([this] { return !planRequests().isEmpty(); }));
-    const QJsonObject body = bodyOf(planRequests().last());
+    const QJsonObject body = bodyOf(planRequests().constLast());
     EXPECT_EQ(QStringLiteral("smart-mix-v3"), body.value(QStringLiteral("plannerVersion")));
     const QJsonObject context = body.value(QStringLiteral("edges"))
                                         .toArray()
@@ -937,7 +937,7 @@ TEST_F(AutoDJSmartMixAdapterTest, AsksForTheNextTwoEdgesAhead) {
     startSmartMix();
     ASSERT_TRUE(waitFor([this] { return !planRequests().isEmpty(); }));
     const QJsonArray edges =
-            bodyOf(planRequests().first()).value(QStringLiteral("edges")).toArray();
+            bodyOf(planRequests().constFirst()).value(QStringLiteral("edges")).toArray();
     ASSERT_EQ(2, edges.size());
     EXPECT_EQ(kUids[0], edges[0].toObject().value(QStringLiteral("outgoingTrackEntityUid")));
     EXPECT_EQ(kUids[1], edges[0].toObject().value(QStringLiteral("incomingTrackEntityUid")));
