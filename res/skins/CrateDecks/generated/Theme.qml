@@ -382,6 +382,50 @@ QtObject {
     readonly property real trackingWheelLabel: 0.04
     readonly property real trackingWheelFigure: -0.04
     readonly property real levelRingInset: 2
+    readonly property real planGutter: 120
+    readonly property real planPaddingRight: 24
+    readonly property real planRulerInset: 58
+    readonly property real planLaneInset: 26
+    readonly property real planLaneMinGap: 24
+    readonly property real planWindowRise: 40
+    readonly property real planWindowDrop: 26
+    readonly property real planWindowLabelRise: 46
+    readonly property real planCueLabelRise: 30
+    readonly property real planCueLabelDrop: 40
+    readonly property real planBarLabelRise: 14
+    readonly property real planBarLabelDrop: 20
+    readonly property real planBarLabelGap: 4
+    readonly property real planDeckLabelRise: 6
+    readonly property real planDeckRoleDrop: 10
+    readonly property real planLaneLabelDrop: 3
+    readonly property real planTempoSwing: 6
+    readonly property real planGainSwing: 8
+    readonly property real planValueGap: 4
+    readonly property real planTempoLabelRise: 11
+    readonly property real planTempoLabelDrop: 17
+    readonly property real planGainLabelDrop: 20
+    readonly property real planBassLabelGap: 6
+    readonly property real planEntryBow: 30
+    readonly property real planArrowRise: 8
+    readonly property real planArrowGap: 10
+    readonly property real planPlayheadOvershoot: 26
+    readonly property real planPlayheadOpacity: 0.5
+    readonly property real planPulseRadius: 3
+    readonly property real planNowLabelGap: 6
+    readonly property real planActiveOpacity: 0.9
+    readonly property real planDimOpacity: 0.6
+    readonly property real planPhraseBars: 8
+    readonly property real fontSizePlanCue: 9.5
+    readonly property real fontSizePlanValue: 10
+    readonly property real fontSizePlanDeck: 10.5
+    readonly property real fontSizePlanBar: 9
+    readonly property real trackingPlanCue: 0.12
+    readonly property real planLegendSample: 24
+    readonly property real planLegendGap: 18
+    readonly property real planLegendRowGap: 10
+    readonly property real planLegendItemGap: 8
+    readonly property real planLegendPaddingY: 16
+    readonly property real planLegendNode: 9
 
     // knob
     readonly property real knobSize: 36

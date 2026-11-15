@@ -138,7 +138,8 @@
   <SetVariable name="CrateLevelRingMinimum">{{levelRingMinimum}}</SetVariable>
 
   <!-- Instrument widgets: crate/ui/widgets/ paints the Camelot wheel, the
-       level ring and the scales of GenreWheel and StackMap with them
+       level ring, the Smart Mix plan's timeline (CrateInstPlan*, plan
+       V3.PR1b) and the scales of GenreWheel and StackMap with them
        (design 14.5, plan V3.PR1) -->
   <SetVariable name="CrateInstStrokeHairline">{{strokeHairline}}</SetVariable>
   <SetVariable name="CrateInstStrokeNode">{{strokeNode}}</SetVariable>
@@ -186,6 +187,55 @@
   <SetVariable name="CrateInstFontSizeMonoLabel">{{fontSizeMonoLabel}}</SetVariable>
   <SetVariable name="CrateInstMonoSeparatorPadding">{{monoSeparatorPadding}}</SetVariable>
   <SetVariable name="CrateInstLevelRingInset">{{levelRingInset}}</SetVariable>
+  <SetVariable name="CrateInstNodeSibling">{{nodeSibling}}</SetVariable>
+  <SetVariable name="CrateInstOpacityRest">{{opacityRest}}</SetVariable>
+  <SetVariable name="CrateInstGlowPulseRadius">{{glowPulseRadius}}</SetVariable>
+  <SetVariable name="CrateInstGlowPulseAlpha">{{glowPulseAlpha}}</SetVariable>
+  <SetVariable name="CrateInstTickPhrase">{{tickPhrase}}</SetVariable>
+  <SetVariable name="CrateInstPlanGutter">{{planGutter}}</SetVariable>
+  <SetVariable name="CrateInstPlanPaddingRight">{{planPaddingRight}}</SetVariable>
+  <SetVariable name="CrateInstPlanRulerInset">{{planRulerInset}}</SetVariable>
+  <SetVariable name="CrateInstPlanLaneInset">{{planLaneInset}}</SetVariable>
+  <SetVariable name="CrateInstPlanLaneMinGap">{{planLaneMinGap}}</SetVariable>
+  <SetVariable name="CrateInstPlanWindowRise">{{planWindowRise}}</SetVariable>
+  <SetVariable name="CrateInstPlanWindowDrop">{{planWindowDrop}}</SetVariable>
+  <SetVariable name="CrateInstPlanWindowLabelRise">{{planWindowLabelRise}}</SetVariable>
+  <SetVariable name="CrateInstPlanCueLabelRise">{{planCueLabelRise}}</SetVariable>
+  <SetVariable name="CrateInstPlanCueLabelDrop">{{planCueLabelDrop}}</SetVariable>
+  <SetVariable name="CrateInstPlanBarLabelRise">{{planBarLabelRise}}</SetVariable>
+  <SetVariable name="CrateInstPlanBarLabelDrop">{{planBarLabelDrop}}</SetVariable>
+  <SetVariable name="CrateInstPlanBarLabelGap">{{planBarLabelGap}}</SetVariable>
+  <SetVariable name="CrateInstPlanDeckLabelRise">{{planDeckLabelRise}}</SetVariable>
+  <SetVariable name="CrateInstPlanDeckRoleDrop">{{planDeckRoleDrop}}</SetVariable>
+  <SetVariable name="CrateInstPlanLaneLabelDrop">{{planLaneLabelDrop}}</SetVariable>
+  <SetVariable name="CrateInstPlanTempoSwing">{{planTempoSwing}}</SetVariable>
+  <SetVariable name="CrateInstPlanGainSwing">{{planGainSwing}}</SetVariable>
+  <SetVariable name="CrateInstPlanValueGap">{{planValueGap}}</SetVariable>
+  <SetVariable name="CrateInstPlanTempoLabelRise">{{planTempoLabelRise}}</SetVariable>
+  <SetVariable name="CrateInstPlanTempoLabelDrop">{{planTempoLabelDrop}}</SetVariable>
+  <SetVariable name="CrateInstPlanGainLabelDrop">{{planGainLabelDrop}}</SetVariable>
+  <SetVariable name="CrateInstPlanBassLabelGap">{{planBassLabelGap}}</SetVariable>
+  <SetVariable name="CrateInstPlanEntryBow">{{planEntryBow}}</SetVariable>
+  <SetVariable name="CrateInstPlanArrowRise">{{planArrowRise}}</SetVariable>
+  <SetVariable name="CrateInstPlanArrowGap">{{planArrowGap}}</SetVariable>
+  <SetVariable name="CrateInstPlanPlayheadOvershoot">{{planPlayheadOvershoot}}</SetVariable>
+  <SetVariable name="CrateInstPlanPlayheadOpacity">{{planPlayheadOpacity}}</SetVariable>
+  <SetVariable name="CrateInstPlanPulseRadius">{{planPulseRadius}}</SetVariable>
+  <SetVariable name="CrateInstPlanNowLabelGap">{{planNowLabelGap}}</SetVariable>
+  <SetVariable name="CrateInstPlanActiveOpacity">{{planActiveOpacity}}</SetVariable>
+  <SetVariable name="CrateInstPlanDimOpacity">{{planDimOpacity}}</SetVariable>
+  <SetVariable name="CrateInstPlanPhraseBars">{{planPhraseBars}}</SetVariable>
+  <SetVariable name="CrateInstFontSizePlanCue">{{fontSizePlanCue}}</SetVariable>
+  <SetVariable name="CrateInstFontSizePlanValue">{{fontSizePlanValue}}</SetVariable>
+  <SetVariable name="CrateInstFontSizePlanDeck">{{fontSizePlanDeck}}</SetVariable>
+  <SetVariable name="CrateInstFontSizePlanBar">{{fontSizePlanBar}}</SetVariable>
+  <SetVariable name="CrateInstTrackingPlanCue">{{trackingPlanCue}}</SetVariable>
+  <SetVariable name="CrateInstPlanLegendSample">{{planLegendSample}}</SetVariable>
+  <SetVariable name="CrateInstPlanLegendGap">{{planLegendGap}}</SetVariable>
+  <SetVariable name="CrateInstPlanLegendRowGap">{{planLegendRowGap}}</SetVariable>
+  <SetVariable name="CrateInstPlanLegendItemGap">{{planLegendItemGap}}</SetVariable>
+  <SetVariable name="CrateInstPlanLegendPaddingY">{{planLegendPaddingY}}</SetVariable>
+  <SetVariable name="CrateInstPlanLegendNode">{{planLegendNode}}</SetVariable>
 
   <!-- Library: crate/ui/delegates/ paints its cells and its sidebar, and
        crate/ui/skin/librarystyle.cpp its rows, column headers and deck

@@ -138,7 +138,8 @@
   <SetVariable name="CrateLevelRingMinimum">0.04</SetVariable>
 
   <!-- Instrument widgets: crate/ui/widgets/ paints the Camelot wheel, the
-       level ring and the scales of GenreWheel and StackMap with them
+       level ring, the Smart Mix plan's timeline (CrateInstPlan*, plan
+       V3.PR1b) and the scales of GenreWheel and StackMap with them
        (design 14.5, plan V3.PR1) -->
   <SetVariable name="CrateInstStrokeHairline">1</SetVariable>
   <SetVariable name="CrateInstStrokeNode">1.25</SetVariable>
@@ -186,6 +187,55 @@
   <SetVariable name="CrateInstFontSizeMonoLabel">10.3125</SetVariable>
   <SetVariable name="CrateInstMonoSeparatorPadding">4</SetVariable>
   <SetVariable name="CrateInstLevelRingInset">2</SetVariable>
+  <SetVariable name="CrateInstNodeSibling">4.5</SetVariable>
+  <SetVariable name="CrateInstOpacityRest">0.34</SetVariable>
+  <SetVariable name="CrateInstGlowPulseRadius">3</SetVariable>
+  <SetVariable name="CrateInstGlowPulseAlpha">0.7</SetVariable>
+  <SetVariable name="CrateInstTickPhrase">10</SetVariable>
+  <SetVariable name="CrateInstPlanGutter">120</SetVariable>
+  <SetVariable name="CrateInstPlanPaddingRight">24</SetVariable>
+  <SetVariable name="CrateInstPlanRulerInset">58</SetVariable>
+  <SetVariable name="CrateInstPlanLaneInset">26</SetVariable>
+  <SetVariable name="CrateInstPlanLaneMinGap">24</SetVariable>
+  <SetVariable name="CrateInstPlanWindowRise">40</SetVariable>
+  <SetVariable name="CrateInstPlanWindowDrop">26</SetVariable>
+  <SetVariable name="CrateInstPlanWindowLabelRise">46</SetVariable>
+  <SetVariable name="CrateInstPlanCueLabelRise">30</SetVariable>
+  <SetVariable name="CrateInstPlanCueLabelDrop">40</SetVariable>
+  <SetVariable name="CrateInstPlanBarLabelRise">14</SetVariable>
+  <SetVariable name="CrateInstPlanBarLabelDrop">20</SetVariable>
+  <SetVariable name="CrateInstPlanBarLabelGap">4</SetVariable>
+  <SetVariable name="CrateInstPlanDeckLabelRise">6</SetVariable>
+  <SetVariable name="CrateInstPlanDeckRoleDrop">10</SetVariable>
+  <SetVariable name="CrateInstPlanLaneLabelDrop">3</SetVariable>
+  <SetVariable name="CrateInstPlanTempoSwing">6</SetVariable>
+  <SetVariable name="CrateInstPlanGainSwing">8</SetVariable>
+  <SetVariable name="CrateInstPlanValueGap">4</SetVariable>
+  <SetVariable name="CrateInstPlanTempoLabelRise">11</SetVariable>
+  <SetVariable name="CrateInstPlanTempoLabelDrop">17</SetVariable>
+  <SetVariable name="CrateInstPlanGainLabelDrop">20</SetVariable>
+  <SetVariable name="CrateInstPlanBassLabelGap">6</SetVariable>
+  <SetVariable name="CrateInstPlanEntryBow">30</SetVariable>
+  <SetVariable name="CrateInstPlanArrowRise">8</SetVariable>
+  <SetVariable name="CrateInstPlanArrowGap">10</SetVariable>
+  <SetVariable name="CrateInstPlanPlayheadOvershoot">26</SetVariable>
+  <SetVariable name="CrateInstPlanPlayheadOpacity">0.5</SetVariable>
+  <SetVariable name="CrateInstPlanPulseRadius">3</SetVariable>
+  <SetVariable name="CrateInstPlanNowLabelGap">6</SetVariable>
+  <SetVariable name="CrateInstPlanActiveOpacity">0.9</SetVariable>
+  <SetVariable name="CrateInstPlanDimOpacity">0.6</SetVariable>
+  <SetVariable name="CrateInstPlanPhraseBars">8</SetVariable>
+  <SetVariable name="CrateInstFontSizePlanCue">9.5</SetVariable>
+  <SetVariable name="CrateInstFontSizePlanValue">10</SetVariable>
+  <SetVariable name="CrateInstFontSizePlanDeck">10.5</SetVariable>
+  <SetVariable name="CrateInstFontSizePlanBar">9</SetVariable>
+  <SetVariable name="CrateInstTrackingPlanCue">0.12</SetVariable>
+  <SetVariable name="CrateInstPlanLegendSample">24</SetVariable>
+  <SetVariable name="CrateInstPlanLegendGap">18</SetVariable>
+  <SetVariable name="CrateInstPlanLegendRowGap">10</SetVariable>
+  <SetVariable name="CrateInstPlanLegendItemGap">8</SetVariable>
+  <SetVariable name="CrateInstPlanLegendPaddingY">16</SetVariable>
+  <SetVariable name="CrateInstPlanLegendNode">9</SetVariable>
 
   <!-- Library: crate/ui/delegates/ paints its cells and its sidebar, and
        crate/ui/skin/librarystyle.cpp its rows, column headers and deck
