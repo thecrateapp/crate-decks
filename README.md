@@ -136,6 +136,10 @@ build/crate-decks --settingsPath "$(mktemp -d)"
 ```
 
 `--settingsPath` with a throwaway folder keeps a test run away from your real settings.
+`make run` does that for you.
+
+`make install-desktop` installs, for your user, a desktop entry that starts this build with the throwaway settings folder `build/desktop-profile` (`DESKTOP_PROFILE` changes it), and the icons, so that launchers and docks show and group it as Decks (`app.cratemusic.decks`).
+`make uninstall-desktop` removes them.
 Without it, Decks keeps its settings and local library in `~/.cratedecks/` on Linux.
 
 ## Connecting to a Crate server

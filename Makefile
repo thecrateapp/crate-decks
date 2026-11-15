@@ -11,6 +11,10 @@
 #   SHOTS    output folder for `screenshots`      (a new temporary one)
 #   TRACKS   audio folder for `screenshots`       (none)
 #   CMAKE_ARGS  extra arguments for `configure`
+#   DESKTOP_PROFILE  settings folder of the desktop entry that
+#            `install-desktop` installs ($(BUILD)/desktop-profile). Never
+#            ~/.cratedecks or ~/.mixxx
+#   XDG_DATA_HOME  where `install-desktop` installs (~/.local/share)
 
 BUILD ?= build
 TYPE ?= RelWithDebInfo
@@ -21,17 +25,27 @@ BASE ?= origin/main
 SHOTS ?=
 TRACKS ?=
 CMAKE_ARGS ?=
+DESKTOP_PROFILE ?= $(abspath $(BUILD))/desktop-profile
+XDG_DATA_HOME ?= $(HOME)/.local/share
+
+# The desktop identity (CRATE_APP_ID in CMakeLists.txt): the app id, the
+# desktop entry and the icons, res/images/icons/<size>/apps/<app id>.png
+APP_ID := app.cratemusic.decks
+APP_ICONS := $(wildcard res/images/icons/*/apps/$(APP_ID).png res/images/icons/*/apps/$(APP_ID).svg)
+# What `install-desktop` writes, so that `uninstall-desktop` removes only it
+DESKTOP_MARK := Installed by `make install-desktop`
 
 # Widgets render without a display in the unit tests, as on the CI
 TEST_ENV := QT_QPA_PLATFORM=offscreen GTEST_COLOR=1
 
 .DEFAULT_GOAL := help
 .PHONY: help deps hooks configure build build-tests build-all run run-last \
+	install-desktop uninstall-desktop desktop-caches \
 	test test-unit test-design checks checks-tidy checks-clazy format \
 	tokens tokens-check screenshots ci clean
 
 help: ## List the targets
-	@awk 'BEGIN {FS = ":.*## "} /^[a-z-]+:.*## / {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*## "} /^[a-z-]+:.*## / {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 ## Setup
 
@@ -79,6 +93,65 @@ run: build ## Run the app with a disposable settings folder (PROFILE reuses one)
 run-last: build ## Run the app again with the settings folder of the last `run`
 	@test -s $(BUILD)/.last-profile || { echo "No earlier make run."; exit 1; }
 	@$(MAKE) --no-print-directory run PROFILE="$$(cat $(BUILD)/.last-profile)"
+
+## Desktop
+
+# The desktop entry runs this build's binary with DESKTOP_PROFILE, so that a
+# launcher or dock starts it as Decks (app id app.cratemusic.decks, its icon
+# and its name) without touching ~/.cratedecks. TryExec hides it once the
+# build is gone.
+install-desktop: build ## Install a desktop entry and the icons of this build for your user
+	@profile="$(DESKTOP_PROFILE)"; \
+	case "$$profile" in "~"*) profile="$$HOME$${profile#\~}";; esac; \
+	case "$$(realpath -m "$$profile")" in \
+	"$$(realpath -m ~/.cratedecks)"*|"$$(realpath -m ~/.mixxx)"*) \
+		echo "DESKTOP_PROFILE must not be the real settings folder: $$profile"; exit 1;; \
+	esac; \
+	profile="$$(realpath -m "$$profile")"; \
+	binary="$$(realpath $(BUILD)/crate-decks)"; \
+	applications="$(XDG_DATA_HOME)/applications"; \
+	entry="$$applications/$(APP_ID).desktop"; \
+	mkdir -p "$$profile" "$$applications"; \
+	{ \
+		echo '# $(DESKTOP_MARK) from $(CURDIR).'; \
+		echo "# Runs $$binary with the disposable settings folder"; \
+		echo "# $$profile, never ~/.cratedecks. \`make uninstall-desktop\` removes it."; \
+		sed -e "s|^Exec=.*|Exec=\"$$binary\" --settingsPath \"$$profile\"|" \
+			-e "/^Exec=/a TryExec=$$binary" res/linux/$(APP_ID).desktop; \
+	} > "$$entry.tmp" && mv "$$entry.tmp" "$$entry"; \
+	echo "Installed $$entry"; \
+	for icon in $(APP_ICONS); do \
+		size=$$(basename "$$(dirname "$$(dirname "$$icon")")"); \
+		install -D -m 644 "$$icon" "$(XDG_DATA_HOME)/icons/hicolor/$$size/apps/$$(basename "$$icon")"; \
+		echo "Installed $(XDG_DATA_HOME)/icons/hicolor/$$size/apps/$$(basename "$$icon")"; \
+	done
+	@$(MAKE) --no-print-directory desktop-caches
+
+uninstall-desktop: ## Remove what install-desktop installed
+	@entry="$(XDG_DATA_HOME)/applications/$(APP_ID).desktop"; \
+	if [ -f "$$entry" ]; then \
+		if grep -qF '$(DESKTOP_MARK)' "$$entry"; then \
+			rm -f "$$entry"; echo "Removed $$entry"; \
+		else \
+			echo "Left $$entry: make install-desktop did not write it"; \
+		fi; \
+	fi; \
+	for icon in $(APP_ICONS); do \
+		size=$$(basename "$$(dirname "$$(dirname "$$icon")")"); \
+		installed="$(XDG_DATA_HOME)/icons/hicolor/$$size/apps/$$(basename "$$icon")"; \
+		if [ -f "$$installed" ]; then rm -f "$$installed"; echo "Removed $$installed"; fi; \
+	done
+	@$(MAKE) --no-print-directory desktop-caches
+
+# Refreshes the caches of the user's desktop entries and icons, when the
+# tools are installed
+desktop-caches:
+	@if command -v update-desktop-database >/dev/null 2>&1; then \
+		update-desktop-database -q "$(XDG_DATA_HOME)/applications" || true; \
+	fi
+	@if command -v gtk-update-icon-cache >/dev/null 2>&1 && [ -d "$(XDG_DATA_HOME)/icons/hicolor" ]; then \
+		gtk-update-icon-cache -q -f -t "$(XDG_DATA_HOME)/icons/hicolor" || true; \
+	fi
 
 ## Tests
 

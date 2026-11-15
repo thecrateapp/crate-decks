@@ -91,7 +91,7 @@ Ningún cambio de servidor se hace desde este repositorio.
 
 ## 7. Compilar y ejecutar
 
-El `Makefile` de la raíz reúne los comandos de cada día; `make` los lista. Los más usados: `make build`, `make run` (siempre con una carpeta de ajustes desechable; `make run-last` reutiliza la última), `make test-unit FILTER='Crate*'`, `make test` (la suite entera, como el CI), `make checks` y `make ci` antes de un push. Por debajo son estos comandos:
+El `Makefile` de la raíz reúne los comandos de cada día; `make` los lista. Los más usados: `make build`, `make run` (siempre con una carpeta de ajustes desechable; `make run-last` reutiliza la última), `make test-unit FILTER='Crate*'`, `make test` (la suite entera, como el CI), `make checks` y `make ci` antes de un push. `make install-desktop` instala para el usuario un `.desktop` que arranca este build con la carpeta de ajustes desechable `build/desktop-profile`, y los iconos, para que el dock lo reconozca como Decks; `make uninstall-desktop` lo quita. Lo ejecuta Diego, no un agente. Por debajo son estos comandos:
 
 ```shell
 # Dependencias: instalan paquetes con sudo, así que se pide confirmación antes
