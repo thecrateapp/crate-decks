@@ -469,6 +469,62 @@ TEST_F(CrateAddServerFlowTest, FirstRunPagesKeepTheMockupWidth) {
     EXPECT_LT(music.height(), server.height());
 }
 
+TEST_F(CrateAddServerFlowTest, FirstRunSignInStepKeepsTheMockupWidth) {
+    FakeFirstRunServices fake;
+    std::unique_ptr<QDialog> pDialog(
+            crate::createFirstRunDialog(m_pServers.get(), fake.services(), nullptr));
+    const int width = crate::DialogMetrics::installed().px("firstRunWidth");
+    pDialog->findChild<QLineEdit*>(QStringLiteral("crateServerAddress"))
+            ->setText(QStringLiteral("crate.test"));
+    firstRunButton(pDialog.get(), "crateConnect")->click();
+    lastSent().pReply->respond(200, kDecksCapabilities);
+    pDialog->show();
+    pDialog->layout()->activate();
+
+    // The sign-in step has the most actions; none is cut and the dialog
+    // keeps the width of the other pages
+    EXPECT_EQ(width, pDialog->width());
+    for (const char* name : {"crateSignIn",
+                 "crateSignInGoogle",
+                 "crateSignInApple",
+                 "crateCancel"}) {
+        QPushButton* pButton = firstRunButton(pDialog.get(), name);
+        ASSERT_NE(nullptr, pButton) << name;
+        ASSERT_TRUE(pButton->isVisible()) << name;
+        EXPECT_GE(pButton->width(), pButton->sizeHint().width()) << name;
+    }
+    auto* pServer = pDialog->findChild<QWidget*>(QStringLiteral("CrateFirstRunServer"));
+    ASSERT_NE(nullptr, pServer);
+    auto* pLater = pServer->findChild<QLabel*>(QStringLiteral("MonoFirstRunLater"));
+    ASSERT_NE(nullptr, pLater);
+    EXPECT_GE(pLater->width(), pLater->sizeHint().width());
+}
+
+TEST_F(CrateAddServerFlowTest, FirstRunLocalNetworkStepKeepsTheMockupWidth) {
+    FakeFirstRunServices fake;
+    std::unique_ptr<QDialog> pDialog(
+            crate::createFirstRunDialog(m_pServers.get(), fake.services(), nullptr));
+    const int width = crate::DialogMetrics::installed().px("firstRunWidth");
+    pDialog->findChild<QLineEdit*>(QStringLiteral("crateServerAddress"))
+            ->setText(QStringLiteral("http://192.168.1.10:8585"));
+    firstRunButton(pDialog.get(), "crateConnect")->click();
+    pDialog->show();
+    pDialog->layout()->activate();
+
+    // The longest primary button, with "Not now" and the hint
+    EXPECT_EQ(width, pDialog->width());
+    for (const char* name : {"crateConnectAnyway", "crateCancel"}) {
+        QPushButton* pButton = firstRunButton(pDialog.get(), name);
+        ASSERT_NE(nullptr, pButton) << name;
+        ASSERT_TRUE(pButton->isVisible()) << name;
+        EXPECT_GE(pButton->width(), pButton->sizeHint().width()) << name;
+    }
+    auto* pLater = pDialog->findChild<QWidget*>(QStringLiteral("CrateFirstRunServer"))
+                           ->findChild<QLabel*>(QStringLiteral("MonoFirstRunLater"));
+    ASSERT_NE(nullptr, pLater);
+    EXPECT_GE(pLater->width(), pLater->sizeHint().width());
+}
+
 TEST_F(CrateAddServerFlowTest, FirstRunSoundPageSetsTheMainOutput) {
     FakeFirstRunServices fake;
     fake.outputs = {{QStringLiteral("0"), QStringLiteral("Built-in Audio")},
@@ -848,7 +904,7 @@ TEST_F(CrateAddServerFlowTest, CacheSectionShowsTheCacheUse) {
     m_pFlow->loginWithPassword(QStringLiteral("dj@crate.test"), QStringLiteral("right"));
     lastSent().pReply->respond(200, kLoginAnswer);
     ASSERT_EQ(1, m_pServers->sessions().size());
-    const QString serverId = m_pServers->sessions().first()->profile().id;
+    const QString serverId = m_pServers->sessions().constFirst()->profile().id;
     crate::cache::AudioCache* pAudioCache = m_pServers->audioCache();
     ASSERT_TRUE(QTest::qWaitFor([&] { return pAudioCache->isLoaded(); }, 5000));
     pAudioCache->ensure(serverId,

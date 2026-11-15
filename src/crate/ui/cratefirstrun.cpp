@@ -59,10 +59,24 @@ QString translate(const char* text) {
 /// A page of the stack of the first start. QStackedLayout asks every page
 /// for its height for a width, whatever its size policy, so a page that is
 /// not shown (Ignored, fitPages()) answers 0: the dialog fits the page it
-/// shows.
+/// shows. QStackedLayout does not bound the pages' size hints by their
+/// fixed width either, so a page answers its own width: a row wider than
+/// the page never widens the dialog.
 class FirstRunPage : public QWidget {
   public:
     using QWidget::QWidget;
+
+    QSize sizeHint() const override {
+        QSize hint = QWidget::sizeHint();
+        hint.setWidth(std::min(hint.width(), maximumWidth()));
+        return hint;
+    }
+
+    QSize minimumSizeHint() const override {
+        QSize hint = QWidget::minimumSizeHint();
+        hint.setWidth(std::min(hint.width(), maximumWidth()));
+        return hint;
+    }
 
     int heightForWidth(int width) const override {
         return sizePolicy().verticalPolicy() == QSizePolicy::Ignored
