@@ -81,7 +81,7 @@ Ningún cambio de servidor se hace desde este repositorio.
 ## 6. Estilo, tests y commits
 
 - **Estilo:** el de Mixxx ([CONTRIBUTING.md](CONTRIBUTING.md)): C++20, Qt6, clang-format con pre-commit y `kLogger` por fichero.
-- **Antes de cada push:** `tools/crate-checks.sh` pasa en segundos a los ficheros cambiados respecto a `origin/main` lo que miran los jobs `pre-commit`, `checks / clang-tidy` y `checks / clazy` del CI, con los mismos `CLAZY_CHECKS`. Usa el `build/` normal (hace falta un build) y necesita `clang`, `clazy` y `pre-commit` (Arch: `pacman -S --needed clang clazy pre-commit`). `pre-commit install` hace que clang-format y markdownlint salten ya en cada commit. Los tests (job `checks / coverage`) siguen siendo `ctest` en `build/`.
+- **Antes de cada push:** `make checks` (`tools/crate-checks.sh`) pasa en segundos a los ficheros cambiados respecto a `origin/main` lo que miran los jobs `pre-commit`, `checks / clang-tidy` y `checks / clazy` del CI, con los mismos `CLAZY_CHECKS`. Usa el `build/` normal (hace falta un build) y necesita `clang`, `clazy` y `pre-commit` (Arch: `pacman -S --needed clang clazy pre-commit`). `pre-commit install` hace que clang-format y markdownlint salten ya en cada commit. Los tests (job `checks / coverage`) siguen siendo `ctest` en `build/`.
 - **Idioma:** código, comentarios y mensajes de commit en inglés, como el código de Mixxx. Planes y documentación de Crate en español.
 - **Tests:**
   - GoogleTest en `src/test/crate/`, añadidos a mano a la lista de fuentes de `mixxx-test` en `CMakeLists.txt` (no hay glob).
@@ -90,6 +90,8 @@ Ningún cambio de servidor se hace desde este repositorio.
 - **Commits:** conventional commits (`feat(decks): …`, `fix(crateserver): …`), primera línea de menos de 72 caracteres en modo imperativo y cuerpo con el porqué. Cada commit compila. Los refactors y los cambios de formato van en commits separados.
 
 ## 7. Compilar y ejecutar
+
+El `Makefile` de la raíz reúne los comandos de cada día; `make` los lista. Los más usados: `make build`, `make run` (siempre con una carpeta de ajustes desechable; `make run-last` reutiliza la última), `make test-unit FILTER='Crate*'`, `make test` (la suite entera, como el CI), `make checks` y `make ci` antes de un push. Por debajo son estos comandos:
 
 ```shell
 # Dependencias: instalan paquetes con sudo, así que se pide confirmación antes
