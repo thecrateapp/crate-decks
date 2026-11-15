@@ -140,6 +140,12 @@ class SmartMixAssist : public QObject {
     /// Real time until the incoming deck enters, at the outgoing deck's
     /// tempo; negative once the entry has passed.
     std::optional<double> msToEntry() const;
+    /// Where the outgoing deck is in its track, in milliseconds.
+    std::optional<double> outgoingPositionMs() const;
+    /// The incoming deck's own `rate_ratio`: its rate now, or the one it had
+    /// before the director prepared it, which it goes back to after a
+    /// beatmatch.
+    double incomingOwnRate() const;
 
     bool canPrepare() const;
     bool canExecute() const;

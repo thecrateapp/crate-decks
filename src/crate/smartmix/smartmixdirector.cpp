@@ -280,6 +280,13 @@ bool SmartMixDirector::isRestoringTempo() const {
     return m_pTempoRestore != nullptr;
 }
 
+std::optional<double> SmartMixDirector::incomingRateBefore() const {
+    if (!m_prepared || !m_pIncoming || !isActive()) {
+        return std::nullopt;
+    }
+    return m_pIncoming->rateBefore;
+}
+
 std::unique_ptr<SmartMixDirector::Deck> SmartMixDirector::connectDeck(const QString& group) {
     auto pDeck = std::make_unique<Deck>(group);
     pDeck->trackKey = m_pEnvironment->trackKey(group);

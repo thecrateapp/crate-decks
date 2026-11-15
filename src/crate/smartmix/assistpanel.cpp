@@ -1,6 +1,7 @@
 #include "crate/smartmix/assistpanel.h"
 
 #include <QButtonGroup>
+#include <QEvent>
 #include <QGridLayout>
 #include <QHBoxLayout>
 #include <QIcon>
@@ -15,6 +16,8 @@
 #include "crate/smartmix/smartmixassist.h"
 #include "crate/ui/dialogs/dialogstyle.h"
 #include "crate/ui/widgets/levelring.h"
+#include "crate/ui/widgets/transitionplanview.h"
+#include "crate/ui/widgets/transitionplanviewmodel.h"
 #include "moc_assistpanel.cpp"
 #include "track/track.h"
 
@@ -25,6 +28,14 @@ namespace {
 const ConfigKey kAutoDjEnabled(QStringLiteral("[AutoDJ]"), QStringLiteral("enabled"));
 // How often the times to the entry change while the panel shows
 constexpr int kClockMs = 100;
+// How often the timeline's playhead follows the outgoing deck: a few
+// repaints a second, not one a frame
+constexpr int kPlayheadMs = 250;
+// A deck's rate that moves more than this lays the timeline out again
+constexpr double kRateChange = 1e-6;
+// A track's grid and cues often change in bursts (an analysis, an import):
+// the timeline is laid out again once they settle
+constexpr int kRelayoutMs = 100;
 // The ` · ` between the parts of a MonoLabel (MonoLabel.tsx)
 const QString kSeparator = QStringLiteral(" · ");
 const QString kMinus = QStringLiteral("−");
@@ -73,10 +84,14 @@ QString signedNumber(double value, int decimals) {
     return QString(value < 0.0 ? kMinus : QStringLiteral("+")) + text;
 }
 
+double controlValue(const QString& group, const QString& item, double fallback) {
+    const ControlObject* pControl =
+            ControlObject::getControl(ConfigKey(group, item), ControlFlag::NoWarnIfMissing);
+    return pControl ? pControl->get() : fallback;
+}
+
 double deckBpm(const QString& group) {
-    const ControlObject* pControl = ControlObject::getControl(
-            ConfigKey(group, QStringLiteral("bpm")), ControlFlag::NoWarnIfMissing);
-    return pControl ? pControl->get() : 0.0;
+    return controlValue(group, QStringLiteral("bpm"), 0.0);
 }
 
 QString titleOf(const TrackPointer& pTrack) {
@@ -90,7 +105,8 @@ QString titleOf(const TrackPointer& pTrack) {
 } // namespace
 
 AssistPanel::AssistPanel(QWidget* pParent)
-        : QWidget(pParent) {
+        : QWidget(pParent),
+          m_pPlanModel(std::make_unique<widgets::TransitionPlanViewModel>()) {
     setObjectName(QStringLiteral("CrateSmartMixAssist"));
     setAttribute(Qt::WA_StyledBackground);
     const DialogMetrics& metrics = DialogMetrics::installed();
@@ -103,13 +119,21 @@ AssistPanel::AssistPanel(QWidget* pParent)
             metrics.px("cacheViewPaddingX"),
             0);
     pColumns->setSpacing(metrics.px("assistColumnGap"));
-    // The host, and under it the plan's stage (TransitionPlanView, V3.PR1b)
-    auto* pPlan = new QVBoxLayout();
+    // The host, and under it the plan's timeline (plan V3.PR1b), which takes
+    // the column's height; without a plan, the host at the top
+    m_pPlanColumn = new QWidget(pBody);
+    m_pPlanColumn->setObjectName(QStringLiteral("CrateAssistPlanColumn"));
+    auto* pPlan = new QVBoxLayout(m_pPlanColumn);
     pPlan->setContentsMargins(0, 0, 0, 0);
     pPlan->setSpacing(0);
     pPlan->addWidget(makeHost());
-    pPlan->addStretch(1);
-    pColumns->addLayout(pPlan, 1);
+    m_pPlanView = new widgets::TransitionPlanView(
+            m_pPlanModel.get(), widgets::InstrumentStyle::installed(), m_pPlanColumn);
+    m_pPlanView->hide();
+    pPlan->addWidget(m_pPlanView, 1);
+    pPlan->addStretch(0);
+    m_pPlanColumn->installEventFilter(this);
+    pColumns->addWidget(m_pPlanColumn, 1);
     pColumns->addWidget(makeInspector());
 
     auto* pLayout = new QVBoxLayout(this);
@@ -120,6 +144,11 @@ AssistPanel::AssistPanel(QWidget* pParent)
 
     m_clock.setInterval(kClockMs);
     connect(&m_clock, &QTimer::timeout, this, &AssistPanel::showTimes);
+    m_playhead.setInterval(kPlayheadMs);
+    connect(&m_playhead, &QTimer::timeout, this, &AssistPanel::movePlayhead);
+    m_relayout.setSingleShot(true);
+    m_relayout.setInterval(kRelayoutMs);
+    connect(&m_relayout, &QTimer::timeout, this, &AssistPanel::showPlan);
     showAssist();
 }
 
@@ -496,7 +525,7 @@ void AssistPanel::showAssist() {
     const TrackPointer pOutgoing = pAssist ? pAssist->outgoingTrack() : TrackPointer();
     const TrackPointer pIncoming = pAssist ? pAssist->incomingTrack() : TrackPointer();
     const bool hasEdge = pOutgoing && pIncoming && !incoming.isEmpty();
-    m_pHost->setVisible(hasEdge);
+    m_hasEdge = hasEdge;
     if (hasEdge) {
         QStringList meta;
         for (const auto& [group, pTrack] :
@@ -734,11 +763,113 @@ void AssistPanel::showAssist() {
     m_pExecute->setEnabled(pAssist && pAssist->canExecute());
     m_pCancel->setEnabled(pAssist && pAssist->canCancel());
     showTimes();
+    showPlan();
+    fitPlan();
     if (showsPlan && isVisible()) {
         m_clock.start();
+        m_playhead.start();
     } else {
         m_clock.stop();
+        m_playhead.stop();
     }
+}
+
+void AssistPanel::showPlan() {
+    SmartMixAssist* const pAssist = m_pAssist;
+    if (!pAssist || !pAssist->plan() || !m_hasEdge) {
+        watchTracks(TrackPointer(), TrackPointer());
+        m_pPlanModel->clear();
+        m_pPlanView->hide();
+        return;
+    }
+    const QString outgoing = pAssist->outgoingGroup();
+    const QString incoming = pAssist->incomingGroup();
+    watchTracks(pAssist->outgoingTrack(), pAssist->incomingTrack());
+    m_outgoingRate = controlValue(outgoing, QStringLiteral("rate_ratio"), 1.0);
+    m_incomingRate = pAssist->incomingOwnRate();
+    const auto durationMs = [](const QString& group) {
+        return controlValue(group, QStringLiteral("duration"), 0.0) * 1000.0;
+    };
+    m_pPlanModel->setPlan(*pAssist->plan(),
+            widgets::PlanDeck::fromTrack(
+                    outgoing, pAssist->outgoingTrack(), durationMs(outgoing), m_outgoingRate),
+            widgets::PlanDeck::fromTrack(
+                    incoming, pAssist->incomingTrack(), durationMs(incoming), m_incomingRate));
+    m_pPlanModel->setOutgoingPositionMs(pAssist->outgoingPositionMs().value_or(0.0));
+    m_pPlanView->show();
+}
+
+void AssistPanel::watchTracks(const TrackPointer& pOutgoing, const TrackPointer& pIncoming) {
+    if (pOutgoing == m_pOutgoingTrack.lock() && pIncoming == m_pIncomingTrack.lock()) {
+        return;
+    }
+    for (const QMetaObject::Connection& connection : std::as_const(m_trackConnections)) {
+        disconnect(connection);
+    }
+    m_trackConnections.clear();
+    m_pOutgoingTrack = pOutgoing;
+    m_pIncomingTrack = pIncoming;
+    for (const TrackPointer& pTrack : {pOutgoing, pIncoming}) {
+        if (!pTrack) {
+            continue;
+        }
+        const auto relayout = [this] {
+            m_relayout.start();
+        };
+        m_trackConnections.append(connect(pTrack.get(), &Track::beatsUpdated, this, relayout));
+        m_trackConnections.append(connect(pTrack.get(), &Track::cuesUpdated, this, relayout));
+    }
+}
+
+void AssistPanel::movePlayhead() {
+    SmartMixAssist* const pAssist = m_pAssist;
+    if (!pAssist || !m_pPlanModel->hasPlan()) {
+        return;
+    }
+    // A deck's tempo moved: the timeline's tempo and the incoming ruler
+    // with it
+    const double outgoingRate =
+            controlValue(pAssist->outgoingGroup(), QStringLiteral("rate_ratio"), 1.0);
+    if (std::abs(outgoingRate - m_outgoingRate) > kRateChange ||
+            std::abs(pAssist->incomingOwnRate() - m_incomingRate) > kRateChange) {
+        showPlan();
+        return;
+    }
+    if (const auto positionMs = pAssist->outgoingPositionMs()) {
+        m_pPlanModel->setOutgoingPositionMs(*positionMs);
+    }
+}
+
+void AssistPanel::fitPlan() {
+    // The timeline takes the host's place when the column has no room for
+    // both: its rulers name the tracks, and the inspector has the readings
+    bool hostShown = m_hasEdge;
+    if (m_hasEdge && isVisible() && m_pPlanView->isVisibleTo(this)) {
+        const int width = m_pPlanColumn->width();
+        const int host = m_pHost->hasHeightForWidth() ? m_pHost->heightForWidth(width)
+                                                      : m_pHost->sizeHint().height();
+        hostShown = m_pPlanColumn->height() - host >= m_pPlanView->minimumSizeHint().height();
+    }
+    m_pHost->setVisible(hostShown);
+}
+
+void AssistPanel::showEvent(QShowEvent* pEvent) {
+    QWidget::showEvent(pEvent);
+    // Its clocks run while it shows
+    showAssist();
+}
+
+void AssistPanel::hideEvent(QHideEvent* pEvent) {
+    m_clock.stop();
+    m_playhead.stop();
+    QWidget::hideEvent(pEvent);
+}
+
+bool AssistPanel::eventFilter(QObject* pWatched, QEvent* pEvent) {
+    if (pWatched == m_pPlanColumn && pEvent->type() == QEvent::Resize) {
+        fitPlan();
+    }
+    return QWidget::eventFilter(pWatched, pEvent);
 }
 
 void AssistPanel::showTimes() {
@@ -761,6 +892,7 @@ void AssistPanel::onShow() {
     }
     showAssist();
     m_clock.start();
+    m_playhead.start();
 }
 
 bool AssistPanel::hasFocus() const {
@@ -772,7 +904,7 @@ QString AssistPanel::statusText() const {
 }
 
 QString AssistPanel::titleText() const {
-    return m_pHost->isVisibleTo(this) ? m_pTitle->text() : QString();
+    return m_hasEdge ? m_pTitle->text() : QString();
 }
 
 QString AssistPanel::modeText() const {

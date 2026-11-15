@@ -32,6 +32,8 @@
 #include "crate/smartmix/planclient.h"
 #include "crate/smartmix/smartmixassist.h"
 #include "crate/smartmix/smartmixdirector.h"
+#include "crate/ui/widgets/transitionplanview.h"
+#include "crate/ui/widgets/transitionplanviewmodel.h"
 #include "mixer/playerinfo.h"
 #include "test/crate/fakecratenetwork.h"
 #include "test/mixxxtest.h"
@@ -543,6 +545,51 @@ TEST_F(CrateSmartMixAssistTest, ShowsPlanForLoadedDecks) {
     EXPECT_TRUE(panel.prepareButton()->isEnabled());
     EXPECT_TRUE(panel.executeButton()->isEnabled());
     EXPECT_FALSE(panel.cancelButton()->isEnabled());
+}
+
+// The plan's timeline under the host (plan V3.PR1b): there while there is a
+// plan, laid out from the decks where the director plays the plan, its
+// playhead following the outgoing deck and its tempo the decks'; gone
+// without a plan.
+TEST_F(CrateSmartMixAssistTest, ShowsThePlanTimeline) {
+    using Side = crate::widgets::TransitionPlanViewModel::Side;
+    crate::AssistPanel panel;
+    EXPECT_FALSE(panel.planView()->isVisibleTo(&panel));
+    loadDecks(120000.0);
+    makeAssist();
+    panel.setAssist(m_pAssist.get());
+    ASSERT_TRUE(waitFor([this] { return !planRequests().isEmpty(); }));
+    EXPECT_FALSE(panel.planView()->isVisibleTo(&panel));
+    answerPlans(QStringLiteral("synthetic-assist-long-blend.json"));
+    ASSERT_TRUE(waitFor([&] { return m_pAssist->status() == Status::Ready; }));
+
+    EXPECT_TRUE(panel.planView()->isVisibleTo(&panel));
+    const crate::widgets::TransitionPlanViewModel* pModel = panel.planModel();
+    ASSERT_TRUE(pModel->hasPlan());
+    EXPECT_DOUBLE_EQ(330298.0, pModel->windowStartMs());
+    EXPECT_DOUBLE_EQ(330298.0 + 96000.0, pModel->windowEndMs());
+    EXPECT_EQ(QStringLiteral("A"), pModel->deckLetter(Side::Outgoing));
+    EXPECT_EQ(QStringLiteral("B"), pModel->deckLetter(Side::Incoming));
+    EXPECT_EQ(QStringLiteral("outgoing.mp3"), pModel->deck(Side::Outgoing).title);
+    EXPECT_DOUBLE_EQ(kOutgoingSeconds * 1000.0, pModel->deck(Side::Outgoing).durationMs);
+    EXPECT_NEAR(kCueMs - 120000.0, pModel->nowMs(), 1.0);
+    // The decks' tracks have no grid yet: no bars
+    EXPECT_FALSE(pModel->windowBars());
+
+    // While the panel shows, the playhead follows the outgoing deck
+    panel.resize(1400, 600);
+    panel.show();
+    ASSERT_TRUE(QTest::qWaitForWindowExposed(&panel));
+    set(kDeck1, QStringLiteral("playposition"), (330298.0 - 5000.0) / (kOutgoingSeconds * 1000.0));
+    ASSERT_TRUE(waitFor([&] { return std::abs(pModel->nowMs() - (330298.0 - 5000.0)) < 1.0; }));
+    // and a deck's tempo lays it out again
+    set(kDeck2, QStringLiteral("rate_ratio"), 1.02);
+    ASSERT_TRUE(waitFor([&] { return pModel->deck(Side::Incoming).rate == 1.02; }));
+    EXPECT_TRUE(pModel->hasPlan());
+
+    panel.setAssist(nullptr);
+    EXPECT_FALSE(panel.planView()->isVisibleTo(&panel));
+    EXPECT_FALSE(pModel->hasPlan());
 }
 
 // The panel's buttons are the assistant's.

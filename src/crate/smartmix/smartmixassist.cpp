@@ -332,6 +332,20 @@ void SmartMixAssist::setPlan(const TransitionPlan& plan) {
     emit changed();
 }
 
+std::optional<double> SmartMixAssist::outgoingPositionMs() const {
+    if (m_outgoing.isEmpty()) {
+        return std::nullopt;
+    }
+    return m_pEnvironment->enginePlayPosition(m_outgoing) * durationMs(m_outgoing);
+}
+
+double SmartMixAssist::incomingOwnRate() const {
+    if (const auto before = m_pDirector->incomingRateBefore()) {
+        return *before;
+    }
+    return controlValue(m_incoming, QStringLiteral("rate_ratio"), 1.0);
+}
+
 std::optional<double> SmartMixAssist::msToEntry() const {
     if (!m_plan || m_outgoing.isEmpty()) {
         return std::nullopt;

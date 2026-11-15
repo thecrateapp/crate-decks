@@ -75,6 +75,7 @@
 #include "crate/ui/skin/crateskin.h"
 #include "crate/ui/skin/mixerstyle.h"
 #include "crate/ui/skin/preferencescontrol.h"
+#include "crate/ui/widgets/transitionplanview.h"
 #include "database/mixxxdb.h"
 #include "dialog/dlgabout.h"
 #include "library/crateserver/crateserverfeature.h"
@@ -2461,6 +2462,18 @@ TEST_F(CrateSkinScreenshots, SmartMix) {
     }
     const double outgoingMs = ControlObject::get(ConfigKey("[Channel1]", "duration")) * 1000.0;
     ASSERT_GT(outgoingMs, 340000.0) << "the outgoing track is shorter than the plan";
+    // A hotcue on each track, as a DJ sets them, for the plan's timeline to
+    // name: hotcue 3 on deck A where the plan swaps the basses, as the
+    // mockup, and hotcue 2 on deck B 32 bars after its entry
+    for (const auto& [group, hotcue, ms] : {std::tuple{QStringLiteral("[Channel1]"), 2, 378298.0},
+                 std::tuple{QStringLiteral("[Channel2]"), 1, 503.0 + 32 * 4 * 60000.0 / 121.17}}) {
+        if (TrackPointer pTrack = pPlayerManager->getPlayer(group)->getLoadedTrack()) {
+            pTrack->createAndAddCue(mixxx::CueType::HotCue,
+                    hotcue,
+                    mixxx::audio::FramePos(ms * pTrack->getSampleRate().toDouble() / 1000.0),
+                    mixxx::audio::kInvalidFramePos);
+        }
+    }
     ControlObject::set(ConfigKey("[Channel1]", "playposition"), (330298.0 - 7700.0) / outgoingMs);
     ControlObject::set(ConfigKey("[Channel1]", "play"), 1);
     ControlObject::set(ConfigKey("[Channel1]", "volume"), 1);
@@ -2475,15 +2488,22 @@ TEST_F(CrateSkinScreenshots, SmartMix) {
     ASSERT_TRUE(server.answerWithThePlan(getTestDir()));
 
     const auto capture = [&](const QString& name, const QSize& size) {
-        // The analysis of the tones replaces the tempo and key of the mockup
-        for (const auto& [group, file, bpm, key] : loads) {
-            if (TrackPointer pTrack = pPlayerManager->getPlayer(group)->getLoadedTrack()) {
-                pTrack->trySetBpm(bpm);
-                pTrack->setKeyText(key);
+        // The analysis of the tones replaces the tempo and key of the mockup,
+        // and may finish while the window settles: again before the capture,
+        // with time for the plan's timeline to follow the grids
+        const auto mockupTempo = [&] {
+            for (const auto& [group, file, bpm, key] : loads) {
+                if (TrackPointer pTrack = pPlayerManager->getPlayer(group)->getLoadedTrack()) {
+                    pTrack->trySetBpm(bpm);
+                    pTrack->setKeyText(key);
+                }
             }
-        }
+        };
+        mockupTempo();
         decks.mainWindow()->resize(size);
         waitFor([] { return false; }, 1500);
+        mockupTempo();
+        waitFor([] { return false; }, 400);
         const QImage image = decks.skin()->grab().toImage();
         const QString file = QDir(outDir).filePath(name + QStringLiteral(".png"));
         EXPECT_TRUE(image.save(file)) << file.toStdString();
@@ -2514,8 +2534,9 @@ QRect rectIn(const QWidget* pWidget, const QWidget* pAncestor) {
 /// The Smart Mix assistant at 1920 x 1080 and 1366 x 768 with the library
 /// pane at its default height (the height it has with the track table): the
 /// window keeps its size, the actions stay whole at the foot of the
-/// inspector with nothing under them, and every detail of the plan can be
-/// seen whole in the details above them, none behind the actions.
+/// inspector with nothing under them, every detail of the plan can be seen
+/// whole in the details above them, none behind the actions, and the plan's
+/// timeline fits beside the inspector.
 TEST_F(CrateSkinLoadTest, SmartMixDetailsStayAboveTheActions) {
     QTemporaryDir profile;
     ASSERT_TRUE(profile.isValid());
@@ -2624,6 +2645,26 @@ TEST_F(CrateSkinLoadTest, SmartMixDetailsStayAboveTheActions) {
         // Eyebrow, mode, description, state, the readings and the rows
         EXPECT_GE(details, 25) << at;
         pDetails->verticalScrollBar()->setValue(0);
+
+        // The plan's timeline (plan V3.PR1b): whole in the panel, left of
+        // the inspector and under the host, at least compact. Where the
+        // column has no room for both, it takes the host's place. At
+        // 1920 x 1080 it has its lanes
+        auto* const pTimeline = pPanel->planView();
+        ASSERT_TRUE(pTimeline->isVisible()) << at;
+        EXPECT_TRUE(pTimeline->showsTimeline()) << at;
+        const QRect timeline = rectIn(pTimeline, pPanel);
+        EXPECT_TRUE(pPanel->rect().contains(timeline)) << at;
+        EXPECT_GE(timeline.height(), pTimeline->minimumSizeHint().height()) << at;
+        EXPECT_FALSE(timeline.intersects(rectIn(pDetails->parentWidget(), pPanel))) << at;
+        EXPECT_FALSE(timeline.intersects(actions)) << at;
+        if (pPanel->host()->isVisible()) {
+            EXPECT_GE(timeline.top(), rectIn(pPanel->host(), pPanel).bottom()) << at;
+        }
+        if (size.width() == 1920) {
+            EXPECT_TRUE(pPanel->host()->isVisible()) << at;
+            EXPECT_TRUE(pTimeline->showsLanes()) << at;
+        }
     }
 }
 

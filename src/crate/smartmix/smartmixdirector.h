@@ -186,6 +186,9 @@ class SmartMixDirector : public QObject {
     /// The incoming deck is still easing back to its tempo after a
     /// completed transition.
     bool isRestoringTempo() const;
+    /// The incoming deck's `rate_ratio` before the director prepared it,
+    /// which it eases back to after a beatmatch; none before Preparing.
+    std::optional<double> incomingRateBefore() const;
     const Report& report() const {
         return m_report;
     }
