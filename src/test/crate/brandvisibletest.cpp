@@ -40,12 +40,14 @@
 #include "test/crate/offscreendecks.h"
 #include "test/mixxxtest.h"
 
-// Crate Decks shows nothing of Mixxx (plan "Own brand", BR.PR4). This test
+// Decks shows nothing of Mixxx (plan "Own brand", BR.PR4). This test
 // starts the real application offscreen with the CrateDecks skin and reads
 // every text the user could see: the main window and its skin, the menus
 // and their actions, every Preferences page, the first-start pages, About
 // and the quit confirmation. The only "Mixxx" allowed are the credits in
-// About (design D2), kept by the brand inventory, and file names.
+// About (design D2), kept by the brand inventory, and file names. Nor does
+// anything say "Crate Decks", the name before Decks (Diego, 2026-11-15), but
+// the folders created with it ("~/.cache/Crate/Crate Decks").
 //
 // TEST_GAP: text that widgets paint themselves (waveforms, the skin's
 // painted labels) and images are not read; the skin has no text in its XML
@@ -96,7 +98,7 @@ class TextCollector {
     /// status tips, labels, buttons, fields, combo boxes, tabs, group boxes,
     /// text views, item views with their headers, and actions with their
     /// menus.
-    /// Leaves `pWidget` out: what Crate Decks must keep.
+    /// Leaves `pWidget` out: what Decks must keep.
     void exclude(QWidget* pWidget) {
         m_excluded.append(pWidget);
     }
@@ -179,6 +181,20 @@ class TextCollector {
                 text.remove(credit);
             }
             if (crate::showsMixxx(text)) {
+                found.append(seen.where + QStringLiteral(": ") + seen.text.left(300));
+            }
+        }
+        found.removeDuplicates();
+        return found;
+    }
+
+    /// What says the application's name until Diego named it Decks
+    /// (2026-11-15), but as a folder of a path (crate::kDataFolderName).
+    QStringList oldName() const {
+        static const QRegularExpression kOldName(QStringLiteral("(?<![/\\w])Crate Decks"));
+        QStringList found;
+        for (const Seen& seen : m_seen) {
+            if (kOldName.match(seen.text).hasMatch()) {
                 found.append(seen.where + QStringLiteral(": ") + seen.text.left(300));
             }
         }
@@ -304,6 +320,7 @@ TEST_F(CrateBrandVisibleTest, NoMixxxAnywhere) {
     ASSERT_NE(nullptr, decks.skin());
     decks.mainWindow()->show();
     waitFor([] { return false; }, 300);
+    EXPECT_QSTRING_EQ(QStringLiteral("Decks"), decks.mainWindow()->windowTitle());
 
     // The main window, its skin and the menu bar with every menu
     texts.addWidgetTree(decks.mainWindow(), QStringLiteral("main window"));
@@ -328,7 +345,7 @@ TEST_F(CrateBrandVisibleTest, NoMixxxAnywhere) {
     pPreferences->hide();
 
     // About, but its License tab: Mixxx's copyright notice and the GPL, which
-    // Crate Decks must keep (design D2)
+    // Decks must keep (design D2)
     {
         DlgAbout about;
         if (QWidget* pLicense = about.findChild<QWidget*>(QStringLiteral("licenseText"))) {
@@ -366,6 +383,9 @@ TEST_F(CrateBrandVisibleTest, NoMixxxAnywhere) {
     const QStringList mixxx = texts.mixxx();
     EXPECT_TRUE(mixxx.isEmpty()) << mixxx.size() << " texts show Mixxx:\n"
                                  << qPrintable(mixxx.join(QLatin1Char('\n')));
+    const QStringList oldName = texts.oldName();
+    EXPECT_TRUE(oldName.isEmpty()) << oldName.size() << " texts say Crate Decks:\n"
+                                   << qPrintable(oldName.join(QLatin1Char('\n')));
 }
 
 } // namespace

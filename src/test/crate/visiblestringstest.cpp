@@ -11,9 +11,10 @@
 
 #include "preferences/configobject.h"
 
-// The visible strings of the surfaces that AGENTS.md §5.2 lets Crate Decks
+// The visible strings of the surfaces that AGENTS.md §5.2 lets Decks
 // rename (title, About, the first-run menu bar dialog and the preferences)
-// name the application "Crate Decks", not "Mixxx". The test reads the
+// name the application "Decks", neither "Mixxx" nor "Crate Decks", its name
+// until 2026-11-15. The test reads the
 // translatable strings from the sources: <string> elements of the .ui files
 // and tr() literals of the C++ files.
 //
@@ -22,6 +23,9 @@
 // Serato metadata export warning) was changed by hand.
 
 namespace {
+
+/// The application's name until Diego named it Decks (2026-11-15).
+const QString kOldName = QStringLiteral("Crate Decks");
 
 /// "Mixxx" where it refers to Mixxx the project, which stays: Mixxx versions,
 /// the "Mixxx" cue modes, the Controller Engine of Mixxx mappings, Mixxx's
@@ -99,10 +103,12 @@ void expectNoMixxxAsApplicationName(const QString& file, const QStringList& stri
         withoutProjectReferences.remove(kMixxxProjectReference);
         EXPECT_FALSE(withoutProjectReferences.contains(QStringLiteral("Mixxx")))
                 << qPrintable(file) << ": " << qPrintable(string);
+        EXPECT_FALSE(string.contains(kOldName))
+                << qPrintable(file) << ": " << qPrintable(string);
     }
 }
 
-TEST(CrateVisibleStringsTest, UiFilesNameTheApplicationCrateDecks) {
+TEST(CrateVisibleStringsTest, UiFilesNameTheApplicationDecks) {
     const QDir src = sourceDir();
     QStringList files = QDir(src.filePath(QStringLiteral("preferences/dialog")))
                                 .entryList({QStringLiteral("*.ui")}, QDir::Files);
@@ -119,7 +125,7 @@ TEST(CrateVisibleStringsTest, UiFilesNameTheApplicationCrateDecks) {
     }
 }
 
-TEST(CrateVisibleStringsTest, TrStringsNameTheApplicationCrateDecks) {
+TEST(CrateVisibleStringsTest, TrStringsNameTheApplicationDecks) {
     const QDir src = sourceDir();
     QStringList files = QDir(src.filePath(QStringLiteral("preferences/dialog")))
                                 .entryList({QStringLiteral("*.cpp")}, QDir::Files);
