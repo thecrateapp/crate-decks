@@ -1073,7 +1073,7 @@ grep -rn "smart-mix-v2" app/crate | head
   - **Preparar** arma el director con `holdStart`; **Ejecutar** lo suelta, o lo arma para que arranque en la entrada del plan (el entrante se prepara 8 s antes, como en AutoDJ); **Cancelar** devuelve lo que movió el director.
   - **Controles:** `[CrateSmartMix],prepare`, `execute` y `cancel`, `ControlPushButton` en modo push, para mapear en controladoras.
   - **AutoDJ manda (decisión 3, propuesta):** con AutoDJ activo, en cualquier modo, el asistente no planifica ni ejecuta, y activar AutoDJ cancela la transición del asistente; los dos moverían los mismos decks y el crossfader. El asistente tiene su propio director: la regla impide que los dos suenen a la vez.
-- **Panel `crate::AssistPanel`** (`src/crate/smartmix/assistpanel.{h,cpp}`), según la maqueta GU1 `smart-mix-assistant`: una vista del panel de la biblioteca (`WLibrary::registerView`) con su elemento "Smart Mix" en la sección Crate, antes de Cache. Cabecera (decks, chips Assist/Auto DJ que apagan o encienden AutoDJ y estado del plan), la arista como host de StackMap (tonalidades, tempos, títulos, longitud en compases y tiempo a la entrada) y el inspector (modo, una frase del plan, estado, confianza con `LevelRing`, entrada y longitud; filas de modo, entrada, tempo, intercambio de bajos, ganancia y planner; Preparar, Ejecutar y Cancelar al pie de la columna, que no se desplaza con el plan). 29 tokens nuevos en el grupo `dialog`, de la maqueta. La línea de tiempo del plan (`TransitionPlanView`) queda para V3.PR1b: el escenario bajo el host está vacío.
+- **Panel `crate::AssistPanel`** (`src/crate/smartmix/assistpanel.{h,cpp}`), según la maqueta GU1 `smart-mix-assistant`: una vista del panel de la biblioteca (`WLibrary::registerView`) con su elemento "Smart Mix" en la sección Crate, antes de Cache. Cabecera (decks, chips Assist/Auto DJ que apagan o encienden AutoDJ y estado del plan), la arista como host de StackMap (tonalidades, tempos, títulos, longitud en compases y tiempo a la entrada) y el inspector (modo, una frase del plan, estado, confianza con `LevelRing`, entrada y longitud; filas de modo, entrada, tempo, intercambio de bajos, ganancia y planner; Preparar, Ejecutar y Cancelar al pie de la columna, que no se desplaza con el plan). 29 tokens nuevos en el grupo `dialog`, de la maqueta. La línea de tiempo del plan (`TransitionPlanView`) queda para V3.PR1b: el escenario bajo el host está vacío (ya no: V3.PR1b la pone ahí).
 - **Barra:** el botón Smart Mix conmuta `[CrateDecks],show_smart_mix` (manifiesto de la skin, no persistente): encendido muestra el asistente y selecciona su elemento; apagado vuelve al elemento de la barra lateral en que estaba el DJ (o a la biblioteca de Crate si llegó por la barra lateral); el botón sigue al panel de la biblioteca.
 - **Tests:**
   - `assistpanel_test.cpp` (11): `AsksThePlanOfTheLoadedDecks`, `ShowsPlanForLoadedDecks` (el panel con el plan de mezcla larga), `ExecuteRunsDirector`, `PrepareHoldsUntilExecute`, `ControlsAreMappable`, `AutoDJComesFirst`, `NeedsTwoCrateTracks`, `AsksAgainWhenADeckLoads`, `RejectsAPlanThatDoesNotFit`, `PanelButtonsDriveTheDirector` y `PanelSaysAutoDJComesFirst`.
@@ -1444,9 +1444,47 @@ La vista del plan de Smart Mix sale de este PR y pasa a V3.PR1b (Diego, 2026-11-
   - `FallbackPlanRendersAsSimpleFade`
 - **Rendimiento:** `transitionplanview_test.cpp`, `RepaintsOnlyDirtyRegionDuringRun` y `CachesStaticScaleInPixmap` (presupuesto de §9 del diseño).
 
+**Implementado (V3.PR1b, 2026-11-15).** Rama `integ/decks-f6-smart-mix`, sobre F6.C-PR4. Ya está en el asistente (lo que V3.PR2 pedía para F6).
+
+- **Tokens:** 44 `plan*`, `fontSizePlan*` y `trackingPlanCue` en el grupo `instrument`, sacados de `planView` y `dashSample` de `lib/decks.js` y de la leyenda de `stack-map.css`, y en `vars.xml` como `CrateInstPlan<Token>`, junto con `nodeSibling`, `opacityRest`, `glowPulse*` y `tickPhrase` de `geometry`. `planLaneMinGap` (24 px) es de Decks: el panel real es más bajo que el de la maqueta.
+- **Modelo `crate::widgets::TransitionPlanViewModel`** (sin widgets): el eje es el tiempo propio de la pista saliente (el tiempo de salida del plan). La ventana empieza donde la toca el director (`SmartMixDirector::startAtMs()`). El rango es la ventana con la mitad de su longitud antes y un cuarto después (al menos 8 y 4 compases), en líneas de compás, como los 16 + 32 + 8 compases de la maqueta. Las reglas salen de la rejilla `Beats` de cada pista cargada (compás 1 en su primer marcador, que `AnalysisImporter` pone en un downbeat); la entrante empieza en su entrada y corre a su tempo frente al saliente (la razón del plan en beatmatch y después la vuelta al tempo de Android). Las curvas salen de las funciones del director: `curves::transitionGain()`, `bassCutDb()` y `tempoRestore()`. `PlanDeck::fromTrack()` lee de la pista título, rejilla, BPM, Intro, Outro y hotcues.
+- **Vista `crate::widgets::TransitionPlanView`:** pintada con `instrumentpainter` (plumas cosméticas de 1 px en el medio píxel, patrones de trazo, nodos, flechas y MonoLabel). La capa estática va en un pixmap. El cursor se mueve cuatro veces por segundo (lo pide el panel) y repinta solo sus franjas (línea y etiqueta), y nada si no cambia de píxel ni de compás. "Now · bar N" se aparta de los nombres de la entrante. Según la altura muestra carriles y leyenda, solo carriles, la línea compacta (reglas, momentos, ventana, intercambio de bajos, entrada y cursor) o nada.
+- **Qué sale de dónde:**
+
+| La maqueta | Decks | Fuente |
+| --- | --- | --- |
+| `Entry · intro cue` | Entrada (cue de entrada) | `startIncomingCueMs()`; "· intro cue" si `incomingCueMs` cae a medio beat de un extremo del Intro de la pista (el que pone `AnalysisImporter` desde el perfil, o el de upstream) |
+| `Exit` | Salida (cue de plan) | El inicio más `durationMs` |
+| `Outro in` | Igual (cue de pista) | Inicio del Outro de la pista (`outroCueMs` del perfil, o el de upstream) |
+| `Intro end` | Igual (cue de pista) | Fin del Intro (`introCueMs` del perfil). La maqueta lo pinta como cue de plan |
+| `Hotcue 3` | `Hotcue N` (cue de pista) | Los hotcues de la pista. Un cue de pista sobre un momento del plan se une a él ("Exit · hotcue 4") |
+| `Drop` | — | No hay fuente: el perfil no trae drops ni secciones, y `MixProfile` no lee `stems.phrases` |
+| `Transition · 32 bars` | Igual | Compases de la rejilla saliente en la ventana; sin rejilla, segundos; "Gapless" sin ventana |
+| `Bass swap · bar 65` | Igual | Donde se cruzan los graves de `bassCutDb()`, en `handoffProgress` |
+| Tempo `124.00 → 123.50` | Tempo de la entrante | En la ventana, el del director (razón × saliente); tras un beatmatch, `tempoRestore()` en 4 s hasta el `rate_ratio` que tenía antes de Preparar (`SmartMixDirector::incomingRateBefore()`). La maqueta lo desliza dentro de la ventana; el director, después de la salida |
+| Ganancia `B −1.5 dB` | Nivel de cada deck | `transitionGain()` (curva × ganancia del plan) en el carril; rótulos "A −4.3 dB" y "B −3.8 dB" con las ganancias del plan, que solo atenúan |
+| Beatmatch largo | Beatmatch | De la entrada a la salida en `beatmatch`, también sin `dj-blend` |
+| `Now · bar 45` | Igual | Posición del saliente en el motor |
+
+- **Panel:** la línea de tiempo ocupa el escenario bajo el host mientras hay plan; sin plan, el panel queda como antes. Se rehace si cambia el `rate_ratio` de un deck o la rejilla o los cues de una pista. A 1920 × 1080 (panel de 444 px) tiene carriles, pero no le cabe la leyenda, que sale con el panel maximizado. A 1366 × 768 solo cabe la línea compacta si ocupa el sitio del host: sus reglas nombran las pistas, y el inspector conserva la longitud y el tiempo a la entrada.
+- **F6b:** el origen `SMART MIX` y la confianza con `LevelRing` ya están en la cabecera y el inspector; la vista no los repite. El origen `AI · <MODELO>` cayó con F6b.PR3.
+- **Tests:**
+  - `transitionplanviewmodel_test.cpp` (9): `MapsPlanToSegments` (la mezcla larga del asistente sobre las rejillas reales de `real-full-whole-bpm`, importada con `CrateBeatsImporter`, y `real-full-fractional-bpm`, mapa de beats del servidor: ventana de 50 compases, momentos y compases contrastados con el perfil), `PlacesTheBassSwapAtHandoffProgress`, `TempoAndGainAtTheEnds`, `ShortBeatmatchIsFourBars`, `FallbackPlanRendersAsSimpleFade`, `GaplessHasNoBlend`, `LeavesOutWhatTheDataLacks`, `NowFollowsTheOutgoingDeck` y `ReadsTheDeckFromItsTrack` (perfil real aplicado con `AnalysisImporter` a una pista abierta).
+  - `transitionplanview_test.cpp` (7): `RendersThePlan`, `BassHandoffUsesQueueDash` (guiones de 3 px y huecos de 4 px medidos en la imagen), `PlayheadFollowsPosition`, `NowStaysClearOfTheEntry`, `CachesStaticScaleInPixmap`, `RepaintsOnlyDirtyRegionDuringRun` y `FitsWhatItShowsToItsHeight`.
+  - `assistpanel_test.cpp`: `ShowsThePlanTimeline`. `CrateSkinLoadTest.SmartMixDetailsStayAboveTheActions` comprueba la línea de tiempo a los dos tamaños, entera en el panel y sin tocar el inspector.
+  - Capturas: `CrateSkinScreenshots.SmartMix`, que ahora da a cada pista un hotcue.
+
+**Pendiente de Diego (V3.PR1b):**
+
+- Que la línea compacta ocupe el sitio del host a 1366 × 768, y que la leyenda salga solo con el panel alto.
+- El tempo: el deslizamiento va después de la salida, como lo toca el director, no dentro de la ventana como en la maqueta.
+- El carril de ganancia muestra los niveles que toca el director (curva × ganancia), no solo la ganancia del plan.
+- `Intro end` se pinta como cue de pista; en la maqueta, como cue de plan.
+- Lo que no tiene fuente: el drop. Las frases son de 8 compases fijos (no de `policyLimits.phraseLengths`) y los compases, de 4 tiempos (el `timeSignature` del perfil no llega al asistente, y la rejilla de upstream no lo tiene).
+
 **V3.PR2 · Vistas de Crate**
 - Compatibles (F5) con la rueda Camelot arriba y la lista con reglas debajo.
-- Asistente de Smart Mix (F6) con `TransitionPlanView`.
+- Asistente de Smart Mix (F6) con `TransitionPlanView` (hecho en V3.PR1b).
 - Estado de caché (F4) con `LevelRing`.
 - Sección Crate de la barra lateral.
 - Todas con tokens y delegates de V2.PR4, y ningún color literal en `src/crate/ui/`.
