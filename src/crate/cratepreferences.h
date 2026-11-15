@@ -66,6 +66,13 @@ class CratePreferences : public QObject {
     bool separateWhilePlaying() const;
     void setSeparateWhilePlaying(bool enabled);
 
+    /// Draw with the discrete GPU of a hybrid laptop (hybrid laptop plan §2).
+    /// Off by default (Diego, 2026-11-15); main() applies it at the next
+    /// start, before Qt creates any OpenGL context
+    /// (system::applyDiscreteGpuPreference()).
+    bool discreteGpu() const;
+    void setDiscreteGpu(bool enabled);
+
     /// The import policy these choices make. Crate's beats stay off until
     /// the server announces the S8 analyzer.
     analysis::Policy analysisPolicy() const;
@@ -76,6 +83,7 @@ class CratePreferences : public QObject {
     void prefetchAutoDjChanged(bool enabled);
     void analysisPolicyChanged();
     void stemsChanged();
+    void discreteGpuChanged(bool enabled);
 
   private:
     bool flag(const char* key, bool defaultValue) const;
