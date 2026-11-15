@@ -12,6 +12,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include <QComboBox>
 #include <QCoreApplication>
 #include <QFile>
 #include <QJsonArray>
@@ -25,12 +26,14 @@
 #include <optional>
 #include <tuple>
 
+#include "control/control.h"
 #include "control/controllinpotmeter.h"
 #include "control/controlpotmeter.h"
 #include "control/controlpushbutton.h"
 #include "crate/client/crateclient.h"
 #include "crate/cratepreferences.h"
 #include "crate/smartmix/autodjsmartmixadapter.h"
+#include "crate/smartmix/autodjsmartmixmode.h"
 #include "crate/smartmix/planclient.h"
 #include "crate/smartmix/smartmixdirector.h"
 #include "library/autodj/autodjprocessor.h"
@@ -1043,6 +1046,111 @@ TEST(AutoDJSmartMixOfferTest, OfferedWithABeatmatchServer) {
     EXPECT_FALSE(crate::smartMixOffered({}));
     EXPECT_FALSE(crate::smartMixOffered({without, QByteArray()}));
     EXPECT_TRUE(crate::smartMixOffered({without, withBeatmatch}));
+}
+
+/// DlgAutoDJ's combo box of transition modes, with the "Crate Smart Mix"
+/// entry of AutoDJSmartMixMode, whose offer the test sets.
+class AutoDJSmartMixModeTest : public AutoDJSmartMixTest {
+  protected:
+    void makeCombo() {
+        m_pCombo = std::make_unique<QComboBox>();
+        for (const TransitionMode mode : {TransitionMode::FullIntroOutro,
+                     TransitionMode::FadeAtOutroStart,
+                     TransitionMode::FixedFullTrack,
+                     TransitionMode::FixedSkipSilence,
+                     TransitionMode::FixedStartCenterSkipSilence}) {
+            m_pCombo->addItem(QString::number(static_cast<int>(mode)), static_cast<int>(mode));
+        }
+        crate::AutoDJSmartMixMode::Options options;
+        options.pCombo = m_pCombo.get();
+        options.pProcessor = pProcessor.data();
+        options.pConfig = config();
+        options.offered = [this] {
+            return m_offered;
+        };
+        m_pMode = new crate::AutoDJSmartMixMode(std::move(options));
+    }
+
+    /// The DJ picks `mode` in the combo box, as DlgAutoDJ handles it.
+    void pick(TransitionMode mode) {
+        const int index = m_pCombo->findData(static_cast<int>(mode));
+        ASSERT_GE(index, 0);
+        m_pCombo->setCurrentIndex(index);
+        pProcessor->setTransitionMode(mode);
+        emit m_pCombo->activated(index);
+        QCoreApplication::processEvents();
+    }
+
+    /// A restart: the settings as they are on disk, a new Auto DJ and a new
+    /// combo box.
+    void restart() {
+        m_pCombo.reset();
+        m_pConfig = UserSettingsPointer(
+                new UserSettings(getTestDataDir().filePath(QStringLiteral("test.cfg"))));
+        ControlDoublePrivate::setUserConfig(m_pConfig);
+        makeProcessor();
+        makeCombo();
+    }
+
+    TransitionMode shownMode() const {
+        return static_cast<TransitionMode>(m_pCombo->currentData().toInt());
+    }
+
+    bool m_offered = true;
+    std::unique_ptr<QComboBox> m_pCombo;
+    crate::AutoDJSmartMixMode* m_pMode = nullptr;
+};
+
+// Crate Smart Mix, once picked, is on disk at once: a session that never
+// quits cleanly keeps it, and the next start shows it again.
+TEST_F(AutoDJSmartMixModeTest, PickedModeSurvivesARestart) {
+    makeCombo();
+    ASSERT_GE(m_pCombo->findData(static_cast<int>(TransitionMode::CrateSmartMix)), 0);
+    pick(TransitionMode::CrateSmartMix);
+
+    // Not saved by a clean quit: what the settings file holds now
+    restart();
+    EXPECT_EQ(TransitionMode::CrateSmartMix, pProcessor->getTransitionMode());
+    EXPECT_EQ(TransitionMode::CrateSmartMix, shownMode());
+}
+
+// Without a server that offers it at the start, Auto DJ runs Full Intro +
+// Outro and the choice waits; it comes back once a server offers it.
+TEST_F(AutoDJSmartMixModeTest, WaitsForAServerThatOffersIt) {
+    makeCombo();
+    pick(TransitionMode::CrateSmartMix);
+
+    m_offered = false;
+    restart();
+    EXPECT_LT(m_pCombo->findData(static_cast<int>(TransitionMode::CrateSmartMix)), 0);
+    EXPECT_EQ(TransitionMode::FullIntroOutro, pProcessor->getTransitionMode());
+    EXPECT_EQ(TransitionMode::FullIntroOutro, shownMode());
+
+    // Still waiting after a clean quit and another start without the server
+    saveAndReloadConfig();
+    restart();
+    EXPECT_EQ(TransitionMode::FullIntroOutro, pProcessor->getTransitionMode());
+
+    // The server answers with beatmatch
+    m_offered = true;
+    m_pMode->update();
+    EXPECT_GE(m_pCombo->findData(static_cast<int>(TransitionMode::CrateSmartMix)), 0);
+    EXPECT_EQ(TransitionMode::CrateSmartMix, pProcessor->getTransitionMode());
+    EXPECT_EQ(TransitionMode::CrateSmartMix, shownMode());
+}
+
+// A mode the DJ picks while Crate Smart Mix waits replaces it.
+TEST_F(AutoDJSmartMixModeTest, AnotherPickReplacesTheWaitingMode) {
+    makeCombo();
+    pick(TransitionMode::CrateSmartMix);
+    m_offered = false;
+    restart();
+    pick(TransitionMode::FadeAtOutroStart);
+
+    m_offered = true;
+    restart();
+    EXPECT_EQ(TransitionMode::FadeAtOutroStart, pProcessor->getTransitionMode());
+    EXPECT_EQ(TransitionMode::FadeAtOutroStart, shownMode());
 }
 
 } // namespace crate_autodj_smartmix

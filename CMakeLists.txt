@@ -5380,6 +5380,7 @@ if(CRATE)
       src/crate/session/cratesecretstore.cpp
       src/crate/session/cratesession.cpp
       src/crate/smartmix/autodjsmartmixadapter.cpp
+      src/crate/smartmix/autodjsmartmixmode.cpp
       src/crate/smartmix/controlautomation.cpp
       src/crate/smartmix/curves.cpp
       src/crate/smartmix/eqmap.cpp
