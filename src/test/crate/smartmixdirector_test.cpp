@@ -404,6 +404,22 @@ TEST_F(CrateSmartMixDirectorTest, AppliesTempoRatio) {
     EXPECT_EQ(get(kDeck2, QStringLiteral("rate_ratio")), 1.0);
 }
 
+// F6.C-PR3 decision 2 (Diego, 2026-11-15): after a beatmatch the incoming
+// deck eases back to the tempo it had before, not to 1 and not kept.
+TEST_F(CrateSmartMixDirectorTest, EasesBackToTheIncomingDecksOwnTempo) {
+    const TransitionPlan beatmatch = plan(QStringLiteral("real-beatmatch.json"));
+    loadBeatmatchEdge(beatmatch, 6000.0);
+    set(kDeck2, QStringLiteral("rate_ratio"), 0.97);
+    armAndStart(beatmatch);
+    EXPECT_NEAR(get(kDeck2, QStringLiteral("rate_ratio")), beatmatch.incomingTempoRatio, 1e-9);
+    runWhile(State::Running);
+    ASSERT_EQ(m_pDirector->state(), State::Completed);
+    ASSERT_TRUE(m_pDirector->isRestoringTempo());
+    runFor(crate::curves::kTempoRestoreMs + kTickMs);
+    EXPECT_FALSE(m_pDirector->isRestoringTempo());
+    EXPECT_NEAR(get(kDeck2, QStringLiteral("rate_ratio")), 0.97, 1e-9);
+}
+
 TEST_F(CrateSmartMixDirectorTest, AdaptivePlanLeavesTheTempo) {
     const TransitionPlan adaptive = plan(QStringLiteral("real-adaptive-fallback.json"));
     load(kDeck1, kBeatmatchIncoming, static_cast<double>(adaptive.outgoingCueMs) - 9000.0);

@@ -5,6 +5,9 @@
 #include <QMessageBox>
 
 #include "controllers/keyboard/keyboardeventfilter.h"
+#ifdef __CRATE__
+#include "crate/smartmix/autodjsmartmixadapter.h"
+#endif
 #include "library/library.h"
 #include "library/playlisttablemodel.h"
 #include "moc_dlgautodj.cpp"
@@ -184,6 +187,13 @@ DlgAutoDJ::DlgAutoDJ(WLibrary* parent,
             static_cast<int>(AutoDJProcessor::TransitionMode::FixedSkipSilence));
     fadeModeCombobox->addItem(tr("Skip Silence Start Full Volume"),
             static_cast<int>(AutoDJProcessor::TransitionMode::FixedStartCenterSkipSilence));
+#ifdef __CRATE__
+    // Crate Decks: with a server that plans beatmatches (F6.C-PR3)
+    if (crate::autoDjSmartMixOffered()) {
+        fadeModeCombobox->addItem(tr("Crate Smart Mix"),
+                static_cast<int>(AutoDJProcessor::TransitionMode::CrateSmartMix));
+    }
+#endif
     fadeModeCombobox->setCurrentIndex(
             fadeModeCombobox->findData(static_cast<int>(m_pAutoDJProcessor->getTransitionMode())));
     connect(fadeModeCombobox,

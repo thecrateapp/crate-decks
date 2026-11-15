@@ -5379,6 +5379,7 @@ if(CRATE)
       src/crate/session/crateloopbackserver.cpp
       src/crate/session/cratesecretstore.cpp
       src/crate/session/cratesession.cpp
+      src/crate/smartmix/autodjsmartmixadapter.cpp
       src/crate/smartmix/controlautomation.cpp
       src/crate/smartmix/curves.cpp
       src/crate/smartmix/eqmap.cpp
@@ -5442,6 +5443,7 @@ if(CRATE)
         src/test/crate/audiocache_test.cpp
         src/test/crate/autodjcratepending_test.cpp
         src/test/crate/autodjsmartmix_test.cpp
+        src/test/crate/autodjsmartmixlive_test.cpp
         src/test/crate/cachestatusview_test.cpp
         src/test/crate/profilestore_test.cpp
         src/test/crate/cratecapabilities_test.cpp

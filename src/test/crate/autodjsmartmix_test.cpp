@@ -2,13 +2,25 @@
 // upstream's autodjprocessor_test.cpp: a TransitionDirector plays the
 // transitions of TransitionMode::CrateSmartMix in Auto DJ's place, and Auto
 // DJ keeps the queue, the loads and the ejects. Without a director, and in
-// every other mode, Auto DJ does what it always did.
+// every other mode, Auto DJ does what it always did. The second half drives
+// the real adapter, plan client and Smart Mix director with the network,
+// the clock and the engine positions faked.
+//
+// TEST_GAP: how the real engine plays these transitions (start deviation,
+// beat phase, levels) is measured on rendered transitions by G4's metrics.
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include <QCoreApplication>
+#include <QFile>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QScopedPointer>
+#include <QSignalSpy>
 #include <QString>
+#include <QTest>
 #include <cmath>
 #include <optional>
 #include <tuple>
@@ -16,6 +28,11 @@
 #include "control/controllinpotmeter.h"
 #include "control/controlpotmeter.h"
 #include "control/controlpushbutton.h"
+#include "crate/client/crateclient.h"
+#include "crate/cratepreferences.h"
+#include "crate/smartmix/autodjsmartmixadapter.h"
+#include "crate/smartmix/planclient.h"
+#include "crate/smartmix/smartmixdirector.h"
 #include "library/autodj/autodjprocessor.h"
 #include "library/dao/playlistdao.h"
 #include "library/dao/trackschema.h"
@@ -24,6 +41,7 @@
 #include "mixer/playerinfo.h"
 #include "mixer/playermanager.h"
 #include "sources/soundsourceproxy.h"
+#include "test/crate/fakecratenetwork.h"
 #include "test/librarytest.h"
 #include "track/track.h"
 
@@ -71,7 +89,9 @@ class FakeDeck : public BaseTrackPlayer {
               introEndPos(ConfigKey(group, "intro_end_position")),
               outroStartPos(ConfigKey(group, "outro_start_position")),
               outroEndPos(ConfigKey(group, "outro_end_position")),
-              orientation(ConfigKey(group, "orientation")) {
+              orientation(ConfigKey(group, "orientation")),
+              pregain(ConfigKey(group, "pregain"), true, false, false, 1.0),
+              volume(ConfigKey(group, "volume"), true, false, false, 1.0) {
         play.setButtonMode(mixxx::control::ButtonMode::Toggle);
         repeat.setButtonMode(mixxx::control::ButtonMode::Toggle);
         outroStartPos.set(Cue::kNoPosition);
@@ -83,6 +103,7 @@ class FakeDeck : public BaseTrackPlayer {
     void load(const TrackPointer& pTrack, bool bPlay) {
         emit loadingTrack(pTrack, loadedTrack);
         loadedTrack = pTrack;
+        PlayerInfo::instance().setTrackInfo(getGroup(), pTrack);
         play.set(bPlay);
         trackSamples.set(pTrack->getDuration() * pTrack->getSampleRate() * 2);
         samplerate.set(pTrack->getSampleRate());
@@ -94,6 +115,7 @@ class FakeDeck : public BaseTrackPlayer {
         play.set(0.0);
         emit loadingTrack(TrackPointer(), pTrack);
         loadedTrack.reset();
+        PlayerInfo::instance().setTrackInfo(getGroup(), TrackPointer());
         emit playerEmpty();
     }
 
@@ -133,6 +155,9 @@ class FakeDeck : public BaseTrackPlayer {
     ControlObject outroStartPos;
     ControlObject outroEndPos;
     ControlObject orientation;
+    // PlayerInfo reads them to tell the deck on air
+    ControlObject pregain;
+    ControlObject volume;
 };
 
 class MockPlayerManager : public PlayerManagerInterface {
@@ -256,6 +281,8 @@ class AutoDJSmartMixTest : public LibraryTest {
     }
 
     void makeProcessor() {
+        // The old one first: its controls go with it
+        pProcessor.reset();
         pProcessor.reset(new RecordingAutoDJProcessor(nullptr,
                 config(),
                 pPlayerManager.data(),
@@ -638,6 +665,384 @@ TEST_F(AutoDJSmartMixTest, IncomingTrackChangeIsLeftToTheDirector) {
     director.processor->handBackTransition();
     EXPECT_EQ(AutoDJProcessor::ADJ_IDLE, pProcessor->getState());
     EXPECT_EQ(QList<TrackId>{m_tracks[2]->getId()}, queuedIds());
+}
+
+// The real adapter, plan client and director.
+
+const QString kServer = QStringLiteral("srv-1");
+// The anonymised uids of the real plan fixtures (src/test/crate/data/transition-plans/)
+const QStringList kUids = {QStringLiteral("637bd7c0-380e-5bc7-b841-dc2234cdfaf7"),
+        QStringLiteral("34137088-fcab-5f93-8866-31f1bf6d0871"),
+        QStringLiteral("a89833d1-75e5-52ce-8766-6df5b057d027")};
+const QList<double> kSeconds = {427.298, 148.052, 301.826};
+const QString kPlansPath = QStringLiteral("/api/playback/transition-plans");
+constexpr double kTickMs = crate::SmartMixDirector::kTickMs;
+
+/// The clock, and the engine positions and tracks of the fake decks.
+class FakeEnvironment : public crate::SmartMixEnvironment {
+  public:
+    double nowMs() const override {
+        return now;
+    }
+    double enginePlayPosition(const QString& group) const override {
+        return ControlObject::get(ConfigKey(group, QStringLiteral("playposition")));
+    }
+    QString trackKey(const QString& group) const override {
+        const TrackPointer pTrack = PlayerInfo::instance().getTrackInfo(group);
+        return pTrack ? pTrack->getLocation() : QString();
+    }
+
+    double now = 1000.0;
+};
+
+class AutoDJSmartMixAdapterTest : public AutoDJSmartMixTest {
+  protected:
+    AutoDJSmartMixAdapterTest()
+            : duration1(ConfigKey(kDeck1, QStringLiteral("duration"))),
+              duration2(ConfigKey(kDeck2, QStringLiteral("duration"))),
+              keylock1(ConfigKey(kDeck1, QStringLiteral("keylock"))),
+              keylock2(ConfigKey(kDeck2, QStringLiteral("keylock"))) {
+        for (int i = 0; i < m_tracks.size(); ++i) {
+            m_tracks[i]->setDuration(kSeconds[i]);
+            m_crateFiles.append(m_tracks[i]->getLocation());
+        }
+        crate::ClientOptions clientOptions;
+        clientOptions.deviceFingerprint = QStringLiteral("install-1");
+        m_pClient = std::make_unique<crate::Client>(
+                QUrl(QStringLiteral("https://crate.test")), &m_network, clientOptions);
+        m_pClient->setTokenSource(&m_tokens);
+        crate::PlanClient::Options planOptions;
+        planOptions.schedule = m_scheduler.function();
+        m_pPlans = std::make_unique<crate::PlanClient>(m_pClient.get(), std::move(planOptions));
+    }
+
+    ~AutoDJSmartMixAdapterTest() override {
+        m_pAdapter.reset();
+        m_pPlans.reset();
+        m_pClient.reset();
+    }
+
+    void makeAdapter(bool defaultEq = true) {
+        crate::AutoDJSmartMixAdapter::Options options;
+        options.pConfig = config();
+        options.pPlaylistDao = &internalCollection()->getPlaylistDAO();
+        options.pDbConnectionPool = dbConnectionPooler();
+        options.pPreferences = &m_preferences;
+        options.trackOfFile =
+                [this](const QString& location) -> std::optional<crate::cache::TrackKey> {
+            const int index = static_cast<int>(m_crateFiles.indexOf(location));
+            if (index < 0) {
+                return std::nullopt;
+            }
+            return crate::cache::TrackKey{kServer, kUids[index]};
+        };
+        options.planClientFor = [this](const QString& serverId) {
+            return serverId == kServer ? m_pPlans.get() : nullptr;
+        };
+        options.capabilitiesOf =
+                [](const QString&) -> std::optional<crate::Capabilities> {
+            const auto capabilities = crate::Capabilities::fromJson(
+                    QJsonDocument::fromJson(R"({"decks": {"available": true,
+                        "min_client_version": "0.1.0", "contract_version": 1,
+                        "features": ["beatmatch", "bass_handoff", "long_beatmatch"]}})"));
+            return capabilities.value();
+        };
+        options.defaultEqOn = [this, defaultEq](const QStringList& decks) {
+            m_eqDecks = decks;
+            return defaultEq;
+        };
+        auto pEnvironment = std::make_unique<FakeEnvironment>();
+        m_pEnvironment = pEnvironment.get();
+        options.pDirector = std::make_unique<crate::SmartMixDirector>(std::move(pEnvironment));
+        options.settleTime = std::chrono::milliseconds(1);
+        m_pAdapter = std::make_unique<crate::AutoDJSmartMixAdapter>(std::move(options));
+    }
+
+    crate::SmartMixDirector* director() const {
+        return m_pAdapter->director();
+    }
+
+    /// Auto DJ in Crate Smart Mix with the real adapter, deck 2 ready.
+    void startSmartMix() {
+        startAutoDJ(TransitionMode::CrateSmartMix);
+        duration1.set(kSeconds[0]);
+        duration2.set(kSeconds[1]);
+    }
+
+    QList<crate::test::FakeNetworkAccessManager::Sent> planRequests() const {
+        QList<crate::test::FakeNetworkAccessManager::Sent> requests;
+        for (const auto& sent : m_network.sent) {
+            if (sent.request.url().path() == kPlansPath) {
+                requests.append(sent);
+            }
+        }
+        return requests;
+    }
+
+    static QJsonObject bodyOf(const crate::test::FakeNetworkAccessManager::Sent& sent) {
+        return QJsonDocument::fromJson(sent.body).object();
+    }
+
+    QJsonObject fixture(const QString& name) const {
+        QFile file(getTestDir().filePath(QStringLiteral("crate/data/transition-plans/") + name));
+        EXPECT_TRUE(file.open(QIODevice::ReadOnly)) << name.toStdString();
+        return QJsonDocument::fromJson(file.readAll()).object();
+    }
+
+    /// Answers the open plan requests with `name` for every edge.
+    void answerPlans(const QString& name = QStringLiteral("real-beatmatch.json")) {
+        const QJsonObject realPlan = fixture(name);
+        for (const auto& sent : std::as_const(m_network.sent)) {
+            if (sent.request.url().path() != kPlansPath || !sent.pReply ||
+                    sent.pReply->isFinished()) {
+                continue;
+            }
+            QJsonArray plans;
+            const QJsonArray edges = bodyOf(sent).value(QStringLiteral("edges")).toArray();
+            for (const QJsonValue& edge : edges) {
+                QJsonObject plan = realPlan;
+                for (const QString& key : {QStringLiteral("outgoingTrackEntityUid"),
+                             QStringLiteral("incomingTrackEntityUid")}) {
+                    plan.insert(key, edge.toObject().value(key));
+                }
+                plans.append(plan);
+            }
+            sent.pReply->respond(200,
+                    QJsonDocument(QJsonObject{
+                                          {QStringLiteral("plannerVersion"),
+                                                  QStringLiteral("smart-mix-v3")},
+                                          {QStringLiteral("plans"), plans},
+                                  })
+                            .toJson());
+        }
+    }
+
+    /// Plays the decks on for `ms`, as the engine would, and ticks the
+    /// director at 60 Hz.
+    void play(double ms) {
+        for (double elapsed = 0.0; elapsed < ms; elapsed += kTickMs) {
+            m_pEnvironment->now += kTickMs;
+            for (FakeDeck* pDeck : {&deck1, &deck2}) {
+                const double seconds = pDeck == &deck1 ? kSeconds[0] : kSeconds[1];
+                if (pDeck->play.get() > 0.5) {
+                    pDeck->playposition.set(std::min(1.0,
+                            pDeck->playposition.get() +
+                                    kTickMs * pDeck->rateratio.get() / (seconds * 1000.0)));
+                }
+            }
+            director()->tick();
+            QCoreApplication::processEvents();
+        }
+    }
+
+    bool waitFor(const std::function<bool()>& condition) {
+        return QTest::qWaitFor(condition, 5000);
+    }
+
+    ControlObject duration1;
+    ControlObject duration2;
+    ControlObject keylock1;
+    ControlObject keylock2;
+    crate::CratePreferences m_preferences{UserSettingsPointer()};
+    crate::test::FakeNetworkAccessManager m_network;
+    crate::test::FakeTokenSource m_tokens;
+    crate::test::FakeScheduler m_scheduler;
+    std::unique_ptr<crate::Client> m_pClient;
+    std::unique_ptr<crate::PlanClient> m_pPlans;
+    FakeEnvironment* m_pEnvironment = nullptr;
+    QStringList m_eqDecks;
+    /// The files of the Crate tracks of kUids.
+    QStringList m_crateFiles;
+    std::unique_ptr<crate::AutoDJSmartMixAdapter> m_pAdapter;
+};
+
+// The director plays the server's plan: armed at the handover, the plan's
+// beatmatch from its cue, the incoming deck with keylock on, and Auto DJ goes
+// on with the queue once the outgoing deck stops.
+TEST_F(AutoDJSmartMixAdapterTest, PlaysTheServersPlanThroughAutoDJ) {
+    makeAdapter();
+    startSmartMix();
+    ASSERT_TRUE(playDeck1Until([this] { return fading(); }).has_value());
+    // Armed when the plan is asked for
+    EXPECT_EQ(crate::SmartMixDirector::State::Armed, director()->state());
+    ASSERT_TRUE(waitFor([this] { return !planRequests().isEmpty(); }));
+    answerPlans();
+    ASSERT_TRUE(waitFor([this] {
+        return director()->state() != crate::SmartMixDirector::State::Armed ||
+                director()->report().plannedStartOutgoingMs > 0.0;
+    }));
+    EXPECT_EQ(crate::SmartMixDirector::State::Armed, director()->state());
+    EXPECT_NEAR(418135.0, director()->report().plannedStartOutgoingMs, 1e-6);
+
+    // To the plan's cue and through the transition
+    const double toCueMs =
+            418135.0 - deck1.playposition.get() * kSeconds[0] * 1000.0 + 2 * kTickMs;
+    play(toCueMs);
+    ASSERT_EQ(crate::SmartMixDirector::State::Running, director()->state());
+    EXPECT_EQ(1.0, deck2.play.get());
+    EXPECT_EQ(1.0, keylock2.get());
+    EXPECT_NEAR(1.023355, deck2.rateratio.get(), 1e-6);
+    EXPECT_TRUE(fading());
+    play(8000.0 + 4 * kTickMs);
+    EXPECT_EQ(crate::SmartMixDirector::State::Completed, director()->state());
+    EXPECT_EQ(0.0, deck1.play.get());
+    EXPECT_EQ(1.0, mixer.crossfader.get());
+    // Auto DJ goes on as always
+    EXPECT_EQ(AutoDJProcessor::ADJ_IDLE, pProcessor->getState());
+    EXPECT_EQ(QList<TrackId>{m_tracks[2]->getId()}, queuedIds());
+    EXPECT_EQ(kDeck1, pProcessor->loads.last().group);
+    EXPECT_EQ(m_tracks[2], pProcessor->loads.last().pTrack);
+}
+
+// The request: smart-mix-v3, Auto DJ's own transition time within the
+// server's limits, and bass handoff only with the default EQ on Auto DJ's
+// decks.
+TEST_F(AutoDJSmartMixAdapterTest, AsksSmartMixV3ForAutoDJsTransition) {
+    makeAdapter(false);
+    startSmartMix();
+    ASSERT_TRUE(playDeck1Until([this] { return fading(); }).has_value());
+    ASSERT_TRUE(waitFor([this] { return !planRequests().isEmpty(); }));
+    const QJsonObject body = bodyOf(planRequests().last());
+    EXPECT_EQ(QStringLiteral("smart-mix-v3"), body.value(QStringLiteral("plannerVersion")));
+    const QJsonObject context = body.value(QStringLiteral("edges"))
+                                        .toArray()
+                                        .first()
+                                        .toObject()
+                                        .value(QStringLiteral("context"))
+                                        .toObject();
+    EXPECT_EQ(QStringLiteral("decks"), context.value(QStringLiteral("source")).toString());
+    EXPECT_TRUE(context.value(QStringLiteral("automatic")).toBool());
+    EXPECT_EQ(10000, context.value(QStringLiteral("preferredDurationMs")).toInt());
+    EXPECT_TRUE(context.value(QStringLiteral("allowBeatmatch")).toBool());
+    EXPECT_TRUE(context.value(QStringLiteral("allowLongBeatmatch")).toBool());
+    EXPECT_FALSE(context.value(QStringLiteral("allowBassHandoff")).toBool());
+    EXPECT_EQ((QStringList{kDeck1, kDeck2}), m_eqDecks);
+
+    // With the default EQ on, and a longer Auto DJ transition than the
+    // server's 12 s
+    m_pAdapter.reset();
+    makeAdapter(true);
+    pProcessor->setTransitionTime(20);
+    const crate::PlanContext withEq = m_pAdapter->contextFor(kServer);
+    EXPECT_TRUE(withEq.allowBassHandoff);
+    EXPECT_EQ(12000, withEq.preferredDurationMs);
+    pProcessor->setTransitionTime(-5);
+    EXPECT_EQ(0, m_pAdapter->contextFor(kServer).preferredDurationMs);
+}
+
+// Ahead of the handover the plans of the next two edges are asked for, so the
+// director starts with a cached plan and asks nothing more.
+TEST_F(AutoDJSmartMixAdapterTest, AsksForTheNextTwoEdgesAhead) {
+    makeAdapter();
+    startSmartMix();
+    ASSERT_TRUE(waitFor([this] { return !planRequests().isEmpty(); }));
+    const QJsonArray edges =
+            bodyOf(planRequests().first()).value(QStringLiteral("edges")).toArray();
+    ASSERT_EQ(2, edges.size());
+    EXPECT_EQ(kUids[0], edges[0].toObject().value(QStringLiteral("outgoingTrackEntityUid")));
+    EXPECT_EQ(kUids[1], edges[0].toObject().value(QStringLiteral("incomingTrackEntityUid")));
+    EXPECT_EQ(kUids[1], edges[1].toObject().value(QStringLiteral("outgoingTrackEntityUid")));
+    EXPECT_EQ(kUids[2], edges[1].toObject().value(QStringLiteral("incomingTrackEntityUid")));
+    answerPlans();
+    ASSERT_TRUE(waitFor([this] { return m_pPlans->cachedPlans() == 2; }));
+    const int requests = static_cast<int>(planRequests().size());
+
+    ASSERT_TRUE(playDeck1Until([this] { return fading(); }).has_value());
+    EXPECT_EQ(crate::SmartMixDirector::State::Armed, director()->state());
+    EXPECT_NEAR(418135.0, director()->report().plannedStartOutgoingMs, 1e-6);
+    QTest::qWait(20);
+    EXPECT_EQ(requests, planRequests().size());
+}
+
+// No plan within the director's 3 s: it hands the transition back and Auto DJ
+// makes its FullIntroOutro one at its own fade point.
+TEST_F(AutoDJSmartMixAdapterTest, HandsBackWhenNoPlanComes) {
+    makeAdapter();
+    startSmartMix();
+    ASSERT_TRUE(playDeck1Until([this] { return fading(); }).has_value());
+    ASSERT_EQ(crate::SmartMixDirector::State::Armed, director()->state());
+
+    play(crate::SmartMixDirector::kPlanDeadlineMs + kTickMs);
+    EXPECT_EQ(crate::SmartMixDirector::State::FellBack, director()->state());
+    EXPECT_EQ(QStringLiteral("missing_plan"), director()->report().reason);
+    ASSERT_TRUE(waitFor([this] { return pProcessor->getState() == AutoDJProcessor::ADJ_IDLE; }));
+    EXPECT_EQ(0.0, deck2.play.get());
+    // A late plan changes nothing
+    answerPlans();
+    QTest::qWait(20);
+    EXPECT_EQ(crate::SmartMixDirector::State::FellBack, director()->state());
+    ASSERT_TRUE(playDeck1Until([this] { return fading(); }).has_value());
+    EXPECT_EQ(1.0, deck2.play.get());
+}
+
+// Decision 1: "Fade now" before the plan's cue cancels the director and
+// Auto DJ fades now itself.
+TEST_F(AutoDJSmartMixAdapterTest, FadeNowBeforeTheCueIsAutoDJs) {
+    makeAdapter();
+    startSmartMix();
+    ASSERT_TRUE(playDeck1Until([this] { return fading(); }).has_value());
+    ASSERT_TRUE(waitFor([this] { return !planRequests().isEmpty(); }));
+    answerPlans();
+    ASSERT_TRUE(waitFor([this] { return director()->report().plannedStartOutgoingMs > 0.0; }));
+
+    pProcessor->fadeNow();
+    EXPECT_EQ(crate::SmartMixDirector::State::Cancelled, director()->state());
+    deck1.playposition.set(deck1.playposition.get() + kStep);
+    EXPECT_TRUE(fading());
+    EXPECT_EQ(1.0, deck2.play.get());
+    // The queued finished() hands nothing back
+    QTest::qWait(20);
+    EXPECT_TRUE(fading());
+}
+
+TEST_F(AutoDJSmartMixAdapterTest, DisablingAutoDJCancelsTheDirector) {
+    makeAdapter();
+    startSmartMix();
+    ASSERT_TRUE(playDeck1Until([this] { return fading(); }).has_value());
+    ASSERT_TRUE(director()->isActive());
+    pProcessor->toggleAutoDJ(false);
+    EXPECT_EQ(crate::SmartMixDirector::State::Cancelled, director()->state());
+    QTest::qWait(20);
+    EXPECT_EQ(AutoDJProcessor::ADJ_DISABLED, pProcessor->getState());
+}
+
+// Decision 3: keylock on by default; the preference off leaves the deck's
+// own.
+TEST_F(AutoDJSmartMixAdapterTest, KeylockFollowsThePreference) {
+    makeAdapter();
+    EXPECT_EQ(std::optional<bool>(true), m_pAdapter->directorOptions().keylock);
+    m_preferences.setSmartMixKeylock(false);
+    EXPECT_FALSE(m_pAdapter->directorOptions().keylock.has_value());
+}
+
+// Edges that are not two tracks of one Crate server are Auto DJ's own.
+TEST_F(AutoDJSmartMixAdapterTest, LeavesOtherTracksToAutoDJ) {
+    makeAdapter();
+    m_tracks[1] = getOrAddTrackByLocation(getTestDir().filePath(
+            QStringLiteral("id3-test-data/cover-test-øé~ł€˚-jpg.mp3")));
+    ASSERT_TRUE(m_tracks[1]);
+    SoundSourceProxy(m_tracks[1])
+            .updateTrackFromSource(
+                    SoundSourceProxy::UpdateTrackFromSourceMode::Always,
+                    SyncTrackMetadataParams{});
+    m_tracks[1]->setDuration(kSeconds[1]);
+    startSmartMix();
+    ASSERT_TRUE(playDeck1Until([this] { return fading(); }).has_value());
+    EXPECT_FALSE(director()->isActive());
+    EXPECT_EQ(1.0, deck2.play.get());
+}
+
+// Auto DJ offers Crate Smart Mix only with a server that announces beatmatch.
+TEST(AutoDJSmartMixOfferTest, OfferedWithABeatmatchServer) {
+    const QByteArray withBeatmatch = R"({"decks": {"available": true,
+        "min_client_version": "0.1.0", "contract_version": 1,
+        "features": ["library_cursor", "beatmatch"]}})";
+    const QByteArray without = R"({"decks": {"available": true,
+        "min_client_version": "0.1.0", "contract_version": 1,
+        "features": ["library_cursor"]}})";
+    EXPECT_FALSE(crate::smartMixOffered({}));
+    EXPECT_FALSE(crate::smartMixOffered({without, QByteArray()}));
+    EXPECT_TRUE(crate::smartMixOffered({without, withBeatmatch}));
 }
 
 } // namespace crate_autodj_smartmix
