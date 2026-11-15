@@ -344,52 +344,63 @@ void SystemSection::setDiscreteGpuOffered(bool offered) {
     m_pDiscreteGpu->parentWidget()->setVisible(offered || m_pDiscreteGpu->isChecked());
 }
 
-SmartMixSection::SmartMixSection(QWidget* pParent)
-        : PrefsSection(tr("Auto DJ and Smart Mix"), pParent),
-          m_pSmartMix(nullptr),
-          m_pKeylock(nullptr) {
-    const DialogMetrics& metrics = DialogMetrics::installed();
-    // The transition chips, hidden until they choose Auto DJ's mode
-    auto* pTransitionBox = new QWidget(this);
-    auto* pTransition = new QVBoxLayout(pTransitionBox);
-    pTransition->setContentsMargins(0, 0, 0, 0);
-    pTransition->setSpacing(0);
-    pTransition->addSpacing(metrics.px("segmentLabelTop") - metrics.px("prefsSectionLabelGap"));
-    pTransition->addWidget(
-            monoLabel(tr("Auto DJ transition"), QStringLiteral("MonoPrefsLabel"), this));
-    pTransition->addSpacing(metrics.px("segmentLabelBottom"));
+namespace {
 
-    // The admin's SegmentedControl: one active chip, filled in accentHi
-    auto* pChipsBox = new QWidget(this);
+/// A labelled SegmentedControl of the admin (one active chip, filled in
+/// accentHi) under `label`, as the mockups' "Auto DJ transition", in a box
+/// of its own at the end of `pRows`; the chips are `texts`, in `pGroup`.
+QWidget* addSegment(QVBoxLayout* pRows,
+        const QString& label,
+        const QStringList& texts,
+        QButtonGroup* pGroup,
+        QWidget* pOwner) {
+    const DialogMetrics& metrics = DialogMetrics::installed();
+    auto* pBox = new QWidget(pOwner);
+    auto* pSegment = new QVBoxLayout(pBox);
+    pSegment->setContentsMargins(0, 0, 0, 0);
+    pSegment->setSpacing(0);
+    // The label's top margin collapses into the section label's gap, or the
+    // chips' bottom one, as in CSS: a negative spacing would clip the label
+    pSegment->addSpacing(
+            std::max(0, metrics.px("segmentLabelTop") - metrics.px("prefsSectionLabelGap")));
+    pSegment->addWidget(monoLabel(label, QStringLiteral("MonoPrefsLabel"), pBox));
+    pSegment->addSpacing(metrics.px("segmentLabelBottom"));
+    auto* pChipsBox = new QWidget(pBox);
     auto* pChips = new FlowLayout(metrics.px("chipGap"), pChipsBox);
-    auto* pGroup = new QButtonGroup(this);
-    const QString icons = designPath() + QStringLiteral("icons/");
-    for (const QString& text :
-            {tr("Crate Smart Mix"), tr("Full intro + outro"), tr("Fade at outro")}) {
+    for (const QString& text : texts) {
         auto* pChip = new QPushButton(text, pChipsBox);
         pChip->setObjectName(QStringLiteral("CrateChip"));
         pChip->setCheckable(true);
         pChip->setAutoDefault(false);
         pGroup->addButton(pChip);
         pChips->addWidget(pChip);
-        if (!m_pSmartMix) {
-            m_pSmartMix = pChip;
-            QIcon icon;
-            icon.addFile(icons + QStringLiteral("stars_idle.svg"),
-                    QSize(),
-                    QIcon::Normal,
-                    QIcon::Off);
-            icon.addFile(icons + QStringLiteral("stars_onaccent.svg"),
-                    QSize(),
-                    QIcon::Normal,
-                    QIcon::On);
-            pChip->setIcon(icon);
-            pChip->setChecked(true);
-        }
     }
-    pTransition->addWidget(pChipsBox);
-    pTransition->addSpacing(metrics.px("segmentBottom"));
-    rows()->addWidget(pTransitionBox);
+    pSegment->addWidget(pChipsBox);
+    pSegment->addSpacing(metrics.px("segmentBottom"));
+    pRows->addWidget(pBox);
+    return pBox;
+}
+
+} // namespace
+
+SmartMixSection::SmartMixSection(QWidget* pParent)
+        : PrefsSection(tr("Auto DJ and Smart Mix"), pParent),
+          m_pSmartMix(nullptr),
+          m_pKeylock(nullptr) {
+    // The transition chips, hidden until they choose Auto DJ's mode
+    auto* pGroup = new QButtonGroup(this);
+    QWidget* pTransitionBox = addSegment(rows(),
+            tr("Auto DJ transition"),
+            {tr("Crate Smart Mix"), tr("Full intro + outro"), tr("Fade at outro")},
+            pGroup,
+            this);
+    m_pSmartMix = qobject_cast<QPushButton*>(pGroup->buttons().constFirst());
+    const QString icons = designPath() + QStringLiteral("icons/");
+    QIcon icon;
+    icon.addFile(icons + QStringLiteral("stars_idle.svg"), QSize(), QIcon::Normal, QIcon::Off);
+    icon.addFile(icons + QStringLiteral("stars_onaccent.svg"), QSize(), QIcon::Normal, QIcon::On);
+    m_pSmartMix->setIcon(icon);
+    m_pSmartMix->setChecked(true);
     pTransitionBox->hide();
 
     m_pKeylock = addToggle(tr("Keylock during Smart Mix"),
