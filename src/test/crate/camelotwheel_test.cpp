@@ -195,6 +195,44 @@ TEST_F(CrateCamelotWheelTest, ClickOnNodeEmitsItsKey) {
     EXPECT_EQ(m_pWheel->nodeAt(QPointF(m_pWheel->rect().center())), -1);
 }
 
+TEST_F(CrateCamelotWheelTest, FigureKeepsClearOfTheLabelsBesideIt) {
+    m_pModel->setMasterKey(key(QStringLiteral("8A")));
+    const QFontMetricsF metrics(
+            m_style.monoFont(m_style.fontSizeWheelLabel, m_style.trackingWheelLabel));
+    // The labels of 3A and 9A run inwards, level with the figure
+    const double offset = m_style.nodeRoot + m_style.camelotLabelGap;
+    const double baseline = m_pWheel->height() / 2.0 + m_style.camelotFigureBaseline;
+    const int top = qRound(baseline - 0.7 * m_style.fontSizeDisplay);
+    const int bottom = qRound(baseline);
+    const auto blank = [&](const QImage& image, double from, double to) {
+        for (int x = qRound(from); x <= qRound(to); ++x) {
+            for (int y = top; y <= bottom; ++y) {
+                if (image.pixelColor(x, y) != m_style.background) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    };
+    for (const KeyUtils::KeyNotation notation : {KeyUtils::KeyNotation::Lancelot,
+                 KeyUtils::KeyNotation::LancelotAndTraditional,
+                 KeyUtils::KeyNotation::OpenKeyAndTraditional}) {
+        m_pModel->setNotation(notation);
+        const QImage image = render();
+        const auto widthOf = [&](const QString& camelot) {
+            return metrics.horizontalAdvance(m_pModel->labelOf(key(camelot)));
+        };
+        // Background in the label gap before each label: the figure, made
+        // smaller for a long notation, does not reach it
+        const double right = centreOf(QStringLiteral("3A")).x() - offset - widthOf(QStringLiteral("3A"));
+        EXPECT_TRUE(blank(image, right - m_style.camelotLabelGap, right - 1))
+                << static_cast<int>(notation);
+        const double left = centreOf(QStringLiteral("9A")).x() + offset + widthOf(QStringLiteral("9A"));
+        EXPECT_TRUE(blank(image, left + 1, left + m_style.camelotLabelGap))
+                << static_cast<int>(notation);
+    }
+}
+
 TEST_F(CrateCamelotWheelTest, CachesStaticScaleUntilResize) {
     render();
     const qint64 scale = m_pWheel->scaleCacheKey();
@@ -209,6 +247,12 @@ TEST_F(CrateCamelotWheelTest, CachesStaticScaleUntilResize) {
     render();
     EXPECT_EQ(m_pWheel->scaleCacheKey(), scale);
     EXPECT_NE(m_pWheel->frameCacheKey(), frame);
+    // So does another key notation: the labels change, the scale does not
+    const qint64 named = m_pWheel->frameCacheKey();
+    m_pModel->setNotation(KeyUtils::KeyNotation::OpenKey);
+    render();
+    EXPECT_EQ(m_pWheel->scaleCacheKey(), scale);
+    EXPECT_NE(m_pWheel->frameCacheKey(), named);
     m_pWheel->resize(m_pWheel->width() - 40, m_pWheel->height() - 40);
     render();
     EXPECT_NE(m_pWheel->scaleCacheKey(), scale);

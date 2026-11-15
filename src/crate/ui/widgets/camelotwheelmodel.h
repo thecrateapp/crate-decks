@@ -5,7 +5,9 @@
 #include <QString>
 #include <QVector>
 
+#include "control/controlproxy.h"
 #include "proto/keys.pb.h"
+#include "track/keyutils.h"
 
 namespace crate::widgets {
 
@@ -17,6 +19,11 @@ namespace crate::widgets {
 ///
 /// The keys in the results are a plain setter: the Compatibles view of F5,
 /// which will feed it with the keys of its list, does not exist yet.
+///
+/// The wheel is always a Camelot wheel, but it names each key in the
+/// notation of Preferences > Key detection, as the library's key column and
+/// the decks do: it follows the [Library],key_notation control that the
+/// preferences set, so it must be created after Library creates it.
 class CamelotWheelModel : public QObject {
     Q_OBJECT
   public:
@@ -44,8 +51,9 @@ class CamelotWheelModel : public QObject {
         bool major = false;
         /// "8A"
         QString camelot;
-        /// The key's traditional name as KeyUtils writes it ("Am")
-        QString name;
+        /// The key in the chosen notation, as KeyUtils writes it ("8A",
+        /// "1m", "Am", "8A (Am)")
+        QString label;
         Relation relation = Relation::Rest;
         double opacity = 1;
     };
@@ -63,6 +71,14 @@ class CamelotWheelModel : public QObject {
     /// The keys of the tracks in the current results.
     void setKeysInResults(const QList<ChromaticKey>& keys);
 
+    /// Names the keys in `notation`. The model calls it when the key
+    /// notation preference changes; Invalid means the notation the
+    /// preferences gave KeyUtils (Custom).
+    void setNotation(KeyUtils::KeyNotation notation);
+    KeyUtils::KeyNotation notation() const {
+        return m_notation;
+    }
+
     /// The 24 keys of the wheel: 1A to 12A, then 1B to 12B.
     const QVector<Node>& nodes() const {
         return m_nodes;
@@ -78,6 +94,8 @@ class CamelotWheelModel : public QObject {
 
     /// `key` in Camelot ("8A"), or an empty string.
     static QString camelotOf(ChromaticKey key);
+    /// `key` in the chosen notation, or an empty string.
+    QString labelOf(ChromaticKey key) const;
 
   signals:
     /// Something the wheel shows has changed.
@@ -87,6 +105,8 @@ class CamelotWheelModel : public QObject {
     void update();
 
     const double m_contextOpacity;
+    ControlProxy m_keyNotation;
+    KeyUtils::KeyNotation m_notation = KeyUtils::KeyNotation::Invalid;
     ChromaticKey m_masterKey = mixxx::track::io::key::INVALID;
     /// Whether each node is in the results
     QVector<bool> m_inResults;

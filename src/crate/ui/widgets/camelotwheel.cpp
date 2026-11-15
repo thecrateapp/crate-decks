@@ -14,7 +14,8 @@ namespace crate::widgets {
 
 namespace {
 
-constexpr double kDegreesPerKey = 360.0 / 12;
+constexpr int kKeysPerRing = 12;
+constexpr double kDegreesPerKey = 360.0 / kKeysPerRing;
 
 /// The direction of `degrees` measured clockwise from 12 o'clock, as the
 /// mockup's polar() places the keys
@@ -197,8 +198,7 @@ void CamelotWheel::paintNodeAndLabel(QPainter* pPainter, int index) const {
     const double rotation = flip ? degrees + 90 : degrees - 90;
     const double offset = radius + m_style.camelotLabelGap;
     const double anchor = (flip ? -1 : 1) * (inward ? -offset : offset);
-    const double keyWidth = metrics.horizontalAdvance(node.camelot);
-    const double width = keyWidth + m_style.camelotNameGap + metrics.horizontalAdvance(node.name);
+    const double width = metrics.horizontalAdvance(node.label);
     const double left = flip == inward ? anchor : anchor - width;
     const double baseline = m_style.camelotLabelShift * m_style.fontSizeWheelLabel;
 
@@ -208,19 +208,38 @@ void CamelotWheel::paintNodeAndLabel(QPainter* pPainter, int index) const {
     pPainter->rotate(rotation);
     pPainter->setFont(font);
     pPainter->setPen(isLinked ? m_style.textPrimary : m_style.textMuted);
-    pPainter->drawText(QPointF(left, baseline), node.camelot);
-    pPainter->setPen(m_style.textSubtle);
-    pPainter->drawText(QPointF(left + keyWidth + m_style.camelotNameGap, baseline), node.name);
+    pPainter->drawText(QPointF(left, baseline), node.label);
     pPainter->restore();
 }
 
 void CamelotWheel::paintCentre(QPainter* pPainter) const {
     const QPointF middle = centre();
-    const QString figure = CamelotWheelModel::camelotOf(m_pModel->masterKey());
+    const QString figure = m_pModel->labelOf(m_pModel->masterKey());
+    // The figure stays clear of the labels of 3A and 9A, level with it on
+    // either side: a long notation ("8A (Am)") makes it smaller. Tracking
+    // is in em, so the advance scales with the size.
+    const QFontMetricsF labels(
+            m_style.monoFont(m_style.fontSizeWheelLabel, m_style.trackingWheelLabel));
+    double widestLabel = 0;
+    for (const CamelotWheelModel::Node& node : m_pModel->nodes()) {
+        if (!node.major && node.number % (kKeysPerRing / 2) == kKeysPerRing / 4) {
+            widestLabel = std::max(widestLabel, labels.horizontalAdvance(node.label));
+        }
+    }
+    const double room = 2 *
+            (m_style.camelotRingA * scale() - m_style.nodeRoot -
+                    2 * m_style.camelotLabelGap - widestLabel);
+    double size = m_style.fontSizeDisplay;
+    const double width =
+            QFontMetricsF(m_style.displayFont(size, m_style.trackingWheelFigure))
+                    .horizontalAdvance(figure);
+    if (room > 0 && width > room) {
+        size *= room / width;
+    }
     paintCentredText(pPainter,
             QPointF(middle.x(), middle.y() + m_style.camelotFigureBaseline),
             figure,
-            m_style.displayFont(m_style.fontSizeDisplay, m_style.trackingWheelFigure),
+            m_style.displayFont(size, m_style.trackingWheelFigure),
             m_style.textPrimary);
     paintCentredText(pPainter,
             QPointF(middle.x(), middle.y() + m_style.camelotSubtitleBaseline),

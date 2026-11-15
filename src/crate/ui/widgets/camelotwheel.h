@@ -15,7 +15,8 @@ namespace crate::widgets {
 /// (A inside, B outside) on GenreWheel's canvas, the master deck's key
 /// filled in accent, its compatible keys with an accentHi stroke and active
 /// edges with arrows, keys in the results at rest and the others at
-/// opacityContext, and the master key in display type in the centre.
+/// opacityContext, and the master key in display type in the centre. Every
+/// key reads in the notation of the preferences (the model's labels).
 ///
 /// It paints only when its model changes (design 9): the rings and the
 /// related-pair spokes are cached in a pixmap until it is resized, and the

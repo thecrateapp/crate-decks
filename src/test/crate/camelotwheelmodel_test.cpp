@@ -6,8 +6,10 @@
 #include <QSignalSpy>
 #include <QStringList>
 
+#include "control/controlobject.h"
 #include "crate/ui/skin/crateskin.h"
 #include "crate/ui/widgets/instrumentpainter.h"
+#include "library/library_prefs.h"
 #include "preferences/configobject.h"
 #include "test/mixxxtest.h"
 #include "track/keyutils.h"
@@ -16,6 +18,7 @@ namespace {
 
 using namespace crate::widgets;
 using mixxx::track::io::key::ChromaticKey;
+using Notation = KeyUtils::KeyNotation;
 using Relation = CamelotWheelModel::Relation;
 
 /// The values of the CrateDecks skin, as the skin loads them
@@ -37,12 +40,22 @@ int wrap(int number) {
     return (number - 1 + 12) % 12 + 1;
 }
 
+/// The label of the node at `camelot`
+QString labelAt(const CamelotWheelModel& model, const QString& camelot) {
+    return model.nodes().at(model.indexOf(key(camelot))).label;
+}
+
 class CrateCamelotWheelModelTest : public MixxxTest {
   protected:
     void SetUp() override {
         const InstrumentStyle style = InstrumentStyle::fromVariables(skinVariables());
         ASSERT_TRUE(style.isValid());
         m_contextOpacity = style.opacityContext;
+    }
+
+    void TearDown() override {
+        // The custom notation is KeyUtils' global map
+        KeyUtils::setNotation({});
     }
 
     double m_contextOpacity = 0;
@@ -99,6 +112,89 @@ TEST_F(CrateCamelotWheelModelTest, MarksAdjacentAndRelativeKeysCompatible) {
     model.setMasterKey(key(QStringLiteral("1A")));
     EXPECT_EQ(model.relationOf(key(QStringLiteral("12A"))), Relation::Compatible);
     EXPECT_EQ(model.relationOf(key(QStringLiteral("8A"))), Relation::Compatible);
+}
+
+TEST_F(CrateCamelotWheelModelTest, NamesKeysInTheChosenNotation) {
+    CamelotWheelModel model(m_contextOpacity);
+    const QString a1 = QStringLiteral("1A");
+    const QString a8 = QStringLiteral("8A");
+    const QString b2 = QStringLiteral("2B");
+
+    model.setNotation(Notation::Lancelot);
+    EXPECT_EQ(labelAt(model, a1), QStringLiteral("1A"));
+    EXPECT_EQ(labelAt(model, a8), QStringLiteral("8A"));
+    EXPECT_EQ(labelAt(model, b2), QStringLiteral("2B"));
+
+    model.setNotation(Notation::OpenKey);
+    EXPECT_EQ(labelAt(model, a1), QStringLiteral("6m"));
+    EXPECT_EQ(labelAt(model, a8), QStringLiteral("1m"));
+    EXPECT_EQ(labelAt(model, b2), QStringLiteral("7d"));
+
+    model.setNotation(Notation::Traditional);
+    EXPECT_EQ(labelAt(model, a1), QStringLiteral("G♯m"));
+    EXPECT_EQ(labelAt(model, a8), QStringLiteral("Am"));
+    EXPECT_EQ(labelAt(model, b2), QStringLiteral("F♯/G♭"));
+
+    model.setNotation(Notation::LancelotAndTraditional);
+    EXPECT_EQ(labelAt(model, a8), QStringLiteral("8A (Am)"));
+    EXPECT_EQ(labelAt(model, b2), QStringLiteral("2B (F♯/G♭)"));
+
+    model.setNotation(Notation::OpenKeyAndTraditional);
+    EXPECT_EQ(labelAt(model, a8), QStringLiteral("1m (Am)"));
+    EXPECT_EQ(labelAt(model, b2), QStringLiteral("7d (F♯/G♭)"));
+
+    // The custom notation is the one the user typed in the preferences
+    KeyUtils::setNotation({{mixxx::track::io::key::A_MINOR, QStringLiteral("a-moll")}});
+    model.setNotation(Notation::Custom);
+    EXPECT_EQ(labelAt(model, a8), QStringLiteral("a-moll"));
+
+    // The wheel stays a Camelot wheel whatever the notation: every label is
+    // the key of its Camelot position, as KeyUtils writes it
+    for (const Notation notation : {Notation::Lancelot,
+                 Notation::OpenKey,
+                 Notation::Traditional,
+                 Notation::LancelotAndTraditional,
+                 Notation::OpenKeyAndTraditional}) {
+        model.setNotation(notation);
+        EXPECT_EQ(model.notation(), notation);
+        for (const CamelotWheelModel::Node& node : model.nodes()) {
+            EXPECT_EQ(node.key, key(node.camelot)) << node.camelot.toStdString();
+            EXPECT_EQ(node.label, KeyUtils::keyToString(node.key, notation))
+                    << node.camelot.toStdString();
+            EXPECT_EQ(model.labelOf(node.key), node.label) << node.camelot.toStdString();
+        }
+    }
+    EXPECT_TRUE(model.labelOf(mixxx::track::io::key::INVALID).isEmpty());
+}
+
+TEST_F(CrateCamelotWheelModelTest, FollowsTheKeyNotationPreference) {
+    // The control Preferences > Key detection sets, as Library creates it
+    ControlObject keyNotation(mixxx::library::prefs::kKeyNotationConfigKey, false);
+    keyNotation.set(static_cast<double>(Notation::Lancelot));
+    CamelotWheelModel model(m_contextOpacity);
+    EXPECT_EQ(model.notation(), Notation::Lancelot);
+    EXPECT_EQ(labelAt(model, QStringLiteral("8A")), QStringLiteral("8A"));
+
+    QSignalSpy changed(&model, &CamelotWheelModel::changed);
+    keyNotation.set(static_cast<double>(Notation::Traditional));
+    EXPECT_EQ(changed.count(), 1);
+    EXPECT_EQ(model.notation(), Notation::Traditional);
+    EXPECT_EQ(labelAt(model, QStringLiteral("8A")), QStringLiteral("Am"));
+
+    // The same notation again changes no label: nothing to repaint
+    keyNotation.set(static_cast<double>(Notation::Traditional));
+    EXPECT_EQ(changed.count(), 1);
+
+    // On OK, the preferences store the custom names and set the control,
+    // even when it already was Custom
+    KeyUtils::setNotation({{mixxx::track::io::key::A_MINOR, QStringLiteral("a-moll")}});
+    keyNotation.set(static_cast<double>(Notation::Custom));
+    EXPECT_EQ(changed.count(), 2);
+    EXPECT_EQ(labelAt(model, QStringLiteral("8A")), QStringLiteral("a-moll"));
+    KeyUtils::setNotation({{mixxx::track::io::key::A_MINOR, QStringLiteral("la menor")}});
+    keyNotation.set(static_cast<double>(Notation::Custom));
+    EXPECT_EQ(changed.count(), 3);
+    EXPECT_EQ(labelAt(model, QStringLiteral("8A")), QStringLiteral("la menor"));
 }
 
 TEST_F(CrateCamelotWheelModelTest, NoMasterTrackMeansAllRest) {

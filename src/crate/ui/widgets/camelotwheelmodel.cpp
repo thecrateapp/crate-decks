@@ -1,7 +1,7 @@
 #include "crate/ui/widgets/camelotwheelmodel.h"
 
+#include "library/library_prefs.h"
 #include "moc_camelotwheelmodel.cpp"
-#include "track/keyutils.h"
 
 namespace crate::widgets {
 
@@ -19,18 +19,16 @@ int indexOfPosition(int number, bool major) {
     return (major ? kKeysPerRing : 0) + number - 1;
 }
 
-/// KeyUtils' traditional name of `key`, with the first spelling of the
-/// enharmonic ones ("F♯/G♭" is "F♯")
-QString nameOf(CamelotWheelModel::ChromaticKey key) {
-    const QString name = KeyUtils::keyToString(key, KeyUtils::KeyNotation::Traditional);
-    return name.section(QLatin1Char('/'), 0, 0);
-}
-
 } // namespace
 
 CamelotWheelModel::CamelotWheelModel(double contextOpacity, QObject* pParent)
         : QObject(pParent),
           m_contextOpacity(contextOpacity),
+          // Missing only outside the app (tests, tools): the wheel then
+          // reads KeyUtils' own notation
+          m_keyNotation(mixxx::library::prefs::kKeyNotationConfigKey,
+                  this,
+                  ControlFlag::NoWarnIfMissing),
           m_inResults(2 * kKeysPerRing, false) {
     m_nodes.reserve(2 * kKeysPerRing);
     // The wheel's keys come from KeyUtils' own reading of Camelot (Lancelot)
@@ -42,10 +40,35 @@ CamelotWheelModel::CamelotWheelModel(double contextOpacity, QObject* pParent)
             node.major = major;
             node.camelot = QString::number(number) + QLatin1Char(major ? 'B' : 'A');
             node.key = KeyUtils::guessKeyFromText(node.camelot);
-            node.name = nameOf(node.key);
             m_nodes.append(node);
         }
     }
+    setNotation(KeyUtils::keyNotationFromNumericValue(m_keyNotation.get()));
+    // The preferences set the control on OK even when the notation stays
+    // Custom and only its names change, so every set renames the keys
+    m_keyNotation.connectValueChanged(this, [this](double value) {
+        setNotation(KeyUtils::keyNotationFromNumericValue(value));
+    });
+}
+
+void CamelotWheelModel::setNotation(KeyUtils::KeyNotation notation) {
+    m_notation = notation == KeyUtils::KeyNotation::Invalid ? KeyUtils::KeyNotation::Custom
+                                                            : notation;
+    bool renamed = false;
+    for (Node& node : m_nodes) {
+        QString label = labelOf(node.key);
+        if (label != node.label) {
+            node.label = std::move(label);
+            renamed = true;
+        }
+    }
+    if (renamed) {
+        emit changed();
+    }
+}
+
+QString CamelotWheelModel::labelOf(ChromaticKey key) const {
+    return KeyUtils::keyToString(key, m_notation);
 }
 
 QString CamelotWheelModel::camelotOf(ChromaticKey key) {
