@@ -12,7 +12,14 @@ class QVBoxLayout;
 
 namespace crate {
 
+class CratePreferences;
 class LevelGauge;
+class SystemCheckView;
+
+namespace system {
+class PowerHelper;
+class SystemCheck;
+} // namespace system
 
 /// A section of the Crate page (decks.css .psec): a 1 px rule, a MonoLabel
 /// in the accent tone and its rows, without a box.
@@ -155,6 +162,36 @@ class SmartMixSection : public PrefsSection {
 
   private:
     QPushButton* m_pSmartMix;
+};
+
+/// "This computer" (hybrid laptop plan §2 and §3): drawing with the discrete
+/// GPU, offered only where there is one (or where it is already on), and the
+/// system check, run again from here with its results under the button.
+class SystemSection : public PrefsSection {
+    Q_OBJECT
+  public:
+    SystemSection(system::SystemCheck* pCheck,
+            CratePreferences* pPreferences,
+            system::PowerHelper* pPowerHelper,
+            QWidget* pParent);
+
+    /// Shows the discrete GPU switch, or hides it.
+    void setDiscreteGpuOffered(bool offered);
+
+    QCheckBox* discreteGpu() const {
+        return m_pDiscreteGpu;
+    }
+    QPushButton* runCheck() const {
+        return m_pRun;
+    }
+    SystemCheckView* checkView() const {
+        return m_pView;
+    }
+
+  private:
+    QCheckBox* m_pDiscreteGpu;
+    QPushButton* m_pRun;
+    SystemCheckView* m_pView;
 };
 
 /// "18.4" and "of 40 GB": the cache's use in gigabytes, one decimal, and

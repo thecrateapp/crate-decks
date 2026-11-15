@@ -21,6 +21,7 @@
 #include <QTimer>
 
 #include "crate/crateservers.h"
+#include "crate/system/gpus.h"
 #include "crate/ui/cratefirstrun.h"
 #endif
 #include "errordialoghandler.h"
@@ -267,6 +268,12 @@ int main(int argc, char * argv[]) {
 #endif
 
     adjustScaleFactor(&args);
+
+#ifdef __CRATE__
+    // Crate Decks: draw with the discrete GPU of a hybrid laptop when the
+    // user asked for it, before Qt creates any OpenGL context.
+    crate::system::applyDiscreteGpuPreference(args.getSettingsPath());
+#endif
 
     MixxxApplication app(argc, argv);
 

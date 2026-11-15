@@ -28,11 +28,13 @@
 #include <QPointer>
 #include <QPushButton>
 #include <QRegularExpression>
+#include <QScrollArea>
 #include <QScrollBar>
 #include <QSet>
 #include <QSqlDatabase>
 #include <QSqlError>
 #include <QSqlQuery>
+#include <QStackedWidget>
 #include <QTemporaryDir>
 #include <QTimer>
 #include <QTreeWidget>
@@ -54,6 +56,7 @@
 #include "crate/db/crateserverschema.h"
 #include "crate/library/cratelibraryjson.h"
 #include "crate/library/cratelibrarystore.h"
+#include "crate/system/systemcheck.h"
 #include "crate/ui/crateaddserverwidget.h"
 #include "crate/ui/cratefirstrun.h"
 #include "crate/ui/crateprefsections.h"
@@ -1845,6 +1848,44 @@ QImage overMainWindow(const QImage& background, QWidget* pWidget, QPoint at = QP
 /// Offscreen there is no OpenGL and the scrolling waveforms stay empty;
 /// tools/crate-design/skin-screenshots.sh runs it with OpenGL in a headless
 /// Wayland compositor.
+/// The system check's results on the hybrid laptop plan's XPS 16 (§1), for
+/// the screenshots: the Arc held at 20 W, Hyprland 90 % busy, 3840 × 2400 at
+/// 90 Hz.
+QList<crate::system::CheckResult> hybridLaptopResults() {
+    crate::system::Measurement m;
+    crate::system::GpuInfo intel;
+    intel.vendorId = QStringLiteral("0x8086");
+    intel.driver = QStringLiteral("i915");
+    intel.integrated = true;
+    crate::system::GpuInfo nvidia;
+    nvidia.vendorId = QStringLiteral("0x10de");
+    nvidia.driver = QStringLiteral("nvidia");
+    m.gpus = {intel, nvidia};
+    m.render = {true, QStringLiteral("Mesa Intel(R) Arc(TM) Graphics (MTL)"), true};
+    m.display = {true, 3840, 2400, 90};
+    m.elapsedMs = 5000;
+    crate::system::GpuClock clock;
+    clock.actualMhz = 520;
+    clock.maxMhz = 2350;
+    clock.throttleReasons = {QStringLiteral("pl1")};
+    clock.idleMs = 0;
+    m.clocks = {clock};
+    clock.idleMs = 400;
+    m.clocks.append(clock);
+    crate::system::PowerReading power;
+    power.mmioPl1Watts = 20;
+    power.msrPl1Watts = 115;
+    m.power = {power};
+    m.powerHelperAvailable = true;
+    m.compositorFirst.pid = 3906;
+    m.compositorFirst.name = QStringLiteral("Hyprland");
+    m.compositorFirst.engineNs.insert(QStringLiteral("render"), 0);
+    m.compositorLast = m.compositorFirst;
+    m.compositorLast.engineNs.insert(QStringLiteral("render"), 4'500'000'000);
+    m.audio = {{true, 22, 0}, {true, 31, 0}};
+    return crate::system::evaluate(m);
+}
+
 class CrateSkinScreenshots : public MixxxTest {};
 
 TEST_F(CrateSkinScreenshots, Capture) {
@@ -2431,6 +2472,17 @@ TEST_F(CrateSkinScreenshots, Dialogs) {
     pCratePage->cacheSection()->show();
     pCratePage->smartMixSection()->show();
     saveOver(pPreferences, withServer, QStringLiteral("crate-prefs-crate"));
+    // "This computer", at the foot of the page, with the plan's XPS results
+    pCratePage->systemSection()->setDiscreteGpuOffered(true);
+    pCratePage->systemCheck()->showResults(hybridLaptopResults());
+    for (QWidget* pAncestor = pCratePage->parentWidget(); pAncestor;
+            pAncestor = pAncestor->parentWidget()) {
+        if (auto* pScroll = qobject_cast<QScrollArea*>(pAncestor)) {
+            pScroll->ensureWidgetVisible(pCratePage->systemSection(), 0, 0);
+            break;
+        }
+    }
+    saveOver(pPreferences, withServer, QStringLiteral("crate-prefs-crate-system"));
     for (int i = 0; i < pTree->topLevelItemCount(); ++i) {
         const QString page = pTree->topLevelItem(i)->text(0);
         if (page == QLatin1String("Library") || page == QLatin1String("Decks") ||
@@ -2465,6 +2517,42 @@ TEST_F(CrateSkinScreenshots, Dialogs) {
     }
     saveOver(pFirstRun.get(), withoutServer, QStringLiteral("crate-firstrun"));
     pFirstRun->reject();
+
+    // The first start's system page, with the plan's XPS results
+    {
+        crate::FirstRunServices services;
+        services.outputs = [] {
+            return QList<crate::FirstRunOutput>{
+                    {QStringLiteral("0"), QStringLiteral("Built-in Audio")}};
+        };
+        services.mainOutput = [] {
+            return QStringLiteral("0");
+        };
+        QTemporaryDir emptyRoot;
+        services.systemProbes = [&emptyRoot](const crate::CratePreferences*,
+                                        const crate::system::PowerHelper*) {
+            crate::system::Probes probes;
+            probes.root = emptyRoot.path();
+            probes.durationMs = 0;
+            return probes;
+        };
+        std::unique_ptr<QDialog> pSystem(crate::createFirstRunDialog(
+                crate::CrateServers::instance(), services, decks.mainWindow()));
+        pSystem->open();
+        for (const char* button : {"crateCancel", "crateFirstRunContinue"}) {
+            auto* pPages = pSystem->findChild<QStackedWidget*>(
+                    QStringLiteral("CrateFirstRunPages"));
+            ASSERT_NE(nullptr, pPages);
+            auto* pButton = pPages->currentWidget()->findChild<QPushButton*>(QLatin1String(button));
+            ASSERT_NE(nullptr, pButton) << button;
+            pButton->click();
+        }
+        auto* pCheck = pSystem->findChild<crate::system::SystemCheck*>();
+        ASSERT_NE(nullptr, pCheck);
+        pCheck->showResults(hybridLaptopResults());
+        saveOver(pSystem.get(), withoutServer, QStringLiteral("crate-firstrun-system"));
+        pSystem->reject();
+    }
     decks.answerModalDialogs(true);
 
     // The splash screen, as the main window shows it while it starts

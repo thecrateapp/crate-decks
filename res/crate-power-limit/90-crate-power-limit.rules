@@ -1,0 +1,2 @@
+# Re-apply the power limit when the charger is plugged in or removed
+SUBSYSTEM=="power_supply", ATTR{type}=="Mains", RUN+="/usr/bin/systemctl start --no-block crate-power-limit.service"

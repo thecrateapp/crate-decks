@@ -553,3 +553,37 @@ def test_application_style_is_generated():
         text = (generate.OUT / name).read_text(encoding="utf-8")
         assert "{{" not in text and "}}" not in text, name
         assert "#" in text and ":/images/" not in text, name
+
+
+def test_instrument_tokens_reach_the_skin_variables():
+    # crate/ui/widgets/ reads the geometry of the instrument widgets from
+    # vars.xml as CrateInst<Token> (plan V3.PR1): each must be there with
+    # its token's value, dash patterns as written in tokens.json
+    tokens = generate.load_tokens(generate.TOKENS)
+    xml = (generate.OUT / "vars.xml").read_text(encoding="utf-8")
+    variables = dict(
+        re.findall(r'<SetVariable name="CrateInst(\w+)">([^<]*)<', xml)
+    )
+    for name in (
+        "strokeHairline",
+        "tickCount",
+        "tickEvery",
+        "dashData",
+        "dashQueue",
+        "dashTelemetry",
+        "dashAxis",
+        "dashSpoke",
+        "opacityContext",
+        "camelotRingA",
+        "camelotRingB",
+        "wheelCanvas",
+        "arrowMarkerSize",
+        "levelRingInset",
+    ):
+        variable = name[0].upper() + name[1:]
+        assert variable in variables, name
+        value = tokens[name].value
+        if isinstance(value, str):
+            assert variables[variable] == value, name
+        else:
+            assert float(variables[variable]) == pytest.approx(value), name

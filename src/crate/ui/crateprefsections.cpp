@@ -13,9 +13,12 @@
 #include <algorithm>
 #include <cmath>
 
+#include "crate/cratepreferences.h"
+#include "crate/system/systemcheck.h"
 #include "crate/ui/delegates/delegatestyle.h"
 #include "crate/ui/dialogs/dialogstyle.h"
 #include "crate/ui/dialogs/levelgauge.h"
+#include "crate/ui/systemcheckview.h"
 #include "moc_crateprefsections.cpp"
 
 namespace crate {
@@ -287,6 +290,57 @@ StemsSection::StemsSection(QWidget* pParent)
     // Only the htdemucs export is published (models-htdemucs-onnx-1): the
     // fine-tuned model waits for its own
     m_pFineTuned->parentWidget()->hide();
+}
+
+SystemSection::SystemSection(system::SystemCheck* pCheck,
+        CratePreferences* pPreferences,
+        system::PowerHelper* pPowerHelper,
+        QWidget* pParent)
+        : PrefsSection(tr("This computer"), pParent),
+          m_pDiscreteGpu(addToggle(tr("Draw with the discrete GPU"),
+                  tr("from the next start; keeps the discrete GPU awake, which costs "
+                     "battery"))),
+          m_pRun(new QPushButton(tr("Run the system check"), this)),
+          m_pView(new SystemCheckView(pCheck, pPreferences, pPowerHelper, this)) {
+    const DialogMetrics& metrics = DialogMetrics::installed();
+    m_pRun->setObjectName(QStringLiteral("crateRunSystemCheck"));
+    setButtonVariant(m_pRun, "ghost");
+    auto* pRunRow = new QHBoxLayout();
+    pRunRow->setContentsMargins(0, metrics.px("addServerTop"), 0, 0);
+    pRunRow->setSpacing(metrics.px("helperGap"));
+    pRunRow->addWidget(m_pRun);
+    pRunRow->addWidget(textLabel(tr("measures the graphics, the power limit and the sound "
+                                    "for a few seconds"),
+                               "CrateFormHelper",
+                               this),
+            1);
+    rows()->addLayout(pRunRow);
+    rows()->addWidget(m_pView);
+
+    if (pPreferences) {
+        m_pDiscreteGpu->setChecked(pPreferences->discreteGpu());
+        connect(m_pDiscreteGpu,
+                &QCheckBox::toggled,
+                pPreferences,
+                &CratePreferences::setDiscreteGpu);
+        connect(pPreferences,
+                &CratePreferences::discreteGpuChanged,
+                m_pDiscreteGpu,
+                [this](bool enabled) {
+                    const QSignalBlocker blocker(m_pDiscreteGpu);
+                    m_pDiscreteGpu->setChecked(enabled);
+                });
+    }
+    if (pCheck) {
+        connect(m_pRun, &QPushButton::clicked, pCheck, &system::SystemCheck::start);
+        connect(pCheck, &system::SystemCheck::runningChanged, m_pRun, [this](bool running) {
+            m_pRun->setEnabled(!running);
+        });
+    }
+}
+
+void SystemSection::setDiscreteGpuOffered(bool offered) {
+    m_pDiscreteGpu->parentWidget()->setVisible(offered || m_pDiscreteGpu->isChecked());
 }
 
 SmartMixSection::SmartMixSection(QWidget* pParent)

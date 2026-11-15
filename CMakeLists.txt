@@ -5386,6 +5386,10 @@ if(CRATE)
       src/crate/stems/stemjobs.cpp
       src/crate/stems/stemsidecar.cpp
       src/crate/stems/stemsync.cpp
+      src/crate/system/gpus.cpp
+      src/crate/system/powerhelper.cpp
+      src/crate/system/systemcheck.cpp
+      src/crate/system/systemprobes.cpp
       src/crate/crateaddserverflow.cpp
       src/crate/cratepreferences.cpp
       src/crate/crateserverrows.cpp
@@ -5396,6 +5400,7 @@ if(CRATE)
       src/crate/ui/crateprefsections.cpp
       src/crate/ui/cratefirstrun.cpp
       src/crate/ui/dlgprefcrate.cpp
+      src/crate/ui/systemcheckview.cpp
       src/crate/ui/delegates/camelotdelegate.cpp
       src/crate/ui/delegates/celldelegate.cpp
       src/crate/ui/delegates/delegatestyle.cpp
@@ -5414,6 +5419,10 @@ if(CRATE)
       src/crate/ui/skin/mixerstyle.cpp
       src/crate/ui/skin/stemcolors.cpp
       src/crate/ui/skin/preferencescontrol.cpp
+      src/crate/ui/widgets/camelotwheel.cpp
+      src/crate/ui/widgets/camelotwheelmodel.cpp
+      src/crate/ui/widgets/instrumentpainter.cpp
+      src/crate/ui/widgets/levelring.cpp
       src/library/crateserver/crateserverfeature.cpp
       src/library/crateserver/crateservertrackmodel.cpp
   )
@@ -5453,6 +5462,8 @@ if(CRATE)
         src/test/crate/stemjobs_test.cpp
         src/test/crate/stemsidecar_test.cpp
         src/test/crate/stemsync_test.cpp
+        src/test/crate/systemcheck_test.cpp
+        src/test/crate/systemgpus_test.cpp
         src/test/crate/skinloadtest.cpp
         src/test/crate/mixerstyletest.cpp
         src/test/crate/delegatestest.cpp
@@ -5460,7 +5471,27 @@ if(CRATE)
         src/test/crate/decktrackfieldstest.cpp
         src/test/crate/brandvisibletest.cpp
         src/test/crate/helplinkstest.cpp
+        src/test/crate/instrumentpainter_test.cpp
+        src/test/crate/camelotwheelmodel_test.cpp
+        src/test/crate/camelotwheel_test.cpp
+        src/test/crate/levelring_test.cpp
     )
+  endif()
+  # Hybrid laptops (plan HL): the power limit helper is a Linux system
+  # service. The packages ship it without enabling it; the system check offers
+  # to install it with pkexec.
+  if(UNIX AND NOT APPLE)
+    install(
+      DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/res/crate-power-limit"
+      DESTINATION "${MIXXX_INSTALL_DATADIR}"
+      USE_SOURCE_PERMISSIONS
+    )
+    if(BUILD_TESTING)
+      target_sources(
+        mixxx-test
+        PRIVATE src/test/crate/powerlimithelper_test.cpp
+      )
+    endif()
   endif()
   # Decks' stem files and the NI STEM reader they go through (ST5.PR2)
   if(BUILD_TESTING AND STEM)

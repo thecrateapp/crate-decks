@@ -1,0 +1,4 @@
+#!/bin/sh
+# The firmware may restore its own limit on resume
+[ "$1" = post ] && /usr/bin/systemctl start --no-block crate-power-limit.service
+exit 0

@@ -5,6 +5,8 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDialog>
+#include <QFile>
+#include <QFileInfo>
 #include <QFrame>
 #include <QJsonDocument>
 #include <QLabel>
@@ -32,12 +34,15 @@
 #include "crate/crateserverrows.h"
 #include "crate/crateservers.h"
 #include "crate/db/crateserverprofiles.h"
+#include "crate/system/powerhelper.h"
+#include "crate/system/systemcheck.h"
 #include "crate/ui/cratefirstrun.h"
 #include "crate/ui/crateprefsections.h"
 #include "crate/ui/dialogs/dialogscrim.h"
 #include "crate/ui/dialogs/dialogstyle.h"
 #include "skin/legacy/launchimage.h"
 #include "test/crate/fakecratenetwork.h"
+#include "test/crate/fakesystemtree.h"
 #include "test/mixxxdbtest.h"
 
 namespace {
@@ -464,6 +469,62 @@ TEST_F(CrateAddServerFlowTest, FirstRunPagesKeepTheMockupWidth) {
     EXPECT_LT(music.height(), server.height());
 }
 
+TEST_F(CrateAddServerFlowTest, FirstRunSignInStepKeepsTheMockupWidth) {
+    FakeFirstRunServices fake;
+    std::unique_ptr<QDialog> pDialog(
+            crate::createFirstRunDialog(m_pServers.get(), fake.services(), nullptr));
+    const int width = crate::DialogMetrics::installed().px("firstRunWidth");
+    pDialog->findChild<QLineEdit*>(QStringLiteral("crateServerAddress"))
+            ->setText(QStringLiteral("crate.test"));
+    firstRunButton(pDialog.get(), "crateConnect")->click();
+    lastSent().pReply->respond(200, kDecksCapabilities);
+    pDialog->show();
+    pDialog->layout()->activate();
+
+    // The sign-in step has the most actions; none is cut and the dialog
+    // keeps the width of the other pages
+    EXPECT_EQ(width, pDialog->width());
+    for (const char* name : {"crateSignIn",
+                 "crateSignInGoogle",
+                 "crateSignInApple",
+                 "crateCancel"}) {
+        QPushButton* pButton = firstRunButton(pDialog.get(), name);
+        ASSERT_NE(nullptr, pButton) << name;
+        ASSERT_TRUE(pButton->isVisible()) << name;
+        EXPECT_GE(pButton->width(), pButton->sizeHint().width()) << name;
+    }
+    auto* pServer = pDialog->findChild<QWidget*>(QStringLiteral("CrateFirstRunServer"));
+    ASSERT_NE(nullptr, pServer);
+    auto* pLater = pServer->findChild<QLabel*>(QStringLiteral("MonoFirstRunLater"));
+    ASSERT_NE(nullptr, pLater);
+    EXPECT_GE(pLater->width(), pLater->sizeHint().width());
+}
+
+TEST_F(CrateAddServerFlowTest, FirstRunLocalNetworkStepKeepsTheMockupWidth) {
+    FakeFirstRunServices fake;
+    std::unique_ptr<QDialog> pDialog(
+            crate::createFirstRunDialog(m_pServers.get(), fake.services(), nullptr));
+    const int width = crate::DialogMetrics::installed().px("firstRunWidth");
+    pDialog->findChild<QLineEdit*>(QStringLiteral("crateServerAddress"))
+            ->setText(QStringLiteral("http://192.168.1.10:8585"));
+    firstRunButton(pDialog.get(), "crateConnect")->click();
+    pDialog->show();
+    pDialog->layout()->activate();
+
+    // The longest primary button, with "Not now" and the hint
+    EXPECT_EQ(width, pDialog->width());
+    for (const char* name : {"crateConnectAnyway", "crateCancel"}) {
+        QPushButton* pButton = firstRunButton(pDialog.get(), name);
+        ASSERT_NE(nullptr, pButton) << name;
+        ASSERT_TRUE(pButton->isVisible()) << name;
+        EXPECT_GE(pButton->width(), pButton->sizeHint().width()) << name;
+    }
+    auto* pLater = pDialog->findChild<QWidget*>(QStringLiteral("CrateFirstRunServer"))
+                           ->findChild<QLabel*>(QStringLiteral("MonoFirstRunLater"));
+    ASSERT_NE(nullptr, pLater);
+    EXPECT_GE(pLater->width(), pLater->sizeHint().width());
+}
+
 TEST_F(CrateAddServerFlowTest, FirstRunSoundPageSetsTheMainOutput) {
     FakeFirstRunServices fake;
     fake.outputs = {{QStringLiteral("0"), QStringLiteral("Built-in Audio")},
@@ -843,7 +904,7 @@ TEST_F(CrateAddServerFlowTest, CacheSectionShowsTheCacheUse) {
     m_pFlow->loginWithPassword(QStringLiteral("dj@crate.test"), QStringLiteral("right"));
     lastSent().pReply->respond(200, kLoginAnswer);
     ASSERT_EQ(1, m_pServers->sessions().size());
-    const QString serverId = m_pServers->sessions().first()->profile().id;
+    const QString serverId = m_pServers->sessions().constFirst()->profile().id;
     crate::cache::AudioCache* pAudioCache = m_pServers->audioCache();
     ASSERT_TRUE(QTest::qWaitFor([&] { return pAudioCache->isLoaded(); }, 5000));
     pAudioCache->ensure(serverId,
@@ -852,6 +913,184 @@ TEST_F(CrateAddServerFlowTest, CacheSectionShowsTheCacheUse) {
     EXPECT_TRUE(QTest::qWaitFor(
             [&] { return pUsage->text() == QStringLiteral("0 tracks · 1 downloading"); },
             5000));
+}
+
+/// A hybrid laptop held back by its firmware, as the plan's XPS: Intel and
+/// NVIDIA, PL1 at 20 W on AC, the Arc throttled on PL1.
+void fakeHybridLaptop(const crate::test::FakeSystemTree& tree) {
+    tree.addGpu(QStringLiteral("card0"),
+            QStringLiteral("0000:00:02.0"),
+            QStringLiteral("0x8086"),
+            QStringLiteral("i915"),
+            true);
+    tree.addGpu(QStringLiteral("card1"),
+            QStringLiteral("0000:01:00.0"),
+            QStringLiteral("0x10de"),
+            QStringLiteral("nvidia"),
+            false);
+    tree.setI915Clock(QStringLiteral("card0"), 450, 2350, 0);
+    tree.setI915Throttle(QStringLiteral("card0"), "pl1", true);
+    tree.setRaplPl1("intel-rapl-mmio:0", 20);
+    tree.setOnAc(true);
+}
+
+QWidget* checkRow(QWidget* pParent, const char* id) {
+    const QList<QFrame*> rows = pParent->findChildren<QFrame*>(QStringLiteral("CrateCheckRow"));
+    for (QFrame* pRow : rows) {
+        if (pRow->property("crateCheck").toString() == QLatin1String(id)) {
+            return pRow;
+        }
+    }
+    return nullptr;
+}
+
+// The first start checks this computer after the sound page (hybrid laptop
+// plan §3, Diego, 2026-11-15) and offers what helps
+TEST_F(CrateAddServerFlowTest, FirstRunChecksThisComputer) {
+    crate::test::FakeSystemTree tree;
+    fakeHybridLaptop(tree);
+    FakeFirstRunServices fake;
+    fake.outputs = {{QStringLiteral("0"), QStringLiteral("Built-in Audio")}};
+    fake.mainOutput = QStringLiteral("0");
+    crate::FirstRunServices services = fake.services();
+    services.systemProbes = [&tree](const crate::CratePreferences* pPreferences,
+                                    const crate::system::PowerHelper*) {
+        crate::system::Probes probes;
+        probes.root = tree.root();
+        probes.durationMs = 300;
+        probes.render = [] {
+            return crate::system::RenderInfo{
+                    true, QStringLiteral("Mesa Intel(R) Arc(TM) Graphics (MTL)"), true};
+        };
+        probes.display = [] {
+            return crate::system::DisplayInfo{true, 3840, 2400, 90};
+        };
+        probes.discreteGpuPreferred = [pPreferences] {
+            return pPreferences->discreteGpu();
+        };
+        return probes;
+    };
+    std::unique_ptr<QDialog> pDialog(
+            crate::createFirstRunDialog(m_pServers.get(), services, nullptr));
+    firstRunButton(pDialog.get(), "crateCancel")->click();
+    firstRunButton(pDialog.get(), "crateFirstRunContinue")->click();
+    QWidget* pPage = currentFirstRunPage(pDialog.get());
+    ASSERT_NE(nullptr, pPage);
+    EXPECT_QSTRING_EQ(QStringLiteral("CrateFirstRunSystem"), pPage->objectName());
+    EXPECT_QSTRING_EQ(QStringLiteral("System"),
+            pPage->findChild<QLabel*>(QStringLiteral("MonoFirstRunStep"))->text());
+
+    // It measures as soon as the page shows
+    auto* pCheck = pPage->findChild<crate::system::SystemCheck*>();
+    ASSERT_NE(nullptr, pCheck);
+    EXPECT_TRUE(pCheck->isRunning());
+    auto* pProgress = pPage->findChild<QLabel*>(QStringLiteral("crateSystemCheckProgress"));
+    ASSERT_NE(nullptr, pProgress);
+    EXPECT_FALSE(pProgress->isHidden());
+    EXPECT_TRUE(pProgress->text().startsWith(QLatin1String("Measuring")));
+    QSignalSpy finished(pCheck, &crate::system::SystemCheck::finished);
+    ASSERT_TRUE(finished.wait(5000));
+    EXPECT_TRUE(pProgress->isHidden());
+    EXPECT_EQ(6, pPage->findChildren<QFrame*>(QStringLiteral("CrateCheckRow")).size());
+
+    // The integrated GPU falls short: draw with the discrete one
+    QWidget* pGraphics = checkRow(pPage, "graphics");
+    ASSERT_NE(nullptr, pGraphics);
+    auto* pDot = pGraphics->findChild<QLabel*>(QStringLiteral("CrateCheckDot"));
+    EXPECT_EQ(QStringLiteral("warning"), pDot->property("crateState").toString());
+    auto* pAction = pGraphics->findChild<QPushButton*>(QStringLiteral("crateCheckAction"));
+    ASSERT_NE(nullptr, pAction);
+    EXPECT_QSTRING_EQ(QStringLiteral("Draw with the discrete GPU"), pAction->text());
+    EXPECT_FALSE(m_pServers->preferences()->discreteGpu());
+    pAction->click();
+    EXPECT_TRUE(m_pServers->preferences()->discreteGpu());
+    EXPECT_FALSE(pAction->isEnabled());
+    EXPECT_QSTRING_EQ(QStringLiteral("On at the next start"), pAction->text());
+
+    // The power limit offers the helper, but the test has none to install
+    QWidget* pPower = checkRow(pPage, "powerLimit");
+    ASSERT_NE(nullptr, pPower);
+    EXPECT_EQ(nullptr, pPower->findChild<QPushButton*>(QStringLiteral("crateCheckAction")))
+            << "No helper offered when it cannot be installed";
+
+    firstRunButton(pDialog.get(), "crateFirstRunSystemContinue")->click();
+    EXPECT_QSTRING_EQ(QStringLiteral("CrateFirstRunMusic"),
+            currentFirstRunPage(pDialog.get())->objectName());
+}
+
+// Preferences · Crate: the discrete GPU switch where there is one, and the
+// system check run again, with the helper installed only after confirming
+TEST_F(CrateAddServerFlowTest, PreferencesRunTheSystemCheckAgain) {
+    crate::test::FakeSystemTree tree;
+    crate::test::FakeSystemTree single;
+    {
+        // One GPU: nothing to switch to
+        crate::DlgPrefCrate page(nullptr, m_pServers.get(), single.root());
+        ASSERT_NE(nullptr, page.systemSection());
+        EXPECT_TRUE(page.systemSection()->discreteGpu()->parentWidget()->isHidden());
+    }
+    fakeHybridLaptop(tree);
+    crate::DlgPrefCrate page(nullptr, m_pServers.get(), tree.root());
+    crate::SystemSection* pSection = page.systemSection();
+    EXPECT_FALSE(pSection->isHidden());
+    QCheckBox* pDiscrete = pSection->discreteGpu();
+    EXPECT_FALSE(pDiscrete->parentWidget()->isHidden());
+    EXPECT_FALSE(pDiscrete->isChecked());
+    pDiscrete->click();
+    EXPECT_TRUE(m_pServers->preferences()->discreteGpu());
+    page.slotResetToDefaults();
+    EXPECT_FALSE(m_pServers->preferences()->discreteGpu()) << "Off by default";
+    EXPECT_FALSE(pDiscrete->isChecked());
+
+    // An installer that installs into the fake tree
+    QTemporaryDir helperDir;
+    ASSERT_TRUE(helperDir.isValid());
+    {
+        QFile script(helperDir.filePath(QStringLiteral("install.sh")));
+        ASSERT_TRUE(script.open(QIODevice::WriteOnly));
+        script.write(QStringLiteral(
+                "#!/bin/sh\nmkdir -p '%1/etc/systemd/system'\n"
+                "touch '%1/etc/systemd/system/crate-power-limit.service'\n")
+                        .arg(tree.root())
+                        .toUtf8());
+        script.close();
+        script.setPermissions(script.permissions() | QFile::ExeOwner);
+    }
+    page.powerHelper()->setDirectory(helperDir.path());
+    page.powerHelper()->setProgram(QStringLiteral("/bin/sh"));
+
+    crate::system::SystemCheck* pCheck = page.systemCheck();
+    pCheck->setDuration(0);
+    QSignalSpy finished(pCheck, &crate::system::SystemCheck::finished);
+    pSection->runCheck()->click();
+    ASSERT_EQ(1, finished.size());
+    QWidget* pPower = checkRow(pSection, "powerLimit");
+    ASSERT_NE(nullptr, pPower);
+    auto* pInstall = pPower->findChild<QPushButton*>(QStringLiteral("crateCheckAction"));
+    ASSERT_NE(nullptr, pInstall);
+    EXPECT_TRUE(pInstall->isEnabled());
+
+    // Never silently: it asks first, and Cancel installs nothing
+    pInstall->click();
+    auto* pConfirm = pPower->findChild<QWidget*>(QStringLiteral("crateHelperConfirm"));
+    ASSERT_NE(nullptr, pConfirm);
+    pConfirm->findChild<QPushButton*>(QStringLiteral("crateHelperCancel"))->click();
+    EXPECT_FALSE(QFileInfo::exists(
+            tree.root() + QStringLiteral("/etc/systemd/system/crate-power-limit.service")));
+
+    pPower = checkRow(pSection, "powerLimit");
+    ASSERT_NE(nullptr, pPower);
+    pPower->findChild<QPushButton*>(QStringLiteral("crateCheckAction"))->click();
+    pConfirm = pPower->findChild<QWidget*>(QStringLiteral("crateHelperConfirm"));
+    ASSERT_NE(nullptr, pConfirm);
+    pConfirm->findChild<QPushButton*>(QStringLiteral("crateHelperInstall"))->click();
+    // Installed, the check runs again and no longer offers it
+    ASSERT_TRUE(QTest::qWaitFor([&] { return finished.size() == 2; }, 5000));
+    EXPECT_TRUE(QFileInfo::exists(
+            tree.root() + QStringLiteral("/etc/systemd/system/crate-power-limit.service")));
+    pPower = checkRow(pSection, "powerLimit");
+    ASSERT_NE(nullptr, pPower);
+    EXPECT_EQ(nullptr, pPower->findChild<QPushButton*>(QStringLiteral("crateCheckAction")));
 }
 
 } // namespace

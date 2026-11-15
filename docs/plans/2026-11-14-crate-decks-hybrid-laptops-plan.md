@@ -1,6 +1,6 @@
 # Crate Decks — Hybrid laptops: discrete GPU and a system check
 
-> **For agents:** nothing here is approved yet. §5 lists what Diego decides; build nothing before that.
+> **For agents:** approved by Diego on 2026-11-15 (§5). Phase HL of the implementation plan, before F6.
 > AGENTS.md applies (no push or PR unless asked, conventional commits, each task starts with its red test).
 >
 > Design: [2026-11-02-crate-decks-design.md](2026-11-02-crate-decks-design.md) (§9 budgets).
@@ -34,9 +34,11 @@ firmware's power and thermal limits), and a user cannot tell which. Decks should
 
 ## 2. Render on the discrete GPU (preference)
 
-- **Preferences > Interface > "Draw with the discrete GPU"** (off by default; offered, and recommended by
-  §3, when a discrete GPU is present).
-- It must take effect before Qt creates its first OpenGL context, so it is read from `mixxx.cfg` in `main()`
+- **Preferences · Crate › This computer › "Draw with the discrete GPU"** (off by default; offered, and
+  recommended by §3, when a discrete GPU is present). It lives on Crate's own page rather than in the
+  Interface page, so no upstream page is patched; it is stored as `[Crate],DiscreteGpu` in
+  `crate-decks.cfg`.
+- It must take effect before Qt creates its first OpenGL context, so it is read from `crate-decks.cfg` in `main()`
   before `QApplication` (a hook in `src/main.cpp`, already in the closed patch list), and applies on the
   next start:
   - NVIDIA proprietary: `__NV_PRIME_RENDER_OFFLOAD=1`, `__GLX_VENDOR_LIBRARY_NAME=nvidia`, and
@@ -79,11 +81,32 @@ and after resume. Decks could offer it from the system check on laptops whose fi
 - The values are the user's: AC and battery watts in `/etc/default/crate-power-limit`.
 - It raises temperature: the check warns when the package stays above 95 °C with it on.
 
-## 5. For Diego to decide
+## 5. Decisions (Diego, 2026-11-15)
 
-1. Whether §2 (the discrete GPU preference) goes ahead, and whether it is off or on by default on hybrid
-   laptops.
-2. Whether §3 (the system check) goes ahead, and whether it runs in the first start or only from
-   Preferences.
-3. Whether Decks ships and offers the power limit helper of §4, or only explains it.
-4. In which phase these land (proposal: after V2, before F6).
+1. **Decided:** §2 goes ahead. The discrete GPU preference is **off by default**, also on hybrid laptops;
+   the system check recommends turning it on when the integrated GPU falls short.
+2. **Decided:** §3 goes ahead. The system check runs **in the first start** (its own page) **and from
+   Preferences** (a button that runs it again and shows the results).
+3. **Decided:** Decks **ships** the power limit helper of §4 in its Linux packages and **offers** it from
+   the system check. It is installed with `pkexec` only when the user accepts; never silently.
+4. **Decided:** these land **now, before F6** (phase HL of the implementation plan).
+
+## 6. Implementation (phase HL)
+
+| Part | Where | Tests |
+| --- | --- | --- |
+| §2 GPUs, the environment (pure function) and the preference | `src/crate/system/gpus.{h,cpp}`, `CratePreferences::discreteGpu()`, one call in `src/main.cpp` (`CRATE_PATCHES.md`) | `src/test/crate/systemgpus_test.cpp` |
+| §3 System check, without widgets | `src/crate/system/systemcheck.{h,cpp}` (readings over an injectable root, `evaluate()`, `SystemCheck`), `src/crate/system/systemprobes.{h,cpp}` (renderer, monitor, audio controls of the running app) | `src/test/crate/systemcheck_test.cpp` (fake `/sys` and `/proc`, `src/test/crate/fakesystemtree.h`) |
+| §3 Views | `src/crate/ui/systemcheckview.{h,cpp}`; the first start's "System" page after the sound page (`cratefirstrun.cpp`); "This computer" on Preferences · Crate (`SystemSection`) | `dlgprefcrate_test.cpp`; screenshots `crate-firstrun-system` and `crate-prefs-crate-system` of `CrateSkinScreenshots.Dialogs` |
+| §4 Power limit helper | `res/crate-power-limit/` (script, unit, udev rule, sleep hook, `install.sh` with `--uninstall`), installed by CMake under `share/crate-decks/crate-power-limit` without enabling it; `src/crate/system/powerhelper.{h,cpp}` runs `pkexec install.sh` after the user confirms in the row | `src/test/crate/powerlimithelper_test.cpp` (the script and the installer against a fake sysfs and `DESTDIR`) |
+
+Notes:
+
+- The integrated GPU's clock is read from i915 (`gt/gt0/rps_*`, `throttle_reason_*`, `rc6_residency_ms`)
+  and xe (`device/tile0/gt0/freq0`); other drivers report "not available".
+- "Busy" comes from the GPU's idle residency (rc6). In the first start nothing plays, so an idle GPU is
+  reported as such, with "run it again while a track plays" from Preferences.
+- Audio reads the engine's `[App],audio_latency_usage` and `audio_latency_overload_count` while the check
+  runs; the buffer size itself is not read.
+- The discrete GPU is recommended only when the integrated GPU falls short (its clock, the compositor or a
+  demanding monitor warn), as Diego decided.

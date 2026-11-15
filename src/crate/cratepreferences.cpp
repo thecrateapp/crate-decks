@@ -3,6 +3,7 @@
 #include <QDir>
 #include <algorithm>
 
+#include "crate/system/gpus.h"
 #include "moc_cratepreferences.cpp"
 
 namespace crate {
@@ -86,6 +87,21 @@ bool CratePreferences::setFlag(const char* key, bool value, bool defaultValue) {
         m_flags.insert(QLatin1String(key), value);
     }
     return true;
+}
+
+bool CratePreferences::discreteGpu() const {
+    return flag(system::kDiscreteGpuItem, false);
+}
+
+void CratePreferences::setDiscreteGpu(bool enabled) {
+    if (setFlag(system::kDiscreteGpuItem, enabled, false)) {
+        // main() reads it from the file before the next start: written now,
+        // so that it survives a start that does not end cleanly
+        if (m_pConfig) {
+            m_pConfig->save();
+        }
+        emit discreteGpuChanged(enabled);
+    }
 }
 
 bool CratePreferences::prefetchAutoDj() const {
