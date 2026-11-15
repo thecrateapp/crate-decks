@@ -382,7 +382,7 @@ TEST_F(CrateBrandingTest, DesktopEntryMatchesDesktopFileName) {
     ASSERT_FALSE(entry.isEmpty()) << qPrintable(path);
 
     EXPECT_QSTRING_EQ(QStringLiteral("Application"), entry.value(QStringLiteral("Type")));
-    EXPECT_QSTRING_EQ(QStringLiteral("Crate Decks"), entry.value(QStringLiteral("Name")));
+    EXPECT_QSTRING_EQ(QStringLiteral("Decks"), entry.value(QStringLiteral("Name")));
     EXPECT_QSTRING_EQ(desktopFileName, entry.value(QStringLiteral("Icon")));
     const QString exec = entry.value(QStringLiteral("Exec"));
     EXPECT_TRUE(exec.contains(QStringLiteral("crate-decks"))) << qPrintable(exec);
@@ -403,7 +403,7 @@ TEST_F(CrateBrandingTest, MetainfoMatchesDesktopFileName) {
             component.firstChildElement(QStringLiteral("id")).text());
     EXPECT_QSTRING_EQ(desktopFileName + QStringLiteral(".desktop"),
             component.firstChildElement(QStringLiteral("launchable")).text());
-    EXPECT_QSTRING_EQ(QStringLiteral("Crate Decks"),
+    EXPECT_QSTRING_EQ(QStringLiteral("Decks"),
             component.firstChildElement(QStringLiteral("name")).text());
     EXPECT_QSTRING_EQ(QStringLiteral("hello@cratemusic.app"),
             component.firstChildElement(QStringLiteral("update_contact")).text());

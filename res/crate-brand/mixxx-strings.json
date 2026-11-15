@@ -1124,8 +1124,8 @@
   "own": [
     {
       "file": "res/linux/app.cratemusic.decks.metainfo.xml",
-      "text": "Crate Decks is based on Mixxx, the free DJ software made by the Mixxx",
-      "why": "credit: the one statement that Crate Decks is a fork of Mixxx (allowed by the BR2 rule)"
+      "text": "Decks is based on Mixxx, the free DJ software made by the Mixxx",
+      "why": "credit: the one statement that Decks is a fork of Mixxx (allowed by the BR2 rule)"
     },
     {
       "file": "res/skins/CrateDecks/generated/style.qss",

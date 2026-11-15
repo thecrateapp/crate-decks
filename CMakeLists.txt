@@ -5760,8 +5760,8 @@ configure_file(
 )
 
 # Packaging
-# Crate Decks: package name, vendor and homepage of Crate Decks
-set(CPACK_PACKAGE_NAME "Crate Decks")
+# Crate Decks: display name (Decks), package name, vendor and homepage
+set(CPACK_PACKAGE_NAME "Decks")
 set(CPACK_DEBIAN_PACKAGE_NAME "crate-decks")
 set(CPACK_PACKAGE_VENDOR "Crate")
 # TODO: Split this into Maintainer field: core-team@mixxx.org for package issues

@@ -1,7 +1,7 @@
 [Desktop Entry]
 Version=1.0
 Type=Application
-Name=Crate Decks
+Name=Decks
 GenericName=DJ Software
 Comment=Mix live with the library, analysis and recommendations of your Crate server
 Exec=sh -c "pasuspender -- crate-decks || crate-decks"
