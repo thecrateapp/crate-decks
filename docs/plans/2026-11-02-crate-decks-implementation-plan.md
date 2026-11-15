@@ -977,6 +977,17 @@ grep -rn "smart-mix-v2" app/crate | head
 
 `TEST_GAP:` la precisión real de audio solo se mide a mano (prueba de escucha y CSV de F0/G4).
 
+**Implementado (F6.C-PR2, 2026-11-15).** Donde el plan y el reproductor de Android no coinciden, el director sigue a Android (`NativeMixController`, `NativeMixTrigger`, `NativeMixAudioProcessor`, `BassHandoffFilter`):
+
+- **Ganancias:** solo atenúan (`min(0, gainDb)`). El saliente llega a su ganancia a mitad de la transición y el entrante empieza en la suya y vuelve a 0 dB en la segunda mitad (medio coseno), multiplicadas por la curva de potencia constante o `dj-blend`.
+- **Crossfader:** Android da a cada deck su ganancia. Decks busca la posición del crossfader cuya curva (la del usuario, con `xFaderMode`, `xFaderCurve`, `xFaderCalibration` y `xFaderReverse`) da la proporción de la curva, y el `pregain` completa el nivel: con la curva de potencia constante el resultado es exacto y el `pregain` solo lleva la ganancia del plan. Si los decks no están en lados opuestos, el `pregain` lleva todo el fundido.
+- **Bajos:** no es un salto en `handoffProgress`, sino un cambio de medio coseno en el 12,5 % de la transición centrado ahí. El entrante empieza con los graves cortados 24 dB (también en Preparing) y el saliente acaba así. El corte de -24 dB sale de la curva medida en Q6.
+- **Tempo:** `rate_ratio` del entrante solo en `beatmatch`. En `adaptive` y `gapless` se queda como está, porque Android los toca a velocidad 1. Tras un beatmatch, el entrante vuelve a su tempo anterior en 4 s (Android vuelve a 1,0).
+- **Cue y ventana:** el saliente empieza en `min(outgoingCueMs, duración − durationMs − 50 ms)`. Si el arranque llega tarde, la transición se acorta a lo que queda de pista, y por debajo de `min(durationMs, 1 s)` hay respaldo (`insufficient_window`).
+- **`gapless`:** Android deja que el reproductor encadene las pistas. El director corta al entrante 50 ms antes del final.
+- **`fallbackReason`:** el plan se toca tal cual, como en Android, y acaba en `FellBack` con su motivo. Sin plan a los 3 s, `FellBack` (`missing_plan`) sin tocar nada: la transición la hace quien llama (AutoDJ en F6.C-PR3), igual que Android usa su crossfade.
+- **Arranque:** Android hace un preroll del entrante en silencio y mide la fase. Decks arranca con el reloj de beats y mide la precisión en G4.
+
 ### F6.C-PR3 · Modo de AutoDJ "Crate Smart Mix"
 
 | Fichero | Contenido |
