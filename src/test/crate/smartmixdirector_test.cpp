@@ -512,6 +512,11 @@ TEST_F(CrateSmartMixDirectorTest, CrossfaderFollowsCurve) {
         set(kMixerProfile, QStringLiteral("xFaderReverse"), test.reverse);
         set(kDeck1, QStringLiteral("orientation"), test.outgoingOrientation);
         set(kDeck2, QStringLiteral("orientation"), 2.0 - test.outgoingOrientation);
+        // On the outgoing deck's end, where Auto DJ leaves it
+        const bool outgoingOnLeft = test.outgoingOrientation == 0.0;
+        set(kMaster,
+                QStringLiteral("crossfader"),
+                outgoingOnLeft != (test.reverse > 0.5) ? -1.0 : 1.0);
         const TransitionPlan transition = plan(QString::fromLatin1(test.fixture));
         const bool djBlend = transition.curve == TransitionPlan::Curve::DjBlend;
         loadBeatmatchEdge(transition, 6000.0);
@@ -535,6 +540,37 @@ TEST_F(CrateSmartMixDirectorTest, CrossfaderFollowsCurve) {
         EXPECT_NEAR(outgoingLevel, 0.0, 1e-6);
         EXPECT_NEAR(incomingLevel, 1.0, 1e-6);
     }
+}
+
+// Auto DJ leaves the crossfader on the outgoing deck's end, but a DJ may have
+// centred it: the director then moves it to the end without the outgoing
+// deck jumping +3 dB on a constant-power curve, and the transition still
+// ends on the incoming deck at its full level.
+TEST_F(CrateSmartMixDirectorTest, KeepsTheOutgoingLevelOfACentredCrossfader) {
+    set(kMixerProfile, QStringLiteral("xFaderMode"), MIXXX_XFADER_CONSTPWR);
+    set(kMaster, QStringLiteral("crossfader"), 0.0);
+    const TransitionPlan beatmatch = plan(QStringLiteral("real-beatmatch.json"));
+    loadBeatmatchEdge(beatmatch, 12000.0);
+    const double levelBefore = deckLevels().first;
+    EXPECT_NEAR(levelBefore, std::sqrt(0.5), 1e-3);
+
+    ASSERT_TRUE(m_pDirector->arm(kDeck1, kDeck2));
+    ASSERT_TRUE(m_pDirector->setPlan(beatmatch));
+    runWhile(State::Armed);
+    ASSERT_EQ(m_pDirector->state(), State::Preparing);
+    EXPECT_EQ(get(kMaster, QStringLiteral("crossfader")), -1.0);
+    EXPECT_NEAR(deckLevels().first, levelBefore, 1e-6);
+    EXPECT_NEAR(deckLevels().second, 0.0, 1e-6);
+
+    runWhile(State::Preparing);
+    ASSERT_EQ(m_pDirector->state(), State::Running);
+    runFor(kTickMs);
+    EXPECT_NEAR(deckLevels().first, levelBefore, 0.01);
+    runWhile(State::Running);
+    EXPECT_EQ(m_pDirector->state(), State::Completed);
+    EXPECT_NEAR(deckLevels().second, 1.0, 1e-6);
+    // The outgoing deck is stopped with its own pregain back.
+    EXPECT_EQ(get(kDeck1, QStringLiteral("pregain")), 1.0);
 }
 
 TEST_F(CrateSmartMixDirectorTest, FallsBackWhenPlanHasFallbackReason) {

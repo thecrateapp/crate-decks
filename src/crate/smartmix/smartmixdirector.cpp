@@ -543,6 +543,17 @@ void SmartMixDirector::prepare() {
                                    incomingSide == kOrientationRight) ||
             (outgoingSide == kOrientationRight &&
                     incomingSide == kOrientationLeft);
+    if (m_pMixer->crossfades && !m_pMixer->crossfader->isOverridden()) {
+        // The transition starts with the crossfader on the outgoing deck's
+        // end. Where the DJ left it elsewhere (centred, say), the outgoing
+        // deck keeps the level it has there instead of jumping to the end's:
+        // +3 dB for a centred constant-power crossfader.
+        const double hereGain = m_pMixer->gainsAt(m_pMixer->crossfader->get()).first;
+        const double endGain = m_pMixer->gainsAt(m_pMixer->position(0.0)).first;
+        if (endGain > 0.0 && hereGain < endGain) {
+            outgoing.pregainBase *= hereGain / endGain;
+        }
+    }
     // The incoming deck at the start of the transition: silent on the
     // crossfader, or through its pregain.
     applyMix(0.0);

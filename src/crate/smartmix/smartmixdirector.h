@@ -52,7 +52,9 @@ class SmartMixEnvironment {
 ///   plan arrives: the incoming deck waits at the plan's start
 ///   (TransitionPlan::startIncomingCueMs()), with quantize and sync lock off
 ///   until the end, a neutral EQ and pregain, keylock as the caller says, and
-///   in beatmatch the plan's tempo ratio times the outgoing deck's.
+///   in beatmatch the plan's tempo ratio times the outgoing deck's. The
+///   crossfader goes to the outgoing deck's end; if it was elsewhere, the
+///   outgoing deck's pregain keeps the level it had.
 /// - Running: the incoming deck starts when the outgoing one reaches the
 ///   plan's cue, on the outgoing deck's beat clock when the cue is on its
 ///   next beat; a late start jumps the incoming deck to where it would be.
