@@ -1831,6 +1831,204 @@ WTrackPropertyEditor {
   padding: 0 {{libraryCellPadding}};
 }
 
+/* ── Smart Mix assistant of the Crate section (plan F6.C-PR4) ──────────
+   GU1 mockups smart-mix-assistant (decks.css .assist, stack-map.css): the
+   view head, the edge as a StackMap host and the plan's inspector. C++
+   lays it out with the dialog metrics (crate/smartmix/assistpanel.cpp). */
+#CrateSmartMixAssist,
+#CrateAssistBody,
+#CrateAssistScroll,
+#CrateAssistPlan {
+  background-color: {{bgApp}};
+  border: 0;
+}
+#CrateAssistHead {
+  background-color: {{bgApp}};
+  border: 0;
+  border-bottom: {{strokeHairline}} solid {{border}};
+}
+#MonoAssistEyebrow {
+  color: {{accentHi}};
+  font-size: {{fontSizeEyebrow.fontsize}};
+  letter-spacing: {{trackingEyebrow * fontSizeEyebrow}};
+}
+#MonoAssistPlanEyebrow {
+  color: {{accentHi}};
+}
+#MonoAssistStatus[crateState="ready"] {
+  color: {{accentHi}};
+}
+#CrateAssistStatusDot {
+  background-color: {{textSubtle}};
+  border-radius: {{statusDot.half}};
+  min-width: {{statusDot}};
+  max-width: {{statusDot}};
+  min-height: {{statusDot}};
+  max-height: {{statusDot}};
+}
+#CrateAssistStatusDot[crateState="ready"] { background-color: {{accentHi}}; }
+#CrateAssistStatusDot[crateState="busy"] { background-color: {{textMuted}}; }
+#CrateAssistStatusDot[crateState="warning"] { background-color: {{warning}}; }
+#CrateSmartMixAssist #CrateChip {
+  min-height: {{chipHeight - strokeHairline - strokeHairline}};
+  max-height: {{chipHeight - strokeHairline - strokeHairline}};
+  padding: 0 {{chipPaddingX}};
+  border: {{strokeHairline}} solid {{border}};
+  border-radius: {{chipHeight.half}};
+  background-color: transparent;
+  color: {{textSecondary}};
+  font-family: "{{fontMono}}";
+  font-size: {{fontSizeInfoBadge}};
+  font-weight: {{fontWeightMono}};
+  letter-spacing: {{trackingChip * fontSizeInfoBadge}};
+}
+#CrateSmartMixAssist #CrateChip:hover {
+  border-color: {{accentHiBorder}};
+  color: {{textPrimary}};
+}
+#CrateSmartMixAssist #CrateChip:checked {
+  border-color: {{accentHi}};
+  background-color: {{accentHi}};
+  color: {{onAccent}};
+}
+#CrateAssistHost {
+  border: 0;
+  border-bottom: {{strokeHairline}} solid {{border}};
+}
+#CrateAssistTitle,
+#CrateAssistMode {
+  color: {{textPrimary}};
+  font-family: "{{fontDisplay}}";
+  font-size: {{fontSizeTitle}};
+  letter-spacing: {{trackingTitle * fontSizeTitle}};
+}
+#CrateAssistTitle {
+  font-weight: {{fontWeightTitle}};
+}
+#CrateAssistMode {
+  font-weight: {{fontWeightAssistMode}};
+}
+#CrateAssistArtists,
+#CrateAssistHostUnit,
+#CrateAssistQuiet {
+  color: {{textMuted}};
+  font-family: "{{fontMono}}";
+  font-size: {{fontSizeLabel}};
+}
+#CrateAssistQuiet {
+  color: {{textSubtle}};
+}
+#CrateAssistHostReading,
+#CrateAssistReadingValue {
+  color: {{textPrimary}};
+  font-family: "{{fontMono}}";
+}
+#CrateAssistHostReading {
+  font-size: {{fontSizeAssistHostReading}};
+  letter-spacing: {{trackingNumeral * fontSizeAssistHostReading}};
+}
+#CrateAssistReadingValue {
+  font-size: {{fontSizeAssistReading}};
+  letter-spacing: {{trackingNumeral * fontSizeAssistReading}};
+}
+#CrateAssistInspector {
+  border: 0;
+  border-left: {{strokeHairline}} solid {{border}};
+}
+#CrateAssistDescription {
+  color: {{textMuted}};
+  font-family: "{{fontBody}}";
+  font-size: {{fontSizeCaption}};
+}
+#CrateAssistState {
+  min-height: {{heightControlXs - strokeHairline - strokeHairline}};
+  max-height: {{heightControlXs - strokeHairline - strokeHairline}};
+  padding: 0 {{statusBadgePaddingX}};
+  border: {{strokeHairline}} solid {{border}};
+  border-radius: {{heightControlXs.half}};
+  background-color: transparent;
+  color: {{textSecondary}};
+  font-family: "{{fontMono}}";
+  font-size: {{fontSizeInfoBadge}};
+}
+#CrateAssistState[crateState="ready"] {
+  border-color: {{accentHiBorder}};
+  background-color: {{accentBg}};
+  color: {{accentHi}};
+}
+#CrateAssistState[crateState="warning"] {
+  border-color: {{warningBorder}};
+  background-color: {{warningBg}};
+  color: {{warningText}};
+}
+#CrateAssistState[crateState="off"] {
+  border-color: {{badgeOffBorder}};
+  color: {{badgeOffText}};
+}
+#CrateAssistStateCaption,
+#CrateAssistMetaKey,
+#CrateAssistMetaValue {
+  font-family: "{{fontMono}}";
+  font-size: {{fontSizeAssistCaption}};
+  color: {{textMuted}};
+}
+#CrateAssistMetaKey {
+  color: {{textSubtle}};
+}
+#CrateAssistReadings,
+#CrateAssistMeta,
+#CrateAssistActions {
+  border: 0;
+  border-top: {{strokeHairline}} solid {{border}};
+}
+/* The admin's buttons (base.css .crate-button), as in the dialogs: neutral,
+   cyan outline for the action, ghost for Cancel */
+#CrateSmartMixAssist QPushButton {
+  min-height: {{heightControlSm - strokeHairline - strokeHairline}};
+  padding: 0 {{buttonPaddingXSm}};
+  border: {{strokeHairline}} solid {{border}};
+  border-radius: {{radiusMd}};
+  background-color: transparent;
+  color: {{textSecondary}};
+  font-family: "{{fontBody}}";
+  font-size: {{fontSizeButton}};
+  font-weight: {{fontWeightButton}};
+  qproperty-iconSize: {{iconMd}} {{iconMd}};
+}
+#CrateSmartMixAssist QPushButton:hover {
+  border-color: {{borderHover}};
+  color: {{textPrimary}};
+}
+#CrateSmartMixAssist QPushButton:pressed {
+  background-color: {{hoverBg}};
+}
+#CrateSmartMixAssist QPushButton:disabled {
+  border-color: {{borderSubtle}};
+  color: {{textFaint}};
+}
+#CrateSmartMixAssist QPushButton[crateButton="primary"] {
+  border-color: {{accent}};
+  color: {{accent}};
+}
+#CrateSmartMixAssist QPushButton[crateButton="primary"]:hover {
+  border-color: {{accentHi}};
+  color: {{accentHi}};
+}
+#CrateSmartMixAssist QPushButton[crateButton="primary"]:disabled {
+  border-color: {{accentBorder}};
+  color: {{textFaint}};
+}
+#CrateSmartMixAssist QPushButton[crateButton="ghost"] {
+  border-color: transparent;
+  color: {{textSecondary}};
+}
+#CrateSmartMixAssist QPushButton[crateButton="ghost"]:hover {
+  background-color: {{hoverBg}};
+  color: {{textPrimary}};
+}
+#CrateSmartMixAssist QPushButton[crateButton="ghost"]:disabled {
+  color: {{textFaint}};
+}
 /* ── Auto DJ and Analyze: the button bars of the library (plan V2.PR5) ─ */
 
 /* The admin's small buttons, outlined and neutral, with Solar icons; the

@@ -103,6 +103,9 @@ class SmartMixAssist : public QObject {
         std::unique_ptr<SmartMixDirector> pDirector;
         /// Changes closer than this ask for one plan.
         std::chrono::milliseconds settleTime{150};
+        /// Creates the controls controllers map; false for a second
+        /// assistant beside the app's (the screenshot harness).
+        bool mappable = true;
     };
 
     explicit SmartMixAssist(Options options, QObject* pParent = nullptr);
@@ -177,9 +180,9 @@ class SmartMixAssist : public QObject {
     PlayerInfo* const m_pPlayerInfo;
     const std::unique_ptr<SmartMixEnvironment> m_pEnvironment;
     const std::unique_ptr<SmartMixDirector> m_pDirector;
-    ControlPushButton m_prepare;
-    ControlPushButton m_execute;
-    ControlPushButton m_cancel;
+    std::unique_ptr<ControlPushButton> m_pPrepare;
+    std::unique_ptr<ControlPushButton> m_pExecute;
+    std::unique_ptr<ControlPushButton> m_pCancel;
     std::unique_ptr<ControlProxy> m_pAutoDjEnabled;
     QList<ControlProxy*> m_deckPlays;
     QTimer m_settleTimer;

@@ -8,6 +8,8 @@
 // TEST_GAP: how the real engine plays these transitions is measured on
 // rendered transitions by G4's metrics.
 
+#include "crate/smartmix/assistpanel.h"
+
 #include <gtest/gtest.h>
 
 #include <QCoreApplication>
@@ -15,6 +17,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QPushButton>
 #include <QTest>
 #include <map>
 #include <memory>
@@ -280,7 +283,7 @@ class CrateSmartMixAssistTest : public MixxxTest {
 // With a deck on air and the other one loaded, the assistant asks the server
 // for that edge's plan with its own context, and holds the plan once it
 // fits the tracks.
-TEST_F(CrateSmartMixAssistTest, ShowsPlanForLoadedDecks) {
+TEST_F(CrateSmartMixAssistTest, AsksThePlanOfTheLoadedDecks) {
     makeAssist();
     ASSERT_TRUE(waitFor([this] { return m_pAssist->status() == Status::NoTransition; }));
     EXPECT_FALSE(m_pAssist->canExecute());
@@ -298,7 +301,8 @@ TEST_F(CrateSmartMixAssistTest, ShowsPlanForLoadedDecks) {
     const QJsonObject context = edge.value(QStringLiteral("context")).toObject();
     EXPECT_EQ(QStringLiteral("decks"), context.value(QStringLiteral("source")).toString());
     EXPECT_TRUE(context.value(QStringLiteral("assist")).toBool());
-    EXPECT_FALSE(context.value(QStringLiteral("automatic")).toBool());
+    EXPECT_TRUE(context.value(QStringLiteral("automatic")).toBool());
+    EXPECT_EQ(8000, context.value(QStringLiteral("preferredDurationMs")).toInt());
     EXPECT_TRUE(context.value(QStringLiteral("allowBeatmatch")).toBool());
     EXPECT_TRUE(context.value(QStringLiteral("allowBassHandoff")).toBool());
     EXPECT_TRUE(context.value(QStringLiteral("allowLongBeatmatch")).toBool());
@@ -443,6 +447,83 @@ TEST_F(CrateSmartMixAssistTest, RejectsAPlanThatDoesNotFit) {
     ASSERT_TRUE(waitFor([this] { return m_pAssist->status() == Status::NoPlan; }));
     EXPECT_FALSE(m_pAssist->problem().isEmpty());
     EXPECT_FALSE(m_pAssist->canExecute());
+}
+
+// The assistant in the library pane shows the plan of the loaded decks: its
+// mode, entry, tempo, bass swap, gain and planner, and what the DJ can do.
+TEST_F(CrateSmartMixAssistTest, ShowsPlanForLoadedDecks) {
+    crate::AssistPanel panel;
+    EXPECT_EQ(QStringLiteral("No Crate server"), panel.statusText());
+    EXPECT_FALSE(panel.executeButton()->isEnabled());
+
+    loadDecks(120000.0);
+    set(kDeck1, QStringLiteral("bpm"), 124.0);
+    makeAssist();
+    panel.setAssist(m_pAssist.get());
+    ASSERT_TRUE(waitFor([this] { return !planRequests().isEmpty(); }));
+    EXPECT_EQ(QStringLiteral("Asking Crate"), panel.statusText());
+    answerPlans(QStringLiteral("synthetic-assist-long-blend.json"));
+    ASSERT_TRUE(waitFor([&] { return m_pAssist->status() == Status::Ready; }));
+
+    EXPECT_TRUE(panel.statusText().startsWith(QStringLiteral("Plan ready")));
+    EXPECT_EQ(QStringLiteral("outgoing.mp3 → incoming.mp3"), panel.titleText());
+    EXPECT_EQ(QStringLiteral("Beatmatch"), panel.modeText());
+    EXPECT_EQ(QStringLiteral("Ready"), panel.stateText());
+    EXPECT_EQ(QStringLiteral("beatmatch · long blend · bass handoff"),
+            panel.metadata(QStringLiteral("Mode")));
+    EXPECT_EQ(QStringLiteral("A 5:30.3 → B 0:00.5"), panel.metadata(QStringLiteral("Entry")));
+    EXPECT_EQ(QStringLiteral("B ×1.0234 · +2.34 %"), panel.metadata(QStringLiteral("Tempo")));
+    EXPECT_EQ(QStringLiteral("at 50 % · 0:48 in"), panel.metadata(QStringLiteral("Bass swap")));
+    EXPECT_EQ(QStringLiteral("A \u22124.3 dB · B \u22123.8 dB"),
+            panel.metadata(QStringLiteral("Gain")));
+    EXPECT_EQ(QStringLiteral("smart-mix-v3 · assist · phrases"),
+            panel.metadata(QStringLiteral("Planner")));
+    EXPECT_EQ(QStringLiteral("0.68"), panel.readingText(QStringLiteral("Confidence")));
+    EXPECT_EQ(QStringLiteral("1:36"), panel.readingText(QStringLiteral("Length")));
+    EXPECT_EQ(QStringLiteral("0:32.2"), panel.readingText(QStringLiteral("Entry in")));
+    EXPECT_TRUE(panel.prepareButton()->isEnabled());
+    EXPECT_TRUE(panel.executeButton()->isEnabled());
+    EXPECT_FALSE(panel.cancelButton()->isEnabled());
+}
+
+// The panel's buttons are the assistant's.
+TEST_F(CrateSmartMixAssistTest, PanelButtonsDriveTheDirector) {
+    readyPlan();
+    crate::AssistPanel panel;
+    panel.setAssist(m_pAssist.get());
+
+    panel.prepareButton()->click();
+    EXPECT_EQ(Status::Prepared, m_pAssist->status());
+    EXPECT_EQ(QStringLiteral("Prepared"), panel.stateText());
+    EXPECT_FALSE(panel.prepareButton()->isEnabled());
+    EXPECT_TRUE(panel.cancelButton()->isEnabled());
+    panel.executeButton()->click();
+    EXPECT_EQ(Status::Executing, m_pAssist->status());
+    EXPECT_EQ(QStringLiteral("Armed"), panel.stateText());
+    panel.cancelButton()->click();
+    EXPECT_EQ(State::Cancelled, m_pAssist->director()->state());
+}
+
+// With Auto DJ on the panel says so and its buttons wait; its chips switch
+// between Auto DJ and the assistant.
+TEST_F(CrateSmartMixAssistTest, PanelSaysAutoDJComesFirst) {
+    readyPlan();
+    crate::AssistPanel panel;
+    panel.setAssist(m_pAssist.get());
+    EXPECT_TRUE(panel.assistChip()->isChecked());
+
+    panel.autoDjChip()->click();
+    EXPECT_EQ(1.0, get(QStringLiteral("[AutoDJ]"), QStringLiteral("enabled")));
+    ASSERT_TRUE(waitFor([&] { return panel.statusText() == QStringLiteral("Auto DJ is mixing"); }));
+    EXPECT_TRUE(panel.autoDjChip()->isChecked());
+    EXPECT_EQ(QStringLiteral("Auto DJ"), panel.modeText());
+    EXPECT_FALSE(panel.executeButton()->isEnabled());
+    EXPECT_FALSE(panel.prepareButton()->isEnabled());
+
+    panel.assistChip()->click();
+    EXPECT_EQ(0.0, get(QStringLiteral("[AutoDJ]"), QStringLiteral("enabled")));
+    ASSERT_TRUE(waitFor([this] { return m_pAssist->status() == Status::Ready; }));
+    EXPECT_TRUE(panel.executeButton()->isEnabled());
 }
 
 } // namespace

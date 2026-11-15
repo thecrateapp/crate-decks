@@ -5379,6 +5379,7 @@ if(CRATE)
       src/crate/session/crateloopbackserver.cpp
       src/crate/session/cratesecretstore.cpp
       src/crate/session/cratesession.cpp
+      src/crate/smartmix/assistpanel.cpp
       src/crate/smartmix/autodjsmartmixadapter.cpp
       src/crate/smartmix/autodjsmartmixmode.cpp
       src/crate/smartmix/controlautomation.cpp

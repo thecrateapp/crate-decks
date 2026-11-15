@@ -42,6 +42,10 @@
     <!-- The toolbar's Preferences button: C++ opens Preferences when it
          goes to 1 (crate/ui/skin/preferencescontrol.h) -->
       <attribute persist="false" config_key="[CrateDecks],show_preferences">0</attribute>
+    <!-- The toolbar's Smart Mix button: on while the library pane shows the
+         Smart Mix assistant, which C++ shows and hides with it
+         (library/crateserver/crateserverfeature.cpp) -->
+      <attribute persist="false" config_key="[CrateDecks],show_smart_mix">0</attribute>
     <!-- Deck menus (vinyl, slip and the loop extras), closed at start -->
       <attribute persist="false" config_key="[CrateDecks],deck1_menu">0</attribute>
       <attribute persist="false" config_key="[CrateDecks],deck2_menu">0</attribute>

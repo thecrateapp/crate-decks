@@ -43,25 +43,24 @@ SmartMixAssist::SmartMixAssist(Options options, QObject* pParent)
           m_pEnvironment(m_options.pEnvironment ? std::move(m_options.pEnvironment)
                                                 : SmartMixEnvironment::engine()),
           m_pDirector(m_options.pDirector ? std::move(m_options.pDirector)
-                                          : std::make_unique<SmartMixDirector>()),
-          m_prepare(ConfigKey(kControlGroup, QStringLiteral("prepare"))),
-          m_execute(ConfigKey(kControlGroup, QStringLiteral("execute"))),
-          m_cancel(ConfigKey(kControlGroup, QStringLiteral("cancel"))) {
-    connect(&m_prepare, &ControlObject::valueChanged, this, [this](double value) {
-        if (value > 0) {
-            prepare();
-        }
-    });
-    connect(&m_execute, &ControlObject::valueChanged, this, [this](double value) {
-        if (value > 0) {
-            execute();
-        }
-    });
-    connect(&m_cancel, &ControlObject::valueChanged, this, [this](double value) {
-        if (value > 0) {
-            cancel();
-        }
-    });
+                                          : std::make_unique<SmartMixDirector>()) {
+    if (m_options.mappable) {
+        const auto button = [this](const QString& item, std::function<void()> action) {
+            auto pButton = std::make_unique<ControlPushButton>(ConfigKey(kControlGroup, item));
+            connect(pButton.get(),
+                    &ControlObject::valueChanged,
+                    this,
+                    [action = std::move(action)](double value) {
+                        if (value > 0) {
+                            action();
+                        }
+                    });
+            return pButton;
+        };
+        m_pPrepare = button(QStringLiteral("prepare"), [this] { prepare(); });
+        m_pExecute = button(QStringLiteral("execute"), [this] { execute(); });
+        m_pCancel = button(QStringLiteral("cancel"), [this] { cancel(); });
+    }
     m_settleTimer.setSingleShot(true);
     m_settleTimer.setInterval(m_options.settleTime);
     connect(&m_settleTimer, &QTimer::timeout, this, &SmartMixAssist::refresh);
@@ -187,7 +186,10 @@ std::optional<cache::TrackKey> SmartMixAssist::crateTrackOn(const QString& group
 PlanContext SmartMixAssist::contextFor(const QString& serverId, const QStringList& decks) const {
     PlanContext context;
     context.plannerVersion = kPlannerVersion;
-    context.automatic = false;
+    // A planned transition, as Auto DJ's: `automatic=false` is a skip the
+    // DJ asks for now, which the server plans as a short crossfade (350 ms
+    // on the dev stack)
+    context.automatic = true;
     context.assist = true;
     const std::optional<Capabilities> capabilities =
             m_options.capabilitiesOf ? m_options.capabilitiesOf(serverId) : std::nullopt;
@@ -200,8 +202,9 @@ PlanContext SmartMixAssist::contextFor(const QString& serverId, const QStringLis
     context.allowBassHandoff = has(DecksFeature::BassHandoff) && m_options.defaultEqOn &&
             m_options.defaultEqOn(decks);
     context.allowLongBeatmatch = has(DecksFeature::LongBeatmatch);
-    // The server's own length: a DJ mixing by hand has no Auto DJ time
-    context.preferredDurationMs = 0;
+    // A DJ mixing by hand has no Auto DJ time: the context's default, 8 s;
+    // long blends follow allowLongBeatmatch and the assist limits
+    context.preferredDurationMs = PlanContext().preferredDurationMs;
     return context;
 }
 
@@ -350,20 +353,27 @@ bool SmartMixAssist::prepare() {
     SmartMixDirector::Options options = directorOptions();
     options.holdStart = true;
     kLogger.info() << "Prepare" << m_outgoing << "->" << m_incoming;
-    return m_pDirector->arm(m_outgoing, m_incoming, options) && m_pDirector->setPlan(*m_plan);
+    const bool prepared =
+            m_pDirector->arm(m_outgoing, m_incoming, options) && m_pDirector->setPlan(*m_plan);
+    emit changed();
+    return prepared;
 }
 
 bool SmartMixAssist::execute() {
+    bool executed = false;
     if (m_pDirector->isHeld()) {
         kLogger.info() << "Execute the prepared transition";
-        return m_pDirector->release();
-    }
-    if (!canPrepare()) {
+        executed = m_pDirector->release();
+    } else if (canPrepare()) {
+        kLogger.info() << "Execute" << m_outgoing << "->" << m_incoming;
+        executed = m_pDirector->arm(m_outgoing, m_incoming, directorOptions()) &&
+                m_pDirector->setPlan(*m_plan);
+    } else {
         return false;
     }
-    kLogger.info() << "Execute" << m_outgoing << "->" << m_incoming;
-    return m_pDirector->arm(m_outgoing, m_incoming, directorOptions()) &&
-            m_pDirector->setPlan(*m_plan);
+    // Released, the director may stay in Preparing
+    emit changed();
+    return executed;
 }
 
 void SmartMixAssist::cancel() {

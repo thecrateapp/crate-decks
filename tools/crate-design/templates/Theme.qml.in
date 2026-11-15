@@ -542,4 +542,33 @@ QtObject {
     readonly property real aboutWidth: {{aboutWidth}}
     readonly property real aboutMetaGap: {{aboutMetaGap}}
     readonly property real aboutTextHeight: {{aboutTextHeight}}
+    readonly property real viewHeadHeight: {{viewHeadHeight}}
+    readonly property real viewHeadGap: {{viewHeadGap}}
+    readonly property real assistPaddingTop: {{assistPaddingTop}}
+    readonly property real assistColumnGap: {{assistColumnGap}}
+    readonly property real assistInspectorWidth: {{assistInspectorWidth}}
+    readonly property real assistInspectorPaddingLeft: {{assistInspectorPaddingLeft}}
+    readonly property real assistHostGap: {{assistHostGap}}
+    readonly property real assistHostPaddingBottom: {{assistHostPaddingBottom}}
+    readonly property real assistHostNameTop: {{assistHostNameTop}}
+    readonly property real assistHostNameBottom: {{assistHostNameBottom}}
+    readonly property real assistHostReadingGap: {{assistHostReadingGap}}
+    readonly property real fontSizeAssistHostReading: {{fontSizeAssistHostReading}}
+    readonly property real assistModeTop: {{assistModeTop}}
+    readonly property real assistModeBottom: {{assistModeBottom}}
+    readonly property real fontWeightAssistMode: {{fontWeightAssistMode}}
+    readonly property real assistDescriptionBottom: {{assistDescriptionBottom}}
+    readonly property real assistStateGap: {{assistStateGap}}
+    readonly property real fontSizeAssistCaption: {{fontSizeAssistCaption}}
+    readonly property real assistReadingRowPaddingY: {{assistReadingRowPaddingY}}
+    readonly property real assistReadingRowGap: {{assistReadingRowGap}}
+    readonly property real assistReadingValueTop: {{assistReadingValueTop}}
+    readonly property real fontSizeAssistReading: {{fontSizeAssistReading}}
+    readonly property real assistMetaPaddingY: {{assistMetaPaddingY}}
+    readonly property real assistMetaKeyWidth: {{assistMetaKeyWidth}}
+    readonly property real assistMetaGap: {{assistMetaGap}}
+    readonly property real assistMetaRowPaddingY: {{assistMetaRowPaddingY}}
+    readonly property real assistActionsGap: {{assistActionsGap}}
+    readonly property real assistActionsPaddingY: {{assistActionsPaddingY}}
+    readonly property real assistQuietTop: {{assistQuietTop}}
 }

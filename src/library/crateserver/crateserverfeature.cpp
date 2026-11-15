@@ -14,6 +14,7 @@
 #include <QtConcurrentRun>
 #include <chrono>
 
+#include "control/controlproxy.h"
 #include "crate/analysis/analysisimporter.h"
 #include "crate/analysis/profilestore.h"
 #include "crate/cache/audiocache.h"
@@ -29,6 +30,7 @@
 #include "crate/library/cratesearch.h"
 #include "crate/library/cratesessionpins.h"
 #include "crate/library/cratetrackpreparer.h"
+#include "crate/smartmix/assistpanel.h"
 #include "crate/smartmix/autodjsmartmixadapter.h"
 #include "crate/smartmix/eqmap.h"
 #include "crate/smartmix/planclient.h"
@@ -187,6 +189,13 @@ QString containerData(const QString& serverId, qint64 containerId) {
 QString cacheData() {
     return QStringLiteral("cache\n");
 }
+QString smartMixData() {
+    return QStringLiteral("smartmix\n");
+}
+
+QIcon smartMixIcon() {
+    return namedIcon(QStringLiteral("crate-smartmix"), QStringLiteral("tracks"));
+}
 
 QIcon cacheIcon() {
     return namedIcon(QStringLiteral("crate-cache"), QStringLiteral("tracks"));
@@ -208,6 +217,12 @@ QStringList childData(const TreeItem* pItem) {
 } // namespace
 
 const QString CrateServerFeature::kCacheViewName = QStringLiteral("CRATE_CACHE");
+const QString CrateServerFeature::kSmartMixViewName = QStringLiteral("CRATE_SMART_MIX");
+
+const ConfigKey& CrateServerFeature::showSmartMixKey() {
+    static const ConfigKey kKey(QStringLiteral("[CrateDecks]"), QStringLiteral("show_smart_mix"));
+    return kKey;
+}
 
 struct CrateServerFeature::Server {
     QString id;
@@ -402,7 +417,9 @@ void CrateServerFeature::updateServers() {
         }
     }
     if (!ids.isEmpty()) {
-        // Last, as in the GU1 mockups: one cache for every server
+        // Last, as in the GU1 mockups: the Smart Mix assistant and one cache
+        // for every server
+        pRoot->appendChild(tr("Smart Mix"), smartMixData())->setIcon(smartMixIcon());
         pRoot->appendChild(cacheLabel(), cacheData())->setIcon(cacheIcon());
     }
     m_pSidebarModel->setRootItem(std::move(pRoot));
@@ -546,6 +563,9 @@ void CrateServerFeature::startLoading() {
     assist.capabilitiesOf = capabilitiesOf;
     assist.defaultEqOn = defaultEqOn;
     m_pAssist = std::make_unique<SmartMixAssist>(std::move(assist));
+    if (m_pAssistPanel) {
+        m_pAssistPanel->setAssist(m_pAssist.get());
+    }
     // The LRU never evicts what is loaded or queued (design §9)
     CrateSessionPins::Options pins;
     pins.pCache = m_pServers->audioCache();
@@ -693,6 +713,91 @@ void CrateServerFeature::bindLibraryWidget(
     Q_UNUSED(pKeyboard);
     auto* pView = new CacheStatusView(m_pCacheStatus, pLibraryWidget);
     pLibraryWidget->registerView(kCacheViewName, pView);
+    // The Smart Mix assistant (plan F6.C-PR4), which the toolbar's Smart Mix
+    // button shows and hides
+    auto* pPanel = new AssistPanel(pLibraryWidget);
+    pPanel->setAssist(m_pAssist.get());
+    pLibraryWidget->registerView(kSmartMixViewName, pPanel);
+    m_pAssistPanel = pPanel;
+    m_pLibraryWidget = pLibraryWidget;
+    connect(pLibraryWidget,
+            &QStackedWidget::currentChanged,
+            this,
+            &CrateServerFeature::onLibraryViewChanged);
+    // A skin reload binds a new library widget: the old control goes
+    delete m_pShowSmartMix;
+    m_pShowSmartMix = nullptr;
+    if (ControlObject::exists(showSmartMixKey())) {
+        m_pShowSmartMix = new ControlProxy(showSmartMixKey(), this);
+        m_pShowSmartMix->connectValueChanged(this, &CrateServerFeature::onShowSmartMix);
+    }
+}
+
+TreeItem* CrateServerFeature::smartMixItem() const {
+    for (TreeItem* pChild : m_pSidebarModel->getRootItem()->children()) {
+        if (pChild->getData().toString() == smartMixData()) {
+            return pChild;
+        }
+    }
+    return nullptr;
+}
+
+void CrateServerFeature::showSmartMix(bool fromToolbar) {
+    const QModelIndex current =
+            m_pSidebarWidget ? m_pSidebarWidget->currentIndex() : QModelIndex();
+    // The sidebar's index of a feature's root points at the sidebar model,
+    // the others at their TreeItem
+    const auto* pCurrentItem = current.isValid() && current.internalPointer() != current.model()
+            ? static_cast<const TreeItem*>(current.internalPointer())
+            : nullptr;
+    const bool onSmartMix = pCurrentItem && pCurrentItem->feature() == this &&
+            pCurrentItem->getData().toString() == smartMixData();
+    if (!fromToolbar) {
+        m_beforeSmartMix = QPersistentModelIndex();
+    } else if (!onSmartMix) {
+        m_beforeSmartMix = QPersistentModelIndex(current);
+    }
+    if (fromToolbar && !onSmartMix) {
+        if (TreeItem* pItem = smartMixItem()) {
+            emit featureSelect(this, indexOf(pItem), false);
+        }
+    }
+    endSearch();
+    emit switchToView(kSmartMixViewName);
+    emit disableSearch();
+    emit enableCoverArtDisplay(false);
+}
+
+void CrateServerFeature::onShowSmartMix(double value) {
+    if (!m_pAssistPanel || !m_pLibraryWidget) {
+        return;
+    }
+    const bool shown = m_pLibraryWidget->currentWidget() == m_pAssistPanel;
+    if (value > 0.0 && !shown) {
+        showSmartMix(true);
+    } else if (value <= 0.0 && shown) {
+        // Back where the DJ was before the toolbar's button
+        auto* pModel = m_pSidebarWidget ? qobject_cast<SidebarModel*>(m_pSidebarWidget->model())
+                                        : nullptr;
+        const QModelIndex before = m_beforeSmartMix;
+        m_beforeSmartMix = QPersistentModelIndex();
+        if (pModel && before.isValid()) {
+            m_pSidebarWidget->selectIndex(before, false);
+            pModel->clicked(before);
+        } else {
+            activate();
+        }
+    }
+}
+
+void CrateServerFeature::onLibraryViewChanged() {
+    if (!m_pShowSmartMix || !m_pLibraryWidget) {
+        return;
+    }
+    const bool shown = m_pAssistPanel && m_pLibraryWidget->currentWidget() == m_pAssistPanel;
+    if ((m_pShowSmartMix->get() > 0.0) != shown) {
+        m_pShowSmartMix->set(shown ? 1.0 : 0.0);
+    }
 }
 
 void CrateServerFeature::lookUpTitles(const QList<cache::TrackKey>& tracks,
@@ -1154,7 +1259,9 @@ void CrateServerFeature::applySidebar(const QString& serverId, const SidebarData
     }
 
     if (m_serverIds.size() == 1) {
-        // The server's items are the feature's: the cache's stays last
+        // The server's items are the feature's: the assistant's and the
+        // cache's stay last
+        items.append({tr("Smart Mix"), smartMixData(), smartMixIcon(), {}});
         items.append({cacheLabel(), cacheData(), cacheIcon(), {}});
     }
 
@@ -1247,6 +1354,8 @@ CrateServerFeature::Node CrateServerFeature::nodeOf(const QModelIndex& index) co
         node.containerId = parts[2].toLongLong();
     } else if (parts[0] == QLatin1String("cache")) {
         node.kind = Node::Kind::Cache;
+    } else if (parts[0] == QLatin1String("smartmix")) {
+        node.kind = Node::Kind::SmartMix;
     }
     return node;
 }
@@ -1357,6 +1466,9 @@ void CrateServerFeature::activateChild(const QModelIndex& index) {
     case Node::Kind::Server:
     case Node::Kind::Section:
         whenReady(node.serverId, nullptr);
+        return;
+    case Node::Kind::SmartMix:
+        showSmartMix(false);
         return;
     case Node::Kind::Cache:
         endSearch();
