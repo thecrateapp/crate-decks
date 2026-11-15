@@ -4,6 +4,12 @@
 #include <cmath>
 #include <utility>
 
+#include "control/controlobject.h"
+#include "effects/backends/builtin/biquadfullkilleqeffect.h"
+#include "effects/chains/equalizereffectchain.h"
+#include "effects/effectslot.h"
+#include "effects/effectsmanager.h"
+
 namespace crate::eqmap {
 
 namespace {
@@ -61,6 +67,14 @@ double cutDbForLowGain(double gain) {
         }
     }
     return kMeasuredCuts.back().second;
+}
+
+bool isDefaultEqOn(const EffectsManager& effects, const QString& deckGroup) {
+    const EqualizerEffectChainPointer pChain = effects.getEqualizerEffectChain(deckGroup);
+    const EffectSlotPointer pSlot = pChain ? pChain->getEffectSlot(0) : EffectSlotPointer();
+    // The preferences' "Bypass EQ" switches the slot off
+    return pSlot && pSlot->isLoaded() && pSlot->id() == BiquadFullKillEQEffect::getId() &&
+            ControlObject::get(ConfigKey(effectGroup(deckGroup), QStringLiteral("enabled"))) > 0.0;
 }
 
 } // namespace crate::eqmap

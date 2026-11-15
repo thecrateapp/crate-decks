@@ -2,6 +2,8 @@
 
 #include <QString>
 
+class EffectsManager;
+
 namespace crate::eqmap {
 
 /// The controls of a deck's mixing EQ, the first effect of its equalizer
@@ -37,5 +39,10 @@ constexpr double kNeutralGain = 1.0;
 double lowGainForCutDb(double cutDb);
 /// The cut, in dB, of a low knob value: the inverse of lowGainForCutDb().
 double cutDbForLowGain(double gain);
+
+/// Whether the deck's mixing EQ is the default one, loaded and on: the EQ
+/// this map was measured on. With the EQs bypassed in the preferences, no EQ
+/// or another one, a bass handoff would not cut the lows as planned.
+bool isDefaultEqOn(const EffectsManager& effects, const QString& deckGroup);
 
 } // namespace crate::eqmap

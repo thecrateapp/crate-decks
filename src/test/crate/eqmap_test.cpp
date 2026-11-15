@@ -7,7 +7,10 @@
 #include <numbers>
 
 #include "control/controlobject.h"
+#include "effects/backends/builtin/bessel4lvmixeqeffect.h"
+#include "effects/chains/equalizereffectchain.h"
 #include "effects/defs.h"
+#include "effects/effectslot.h"
 #include "test/crate/wavwriter.h"
 #include "test/signalpathtest.h"
 
@@ -103,6 +106,23 @@ TEST_F(CrateEqMapTest, DefaultEqIsLoadedInTheRack) {
             ConfigKey(crate::eqmap::effectGroup(m_sGroup1), QStringLiteral("loaded")));
     ASSERT_NE(pLoaded, nullptr);
     EXPECT_EQ(pLoaded->get(), 1.0);
+}
+
+// The bass handoff needs the EQ that was measured, loaded and on (F6.C-PR3):
+// not with the preferences' "Bypass EQ", nor with another EQ.
+TEST_F(CrateEqMapTest, DefaultEqIsOnOnlyWhenLoadedAndEnabled) {
+    EXPECT_TRUE(crate::eqmap::isDefaultEqOn(*m_pEffectsManager, m_sGroup1));
+    EXPECT_FALSE(crate::eqmap::isDefaultEqOn(*m_pEffectsManager, QStringLiteral("[Channel9]")));
+    const EffectSlotPointer pSlot =
+            m_pEffectsManager->getEqualizerEffectChain(m_sGroup1)->getEffectSlot(0);
+    pSlot->setEnabled(false);
+    EXPECT_FALSE(crate::eqmap::isDefaultEqOn(*m_pEffectsManager, m_sGroup1));
+    pSlot->setEnabled(true);
+    pSlot->loadEffectWithDefaults(m_pEffectsManager->getBackendManager()->getManifest(
+            Bessel4LVMixEQEffect::getId(), EffectBackendType::BuiltIn));
+    EXPECT_FALSE(crate::eqmap::isDefaultEqOn(*m_pEffectsManager, m_sGroup1));
+    pSlot->loadEffectWithDefaults(EffectManifestPointer());
+    EXPECT_FALSE(crate::eqmap::isDefaultEqOn(*m_pEffectsManager, m_sGroup1));
 }
 
 // Measured: parameter1 at 0 -49.1 dB, button_parameter1 -49.1 dB; the mid
