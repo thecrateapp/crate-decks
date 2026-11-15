@@ -5462,6 +5462,22 @@ if(CRATE)
         src/test/crate/helplinkstest.cpp
     )
   endif()
+  # Hybrid laptops (plan HL): the power limit helper is a Linux system
+  # service. The packages ship it without enabling it; the system check offers
+  # to install it with pkexec.
+  if(UNIX AND NOT APPLE)
+    install(
+      DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/res/crate-power-limit"
+      DESTINATION "${MIXXX_INSTALL_DATADIR}"
+      USE_SOURCE_PERMISSIONS
+    )
+    if(BUILD_TESTING)
+      target_sources(
+        mixxx-test
+        PRIVATE src/test/crate/powerlimithelper_test.cpp
+      )
+    endif()
+  endif()
   # Decks' stem files and the NI STEM reader they go through (ST5.PR2)
   if(BUILD_TESTING AND STEM)
     target_sources(
