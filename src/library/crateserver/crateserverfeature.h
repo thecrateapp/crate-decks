@@ -32,6 +32,7 @@ class CrateServers;
 class LocalStemSeparator;
 class PlanClient;
 class ModelStore;
+class SmartMixAssist;
 class StemJobs;
 class StemSync;
 } // namespace crate
@@ -258,6 +259,7 @@ class CrateServerFeature : public LibraryFeature {
     /// which asks them (plan F6.C-PR3).
     std::map<QString, std::unique_ptr<PlanClient>> m_planClients;
     std::unique_ptr<AutoDJSmartMixAdapter> m_pSmartMix;
+    std::unique_ptr<SmartMixAssist> m_pAssist;
     std::unique_ptr<CrateSessionPins> m_pSessionPins;
     /// Local separation (STEM-D7), with ONNX Runtime only.
     std::unique_ptr<QNetworkAccessManager> m_pModelNetwork;
