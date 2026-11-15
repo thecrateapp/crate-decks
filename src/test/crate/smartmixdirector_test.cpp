@@ -314,6 +314,51 @@ TEST_F(CrateSmartMixDirectorTest, PreparesAtOnceWhenThePlanComesLate) {
     EXPECT_EQ(m_pDirector->state(), State::Preparing);
 }
 
+// The assist mode's Prepare: the incoming deck is prepared as soon as the
+// plan comes, however far its cue is, and waits there past the cue until
+// release(); then the transition starts late, from where it should be.
+TEST_F(CrateSmartMixDirectorTest, HoldsAPreparedTransitionUntilReleased) {
+    const TransitionPlan beatmatch = plan(QStringLiteral("real-beatmatch.json"));
+    loadBeatmatchEdge(beatmatch, 60000.0);
+    SmartMixDirector::Options options;
+    options.holdStart = true;
+    EXPECT_FALSE(m_pDirector->release());
+
+    ASSERT_TRUE(m_pDirector->arm(kDeck1, kDeck2, options));
+    EXPECT_TRUE(m_pDirector->isHeld());
+    ASSERT_TRUE(m_pDirector->setPlan(beatmatch));
+    applySeeks();
+    ASSERT_EQ(m_pDirector->state(), State::Preparing);
+    EXPECT_NEAR(positionMs(kDeck2), static_cast<double>(beatmatch.startIncomingCueMs()), 1e-6);
+    EXPECT_NEAR(get(kDeck2, QStringLiteral("rate_ratio")), beatmatch.incomingTempoRatio, 1e-9);
+
+    // Past the cue, still held
+    runFor(60000.0 + 1000.0);
+    EXPECT_EQ(m_pDirector->state(), State::Preparing);
+    EXPECT_EQ(get(kDeck2, QStringLiteral("play")), 0.0);
+
+    ASSERT_TRUE(m_pDirector->release());
+    EXPECT_FALSE(m_pDirector->isHeld());
+    EXPECT_EQ(m_pDirector->state(), State::Running);
+    EXPECT_EQ(get(kDeck2, QStringLiteral("play")), 1.0);
+    EXPECT_NEAR(m_pDirector->report().lateMs, 1000.0, kTickMs);
+}
+
+// A held transition whose cue passed long ago ends at its deadline.
+TEST_F(CrateSmartMixDirectorTest, AHeldTransitionEndsAtItsDeadline) {
+    const TransitionPlan beatmatch = plan(QStringLiteral("real-beatmatch.json"));
+    loadBeatmatchEdge(beatmatch, 2000.0);
+    SmartMixDirector::Options options;
+    options.holdStart = true;
+    ASSERT_TRUE(m_pDirector->arm(kDeck1, kDeck2, options));
+    ASSERT_TRUE(m_pDirector->setPlan(beatmatch));
+
+    runWhile(State::Preparing);
+    EXPECT_EQ(m_pDirector->state(), State::Cancelled);
+    EXPECT_EQ(m_pDirector->report().reason, QStringLiteral("deadline"));
+    EXPECT_FALSE(m_pDirector->report().mixed);
+}
+
 TEST_F(CrateSmartMixDirectorTest, StartsOnPredictedBeat) {
     const TransitionPlan beatmatch = plan(QStringLiteral("real-beatmatch.json"));
     loadBeatmatchEdge(beatmatch, 5000.0);
