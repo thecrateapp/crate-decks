@@ -5456,6 +5456,7 @@ if(CRATE)
       src/crate/ui/widgets/camelotwheelmodel.cpp
       src/crate/ui/widgets/instrumentpainter.cpp
       src/crate/ui/widgets/levelring.cpp
+      src/crate/ui/widgets/transitionplanviewmodel.cpp
       src/library/crateserver/crateserverfeature.cpp
       src/library/crateserver/crateservertrackmodel.cpp
   )
@@ -5517,6 +5518,7 @@ if(CRATE)
         src/test/crate/camelotwheelmodel_test.cpp
         src/test/crate/camelotwheel_test.cpp
         src/test/crate/levelring_test.cpp
+        src/test/crate/transitionplanviewmodel_test.cpp
     )
   endif()
   # Hybrid laptops (plan HL): the power limit helper is a Linux system
