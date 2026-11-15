@@ -12,6 +12,7 @@
 #include "preferences/usersettings.h"
 #include "util/db/dbconnectionpool.h"
 
+class EffectsManager;
 class QNetworkAccessManager;
 
 namespace crate {
@@ -48,6 +49,9 @@ class CrateServers : public QObject {
         /// The audio cache's directory; empty for the one of the
         /// preferences, or else cache::AudioCache::defaultDirectory().
         QString audioCacheDirectory;
+        /// Not owned; optional. The decks' effects, whose mixing EQ Smart
+        /// Mix's bass handoff needs (eqmap::isDefaultEqOn()).
+        EffectsManager* pEffectsManager = nullptr;
     };
 
     explicit CrateServers(const Dependencies& dependencies, QObject* parent = nullptr);
@@ -75,6 +79,11 @@ class CrateServers : public QObject {
     void rememberCapabilities(const QString& serverId, const QByteArray& capabilitiesJson);
     /// That answer, or empty if there is none.
     QByteArray lastCapabilities(const QString& serverId) const;
+
+    /// The decks' effects, or nullptr (Dependencies::pEffectsManager).
+    EffectsManager* effectsManager() const {
+        return m_dependencies.pEffectsManager;
+    }
 
     /// The cache and analysis choices of the Crate preferences page.
     CratePreferences* preferences() const {

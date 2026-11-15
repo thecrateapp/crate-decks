@@ -12,6 +12,7 @@
 #include <QVBoxLayout>
 #include <algorithm>
 #include <cmath>
+#include <utility>
 
 #include "crate/cratepreferences.h"
 #include "crate/system/systemcheck.h"
@@ -345,11 +346,18 @@ void SystemSection::setDiscreteGpuOffered(bool offered) {
 
 SmartMixSection::SmartMixSection(QWidget* pParent)
         : PrefsSection(tr("Auto DJ and Smart Mix"), pParent),
-          m_pSmartMix(nullptr) {
+          m_pSmartMix(nullptr),
+          m_pKeylock(nullptr) {
     const DialogMetrics& metrics = DialogMetrics::installed();
-    rows()->addSpacing(metrics.px("segmentLabelTop") - metrics.px("prefsSectionLabelGap"));
-    rows()->addWidget(monoLabel(tr("Auto DJ transition"), QStringLiteral("MonoPrefsLabel"), this));
-    rows()->addSpacing(metrics.px("segmentLabelBottom"));
+    // The transition chips, hidden until they choose Auto DJ's mode
+    auto* pTransitionBox = new QWidget(this);
+    auto* pTransition = new QVBoxLayout(pTransitionBox);
+    pTransition->setContentsMargins(0, 0, 0, 0);
+    pTransition->setSpacing(0);
+    pTransition->addSpacing(metrics.px("segmentLabelTop") - metrics.px("prefsSectionLabelGap"));
+    pTransition->addWidget(
+            monoLabel(tr("Auto DJ transition"), QStringLiteral("MonoPrefsLabel"), this));
+    pTransition->addSpacing(metrics.px("segmentLabelBottom"));
 
     // The admin's SegmentedControl: one active chip, filled in accentHi
     auto* pChipsBox = new QWidget(this);
@@ -379,14 +387,23 @@ SmartMixSection::SmartMixSection(QWidget* pParent)
             pChip->setChecked(true);
         }
     }
-    rows()->addWidget(pChipsBox);
-    rows()->addSpacing(metrics.px("segmentBottom"));
+    pTransition->addWidget(pChipsBox);
+    pTransition->addSpacing(metrics.px("segmentBottom"));
+    rows()->addWidget(pTransitionBox);
+    pTransitionBox->hide();
 
-    addToggle(tr("Assistant follows the master deck"), tr("plans master deck → the other deck"))
-            ->setChecked(true);
-    addToggle(tr("Bass swap"), tr("on servers that announce bass handoff"))->setChecked(true);
-    addToggle(tr("Long beatmatch"), tr("blends up to 64 bars"))->setChecked(true);
-    addToggle(tr("AI assisted mixing"), tr("needs a server with Smart Mix 3"));
+    m_pKeylock = addToggle(tr("Keylock during Smart Mix"),
+            tr("keeps the key when a beatmatch changes the tempo"));
+    // Plans F6.C-PR4 and F6b
+    const std::pair<QString, QString> later[] = {
+            {tr("Assistant follows the master deck"), tr("plans master deck → the other deck")},
+            {tr("Bass swap"), tr("on servers that announce bass handoff")},
+            {tr("Long beatmatch"), tr("blends up to 64 bars")},
+            {tr("AI assisted mixing"), tr("needs a server with Smart Mix 3")},
+    };
+    for (const auto& [title, hint] : later) {
+        addToggle(title, hint)->parentWidget()->hide();
+    }
 }
 
 QString cacheUsageNumber(qint64 usedBytes) {

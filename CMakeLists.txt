@@ -5402,6 +5402,13 @@ if(CRATE)
       src/crate/session/crateloopbackserver.cpp
       src/crate/session/cratesecretstore.cpp
       src/crate/session/cratesession.cpp
+      src/crate/smartmix/autodjsmartmixadapter.cpp
+      src/crate/smartmix/controlautomation.cpp
+      src/crate/smartmix/curves.cpp
+      src/crate/smartmix/eqmap.cpp
+      src/crate/smartmix/planclient.cpp
+      src/crate/smartmix/smartmixdirector.cpp
+      src/crate/smartmix/transitionplan.cpp
       src/crate/stems/resampler.cpp
       src/crate/stems/nistemexport.cpp
       src/crate/stems/stemanalyzer.cpp
@@ -5458,6 +5465,8 @@ if(CRATE)
         src/test/crate/analysisimporter_test.cpp
         src/test/crate/audiocache_test.cpp
         src/test/crate/autodjcratepending_test.cpp
+        src/test/crate/autodjsmartmix_test.cpp
+        src/test/crate/autodjsmartmixlive_test.cpp
         src/test/crate/cachestatusview_test.cpp
         src/test/crate/profilestore_test.cpp
         src/test/crate/cratecapabilities_test.cpp
@@ -5480,6 +5489,8 @@ if(CRATE)
         src/test/crate/dlgprefcrate_test.cpp
         src/test/crate/cratesession_test.cpp
         src/test/crate/modelstore_test.cpp
+        src/test/crate/planclient_test.cpp
+        src/test/crate/smartmixdirector_test.cpp
         src/test/crate/stemanalyzer_test.cpp
         src/test/crate/stemdsp_test.cpp
         src/test/crate/stemjobs_test.cpp
@@ -5487,6 +5498,10 @@ if(CRATE)
         src/test/crate/stemsync_test.cpp
         src/test/crate/systemcheck_test.cpp
         src/test/crate/systemgpus_test.cpp
+        src/test/crate/transitionplan_test.cpp
+        src/test/crate/controlautomation_test.cpp
+        src/test/crate/curves_test.cpp
+        src/test/crate/eqmap_test.cpp
         src/test/crate/skinloadtest.cpp
         src/test/crate/mixerstyletest.cpp
         src/test/crate/delegatestest.cpp

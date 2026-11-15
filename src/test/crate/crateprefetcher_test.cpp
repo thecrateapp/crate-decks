@@ -165,6 +165,22 @@ TEST_F(CratePrefetcherTest, FetchesTheNextThreeCrateTracksOfAutoDj) {
     EXPECT_EQ(crate::cache::TrackState::Kind::None, m_pCache->trackState(kServer, uidOf(1)).kind);
 }
 
+// The queue reader the Smart Mix adapter shares with the prefetcher: the
+// first places, in the queue's order.
+TEST_F(CratePrefetcherTest, ReadsTheFirstPlacesOfTheAutoDjQueue) {
+    PlaylistDAO& playlists = internalCollection()->getPlaylistDAO();
+    for (int number = 1; number <= 3; ++number) {
+        playlists.appendTrackToPlaylist(addMissingTrack(crateFile(number)), m_autoDj);
+    }
+    playlists.removeTrackFromPlaylist(m_autoDj, 1);
+    playlists.appendTrackToPlaylist(addMissingTrack(crateFile(4)), m_autoDj);
+    const QSqlDatabase database = dbConnection();
+    EXPECT_EQ((QStringList{crateFile(2), crateFile(3)}),
+            crate::library::readAutoDjQueue(database, 2));
+    EXPECT_EQ((QStringList{crateFile(2), crateFile(3), crateFile(4)}),
+            crate::library::readAutoDjQueue(database, 10));
+}
+
 TEST_F(CratePrefetcherTest, AnswersAutoDjForCrateTracksOnly) {
     makePrefetcher();
     const TrackId crate = addMissingTrack(crateFile(1));

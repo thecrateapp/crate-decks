@@ -111,8 +111,8 @@ DlgPrefCrate::DlgPrefCrate(QWidget* pParent, CrateServers* pServers, const QStri
     pServersSection->rows()->addWidget(m_pKeychainWarning);
 
     // Cache and Auto DJ and Smart Mix, side by side (decks.css .pcols).
-    // Smart Mix stays hidden until F6 gives it its data; Crate analysis
-    // goes under it. Without servers there is nothing to set.
+    // Smart Mix shows the switches F6 has connected; Crate analysis goes
+    // under it. Without servers there is nothing to set.
     auto* pColumns = new QHBoxLayout(m_pColumns);
     pColumns->setContentsMargins(0, 0, 0, 0);
     pColumns->setSpacing(metrics.px("prefsColumnGap"));
@@ -174,6 +174,10 @@ void DlgPrefCrate::bindPreferences() {
             &QCheckBox::toggled,
             pPreferences,
             &CratePreferences::setPrefetchAutoDj);
+    connect(m_pSmartMix->keylock(),
+            &QCheckBox::toggled,
+            pPreferences,
+            &CratePreferences::setSmartMixKeylock);
     connect(m_pAnalysis->keyFromCrate(),
             &QCheckBox::toggled,
             pPreferences,
@@ -200,6 +204,7 @@ void DlgPrefCrate::bindPreferences() {
             &DlgPrefCrate::showCache);
     connect(pPreferences, &CratePreferences::cacheLimitChanged, this, &DlgPrefCrate::showCache);
     m_pCache->show();
+    m_pSmartMix->show();
     m_pAnalysis->show();
     m_pStems->show();
     showPreferences();
@@ -211,6 +216,7 @@ void DlgPrefCrate::showPreferences() {
     }
     const CratePreferences* pPreferences = m_pServers->preferences();
     m_pCache->prefetchAutoDj()->setChecked(pPreferences->prefetchAutoDj());
+    m_pSmartMix->keylock()->setChecked(pPreferences->smartMixKeylock());
     m_pAnalysis->keyFromCrate()->setChecked(pPreferences->keyFromCrate());
     m_pAnalysis->gainFromLufs()->setChecked(pPreferences->gainFromLufs());
     m_pStems->useGpu()->setChecked(pPreferences->stemsOnGpu());
@@ -273,6 +279,7 @@ void DlgPrefCrate::slotResetToDefaults() {
     pPreferences->setCacheLimitBytes(CratePreferences::kDefaultCacheLimitBytes);
     pPreferences->setCacheDirectory(QString());
     pPreferences->setPrefetchAutoDj(true);
+    pPreferences->setSmartMixKeylock(true);
     pPreferences->setKeyFromCrate(false);
     pPreferences->setGainFromLufs(false);
     pPreferences->setStemsOnGpu(true);

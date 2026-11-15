@@ -73,7 +73,7 @@ El [informe del spike](2026-11-03-crate-decks-spike-report.md) mide Q1, Q3–Q5,
 | Antes de | Pruebas |
 | --- | --- |
 | F4 | Q3 y Q5 en la forma de onda (qué grid va con la música) y Q10 en la LAN. **Decided (Diego, 2026-11-11):** F4 went ahead without them; they run in the G3 session (see the G3 gate at the end of F4) |
-| F6 | Q6 (EQ) y Q7 (10 transiciones con audio) |
+| F6 | Q7 (10 transiciones con audio). Q6 (EQ) quedó medido sin escuchar en F6.C-PR2: ver el resultado bajo la tabla de F0.1 |
 | V1/V2 y GU1 | Q13–Q16 |
 
 F1–F3 no dependen de ellas.
@@ -181,6 +181,19 @@ cubren todo lo necesario: búsqueda, `mix-profile`, `compatible`, `stream`, `tra
 | Q15 | ¿Se leen JetBrains Mono a 10,5–11 px (metadatos y MonoLabel) y Roboto a 12–13 px (títulos de pista) en una cabina oscura? ¿Tiene Bricolage Grotesque cifras tabulares para el BPM y el tiempo del deck? | Pantalla a 1,5 m con el brillo bajo; probar 10,5, 11 y 12 px; comprobar `font-feature-settings: tnum` en Bricolage con `QFont::setFeature` (Qt ≥ 6.7) o con una muestra renderizada | Tamaño mínimo y fuente de las cifras grandes argumentados para GU1 |
 | Q16 | ¿En qué estado real están las dos interfaces QML? | Arrancar con `--new-ui --settingsPath /tmp/qml-spike` y con `--developer` + skin LateNightQML. Comprobar si la feature del spike (S0.2) y AutoDJ aparecen en el puente `LegacyLibraryItem`. Medir fps de ondas en ambas y anotar fallos en 20 min de uso | Informe de estado con capturas, para tener una base real en GU2 |
 | Q17 | ¿Es viable la reproducción progresiva (D14)? | Prototipo de `SoundSourceCrateProgressive`: FFmpeg con `AVIOContext` propio sobre un fichero que otro hilo rellena a velocidad limitada (1,5× y 0,8× el bitrate). Cargar en deck con 10 s descargados, dar play, hacer seek a una zona no descargada, expulsar a mitad de espera y cerrar la app a mitad de espera. Probar FLAC, MP3, M4A y Opus con la cola descargada primero. Comprobar con `ldd`/`otool -L` que los builds de Linux, macOS y Windows (artefactos del CI de upstream) incluyen FFmpeg | Sin cuelgues al expulsar o cerrar, ninguna lectura corta (ni truncado de la pista), los 4 formatos abren con cabecera y cola, y lista de plataformas con FFmpeg |
+
+**Resultado de Q6 (medido en F6.C-PR2, 2026-11-15).** Diego no tiene equipo de DJ ni puede escuchar, así que Q6 se mide en vez de escucharse: `src/test/crate/eqmap_test.cpp` carga en el deck 1 un seno de 60 Hz o de 5 kHz a -12 dBFS, pasa el audio por el motor real (`EngineMixer`, con el EQ por defecto, "Biquad Full Kill Equalizer", cargado en el rack del deck y los cruces de la app: 246 Hz y 2484 Hz) y mide el RMS de la salida principal con cada control movido frente al EQ neutro.
+
+| Control de `[EqualizerRack1_[Channel1]_Effect1]` | 60 Hz | 5 kHz |
+| --- | --- | --- |
+| `parameter1` = 0 | -49,1 dB | -0,03 dB |
+| `button_parameter1` = 1 | -49,1 dB | -0,03 dB |
+| `parameter2` = 0 / `button_parameter2` = 1 | -0,6 dB | — |
+| `parameter3` = 0 / `button_parameter3` = 1 | -0,8 / -0,01 dB | -28,2 dB |
+
+- **Mapa confirmado:** `parameter1` es la ganancia de graves (1 neutro, 0 el corte más hondo, hasta 4 de realce) y `button_parameter1` su kill; `parameter2`/`button_parameter2` los medios y `parameter3`/`button_parameter3` los agudos. Todos los EQ de mezcla declaran los parámetros en ese orden (`EqualizerUtil::createCommonParameters`). Queda en `src/crate/smartmix/eqmap.h`.
+- **El knob no es la ganancia de la banda por debajo de 1:** a 60 Hz, `parameter1` = 0,5 corta 4,2 dB, 0,25 corta 8,1 dB (no 12) y 0,075 corta 22,8 dB; por debajo de 0,25 el EQ funde con el kill del aislador. Para el intercambio de bajos de Android (un shelf de -24 dB a 150 Hz) el director usa la curva medida (`eqmap::lowGainForCutDb()`, -24 dB ≈ 0,067), y el test comprueba que cada corte pedido (-3, -6, -12, -18 y -24 dB) sale con ±1 dB.
+- **El kill de agudos no es tan hondo** como el de graves (-28 dB frente a -49 dB). Smart Mix no lo usa.
 
 ### F0.2. Preparación
 
@@ -909,7 +922,8 @@ grep -rn "smart-mix-v2" app/crate | head
 **Cambios:**
 - `context.source` admite `"decks"`.
 - El intercambio de bajos para `decks` se gobierna por `capabilities.decks.features ∋ "bass_handoff"` (ajuste propio y no la flag de Android).
-- Si G0 lo aprobó: `context.assist=true` permite duraciones mayores para el modo asistente, sin tocar los límites de tempo.
+- `context.assist=true` permite duraciones mayores para el modo asistente, sin tocar los límites de tempo. **Decidido (Diego, 2026-11-15):** mezclas largas de hasta 96 000 ms en el modo asistente (`assist_maximum_long_beatmatch_ms`); el resto de clientes sigue en 48 s.
+- **Decidido (Diego, 2026-11-15, opción B):** todo plan con `context.source == "decks"` lleva `policyLimits` (v2 y v3, con o sin `localRefinement`; misma forma y valores). Los interruptores de beatmatch e intercambio de bajos de Decks vienen activados por defecto.
 - `capabilities.decks.features += ["beatmatch", "bass_handoff", "long_beatmatch"]` según la configuración.
 - `docs/technical/smart-mix-design.md`: sección "Consumidor Crate Decks".
 
@@ -917,14 +931,14 @@ grep -rn "smart-mix-v2" app/crate | head
 - `test_decks_context_enables_bass_handoff_independent_of_android_flag`
 - `test_android_behaviour_unchanged` (parametrizado)
 - `test_tempo_limits_unchanged_for_decks`
-- `test_assist_context_allows_longer_duration` (solo si se aprueba)
+- `test_assist_context_allows_longer_duration`
 - `test_plan_schema_unchanged`
 
 ### F6.C-PR1 · `crate::TransitionPlan` y cliente de planes
 
 | Fichero | Contenido |
 |---|---|
-| `src/crate/smartmix/transitionplan.{h,cpp}` | Tipo de valor con todos los campos del plan; parseo estricto; `validate()` (rangos de tempo, duración y cues dentro de la pista) |
+| `src/crate/smartmix/transitionplan.{h,cpp}` | Tipo de valor con todos los campos del plan; parseo estricto; `validate()` (rangos de tempo, duración y cues dentro de la pista). Los límites de duración y tempo salen de `policyLimits` del plan (el techo de mezcla larga, 96 s en el modo asistente); sin ellos (servidores sin S5), los de hoy: 12 s, 48 s y ±6 % |
 | `src/crate/smartmix/planclient.{h,cpp}` | `requestPlans(edges, context)`, que agrupa hasta 32 aristas por petición; caché por `(from_uid, to_uid, profile_revisions, context)`; reintento único |
 
 **Tests:**
@@ -963,6 +977,17 @@ grep -rn "smart-mix-v2" app/crate | head
 
 `TEST_GAP:` la precisión real de audio solo se mide a mano (prueba de escucha y CSV de F0/G4).
 
+**Implementado (F6.C-PR2, 2026-11-15).** Donde el plan y el reproductor de Android no coinciden, el director sigue a Android (`NativeMixController`, `NativeMixTrigger`, `NativeMixAudioProcessor`, `BassHandoffFilter`):
+
+- **Ganancias:** solo atenúan (`min(0, gainDb)`). El saliente llega a su ganancia a mitad de la transición y el entrante empieza en la suya y vuelve a 0 dB en la segunda mitad (medio coseno), multiplicadas por la curva de potencia constante o `dj-blend`.
+- **Crossfader:** Android da a cada deck su ganancia. Decks busca la posición del crossfader cuya curva (la del usuario, con `xFaderMode`, `xFaderCurve`, `xFaderCalibration` y `xFaderReverse`) da la proporción de la curva, y el `pregain` completa el nivel: con la curva de potencia constante el resultado es exacto y el `pregain` solo lleva la ganancia del plan. Si los decks no están en lados opuestos, el `pregain` lleva todo el fundido.
+- **Bajos:** no es un salto en `handoffProgress`, sino un cambio de medio coseno en el 12,5 % de la transición centrado ahí. El entrante empieza con los graves cortados 24 dB (también en Preparing) y el saliente acaba así. El corte de -24 dB sale de la curva medida en Q6.
+- **Tempo:** `rate_ratio` del entrante solo en `beatmatch`. En `adaptive` y `gapless` se queda como está, porque Android los toca a velocidad 1. Tras un beatmatch, el entrante vuelve a su tempo anterior en 4 s (Android vuelve a 1,0).
+- **Cue y ventana:** el saliente empieza en `min(outgoingCueMs, duración − durationMs − 50 ms)`. Si el arranque llega tarde, la transición se acorta a lo que queda de pista, y por debajo de `min(durationMs, 1 s)` hay respaldo (`insufficient_window`).
+- **`gapless`:** Android deja que el reproductor encadene las pistas. El director corta al entrante 50 ms antes del final.
+- **`fallbackReason`:** el plan se toca tal cual, como en Android, y acaba en `FellBack` con su motivo. Sin plan a los 3 s, `FellBack` (`missing_plan`) sin tocar nada: la transición la hace quien llama (AutoDJ en F6.C-PR3), igual que Android usa su crossfade.
+- **Arranque:** Android hace un preroll del entrante en silencio y mide la fase. Decks arranca con el reloj de beats y mide la precisión en G4.
+
 ### F6.C-PR3 · Modo de AutoDJ "Crate Smart Mix"
 
 | Fichero | Contenido |
@@ -977,6 +1002,45 @@ grep -rn "smart-mix-v2" app/crate | head
   - `QueueAndEjectBehaviourUnchanged`
   - `FallsBackToFullIntroOutroWithoutPlan`
   - `OtherModesUnchanged` (parametrizado con los 5 modos de upstream)
+
+**Decidido (Diego, 2026-11-15)**, a las preguntas abiertas de F6.C-PR2:
+
+1. "Fade now" antes del cue de salida del plan: el director no empieza antes; AutoDJ hace su transición normal (respaldo).
+2. Tras un beatmatch, el tempo del entrante vuelve al que tenía antes (lo que ya hace el director), no a 1,0 ni se queda.
+3. Keylock durante Smart Mix: activado por defecto, con una preferencia de Crate para desactivarlo.
+
+**Implementado (F6.C-PR3, 2026-11-15).** Rama `feat/decks-smart-mix-autodj`, sobre F6.C-PR2.
+
+- **Hook de AutoDJ** (`autodjprocessor.{h,cpp}`, +125/−2; el plan estimaba unas 60 líneas): una interfaz `AutoDJProcessor::TransitionDirector` (`startTransition`, `fadeNow`, `cancelTransition`) en vez de una función suelta, porque AutoDJ también tiene que preguntar por "Fade now" y avisar al desactivarse, y un método público `handBackTransition()` para que el director devuelva lo que no ha tocado. `CrateSmartMix` usa los puntos de `FullIntroOutro`; con director, el traspaso se adelanta `kTransitionDirectorLeadSeconds` (30 s).
+  - Si el director no toma la transición (aristas que no son de dos pistas de un mismo servidor Crate, un director que no puede armarse) o la devuelve sin haber arrancado el entrante (sin plan a los 3 s, plan que no cabe, `insufficient_window`, cancelada antes de empezar), AutoDJ recalcula sin adelanto y hace su `FullIntroOutro` en su propio punto de fundido. No se le vuelve a ofrecer esa transición.
+  - Diferencia con el plan: la pista entrante sale de la cola cuando el saliente se para, no al empezar el fundido, para que una transición devuelta no la quite dos veces (con pistas repetidas en la cola quitaría otra).
+  - Si el deck entrante carga otra pista mientras el director espera su cue, AutoDJ no la arranca: el director cancela (`track_changed`) y la devuelve.
+  - Mientras el director tiene la transición, AutoDJ no mueve el crossfader. Sin director, y en los otros cinco modos, nada cambia: los 29 tests de `AutoDJProcessorTest` pasan sin tocarlos.
+- **Combo de AutoDJ** (`dlgautodj.cpp`, +10): "Crate Smart Mix" solo si algún servidor guardado anuncia `beatmatch` en la última respuesta de `GET /api/capabilities` que se guardó. Se calcula al crear el diálogo; un servidor que se añade después aparece al reiniciar.
+- **`crate::AutoDJSmartMixAdapter`** (`src/crate/smartmix/autodjsmartmixadapter.{h,cpp}`), creado por `CrateServerFeature` junto al prefetcher, con un `PlanClient` por servidor:
+  - Pide por adelantado los planes de las 2 aristas siguientes (pista en el aire → siguiente, siguiente → la de después) cada vez que cambia la cola (`PlaylistDAO`) o la pista de un deck (`PlayerInfo`), solo con AutoDJ activo en modo Crate Smart Mix. La cola se lee fuera del hilo principal con `readAutoDjQueue()`, que ahora comparte con el prefetcher.
+  - **Armado al pedir el plan**: en el traspaso arma el director en el acto y le da el plan de la caché o el que traiga la petición, así el plazo de 3 s cuenta desde la petición.
+  - **`finished` en cola**: el `finished()` del director llega por una conexión `Qt::QueuedConnection`; si no mezcló, devuelve la transición a AutoDJ y vuelve a pedir los planes siguientes.
+  - **Contexto de los planes**: `smart-mix-v3` (las stems solo se aplican en v3); `preferredDurationMs` = el tiempo de transición de AutoDJ, acotado por el `maximumTransitionMs` de los `policyLimits` del servidor y por los 12 000 ms del esquema (0, el del servidor, si el tiempo es negativo); `allowBeatmatch`, `allowBassHandoff` y `allowLongBeatmatch` según `capabilities.decks.features`.
+  - **Intercambio de bajos**: con el EQ desactivado ("Bypass EQ"), sin EQ o con otro EQ que no sea el por defecto en los decks de AutoDJ, se piden planes con `allowBassHandoff=false` (`crate::eqmap::isDefaultEqOn()`). Para leer el EQ de cada deck, `CrateServers` recibe el `EffectsManager` (una línea en el bloque de Crate de `coreservices.cpp`).
+  - **"Fade now"** (decisión 1): con el entrante aún parado, cancela el director y AutoDJ funde él mismo; mientras el director mezcla, no cambia nada.
+  - **Keylock** (decisión 3): `CratePreferences::smartMixKeylock()` (`[Crate],SmartMixKeylock`, activado por defecto). Activado, el director pone keylock en el entrante; desactivado, deja el keylock que tenga cada deck. El interruptor está en la sección "Auto DJ and Smart Mix" de la página Crate, que ahora se ve; sus otras filas (chips de transición, asistente, bass swap, long beatmatch e IA) siguen ocultas hasta su plan. Es una fila que no estaba en la maqueta GU1.
+  - **Tempo** (decisión 2): el director ya vuelve al tempo anterior; lo cubre `EasesBackToTheIncomingDecksOwnTempo`.
+- **Crossfader centrado**: el director empieza con el crossfader en el extremo del saliente. Si el DJ lo dejó en otro sitio (centrado, por ejemplo), el `pregain` del saliente conserva el nivel que tenía en vez de subir +3 dB con una curva de potencia constante. AutoDJ ya lo deja en el extremo del saliente.
+- **Tests**:
+  - `autodjsmartmix_test.cpp` (24): con un director falso, `DelegatesTransitionToDirector`, `DeclinedTransitionStartsAtAutoDJsFadePoint`, `FallsBackToFullIntroOutroWithoutPlan`, `QueueAndEjectBehaviourUnchanged` (con y sin director), `OtherModesUnchanged` (los 5 modos de upstream: punto de fundido, crossfader y estados idénticos con y sin director), "Fade now" antes y después del traspaso y con el director mezclando, desactivar AutoDJ y una pista nueva en el entrante. Con el adaptador, el `PlanClient` y el director reales (red, reloj y posiciones falsos): el plan de beatmatch real tocado desde su cue a través de AutoDJ, la petición (`smart-mix-v3`, 10 000 ms, sin bajos sin el EQ por defecto, 12 000 ms como máximo), los planes pedidos por adelantado, la devolución sin plan, "Fade now", desactivar, pistas que no son de Crate y la oferta del modo.
+  - `smartmixdirector_test.cpp`: `KeepsTheOutgoingLevelOfACentredCrossfader` y `EasesBackToTheIncomingDecksOwnTempo`; `dlgprefcrate_test.cpp`: `SmartMixKeylockSwitchSetsThePreference`; `eqmap_test.cpp`: `DefaultEqIsOnOnlyWhenLoadedAndEnabled`; `crateprefetcher_test.cpp`: `ReadsTheFirstPlacesOfTheAutoDjQueue`.
+  - `autodjsmartmixlive_test.cpp`, en vivo contra el stack dev, se salta sin `CRATE_DECKS_LIVE_URL`: con el contexto del adaptador, los planes de 11 aristas de "G3 · Auto DJ (industrial EBM)" llegan en 7–33 ms (el plazo es de 3 s), todos caben en sus pistas y todos traen `policyLimits`. Hubo 1 beatmatch y 10 adaptativos con `fallbackReason`; en "G3 · Electronic (Q3 Q5 grids)", 2 beatmatch, con stems en las 11.
+
+`TEST_GAP:` la precisión real de las transiciones de AutoDJ con el motor (desviación del arranque, fase, niveles) se mide en G4. Nada de esto se ha escuchado ni probado con un AutoDJ real en la app.
+
+**Pendiente para F6.C-PR4 y G4:**
+
+- El traspaso se adelanta 30 s fijos. Un plan cuyo cue cae más de 30 s antes del punto de fundido de AutoDJ (por ejemplo, un outro largo sin cues en Decks) empieza tarde: el director hace saltar el entrante hacia delante. Para G4 conviene medir con qué frecuencia pasa y, si hace falta, que el director diga qué adelanto necesita según el plan en caché.
+- Las aristas se piden sin `profileRevision`, porque la cola solo da rutas: la caché de planes de la sesión no se invalida si el perfil de una pista cambia mientras la app está abierta.
+- Si el director se cancela después de arrancar el entrante (seek atrás o bucle en el saliente), AutoDJ espera a que el saliente acabe su pista en vez de terminar el fundido.
+- F6.C-PR4 reutiliza el director y el `PlanClient` por servidor de `CrateServerFeature`. El adaptador no comparte el director con el asistente: hace falta decidir quién lo tiene cuando AutoDJ y el asistente coinciden.
+- G4: renderizar los 10 pares como los tocaría AutoDJ con este modo (traspaso a 30 s, plan v3 y keylock) frente a Android, más los CSV de desviación del director (`SmartMixDirector::Report`).
 
 ### F6.C-PR4 · Modo asistente
 

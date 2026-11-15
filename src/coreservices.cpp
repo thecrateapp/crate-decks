@@ -593,6 +593,7 @@ void CoreServices::initialize() {
         crate::CrateServers::Dependencies crateDependencies;
         crateDependencies.pConfig = pConfig;
         crateDependencies.pDbConnectionPool = m_pDbConnectionPool;
+        crateDependencies.pEffectsManager = m_pEffectsManager.get();
         m_pCrateServers = std::make_shared<crate::CrateServers>(crateDependencies);
         crate::CrateServers::setInstance(m_pCrateServers.get());
         m_pCrateServers->start();

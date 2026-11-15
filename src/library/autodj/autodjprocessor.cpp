@@ -58,6 +58,9 @@ constexpr int kPendingTrackPollMillis = 250;
 
 AutoDJProcessor::PendingTrackHook s_pendingTrackHook;
 
+// Crate Decks: the director of TransitionMode::CrateSmartMix
+AutoDJProcessor::TransitionDirector* s_pTransitionDirector = nullptr;
+
 } // anonymous namespace
 
 DeckAttributes::DeckAttributes(int index,
@@ -217,6 +220,42 @@ void AutoDJProcessor::setPendingTrackHook(PendingTrackHook hook) {
     s_pendingTrackHook = std::move(hook);
 }
 
+void AutoDJProcessor::setTransitionDirector(TransitionDirector* pDirector) {
+    s_pTransitionDirector = pDirector;
+}
+
+bool AutoDJProcessor::offerTransitionToDirector(
+        DeckAttributes* pFromDeck, DeckAttributes* pToDeck) {
+    m_directorTransition = false;
+    if (m_transitionMode != TransitionMode::CrateSmartMix || !s_pTransitionDirector ||
+            std::exchange(m_ownTransition, false)) {
+        return false;
+    }
+    m_directorTransition =
+            s_pTransitionDirector->startTransition(this, pFromDeck->group, pToDeck->group);
+    if (!m_directorTransition) {
+        // Auto DJ's own, from its own fade point
+        m_ownTransition = true;
+        calculateTransition(pFromDeck, pToDeck, false);
+    }
+    return m_directorTransition;
+}
+
+void AutoDJProcessor::handBackTransition() {
+    if (!std::exchange(m_directorTransition, false) ||
+            (m_eState != ADJ_LEFT_FADING && m_eState != ADJ_RIGHT_FADING)) {
+        return;
+    }
+    DeckAttributes* pFromDeck = getFromDeck();
+    DeckAttributes* pToDeck = pFromDeck ? getOtherDeck(pFromDeck) : nullptr;
+    m_ownTransition = true;
+    m_eState = ADJ_IDLE;
+    if (pToDeck) {
+        calculateTransition(pFromDeck, pToDeck, false);
+    }
+    emitAutoDJStateChanged(m_eState);
+}
+
 void AutoDJProcessor::slotNumberOfDecksChanged(int decks) {
     m_decks.reserve(decks);
     // Add more decks if we have not all yet.
@@ -256,6 +295,11 @@ AutoDJProcessor::AutoDJError AutoDJProcessor::shufflePlaylist(
 }
 
 void AutoDJProcessor::fadeNow() {
+    // Crate Decks: during the director's transition, "Fade now" is the
+    // director's to play, or Auto DJ's own
+    if (m_directorTransition && (!s_pTransitionDirector || !s_pTransitionDirector->fadeNow())) {
+        handBackTransition();
+    }
     if (m_eState != ADJ_IDLE) {
         // we cannot fade if AutoDj is disabled or already fading
         return;
@@ -325,7 +369,8 @@ void AutoDJProcessor::fadeNow() {
 
     double fadeTime;
     if (m_transitionMode == TransitionMode::FullIntroOutro ||
-            m_transitionMode == TransitionMode::FadeAtOutroStart) {
+            m_transitionMode == TransitionMode::FadeAtOutroStart ||
+            m_transitionMode == TransitionMode::CrateSmartMix) {
         // Use the intro length as the transition time. If the user has seeked
         // away from the intro start since the track was loaded, start from
         // there and do not seek back to the intro start. If they have seeked
@@ -371,6 +416,8 @@ void AutoDJProcessor::fadeNow() {
     VERIFY_OR_DEBUG_ASSERT(pFromDeck->fadeBeginPos <= 1) {
         pFromDeck->fadeBeginPos = 1;
     }
+    // Crate Decks: Auto DJ's own fade; the director never starts early
+    m_ownTransition = m_transitionMode == TransitionMode::CrateSmartMix;
 }
 
 AutoDJProcessor::AutoDJError AutoDJProcessor::skipNext() {
@@ -638,6 +685,11 @@ AutoDJProcessor::AutoDJError AutoDJProcessor::toggleAutoDJ(bool enable) {
         emitAutoDJStateChanged(m_eState);
     } else { // Disable Auto DJ
         stopWaitingForPendingTrack();
+        // Crate Decks: the director lets go of its transition
+        if (std::exchange(m_directorTransition, false) && s_pTransitionDirector) {
+            s_pTransitionDirector->cancelTransition();
+        }
+        m_ownTransition = false;
         m_enabledAutoDJ.setAndConfirm(0.0);
         qDebug() << "Auto DJ disabled";
         m_eState = ADJ_DISABLED;
@@ -844,6 +896,10 @@ void AutoDJProcessor::playerPositionChanged(DeckAttributes* pAttributes,
             thisDeck->fadeBeginPos = 1.0;
             thisDeck->fadeEndPos = 1.0;
             otherDeck->isFromDeck = false;
+            if (std::exchange(m_directorTransition, false)) {
+                // Crate Decks: the track the director started leaves the queue
+                removeLoadedTrackFromTopOfQueue(*thisDeck);
+            }
             // Load the next track to otherDeck.
             loadNextTrackFromQueue(*otherDeck);
             emitAutoDJStateChanged(m_eState);
@@ -896,6 +952,12 @@ void AutoDJProcessor::playerPositionChanged(DeckAttributes* pAttributes,
                     (!thisDeckPlaying && fromDeckAtFadeOrEnd))) {
         if (m_eState == ADJ_IDLE) {
             if (thisDeckPlaying || thisPlayPosition >= 1.0 || fromDeckAtFadeOrEnd) {
+                // Crate Decks: the director may take this transition; if not,
+                // Auto DJ's own starts at its own fade point
+                if (!offerTransitionToDirector(thisDeck, otherDeck) && thisDeckPlaying &&
+                        thisPlayPosition < thisDeck->fadeBeginPos) {
+                    return;
+                }
                 // Set the state as FADING.
                 m_eState = thisDeck->isLeft() ? ADJ_LEFT_FADING : ADJ_RIGHT_FADING;
                 if (kLogger.debugEnabled()) {
@@ -908,6 +970,10 @@ void AutoDJProcessor::playerPositionChanged(DeckAttributes* pAttributes,
                 }
                 m_transitionProgress = 0.0;
                 emitAutoDJStateChanged(m_eState);
+                if (m_directorTransition) {
+                    // Crate Decks: the director starts the incoming deck
+                    return;
+                }
 
                 const double toDeckFadeDistance =
                         (thisDeck->fadeEndPos - thisDeck->fadeBeginPos) *
@@ -940,6 +1006,10 @@ void AutoDJProcessor::playerPositionChanged(DeckAttributes* pAttributes,
             }
         }
 
+        if (m_directorTransition) {
+            // Crate Decks: the director moves the mixer and stops this deck
+            return;
+        }
         double crossfaderTarget;
         if (m_eState == ADJ_LEFT_FADING) {
             crossfaderTarget = 1.0;
@@ -1560,6 +1630,7 @@ void AutoDJProcessor::calculateTransition(DeckAttributes* pFromDeck,
 
     m_crossfaderStartCenter = false;
     switch (m_transitionMode) {
+    case TransitionMode::CrateSmartMix:
     case TransitionMode::FullIntroOutro: {
         // Use the outro or intro length for the transition time, whichever is
         // shorter. Let the full outro and intro play; do not cut off any part
@@ -1704,6 +1775,13 @@ void AutoDJProcessor::calculateTransition(DeckAttributes* pFromDeck,
     pToDeck->startPos /= toDeckDuration;
     pToDeck->fadeBeginPos /= toDeckDuration;
     pToDeck->fadeEndPos /= toDeckDuration;
+    if (m_transitionMode == TransitionMode::CrateSmartMix && s_pTransitionDirector &&
+            !m_ownTransition) {
+        // Crate Decks: the director takes the transition early, to fetch its
+        // plan and wait for the plan's own cue
+        pFromDeck->fadeBeginPos = math_max(0.0,
+                pFromDeck->fadeBeginPos - kTransitionDirectorLeadSeconds / fromDeckDuration);
+    }
 
     pFromDeck->isFromDeck = true;
     pToDeck->isFromDeck = false;
@@ -1812,6 +1890,9 @@ void AutoDJProcessor::playerTrackLoaded(DeckAttributes* pDeck, TrackPointer pTra
             // repeat a probably missed update
             playerPositionChanged(fromDeck, 1.0);
         }
+    } else if (m_directorTransition) {
+        // Crate Decks: the director's incoming deck changed track; the
+        // director lets go and hands the transition back
     } else if (m_eState == ADJ_LEFT_FADING) {
         if (pDeck == getRightDeck()) {
             // restore the play state lost during loading
@@ -1834,6 +1915,8 @@ void AutoDJProcessor::playerLoadingTrack(DeckAttributes* pDeck,
     }
 
     pDeck->loading = true;
+    // Crate Decks: the next transition is a new one
+    m_ownTransition = false;
 
     // The Deck is loading an new track
 

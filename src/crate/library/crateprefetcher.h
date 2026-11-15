@@ -15,8 +15,14 @@
 #include "util/db/dbconnectionpool.h"
 
 class PlaylistDAO;
+class QSqlDatabase;
 
 namespace crate::library {
+
+/// The locations of the first `count` tracks of the Auto DJ queue (the
+/// playlist of type PLHT_AUTO_DJ), in order; empty if the database is busy
+/// for too long. Blocks: call it off the main thread.
+QStringList readAutoDjQueue(const QSqlDatabase& database, int count);
 
 /// Keeps the next tracks of Auto DJ in the audio cache (design §7.4, plan
 /// F4.C-PR3).

@@ -892,6 +892,40 @@ TEST_F(CrateAddServerFlowTest, PrefetchAndAnalysisSwitchesSetThePreferences) {
     EXPECT_FALSE(pKey->isChecked());
 }
 
+// Keylock during Crate Smart Mix (F6.C-PR3, Diego, 2026-11-15): on by
+// default, a switch of the Smart Mix section turns it off, and the rows of
+// later plans stay hidden.
+TEST_F(CrateAddServerFlowTest, SmartMixKeylockSwitchSetsThePreference) {
+    crate::DlgPrefCrate page(nullptr, m_pServers.get());
+    crate::CratePreferences* pPreferences = m_pServers->preferences();
+    crate::SmartMixSection* pSmartMix = page.smartMixSection();
+    EXPECT_FALSE(pSmartMix->isHidden());
+    QCheckBox* pKeylock = pSmartMix->keylock();
+    EXPECT_FALSE(pKeylock->parentWidget()->isHidden());
+    EXPECT_TRUE(pSmartMix->smartMix()->parentWidget()->parentWidget()->isHidden());
+    int shownSwitches = 0;
+    const QList<QCheckBox*> switches = pSmartMix->findChildren<QCheckBox*>();
+    for (const QCheckBox* pSwitch : switches) {
+        shownSwitches += pSwitch->parentWidget()->isHidden() ? 0 : 1;
+    }
+    EXPECT_EQ(1, shownSwitches);
+    EXPECT_TRUE(pPreferences->smartMixKeylock());
+    EXPECT_TRUE(pKeylock->isChecked());
+
+    QSignalSpy changed(pPreferences, &crate::CratePreferences::smartMixKeylockChanged);
+    pKeylock->click();
+    ASSERT_EQ(1, changed.size());
+    EXPECT_FALSE(changed.first().first().toBool());
+    EXPECT_FALSE(pPreferences->smartMixKeylock());
+    EXPECT_FALSE(crate::CratePreferences(config()).smartMixKeylock());
+    crate::DlgPrefCrate again(nullptr, m_pServers.get());
+    EXPECT_FALSE(again.smartMixSection()->keylock()->isChecked());
+
+    page.slotResetToDefaults();
+    EXPECT_TRUE(pPreferences->smartMixKeylock());
+    EXPECT_TRUE(pKeylock->isChecked());
+}
+
 TEST_F(CrateAddServerFlowTest, CacheSectionShowsTheCacheUse) {
     crate::DlgPrefCrate page(nullptr, m_pServers.get());
     auto* pUsage = page.cacheSection()->findChild<QLabel*>(QStringLiteral("CrateCacheCaption"));

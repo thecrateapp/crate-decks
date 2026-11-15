@@ -27,8 +27,10 @@ class WLibrary;
 class WLibrarySidebar;
 
 namespace crate {
+class AutoDJSmartMixAdapter;
 class CrateServers;
 class LocalStemSeparator;
+class PlanClient;
 class ModelStore;
 class StemJobs;
 class StemSync;
@@ -252,6 +254,10 @@ class CrateServerFeature : public LibraryFeature {
     QHash<qint64, StoredContainer> m_containers;
     std::unique_ptr<CrateLoadCoordinator> m_pLoadCoordinator;
     std::unique_ptr<CratePrefetcher> m_pPrefetcher;
+    /// The Smart Mix plans of each server, and Auto DJ's Crate Smart Mix,
+    /// which asks them (plan F6.C-PR3).
+    std::map<QString, std::unique_ptr<PlanClient>> m_planClients;
+    std::unique_ptr<AutoDJSmartMixAdapter> m_pSmartMix;
     std::unique_ptr<CrateSessionPins> m_pSessionPins;
     /// Local separation (STEM-D7), with ONNX Runtime only.
     std::unique_ptr<QNetworkAccessManager> m_pModelNetwork;

@@ -29,6 +29,9 @@
 #include "crate/library/cratesearch.h"
 #include "crate/library/cratesessionpins.h"
 #include "crate/library/cratetrackpreparer.h"
+#include "crate/smartmix/autodjsmartmixadapter.h"
+#include "crate/smartmix/eqmap.h"
+#include "crate/smartmix/planclient.h"
 #include "crate/stems/stemjobs.h"
 #ifdef __CRATE_INFERENCE__
 #include "crate/stems/appstemseparator.h"
@@ -482,6 +485,49 @@ void CrateServerFeature::startLoading() {
     prefetch.pPlaylistDao = &pCollection->internalCollection()->getPlaylistDAO();
     prefetch.enabled = pPreferences->prefetchAutoDj();
     m_pPrefetcher = std::make_unique<CratePrefetcher>(std::move(prefetch));
+    // Auto DJ's Crate Smart Mix (plan F6.C-PR3)
+    AutoDJSmartMixAdapter::Options smartMix;
+    smartMix.pConfig = m_pConfig;
+    smartMix.pPlayerInfo = m_dependencies.pPlayerInfo;
+    smartMix.pPlaylistDao = &pCollection->internalCollection()->getPlaylistDAO();
+    smartMix.pDbConnectionPool = m_dependencies.pDbConnectionPool;
+    smartMix.pPreferences = pPreferences;
+    smartMix.trackOfFile = [pCache = m_pServers->audioCache()](const QString& location) {
+        return pCache->trackOfFile(location);
+    };
+    smartMix.planClientFor = [this](const QString& serverId) -> PlanClient* {
+        Client* pClient = m_pServers ? m_pServers->client(serverId) : nullptr;
+        if (!pClient) {
+            return nullptr;
+        }
+        std::unique_ptr<PlanClient>& pPlans = m_planClients[serverId];
+        if (!pPlans) {
+            pPlans = std::make_unique<PlanClient>(pClient);
+        }
+        return pPlans.get();
+    };
+    smartMix.capabilitiesOf =
+            [pServers = m_pServers](const QString& serverId) -> std::optional<Capabilities> {
+        if (!pServers) {
+            return std::nullopt;
+        }
+        Result<Capabilities> capabilities = Capabilities::fromJson(
+                QJsonDocument::fromJson(pServers->lastCapabilities(serverId)));
+        if (!capabilities.ok()) {
+            return std::nullopt;
+        }
+        return capabilities.value();
+    };
+    smartMix.defaultEqOn = [pServers = m_pServers](const QStringList& deckGroups) {
+        const EffectsManager* pEffects = pServers ? pServers->effectsManager() : nullptr;
+        return pEffects && !deckGroups.isEmpty() &&
+                std::all_of(deckGroups.cbegin(),
+                        deckGroups.cend(),
+                        [pEffects](const QString& group) {
+                            return eqmap::isDefaultEqOn(*pEffects, group);
+                        });
+    };
+    m_pSmartMix = std::make_unique<AutoDJSmartMixAdapter>(std::move(smartMix));
     // The LRU never evicts what is loaded or queued (design §9)
     CrateSessionPins::Options pins;
     pins.pCache = m_pServers->audioCache();
