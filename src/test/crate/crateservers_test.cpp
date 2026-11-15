@@ -67,7 +67,7 @@ TEST_F(CrateServersTest, StartRestoresTheSavedServers) {
     pServers->start();
 
     ASSERT_EQ(1, pServers->sessions().size());
-    EXPECT_EQ(QStringLiteral("a"), pServers->sessions().first()->profile().id);
+    EXPECT_EQ(QStringLiteral("a"), pServers->sessions().constFirst()->profile().id);
     ASSERT_FALSE(m_network.sent.isEmpty());
     EXPECT_EQ(QUrl(QStringLiteral("https://a.test/api/auth/refresh")), lastSent().request.url());
     EXPECT_EQ(QStringLiteral("refresh-a"),

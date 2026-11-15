@@ -1068,7 +1068,7 @@ class AutoDJSmartMixModeTest : public AutoDJSmartMixTest {
         options.offered = [this] {
             return m_offered;
         };
-        m_pMode = new crate::AutoDJSmartMixMode(std::move(options));
+        m_pMode = new crate::AutoDJSmartMixMode(options);
     }
 
     /// The DJ picks `mode` in the combo box, as DlgAutoDJ handles it.

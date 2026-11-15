@@ -49,7 +49,7 @@ class AutoDJSmartMixMode : public QObject {
     /// waits for a server that offers it.
     static const ConfigKey& pendingKey();
 
-    explicit AutoDJSmartMixMode(Options options);
+    explicit AutoDJSmartMixMode(const Options& options);
 
     /// Adds or removes the entry and sets Auto DJ's mode, as offered() says.
     void update();
@@ -57,7 +57,7 @@ class AutoDJSmartMixMode : public QObject {
   private:
     void onActivated();
 
-    const Options m_options;
+    Options m_options;
 };
 
 /// DlgAutoDJ's call: the entry and its mode on `pCombo`, with the app's

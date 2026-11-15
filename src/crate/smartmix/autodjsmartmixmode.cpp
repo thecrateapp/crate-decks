@@ -25,14 +25,12 @@ const ConfigKey& AutoDJSmartMixMode::pendingKey() {
     return kKey;
 }
 
-AutoDJSmartMixMode::AutoDJSmartMixMode(Options options)
+AutoDJSmartMixMode::AutoDJSmartMixMode(const Options& options)
         : QObject(options.pCombo),
-          m_options([&options] {
-              if (!options.offered) {
-                  options.offered = autoDjSmartMixOffered;
-              }
-              return options;
-          }()) {
+          m_options(options) {
+    if (!m_options.offered) {
+        m_options.offered = autoDjSmartMixOffered;
+    }
     // Queued: DlgAutoDJ's own slot sets the mode first
     connect(m_options.pCombo,
             QOverload<int>::of(&QComboBox::activated),
@@ -91,7 +89,7 @@ void addAutoDjSmartMixMode(
     options.pProcessor = pProcessor;
     options.pConfig = std::move(pConfig);
     options.pServers = CrateServers::instance();
-    new AutoDJSmartMixMode(std::move(options));
+    new AutoDJSmartMixMode(options);
 }
 
 } // namespace crate
