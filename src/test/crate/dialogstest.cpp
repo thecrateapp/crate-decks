@@ -21,6 +21,7 @@
 #include <QWindow>
 #include <functional>
 #include <initializer_list>
+#include <limits>
 
 #include "crate/ui/crateaddserverwidget.h"
 #include "crate/ui/dialogs/dialogscrim.h"
@@ -268,14 +269,22 @@ TEST_F(CrateDialogsTest, CacheRingShowsTheLevel) {
     const QColor accent = crate::DialogMetrics::installed().colour("CrateAccentHi");
     const int radius = crate::DialogMetrics::installed().px("cacheGaugeRadius");
     const QPoint centre(gauge.width() / 2, gauge.height() / 2);
-    const auto isAccent = [&](QPoint at) {
-        const QColor pixel = image.pixelColor(at);
-        return pixel.alpha() > 128 && std::abs(pixel.red() - accent.red()) < 40 &&
-                std::abs(pixel.blue() - accent.blue()) < 40;
+    // How far the arc is from the accent on one side: the nearest pixel within
+    // 2 px of the radius, as antialiasing blends the thin arc with what is
+    // under it (an exact colour at one pixel failed with a thinner arc).
+    const auto distanceToAccent = [&](int side) {
+        int nearest = std::numeric_limits<int>::max();
+        for (int offset = radius - 2; offset <= radius + 2; ++offset) {
+            const QColor pixel = image.pixelColor(centre + QPoint(side * offset, 0));
+            nearest = std::min(nearest,
+                    std::abs(pixel.red() - accent.red()) +
+                            std::abs(pixel.green() - accent.green()) +
+                            std::abs(pixel.blue() - accent.blue()));
+        }
+        return nearest;
     };
     // From the top clockwise: the right half is lit, the left is not
-    EXPECT_TRUE(isAccent(centre + QPoint(radius, 0)));
-    EXPECT_FALSE(isAccent(centre - QPoint(radius, 0)));
+    EXPECT_LT(distanceToAccent(1), distanceToAccent(-1) / 2);
     EXPECT_DOUBLE_EQ(1.0, (gauge.setValue(3), gauge.value()));
 }
 

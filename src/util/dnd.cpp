@@ -275,13 +275,30 @@ QDrag* DragAndDropHelper::dragTrackLocations(
     return dragUrls(trackUrls, pDragSource, sourceIdentifier);
 }
 
+// static
+bool DragAndDropHelper::canLoadByDragSource(QObject* pSource) {
+    const auto* pTrackSource = dynamic_cast<TrackDragSource*>(pSource);
+    return pTrackSource && pTrackSource->canLoadDraggedTracks();
+}
+
+// static
+bool DragAndDropHelper::loadByDragSource(QObject* pSource, const QString& group) {
+    auto* pTrackSource = dynamic_cast<TrackDragSource*>(pSource);
+    if (!pTrackSource || !pTrackSource->canLoadDraggedTracks()) {
+        return false;
+    }
+    pTrackSource->loadDraggedTracks(group);
+    return true;
+}
+
 //static
 void DragAndDropHelper::handleTrackDragEnterEvent(
         QDragEnterEvent* pEvent,
         const QString& group,
         UserSettingsPointer pConfig) {
     if (allowLoadToPlayer(group, pConfig) &&
-            dragEnterAccept(*pEvent->mimeData(), group, true, false)) {
+            (dragEnterAccept(*pEvent->mimeData(), group, true, false) ||
+                    canLoadByDragSource(pEvent->source()))) {
         pEvent->acceptProposedAction();
     } else {
         qDebug() << "Ignoring drag enter event, loading not allowed";
@@ -306,6 +323,14 @@ void DragAndDropHelper::handleTrackDropEvent(
             if (!files.isEmpty()) {
                 pEvent->accept();
                 target.emitTrackDropped(files.at(0).location(), group);
+                return;
+            }
+            // No file yet (a Crate track that is not downloaded): the
+            // dragging view loads it into the deck itself.
+            // TEST_GAP: QDropEvent::source() is only set by a real drag; the
+            // tests call loadByDragSource() with the view instead.
+            if (loadByDragSource(pEvent->source(), group)) {
+                pEvent->accept();
                 return;
             }
         }

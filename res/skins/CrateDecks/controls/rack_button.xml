@@ -1,0 +1,32 @@
+<!--
+  A toggle of the racks with the look of the decks' small text buttons
+  (deck_text_button.xml): a MonoLabel text on an outlined button, outline
+  and text in the accent when on. One push button draws the text and takes
+  the clicks, so nothing covers it. Without Text it is an icon or an empty
+  outline, which QSS dresses by its object name.
+Variables:
+  ObjectName : CrateRack... (style.qss.in selects the kind on it)
+  TooltipId, ConfigKey, Text
+-->
+<Template>
+  <PushButton>
+    <TooltipId><Variable name="TooltipId"/></TooltipId>
+    <ObjectName><Variable name="ObjectName"/></ObjectName>
+    <NumberStates>2</NumberStates>
+    <RightClickIsPushButton>false</RightClickIsPushButton>
+    <State>
+      <Number>0</Number>
+      <Text><Variable name="Text"/></Text>
+      <Alignment>center</Alignment>
+    </State>
+    <State>
+      <Number>1</Number>
+      <Text><Variable name="Text"/></Text>
+      <Alignment>center</Alignment>
+    </State>
+    <Connection>
+      <ConfigKey><Variable name="ConfigKey"/></ConfigKey>
+      <ButtonState>LeftButton</ButtonState>
+    </Connection>
+  </PushButton>
+</Template>

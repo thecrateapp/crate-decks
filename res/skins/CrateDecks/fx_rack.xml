@@ -1,6 +1,4 @@
 <Template>
-  <SetVariable name="ArcRadius"><Variable name="ArcRadiusCompact"/></SetVariable>
-  <SetVariable name="ArcThickness"><Variable name="ArcThicknessBig"/></SetVariable>
   <SetVariable name="ArcUnipolar">true</SetVariable>
 
   <!-- Let's create Singletons for widgets we use multiple times
@@ -13,27 +11,20 @@
       -->
   <Template src="skins:CrateDecks/fx/singletons.xml">
     <SetVariable name="FxUnit">1</SetVariable>
-    <SetVariable name="ArcColorSuper"><Variable name="ArcColorFx12Quick"/></SetVariable>
-    <SetVariable name="KnobColor"><Variable name="KnobColorFx12"/></SetVariable>
   </Template>
   <Template src="skins:CrateDecks/fx/singletons.xml">
     <SetVariable name="FxUnit">2</SetVariable>
-    <SetVariable name="ArcColorSuper"><Variable name="ArcColorFx12Quick"/></SetVariable>
-    <SetVariable name="KnobColor"><Variable name="KnobColorFx12"/></SetVariable>
   </Template>
   <Template src="skins:CrateDecks/fx/singletons.xml">
     <SetVariable name="FxUnit">3</SetVariable>
-    <SetVariable name="ArcColorSuper"><Variable name="ArcColorFx34"/></SetVariable>
-    <SetVariable name="KnobColor"><Variable name="KnobColorFx34"/></SetVariable>
   </Template>
   <Template src="skins:CrateDecks/fx/singletons.xml">
     <SetVariable name="FxUnit">4</SetVariable>
-    <SetVariable name="ArcColorSuper"><Variable name="ArcColorFx34"/></SetVariable>
-    <SetVariable name="KnobColor"><Variable name="KnobColorFx34"/></SetVariable>
   </Template>
 
+  <!-- A rack: the decks' language, hairline rules and no boxes -->
   <WidgetGroup>
-    <ObjectName>AlignTop</ObjectName>
+    <ObjectName>CrateRack</ObjectName>
     <Layout>horizontal</Layout>
     <SizePolicy>me,max</SizePolicy>
     <Children>
@@ -63,7 +54,7 @@
               </Template>
 
               <WidgetGroup>
-                <ObjectName>FxRackFillerL</ObjectName>
+                <ObjectName>CrateFxRackFillerL</ObjectName>
                 <SizePolicy>min,me</SizePolicy>
                 <Connection>
                   <ConfigKey>[EffectRack1_EffectUnit2],show_parameters</ConfigKey>
@@ -83,7 +74,7 @@
               </Template>
 
               <WidgetGroup>
-                <ObjectName>FxRackFillerL</ObjectName>
+                <ObjectName>CrateFxRackFillerL</ObjectName>
                 <SizePolicy>min,me</SizePolicy>
                 <Connection>
                   <ConfigKey>[EffectRack1_EffectUnit4],show_parameters</ConfigKey>
@@ -114,7 +105,7 @@
               </Template>
 
               <WidgetGroup>
-                <ObjectName>FxRackFillerR</ObjectName>
+                <ObjectName>CrateFxRackFillerR</ObjectName>
                 <SizePolicy>min,me</SizePolicy>
                 <Connection>
                   <ConfigKey>[EffectRack1_EffectUnit1],show_parameters</ConfigKey>
@@ -134,7 +125,7 @@
               </Template>
 
               <WidgetGroup>
-                <ObjectName>FxRackFillerR</ObjectName>
+                <ObjectName>CrateFxRackFillerR</ObjectName>
                 <SizePolicy>min,me</SizePolicy>
                 <Connection>
                   <ConfigKey>[EffectRack1_EffectUnit3],show_parameters</ConfigKey>

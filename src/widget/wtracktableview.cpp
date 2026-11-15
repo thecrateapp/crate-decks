@@ -750,6 +750,20 @@ void WTrackTableView::mouseMoveEvent(QMouseEvent* pEvent) {
     }
 }
 
+bool WTrackTableView::canLoadDraggedTracks() const {
+    const TrackModel* pTrackModel = getTrackModel();
+    const QModelIndexList indices = getSelectedRows();
+    return pTrackModel && !indices.isEmpty() && pTrackModel->canRequestTrackLoad(indices.first());
+}
+
+void WTrackTableView::loadDraggedTracks(const QString& group) {
+    loadSelectedTrackToGroup(group,
+#ifdef __STEM__
+            mixxx::StemChannelSelection(),
+#endif
+            false);
+}
+
 // Drag enter event, happens when a dragged item hovers over the track table view
 void WTrackTableView::dragEnterEvent(QDragEnterEvent * event) {
     auto* pTrackModel = getTrackModel();

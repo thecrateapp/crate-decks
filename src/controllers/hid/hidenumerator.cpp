@@ -1,5 +1,7 @@
 #include "controllers/hid/hidenumerator.h"
 
+#include "controllers/hid/hidapilock.h"
+
 #ifdef __ANDROID__
 #include <android/api-level.h>
 #include <android/log.h>
@@ -122,6 +124,7 @@ HidEnumerator::~HidEnumerator() {
     while (m_devices.size() > 0) {
         delete m_devices.takeLast();
     }
+    const std::lock_guard hidApiLock(mixxx::hid::apiMutex());
     hid_exit();
 }
 
@@ -184,6 +187,9 @@ QList<Controller*> HidEnumerator::queryDevices() {
 #else
 
     QStringList enumeratedDevices;
+    // Held for the whole listing: each new HidController starts opening its
+    // device in the background, and those opens wait until it is done
+    const std::lock_guard hidApiLock(mixxx::hid::apiMutex());
     hid_device_info* p_device_info_list = hid_enumerate(0x0, 0x0);
     for (const auto* p_device_info = p_device_info_list;
             p_device_info;
