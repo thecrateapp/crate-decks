@@ -173,8 +173,13 @@ PlanContext AutoDJSmartMixAdapter::contextFor(const QString& serverId) const {
     context.allowBeatmatch = has(DecksFeature::Beatmatch);
     context.allowTempoAdjustment = true;
     // The handoff cuts the lows with the default EQ's measured knob
-    context.allowBassHandoff = has(DecksFeature::BassHandoff) && m_options.defaultEqOn &&
-            m_options.defaultEqOn(autoDjDecks());
+    const QStringList decks = autoDjDecks();
+    const bool defaultEq = m_options.defaultEqOn && m_options.defaultEqOn(decks);
+    context.allowBassHandoff = has(DecksFeature::BassHandoff) && defaultEq;
+    kLogger.info() << "Plan context: beatmatch" << has(DecksFeature::Beatmatch)
+                   << "- bass handoff" << context.allowBassHandoff << "(server"
+                   << has(DecksFeature::BassHandoff) << ", default EQ on" << decks << defaultEq
+                   << ") - long beatmatch" << has(DecksFeature::LongBeatmatch);
     context.allowLongBeatmatch = has(DecksFeature::LongBeatmatch);
     // Auto DJ's own transition time; 0 (the server's own) for the pause of
     // a negative one

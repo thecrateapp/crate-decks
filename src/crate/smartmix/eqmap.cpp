@@ -9,8 +9,13 @@
 #include "effects/chains/equalizereffectchain.h"
 #include "effects/effectslot.h"
 #include "effects/effectsmanager.h"
+#include "util/logger.h"
 
 namespace crate::eqmap {
+
+namespace {
+const mixxx::Logger kLogger("crate::eqmap");
+} // namespace
 
 namespace {
 
@@ -73,8 +78,16 @@ bool isDefaultEqOn(const EffectsManager& effects, const QString& deckGroup) {
     const EqualizerEffectChainPointer pChain = effects.getEqualizerEffectChain(deckGroup);
     const EffectSlotPointer pSlot = pChain ? pChain->getEffectSlot(0) : EffectSlotPointer();
     // The preferences' "Bypass EQ" switches the slot off
-    return pSlot && pSlot->isLoaded() && pSlot->id() == BiquadFullKillEQEffect::getId() &&
-            ControlObject::get(ConfigKey(effectGroup(deckGroup), QStringLiteral("enabled"))) > 0.0;
+    const double enabled =
+            ControlObject::get(ConfigKey(effectGroup(deckGroup), QStringLiteral("enabled")));
+    const bool on = pSlot && pSlot->isLoaded() && pSlot->id() == BiquadFullKillEQEffect::getId() &&
+            enabled > 0.0;
+    if (!on) {
+        kLogger.info() << "Not the default EQ on" << deckGroup << "- chain" << bool(pChain)
+                       << "slot" << bool(pSlot) << "loaded" << (pSlot && pSlot->isLoaded())
+                       << "effect" << (pSlot ? pSlot->id() : QString()) << "enabled" << enabled;
+    }
+    return on;
 }
 
 } // namespace crate::eqmap

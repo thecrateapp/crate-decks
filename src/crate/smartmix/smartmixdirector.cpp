@@ -352,7 +352,11 @@ bool SmartMixDirector::setPlan(const TransitionPlan& plan) {
     m_cueDeadlineMs = m_pEnvironment->nowMs() + std::max(0.0, waitMs) + kCueDeadlineMarginMs;
     kLogger.info() << "Plan" << toString(plan.mode) << plan.durationMs << "ms from"
                    << m_startAtMs << "ms of the outgoing track"
-                   << (plan.fallbackReason ? toString(*plan.fallbackReason) : QString());
+                   << (plan.fallbackReason ? toString(*plan.fallbackReason) : QString())
+                   << "- bass handoff"
+                   << (plan.bassHandoff == TransitionPlan::BassHandoff::Balanced ? "balanced"
+                                                                                 : "none")
+                   << "at" << plan.handoffProgress;
     tick();
     return true;
 }
@@ -510,6 +514,13 @@ void SmartMixDirector::prepare() {
             : 0.0;
     incoming.pregainBase = 1.0;
     incoming.lowCutDbBase = 0.0;
+    m_lastProgress = -1.0;
+    m_loggedStep = -1;
+    for (const Deck* pDeck : {&outgoing, &incoming}) {
+        kLogger.debug() << "Lows before" << pDeck->group << "valid" << pDeck->lowGain->isValid()
+                        << "key" << pDeck->lowGain->key().group << pDeck->lowGain->key().item
+                        << "value" << pDeck->lowGain->get();
+    }
 
     // Quantize and sync lock would move the incoming deck's start or tempo
     // away from the plan (spike review); they come back at the end.
@@ -621,6 +632,7 @@ void SmartMixDirector::stepRunning(double nowMs) {
         complete();
         return;
     }
+    m_lastProgress = progress;
     applyMix(progress);
 }
 
@@ -776,6 +788,19 @@ void SmartMixDirector::commit() {
     }
     if (m_pMixer) {
         m_pMixer->crossfader->commit();
+    }
+    // Diagnostics of the lows each tenth of the transition (bass handoff)
+    if (m_lastProgress >= 0.0 && static_cast<int>(m_lastProgress * 10) != m_loggedStep) {
+        m_loggedStep = static_cast<int>(m_lastProgress * 10);
+        for (const Deck* pDeck : {m_pOutgoing.get(), m_pIncoming.get()}) {
+            if (pDeck != nullptr) {
+                kLogger.debug() << "Lows at" << m_lastProgress << pDeck->group << "valid"
+                                << pDeck->lowGain->isValid() << "value" << pDeck->lowGain->get()
+                                << "overridden" << pDeck->lowGain->isOverridden() << "writes"
+                                << pDeck->lowGain->writeCount() << "pregain"
+                                << pDeck->pregain->get();
+            }
+        }
     }
     if (m_pTempoRestore) {
         m_pTempoRestore->rate->commit();

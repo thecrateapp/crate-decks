@@ -225,6 +225,9 @@ class SmartMixDirector : public QObject {
     double m_runStartMs = 0.0;
     double m_runRate = 1.0;
     bool m_prepared = false;
+    /// Diagnostics: the last running progress and the tenth of it last logged
+    double m_lastProgress = -1.0;
+    int m_loggedStep = -1;
 };
 
 } // namespace crate
