@@ -196,7 +196,8 @@ double TransitionPlanView::legendHeight(double width, bool title) const {
     const double line = metrics.height();
     int rows = 1;
     double x = 0;
-    for (const LegendItem& item : legendItems()) {
+    const QVector<LegendItem> items = legendItems();
+    for (const LegendItem& item : items) {
         const double mark = item.pattern ? plan.legendSample : plan.legendNode;
         const double itemWidth = mark + plan.legendItemGap + metrics.horizontalAdvance(item.text);
         if (x > 0 && x + itemWidth > width) {
@@ -843,7 +844,8 @@ void TransitionPlanView::paintLegend(QPainter* pPainter) const {
     }
     double x = 0;
     pPainter->save();
-    for (const LegendItem& item : legendItems()) {
+    const QVector<LegendItem> items = legendItems();
+    for (const LegendItem& item : items) {
         const double mark = item.pattern ? plan.legendSample : plan.legendNode;
         const double itemWidth = mark + plan.legendItemGap + metrics.horizontalAdvance(item.text);
         if (x > 0 && x + itemWidth > width()) {
