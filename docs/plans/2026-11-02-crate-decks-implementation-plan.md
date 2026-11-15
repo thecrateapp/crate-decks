@@ -1055,6 +1055,42 @@ grep -rn "smart-mix-v2" app/crate | head
   - `ExecuteRunsDirector`
   - `ControlsAreMappable`
 
+**Decidido (Diego, 2026-11-15):**
+
+1. El botón "Smart Mix" de la barra (`TbIconSmartMix`, maquetado sin control desde V2) abre y cierra el asistente, con el estado activo de los otros botones de la barra.
+2. Los planes del asistente se piden con `assist=true` (mezclas largas hasta `policyLimits.maximumLongBeatmatchMs`, 96 s) y `smart-mix-v3`.
+3. El asistente y AutoDJ no pueden mover a la vez los decks: hay que decidir quién manda.
+4. Los planes salen del `PlanClient` por servidor de `CrateServerFeature`; el director es un `SmartMixDirector` con el entorno real; se rearma al cargar una pista y al cambiar el deck maestro.
+5. El sitio del panel en la skin: el de las maquetas si lo muestran; si no, el más natural, y se señala a Diego con una captura.
+
+**Implementado (F6.C-PR4, 2026-11-15).** Rama `feat/decks-smart-mix-assist`, sobre F6.C-PR3. Incluye un arreglo de F6.C-PR3.
+
+- **Arreglo: el modo "Crate Smart Mix" de AutoDJ se perdía al reiniciar.** AutoDJ guarda su modo en `[Auto DJ],TransitionMode` como upstream, pero los ajustes solo llegan al fichero cuando la app se cierra bien. Las sesiones de prueba de Diego en que eligió el modo acabaron sin cierre limpio (el log no tiene "shutdown complete"), así que el fichero se quedó con `Requeue` y `Transition`, que se escriben en cada arranque, y sin el modo. Además, sin servidor que anunciara `beatmatch` al arrancar, el combo no tenía la entrada del modo guardado y no mostraba ninguno, mientras AutoDJ seguía en Crate Smart Mix, y la entrada solo volvía tras reiniciar. Ahora `crate::AutoDJSmartMixMode` (`src/crate/smartmix/autodjsmartmixmode.{h,cpp}`, una llamada desde `dlgautodj.cpp`) lleva la entrada: aparece y desaparece con los servidores y sus capacidades (`CrateServers::capabilitiesChanged`); sin servidor que la ofrezca, AutoDJ usa "Full Intro + Outro" y la elección espera en `[Crate],AutoDjSmartMixPending` hasta que vuelva, salvo que el DJ elija otro modo; y el modo que elige el DJ se guarda en el fichero en el acto.
+- **Director:** `SmartMixDirector::Options::holdStart` prepara el entrante en cuanto llega el plan, por lejos que esté su cue, y espera a `release()`; una transición retenida acaba en `deadline` si su cue pasa de largo. `startAtMs()` dice dónde empieza un plan en una pista. Las opciones salen de la clase (`SmartMixDirectorOptions`) para que un miembro tenga valor por defecto.
+- **Modelo `crate::SmartMixAssist`** (`src/crate/smartmix/smartmixassist.{h,cpp}`), creado por `CrateServerFeature` junto al adaptador de AutoDJ y con los mismos `PlanClient` por servidor:
+  - **Deck maestro → otro deck:** el maestro es el deck en el aire (`PlayerInfo::getCurrentPlayingDeck()`); el otro, su pareja (1 con 2, 3 con 4) si tiene una pista parada, o el primer otro deck que la tenga. Pide el plan cuando un deck carga, arranca o se para y cuando cambia el maestro, salvo con una transición en marcha, y solo se queda con un plan que cabe en las pistas.
+  - **Contexto:** `smart-mix-v3`, `assist=true`, `automatic=true` y 8 s preferidos; beatmatch, bajos (con el EQ por defecto) y mezcla larga según las capacidades. Diferencia con el plan: `automatic=false` ("el asistente pide manuales", como decía `PlanContext`) es un salto que el DJ pide ya y el servidor lo planifica como un fundido de 350 ms (comprobado en el stack dev); el asistente pide transiciones planificadas.
+  - **Preparar** arma el director con `holdStart`; **Ejecutar** lo suelta, o lo arma para que arranque en la entrada del plan (el entrante se prepara 8 s antes, como en AutoDJ); **Cancelar** devuelve lo que movió el director.
+  - **Controles:** `[CrateSmartMix],prepare`, `execute` y `cancel`, `ControlPushButton` en modo push, para mapear en controladoras.
+  - **AutoDJ manda (decisión 3, propuesta):** con AutoDJ activo, en cualquier modo, el asistente no planifica ni ejecuta, y activar AutoDJ cancela la transición del asistente; los dos moverían los mismos decks y el crossfader. El asistente tiene su propio director: la regla impide que los dos suenen a la vez.
+- **Panel `crate::AssistPanel`** (`src/crate/smartmix/assistpanel.{h,cpp}`), según la maqueta GU1 `smart-mix-assistant`: una vista del panel de la biblioteca (`WLibrary::registerView`) con su elemento "Smart Mix" en la sección Crate, antes de Cache. Cabecera (decks, chips Assist/Auto DJ que apagan o encienden AutoDJ y estado del plan), la arista como host de StackMap (tonalidades, tempos, títulos, longitud en compases y tiempo a la entrada) y el inspector (modo, una frase del plan, estado, confianza con `LevelRing`, entrada y longitud; filas de modo, entrada, tempo, intercambio de bajos, ganancia y planner; Preparar, Ejecutar y Cancelar al pie de la columna, que no se desplaza con el plan). 29 tokens nuevos en el grupo `dialog`, de la maqueta. La línea de tiempo del plan (`TransitionPlanView`) queda para V3.PR1b: el escenario bajo el host está vacío.
+- **Barra:** el botón Smart Mix conmuta `[CrateDecks],show_smart_mix` (manifiesto de la skin, no persistente): encendido muestra el asistente y selecciona su elemento; apagado vuelve al elemento de la barra lateral en que estaba el DJ (o a la biblioteca de Crate si llegó por la barra lateral); el botón sigue al panel de la biblioteca.
+- **Tests:**
+  - `assistpanel_test.cpp` (11): `AsksThePlanOfTheLoadedDecks`, `ShowsPlanForLoadedDecks` (el panel con el plan de mezcla larga), `ExecuteRunsDirector`, `PrepareHoldsUntilExecute`, `ControlsAreMappable`, `AutoDJComesFirst`, `NeedsTwoCrateTracks`, `AsksAgainWhenADeckLoads`, `RejectsAPlanThatDoesNotFit`, `PanelButtonsDriveTheDirector` y `PanelSaysAutoDJComesFirst`.
+  - `autodjsmartmix_test.cpp`: `PickedModeSurvivesARestart`, `WaitsForAServerThatOffersIt` y `AnotherPickReplacesTheWaitingMode`; `crateservers_test.cpp`: `AnnouncesTheCapabilitiesItKeeps`; `smartmixdirector_test.cpp`: `HoldsAPreparedTransitionUntilReleased` y `AHeldTransitionEndsAtItsDeadline`; `crateserverfeature_test.cpp`: `SmartMixShowsTheAssistant`.
+  - En vivo, `AutoDJSmartMixLive.PlansAssistEdgesWithTheAssistLimits`: con el contexto del asistente, todos los planes caben y traen el techo de 96 s. En "G3 · Auto DJ (industrial EBM)", 1 beatmatch de 11; en "G3 · Electronic (Q3 Q5 grids)", 2 mezclas largas de 11, la más larga de 62,4 s (AutoDJ se queda en 48 s). Un plan tarda 12–34 ms.
+  - Capturas: `CrateSkinScreenshots.SmartMix` (con `CRATE_SKIN_TRACKS` y dos pistas de las duraciones del fixture).
+- **También:** al rehacer la carga tras quedarse sin servidores, `CrateServerFeature` destruye el adaptador y el asistente viejos antes de crear los nuevos (el viejo quitaba el director de AutoDJ al morir, y los controles del asistente se crearían dos veces).
+
+`TEST_GAP:` como en AutoDJ, la precisión real con el motor se mide en G4. Nada de esto se ha escuchado ni probado con decks reales en la app.
+
+**Pendiente de Diego:**
+
+- Confirmar la regla "AutoDJ manda" (decisión 3).
+- Detalles visuales que la maqueta no cubre: el botón Preparar (la maqueta solo muestra Ejecutar y Cancelar, ya en estado "Prepared"), los textos sin plan, el pie fijo de acciones y la fila de búsqueda, que se queda encima del panel como en la vista de caché (la maqueta no la tiene).
+- La duración preferida del asistente (8 s, la del contexto por defecto) podría ser una preferencia.
+- El asistente de aprendizaje de controladoras aún no ofrece los controles `[CrateSmartMix]` en su lista (es de Mixxx); se mapean a mano en el XML o el script del mapeo.
+
 **Gate G4 (Diego):** prueba de escucha A/B de 10 transiciones (Android Smart Mix frente a Decks AutoDJ) con los mismos pares, más los CSV de desviación. **No se sigue sin su aprobación.**
 
 **Decided (Diego, 2026-11-10):** Diego has no DJ gear and cannot run listening tests, so G4 uses automatic metrics on rendered transitions, as in SM5: beat phase in the overlap (Beat This!), voice on voice (YAMNet) and EBU R128 level jumps. The same 10 pairs are rendered offline twice, as Android Smart Mix and as Decks AutoDJ would play them, and the report compares both, together with the deviation CSVs. Diego still approves the gate on that report, and the agent still stops at it.
