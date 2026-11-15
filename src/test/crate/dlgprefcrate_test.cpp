@@ -971,7 +971,8 @@ TEST_F(CrateAddServerFlowTest, AssistTransitionChipsSetThePreference) {
     QButtonGroup* pChips = pSmartMix->assistTransition();
     ASSERT_EQ(5, pChips->buttons().size());
     QStringList texts;
-    for (QAbstractButton* pChip : pChips->buttons()) {
+    const QList<QAbstractButton*> chips = pChips->buttons();
+    for (QAbstractButton* pChip : chips) {
         EXPECT_FALSE(pChip->isHidden());
         EXPECT_FALSE(pChip->parentWidget()->parentWidget()->isHidden());
         EXPECT_EQ(QStringLiteral("CrateChip"), pChip->objectName());
@@ -985,7 +986,8 @@ TEST_F(CrateAddServerFlowTest, AssistTransitionChipsSetThePreference) {
             texts);
     // Labelled as the Auto DJ transition it sits under
     QStringList labels;
-    for (const QLabel* pLabel : pSmartMix->findChildren<QLabel*>()) {
+    const QList<QLabel*> monoLabels = pSmartMix->findChildren<QLabel*>();
+    for (const QLabel* pLabel : monoLabels) {
         if (pLabel->objectName() == QLatin1String("MonoPrefsLabel")) {
             labels.append(pLabel->text());
         }
