@@ -5400,6 +5400,7 @@ if(CRATE)
       src/crate/ui/crateprefsections.cpp
       src/crate/ui/cratefirstrun.cpp
       src/crate/ui/dlgprefcrate.cpp
+      src/crate/ui/systemcheckview.cpp
       src/crate/ui/delegates/camelotdelegate.cpp
       src/crate/ui/delegates/celldelegate.cpp
       src/crate/ui/delegates/delegatestyle.cpp

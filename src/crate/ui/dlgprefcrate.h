@@ -2,6 +2,7 @@
 
 #include <QList>
 #include <QPointer>
+#include <QString>
 
 #include "crate/crateserverrows.h"
 #include "preferences/dialog/dlgpreferencepage.h"
@@ -20,6 +21,12 @@ class CacheStatusModel;
 class CrateServers;
 class SmartMixSection;
 class StemsSection;
+class SystemSection;
+
+namespace system {
+class PowerHelper;
+class SystemCheck;
+} // namespace system
 
 /// The "Crate" page of the preferences: the Crate servers of this
 /// installation, their sign-in state and features, adding one and signing
@@ -32,11 +39,16 @@ class StemsSection;
 /// cache's use and sets the CratePreferences: its limit, its location (for
 /// the next start) and Auto DJ's prefetch. Under Smart Mix, Crate analysis
 /// sets the key and the gain the import takes from Crate; the mockups have
-/// no such section.
+/// no such section. Under the columns, "This computer" (hybrid laptop plan)
+/// has the discrete GPU preference and runs the system check again.
 class DlgPrefCrate : public DlgPreferencePage {
     Q_OBJECT
   public:
-    DlgPrefCrate(QWidget* pParent, CrateServers* pServers);
+    /// `systemRoot` is where the system check reads /sys and /proc; tests
+    /// give a fake tree.
+    DlgPrefCrate(QWidget* pParent,
+            CrateServers* pServers,
+            const QString& systemRoot = QStringLiteral("/"));
 
     /// Shows `rows` instead of this installation's servers until the
     /// servers change. For tests and the screenshots of the page, which have
@@ -54,6 +66,15 @@ class DlgPrefCrate : public DlgPreferencePage {
     }
     AnalysisSection* analysisSection() const {
         return m_pAnalysis;
+    }
+    SystemSection* systemSection() const {
+        return m_pSystem;
+    }
+    system::SystemCheck* systemCheck() const {
+        return m_pSystemCheck;
+    }
+    system::PowerHelper* powerHelper() const {
+        return m_pPowerHelper;
     }
 
   public slots:
@@ -83,6 +104,9 @@ class DlgPrefCrate : public DlgPreferencePage {
     SmartMixSection* m_pSmartMix;
     AnalysisSection* m_pAnalysis;
     StemsSection* m_pStems;
+    system::PowerHelper* m_pPowerHelper;
+    system::SystemCheck* m_pSystemCheck;
+    SystemSection* m_pSystem;
     CacheStatusModel* m_pCacheStatus = nullptr;
     QWidget* m_pColumns;
 };

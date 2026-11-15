@@ -22,10 +22,15 @@
 #include <memory>
 
 #include "coreservices.h"
+#include "crate/cratepreferences.h"
 #include "crate/crateservers.h"
+#include "crate/system/powerhelper.h"
+#include "crate/system/systemcheck.h"
+#include "crate/system/systemprobes.h"
 #include "crate/ui/crateaddserverwidget.h"
 #include "crate/ui/dialogs/dialogchrome.h"
 #include "crate/ui/dialogs/dialogstyle.h"
+#include "crate/ui/systemcheckview.h"
 #include "library/library.h"
 #include "library/trackcollectionmanager.h"
 #include "soundio/sounddevice.h"
@@ -325,6 +330,47 @@ QWidget* soundPage(const FirstRunServices& services,
     return pPage;
 }
 
+void fitPages(QStackedWidget* pPages, QWidget* pPage);
+
+/// The system page: the system check of the hybrid laptop plan (§3), which
+/// starts when the page shows. `done` moves on.
+QWidget* systemPage(const FirstRunServices& services,
+        CrateServers* pServers,
+        QWidget* pParent,
+        const std::function<void()>& done) {
+    QVBoxLayout* pLayout = nullptr;
+    QWidget* pPage = newPage(pParent, &pLayout);
+    pPage->setObjectName(QStringLiteral("CrateFirstRunSystem"));
+    addHead(pLayout, pPage)->setText(translate("System"));
+    addTitle(pLayout,
+            pPage,
+            translate("Check this computer"),
+            translate("Crate Decks measures the graphics, the power limit and the sound "
+                      "for a few seconds, and says what would keep the waveforms smooth."));
+
+    CratePreferences* pPreferences = pServers ? pServers->preferences() : nullptr;
+    auto* pPowerHelper = new system::PowerHelper(pPage);
+    auto* pCheck = new system::SystemCheck(
+            services.systemProbes(pPreferences, pPowerHelper), pPage);
+    pLayout->addWidget(new SystemCheckView(pCheck, pPreferences, pPowerHelper, pPage));
+
+    QHBoxLayout* pFoot = addFoot(pLayout, pPage, translate("Later: Preferences · Crate"));
+    QPushButton* pContinue = pageButton(translate("Continue"),
+            QStringLiteral("crateFirstRunSystemContinue"),
+            "primary",
+            pPage);
+    pFoot->insertWidget(0, pContinue);
+    QObject::connect(pContinue, &QPushButton::clicked, pPage, done);
+    // The dialog fits the page as the results arrive
+    QObject::connect(pCheck, &system::SystemCheck::resultsChanged, pPage, [pPage] {
+        if (auto* pPages = qobject_cast<QStackedWidget*>(pPage->parentWidget());
+                pPages && pPages->currentWidget() == pPage) {
+            fitPages(pPages, pPage);
+        }
+    });
+    return pPage;
+}
+
 /// The optional local music page: folders of this computer next to the
 /// Crate library. It replaces upstream's music folder prompt. `done` finishes.
 QWidget* musicPage(const FirstRunServices& services,
@@ -526,6 +572,7 @@ FirstRunServices firstRunServices(mixxx::CoreServices* pCoreServices) {
     std::shared_ptr<Library> pLibrary = pCoreServices->getLibrary();
     std::shared_ptr<TrackCollectionManager> pCollections =
             pCoreServices->getTrackCollectionManager();
+    services.systemProbes = system::applicationProbes;
     services.addMusicFolder = [pLibrary, pCollections](const QString& folder) {
         if (!pLibrary || !pLibrary->requestAddDir(folder)) {
             return false;
@@ -572,11 +619,28 @@ QDialog* createFirstRunDialog(
 
     QWidget* pServer = pPages->currentWidget();
     QWidget* pMusic = musicPage(services, pPages, [pDialog] { pDialog->accept(); });
-    QWidget* pSound = soundPage(services, pPages, [pPages, pMusic, pDialog] {
+    const auto toMusic = [pPages, pMusic, pDialog] {
         showPage(pPages, pMusic, "crateFirstRunFinish");
         pDialog->setWindowTitle(translate("Music on this computer"));
+    };
+    QWidget* pSystem = services.systemProbes
+            ? systemPage(services, pServers, pPages, toMusic)
+            : nullptr;
+    QWidget* pSound = soundPage(services, pPages, [pPages, pSystem, pDialog, toMusic] {
+        if (!pSystem) {
+            toMusic();
+            return;
+        }
+        showPage(pPages, pSystem, "crateFirstRunSystemContinue");
+        pDialog->setWindowTitle(translate("Check this computer"));
+        if (auto* pCheck = pSystem->findChild<system::SystemCheck*>()) {
+            pCheck->start();
+        }
     });
     pPages->addWidget(pSound);
+    if (pSystem) {
+        pPages->addWidget(pSystem);
+    }
     pPages->addWidget(pMusic);
     const auto toSound = [pPages, pSound, pDialog] {
         showPage(pPages, pSound, "crateFirstRunContinue");

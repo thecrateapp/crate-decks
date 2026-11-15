@@ -4,6 +4,7 @@
 #include <QString>
 #include <functional>
 
+#include "crate/system/systemcheck.h"
 #include "preferences/usersettings.h"
 
 class QDialog;
@@ -15,7 +16,12 @@ class CoreServices;
 
 namespace crate {
 
+class CratePreferences;
 class CrateServers;
+
+namespace system {
+class PowerHelper;
+} // namespace system
 
 /// Whether to offer connecting a Crate server: there is none yet and it was
 /// not offered before on this installation.
@@ -58,6 +64,12 @@ struct FirstRunServices {
     /// Adds `folder` to the local library and scans it; false if it was not
     /// added
     std::function<bool(const QString& folder)> addMusicFolder;
+    /// The system check's readings (system::applicationProbes()). With them
+    /// the first start checks this computer after the sound page (hybrid
+    /// laptop plan §3, Diego, 2026-11-15)
+    std::function<system::Probes(const CratePreferences* pPreferences,
+            const system::PowerHelper* pPowerHelper)>
+            systemProbes;
 
     /// Whether the first start has the sound and music pages
     bool hasPages() const {
@@ -76,8 +88,9 @@ FirstRunServices firstRunServices(mixxx::CoreServices* pCoreServices);
 QDialog* createFirstRunDialog(CrateServers* pServers, QWidget* pParent);
 
 /// The whole first start (plan "Own brand", BR.PR3): "Connect your Crate",
-/// then the sound page (the main output, or a warning without devices) and
-/// the optional local music page, which absorb upstream's first-run dialogs.
+/// then the sound page (the main output, or a warning without devices), the
+/// system check (with `services.systemProbes`) and the optional local music
+/// page, which absorb upstream's first-run dialogs.
 /// "Not now" and a connected server move on to the sound page; "Finish"
 /// accepts. Without `services.hasPages()` it is the dialog above.
 QDialog* createFirstRunDialog(

@@ -34,9 +34,11 @@ firmware's power and thermal limits), and a user cannot tell which. Decks should
 
 ## 2. Render on the discrete GPU (preference)
 
-- **Preferences > Interface > "Draw with the discrete GPU"** (off by default; offered, and recommended by
-  §3, when a discrete GPU is present).
-- It must take effect before Qt creates its first OpenGL context, so it is read from `mixxx.cfg` in `main()`
+- **Preferences · Crate › This computer › "Draw with the discrete GPU"** (off by default; offered, and
+  recommended by §3, when a discrete GPU is present). It lives on Crate's own page rather than in the
+  Interface page, so no upstream page is patched; it is stored as `[Crate],DiscreteGpu` in
+  `crate-decks.cfg`.
+- It must take effect before Qt creates its first OpenGL context, so it is read from `crate-decks.cfg` in `main()`
   before `QApplication` (a hook in `src/main.cpp`, already in the closed patch list), and applies on the
   next start:
   - NVIDIA proprietary: `__NV_PRIME_RENDER_OFFLOAD=1`, `__GLX_VENDOR_LIBRARY_NAME=nvidia`, and
@@ -88,3 +90,23 @@ and after resume. Decks could offer it from the system check on laptops whose fi
 3. **Decided:** Decks **ships** the power limit helper of §4 in its Linux packages and **offers** it from
    the system check. It is installed with `pkexec` only when the user accepts; never silently.
 4. **Decided:** these land **now, before F6** (phase HL of the implementation plan).
+
+## 6. Implementation (phase HL)
+
+| Part | Where | Tests |
+| --- | --- | --- |
+| §2 GPUs, the environment (pure function) and the preference | `src/crate/system/gpus.{h,cpp}`, `CratePreferences::discreteGpu()`, one call in `src/main.cpp` (`CRATE_PATCHES.md`) | `src/test/crate/systemgpus_test.cpp` |
+| §3 System check, without widgets | `src/crate/system/systemcheck.{h,cpp}` (readings over an injectable root, `evaluate()`, `SystemCheck`), `src/crate/system/systemprobes.{h,cpp}` (renderer, monitor, audio controls of the running app) | `src/test/crate/systemcheck_test.cpp` (fake `/sys` and `/proc`, `src/test/crate/fakesystemtree.h`) |
+| §3 Views | `src/crate/ui/systemcheckview.{h,cpp}`; the first start's "System" page after the sound page (`cratefirstrun.cpp`); "This computer" on Preferences · Crate (`SystemSection`) | `dlgprefcrate_test.cpp`; screenshots `crate-firstrun-system` and `crate-prefs-crate-system` of `CrateSkinScreenshots.Dialogs` |
+| §4 Power limit helper | `res/crate-power-limit/` (script, unit, udev rule, sleep hook, `install.sh` with `--uninstall`), installed by CMake under `share/crate-decks/crate-power-limit` without enabling it; `src/crate/system/powerhelper.{h,cpp}` runs `pkexec install.sh` after the user confirms in the row | `src/test/crate/powerlimithelper_test.cpp` (the script and the installer against a fake sysfs and `DESTDIR`) |
+
+Notes:
+
+- The integrated GPU's clock is read from i915 (`gt/gt0/rps_*`, `throttle_reason_*`, `rc6_residency_ms`)
+  and xe (`device/tile0/gt0/freq0`); other drivers report "not available".
+- "Busy" comes from the GPU's idle residency (rc6). In the first start nothing plays, so an idle GPU is
+  reported as such, with "run it again while a track plays" from Preferences.
+- Audio reads the engine's `[App],audio_latency_usage` and `audio_latency_overload_count` while the check
+  runs; the buffer size itself is not read.
+- The discrete GPU is recommended only when the integrated GPU falls short (its clock, the compositor or a
+  demanding monitor warn), as Diego decided.

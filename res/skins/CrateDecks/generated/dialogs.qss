@@ -668,6 +668,70 @@ QDialog[crateChrome="true"] {
   background-color: rgba(251, 191, 36, 26);
   color: #f9c94a;
 }
+#CrateStateBadge[crateState="ok"] {
+  border-color: rgba(103, 232, 249, 102);
+  background-color: rgba(6, 182, 212, 26);
+  color: #67e8f9;
+}
+#CrateStateBadge[crateState="warning"] {
+  border-color: rgba(251, 191, 36, 64);
+  background-color: rgba(251, 191, 36, 26);
+  color: #f9c94a;
+}
+#CrateStateBadge[crateState="blocking"] {
+  border-color: rgba(239, 68, 68, 64);
+  background-color: rgba(239, 68, 68, 26);
+  color: #ef6465;
+}
+#CrateStateBadge[crateState="unavailable"] {
+  border-color: rgba(241, 245, 249, 10);
+  color: rgba(241, 245, 249, 79);
+}
+
+/* The system check (hybrid laptop plan): rows as the server rows */
+#CrateCheckRow {
+  border: 0;
+  border-bottom: 1px solid rgba(241, 245, 249, 15);
+  background-color: transparent;
+}
+#CrateCheckDot {
+  min-width: 6px;
+  max-width: 6px;
+  min-height: 6px;
+  max-height: 6px;
+  margin-top: 6px;
+  border-radius: 3px;
+  background-color: #7e8084;
+}
+#CrateCheckDot[crateState="ok"] {
+  background-color: #67e8f9;
+}
+#CrateCheckDot[crateState="warning"] {
+  background-color: #f9c94a;
+}
+#CrateCheckDot[crateState="blocking"] {
+  background-color: #ef6465;
+}
+#CrateCheckTitle {
+  color: #f1f5f9;
+  font-size: 15px;
+  font-weight: 500;
+}
+#CrateCheckDetail {
+  color: #999ca0;
+  font-family: "JetBrains Mono";
+  font-size: 11px;
+}
+#CrateCheckAdvice {
+  color: rgba(241, 245, 249, 199);
+  font-size: 13px;
+}
+#crateSystemCheckProgress {
+  padding: 12px 0;
+}
+#crateRunSystemCheck {
+  qproperty-icon: url(skins:CrateDecks/generated/icons/pulse_primary.svg);
+}
 #crateAddServer {
   qproperty-icon: url(skins:CrateDecks/generated/icons/add-circle_accent.svg);
 }
