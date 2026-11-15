@@ -2,6 +2,7 @@
 
 #include <gtest/gtest.h>
 
+#include <QCoreApplication>
 #include <QDir>
 #include <QDirIterator>
 #include <QFile>
@@ -12,6 +13,7 @@
 #include <memory>
 #include <optional>
 
+#include "crate/appidentity.h"
 #include "crate/cache/audiocacheindex.h"
 #include "crate/cache/cachepaths.h"
 #include "crate/client/crateclient.h"
@@ -184,6 +186,22 @@ class AudioCacheTest : public testing::Test {
     std::shared_ptr<FakeStorageInfo> m_pStorage = std::make_shared<FakeStorageInfo>();
     qint64 m_nowMs = 1000;
 };
+
+// The cache stays where it was when the application was called Crate
+// Decks (Diego, 2026-11-15): a rename must not drop the downloaded tracks.
+TEST(AudioCacheDefaultDirectoryTest, KeepsItsFolderWhenTheApplicationIsRenamed) {
+    const QString organization = QCoreApplication::organizationName();
+    const QString application = QCoreApplication::applicationName();
+    QCoreApplication::setOrganizationName(QString::fromUtf8(crate::kOrganizationName));
+    QCoreApplication::setApplicationName(QString::fromUtf8(crate::kApplicationName));
+
+    const QString directory = AudioCache::defaultDirectory();
+
+    QCoreApplication::setOrganizationName(organization);
+    QCoreApplication::setApplicationName(application);
+    EXPECT_TRUE(directory.endsWith(QStringLiteral("/Crate/Crate Decks/crate-audio")))
+            << qPrintable(directory);
+}
 
 TEST_F(AudioCacheTest, DownloadsToPartThenRenames) {
     const auto pCache = makeCache();

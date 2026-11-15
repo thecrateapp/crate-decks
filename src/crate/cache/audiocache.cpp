@@ -14,6 +14,7 @@
 #include <unordered_map>
 #include <utility>
 
+#include "crate/appidentity.h"
 #include "crate/cache/cachepaths.h"
 #include "crate/client/crateclient.h"
 #include "util/assert.h"
@@ -222,7 +223,7 @@ void CacheTicket::finishFailed(const Error& error) {
 const QString AudioCache::kSessionPinPrefix = QStringLiteral("session:");
 
 QString AudioCache::defaultDirectory() {
-    return QDir(QStandardPaths::writableLocation(QStandardPaths::CacheLocation))
+    return QDir(dataLocation(QStandardPaths::CacheLocation))
             .filePath(QStringLiteral("crate-audio"));
 }
 

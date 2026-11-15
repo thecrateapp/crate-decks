@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QStandardPaths>
 #include <QString>
 #include <QUrl>
 
@@ -22,6 +23,13 @@ inline constexpr char kApplicationName[] = "Crate Decks";
 /// file as the version of the settings.
 inline constexpr char kApplicationVersion[] = "0.1.0";
 inline constexpr char kOrganizationName[] = "Crate";
+/// Folder of the application in the per-user folders that Qt names after
+/// the organization and the application (QStandardPaths' application
+/// locations): the audio cache "~/.cache/Crate/Crate Decks" on Linux and the
+/// settings folder "<data>/Crate/Crate Decks" on Windows and macOS. It keeps
+/// the name these folders were created with, whatever the visible name of
+/// the application is, so that renaming the application moves no user data.
+inline constexpr char kDataFolderName[] = "Crate Decks";
 inline constexpr char kOrganizationDomain[] = "cratemusic.app";
 /// Wayland app_id, which must match the basename of the .desktop file.
 inline constexpr char kDesktopFileName[] = "app.cratemusic.decks";
@@ -68,6 +76,17 @@ QString buildVersion(const QString& gitDescribe);
 /// licence asks for attribution and to say what changed (design 14.3, plan
 /// V2.PR5), and the admin's fonts under the SIL Open Font License.
 QString attributionText(const QString& linkStyle);
+
+/// `path`, a location of QStandardPaths for `organization` and
+/// `application`, with the application's folder named kDataFolderName:
+/// "<cache>/Crate/Decks" becomes "<cache>/Crate/Crate Decks", and so does
+/// Windows' "<data>/Crate/Decks/cache". Unchanged when Qt added no
+/// application folder to it.
+QString inDataFolder(const QString& path, const QString& organization, const QString& application);
+
+/// The writable location of QStandardPaths `type` for the application, in
+/// kDataFolderName (inDataFolder()).
+QString dataLocation(QStandardPaths::StandardLocation type);
 
 /// Sets the organization, the desktop file name and the application version
 /// on the Qt application.

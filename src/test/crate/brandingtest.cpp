@@ -72,6 +72,7 @@ class CrateBrandingTest : public testing::Test {
         m_organizationDomain = QCoreApplication::organizationDomain();
         m_desktopFileName = QGuiApplication::desktopFileName();
         m_applicationVersion = QCoreApplication::applicationVersion();
+        m_applicationName = QCoreApplication::applicationName();
     }
 
     void TearDown() override {
@@ -80,6 +81,7 @@ class CrateBrandingTest : public testing::Test {
         QCoreApplication::setOrganizationDomain(m_organizationDomain);
         QGuiApplication::setDesktopFileName(m_desktopFileName);
         QCoreApplication::setApplicationVersion(m_applicationVersion);
+        QCoreApplication::setApplicationName(m_applicationName);
     }
 
   private:
@@ -87,6 +89,7 @@ class CrateBrandingTest : public testing::Test {
     QString m_organizationDomain;
     QString m_desktopFileName;
     QString m_applicationVersion;
+    QString m_applicationName;
 };
 
 TEST_F(CrateBrandingTest, ApplicationNameIsCrateDecks) {
@@ -178,8 +181,9 @@ TEST_F(CrateBrandingTest, DefaultSettingsPathIsNotMixxxs) {
     EXPECT_FALSE(args.getSettingsPath().contains(kMixxxSettingsDir));
 #else
     // TEST_GAP: on macOS and Windows the default comes from
-    // QStandardPaths::AppLocalDataLocation, which follows the application
-    // name that main() sets; mixxx-test runs with its own name.
+    // QStandardPaths::AppLocalDataLocation in the folder that
+    // crate::dataLocation() keeps (DataFoldersKeepTheirNameWhenThe
+    // ApplicationIsRenamed); this build only runs the Linux branch.
     GTEST_SKIP() << "The default settings path is only fixed at compile time on Linux";
 #endif
 }
@@ -248,6 +252,58 @@ TEST_F(CrateBrandingTest, SettingsPathOptionOverridesDefault) {
                 args.getSettingsPath());
     }
 #endif
+}
+
+// Diego, 2026-11-15: the application is called Decks, but the folders that
+// Qt names after it (the audio cache, the settings folder on Windows and
+// macOS) keep the name they were created with, so no user data moves.
+TEST_F(CrateBrandingTest, DataFoldersKeepTheirNameWhenTheApplicationIsRenamed) {
+    const QString crate = QStringLiteral("Crate");
+    const QString decks = QStringLiteral("Decks");
+    const struct {
+        QString path;
+        QString expected;
+    } cases[] = {
+            // Linux, the cache
+            {QStringLiteral("/home/dj/.cache/Crate/Decks"),
+                    QStringLiteral("/home/dj/.cache/Crate/Crate Decks")},
+            // Windows, the settings folder and the cache inside it
+            {QStringLiteral("C:/Users/dj/AppData/Local/Crate/Decks"),
+                    QStringLiteral("C:/Users/dj/AppData/Local/Crate/Crate Decks")},
+            {QStringLiteral("C:/Users/dj/AppData/Local/Crate/Decks/cache"),
+                    QStringLiteral("C:/Users/dj/AppData/Local/Crate/Crate Decks/cache")},
+            // macOS
+            {QStringLiteral("/Users/dj/Library/Application Support/Crate/Decks"),
+                    QStringLiteral("/Users/dj/Library/Application Support/Crate/Crate Decks")},
+            // Only the application's folder, not one in the home folder
+            {QStringLiteral("/home/Crate/Decks/.cache/Crate/Decks"),
+                    QStringLiteral("/home/Crate/Decks/.cache/Crate/Crate Decks")},
+            // Qt added no application folder
+            {QStringLiteral("/home/dj/.cache"), QStringLiteral("/home/dj/.cache")},
+            {QStringLiteral("/home/dj/.cache/Crate/Decksy"),
+                    QStringLiteral("/home/dj/.cache/Crate/Decksy")},
+    };
+    for (const auto& testCase : cases) {
+        SCOPED_TRACE(qPrintable(testCase.path));
+        EXPECT_QSTRING_EQ(testCase.expected, crate::inDataFolder(testCase.path, crate, decks));
+    }
+    EXPECT_QSTRING_EQ(QStringLiteral("/home/dj/.cache/Decks"),
+            crate::inDataFolder(QStringLiteral("/home/dj/.cache/Decks"), crate, QString()));
+    EXPECT_QSTRING_EQ(QStringLiteral("/home/dj/.cache/Crate Decks"),
+            crate::inDataFolder(QStringLiteral("/home/dj/.cache/Decks"), QString(), decks));
+    // The name before the rename is already the folder's
+    EXPECT_QSTRING_EQ(QStringLiteral("/home/dj/.cache/Crate/Crate Decks"),
+            crate::inDataFolder(QStringLiteral("/home/dj/.cache/Crate/Crate Decks"),
+                    crate,
+                    QStringLiteral("Crate Decks")));
+
+    crate::applyApplicationIdentity();
+    QCoreApplication::setApplicationName(QString::fromUtf8(crate::kApplicationName));
+    for (const auto type : {QStandardPaths::CacheLocation, QStandardPaths::AppLocalDataLocation}) {
+        const QString location = crate::dataLocation(type);
+        SCOPED_TRACE(qPrintable(location));
+        EXPECT_TRUE(location.contains(QStringLiteral("/Crate/Crate Decks")));
+    }
 }
 
 TEST_F(CrateBrandingTest, BroadcastKeychainPrefixIsNotMixxxs) {

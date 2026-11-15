@@ -16,10 +16,10 @@
 #include <QtGlobal>
 
 #include "config.h"
+#include "crate/appidentity.h"
 #include "defs_urls.h"
 #include "sources/soundsourceproxy.h"
 #include "util/assert.h"
-#include "util/versionstore.h"
 
 namespace {
 
@@ -91,17 +91,20 @@ CmdlineArgs::CmdlineArgs()
           //
           // This lets the user back up their mixxxdb, add custom controller mappings,
           // potentially diagnose issues by accessing logs etc. via the native iOS files app.
-          // Crate Decks: named after the application (plan BR2)
+          // Crate Decks: named after the application (plan BR2), with the
+          // name it had when the folder was created (crate::kDataFolderName)
           m_settingsPath(
                   QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)
                           .append("/Library/Application Support/")
-                          .append(VersionStore::applicationName()))
+                          .append(QString::fromUtf8(crate::kDataFolderName)))
 #else
 
           // TODO(XXX) Trailing slash not needed anymore as we switches from String::append
           // to QDir::filePath elsewhere in the code. This is candidate for removal.
+          // Crate Decks: the settings folder keeps its name when the
+          // application's changes (crate::dataLocation())
           m_settingsPath(
-                  QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation)
+                  crate::dataLocation(QStandardPaths::AppLocalDataLocation)
                           .append("/"))
 #endif
 {

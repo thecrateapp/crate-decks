@@ -225,7 +225,8 @@ class AudioCache : public QObject {
     };
 
     /// `<the app's cache location>/crate-audio`, e.g.
-    /// ~/.cache/Crate/Crate Decks/crate-audio on Linux.
+    /// ~/.cache/Crate/Crate Decks/crate-audio on Linux: the folder keeps its
+    /// name when the application's changes (crate::dataLocation()).
     static QString defaultDirectory();
 
     explicit AudioCache(Options options, QObject* parent = nullptr);
