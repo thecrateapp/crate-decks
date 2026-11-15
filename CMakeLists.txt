@@ -5379,6 +5379,7 @@ if(CRATE)
       src/crate/session/crateloopbackserver.cpp
       src/crate/session/cratesecretstore.cpp
       src/crate/session/cratesession.cpp
+      src/crate/smartmix/controlautomation.cpp
       src/crate/smartmix/curves.cpp
       src/crate/smartmix/eqmap.cpp
       src/crate/smartmix/planclient.cpp
@@ -5470,6 +5471,7 @@ if(CRATE)
         src/test/crate/systemcheck_test.cpp
         src/test/crate/systemgpus_test.cpp
         src/test/crate/transitionplan_test.cpp
+        src/test/crate/controlautomation_test.cpp
         src/test/crate/curves_test.cpp
         src/test/crate/eqmap_test.cpp
         src/test/crate/skinloadtest.cpp
