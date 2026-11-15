@@ -1084,11 +1084,16 @@ grep -rn "smart-mix-v2" app/crate | head
 
 `TEST_GAP:` como en AutoDJ, la precisión real con el motor se mide en G4. Nada de esto se ha escuchado ni probado con decks reales en la app.
 
+**Seguimiento (2026-11-15, rama `integ/decks-f6-smart-mix`):**
+
+- **El inspector cabe en el panel de la biblioteca.** A 1366 × 768 el asistente hacía la ventana de 1009 px de alto: sus etiquetas con salto de línea pasaban la altura según el ancho hasta la ventana principal, cuyo mínimo era la altura del panel en su ancho más estrecho. El panel ya no la pasa (`AssistPanel::hasHeightForWidth()` es `false`) y toma la altura del panel de la biblioteca (unos 400 px a 1920 × 1080 y 210 px a 1366 × 768, menos que en la maqueta). Los detalles se desplazan encima de Preparar, Ejecutar y Cancelar, que siguen fijos al pie sin nada debajo: la línea "Mappable" pasa al final de los detalles (en la maqueta va debajo de los botones). A 1920 × 1080 la fila de confianza, entrada y longitud se ve entera; a 1366 × 768 caben unos 80 px de detalles y se desplazan. Test: `CrateSkinLoadTest.SmartMixDetailsStayAboveTheActions`, con la skin y un plan a los dos tamaños. Capturas: `CrateSkinScreenshots.SmartMix`, también del estado preparado a 1366 × 768.
+- **Duración preferida del asistente como preferencia.** `[Crate],SmartMixAssistTransition`, en segundos como el tiempo de transición de AutoDJ: 8 s por defecto, de 1 s (la transición más corta del planner) a 12 s (lo que acepta la petición). En Preferencias · Crate, sección "Auto DJ and Smart Mix", "Assistant transition" con chips de 4, 6, 8, 10 y 12 s, como "Auto DJ transition" (que sigue oculto). Cambiarla vuelve a pedir el plan. Las mezclas largas, hasta `policyLimits.maximumLongBeatmatchMs`, siguen siendo cosa del planner. Tests: `CrateAddServerFlowTest.AssistTransitionStaysWithinTheServersLimits`, `CrateAddServerFlowTest.AssistTransitionChipsSetThePreference` y `CrateSmartMixAssistTest.AsksForTheTransitionLengthOfThePreferences`.
+
 **Pendiente de Diego:**
 
 - Confirmar la regla "AutoDJ manda" (decisión 3).
 - Detalles visuales que la maqueta no cubre: el botón Preparar (la maqueta solo muestra Ejecutar y Cancelar, ya en estado "Prepared"), los textos sin plan, el pie fijo de acciones y la fila de búsqueda, que se queda encima del panel como en la vista de caché (la maqueta no la tiene).
-- La duración preferida del asistente (8 s, la del contexto por defecto) podría ser una preferencia.
+- ~~La duración preferida del asistente (8 s, la del contexto por defecto) podría ser una preferencia.~~ Hecho en el seguimiento.
 - El asistente de aprendizaje de controladoras aún no ofrece los controles `[CrateSmartMix]` en su lista (es de Mixxx); se mapean a mano en el XML o el script del mapeo.
 
 **Gate G4 (Diego):** prueba de escucha A/B de 10 transiciones (Android Smart Mix frente a Decks AutoDJ) con los mismos pares, más los CSV de desviación. **No se sigue sin su aprobación.**
