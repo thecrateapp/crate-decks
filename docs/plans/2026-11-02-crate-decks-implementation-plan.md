@@ -73,7 +73,7 @@ El [informe del spike](2026-11-03-crate-decks-spike-report.md) mide Q1, Q3–Q5,
 | Antes de | Pruebas |
 | --- | --- |
 | F4 | Q3 y Q5 en la forma de onda (qué grid va con la música) y Q10 en la LAN. **Decided (Diego, 2026-11-11):** F4 went ahead without them; they run in the G3 session (see the G3 gate at the end of F4) |
-| F6 | Q6 (EQ) y Q7 (10 transiciones con audio) |
+| F6 | Q7 (10 transiciones con audio). Q6 (EQ) quedó medido sin escuchar en F6.C-PR2: ver el resultado bajo la tabla de F0.1 |
 | V1/V2 y GU1 | Q13–Q16 |
 
 F1–F3 no dependen de ellas.
@@ -181,6 +181,19 @@ cubren todo lo necesario: búsqueda, `mix-profile`, `compatible`, `stream`, `tra
 | Q15 | ¿Se leen JetBrains Mono a 10,5–11 px (metadatos y MonoLabel) y Roboto a 12–13 px (títulos de pista) en una cabina oscura? ¿Tiene Bricolage Grotesque cifras tabulares para el BPM y el tiempo del deck? | Pantalla a 1,5 m con el brillo bajo; probar 10,5, 11 y 12 px; comprobar `font-feature-settings: tnum` en Bricolage con `QFont::setFeature` (Qt ≥ 6.7) o con una muestra renderizada | Tamaño mínimo y fuente de las cifras grandes argumentados para GU1 |
 | Q16 | ¿En qué estado real están las dos interfaces QML? | Arrancar con `--new-ui --settingsPath /tmp/qml-spike` y con `--developer` + skin LateNightQML. Comprobar si la feature del spike (S0.2) y AutoDJ aparecen en el puente `LegacyLibraryItem`. Medir fps de ondas en ambas y anotar fallos en 20 min de uso | Informe de estado con capturas, para tener una base real en GU2 |
 | Q17 | ¿Es viable la reproducción progresiva (D14)? | Prototipo de `SoundSourceCrateProgressive`: FFmpeg con `AVIOContext` propio sobre un fichero que otro hilo rellena a velocidad limitada (1,5× y 0,8× el bitrate). Cargar en deck con 10 s descargados, dar play, hacer seek a una zona no descargada, expulsar a mitad de espera y cerrar la app a mitad de espera. Probar FLAC, MP3, M4A y Opus con la cola descargada primero. Comprobar con `ldd`/`otool -L` que los builds de Linux, macOS y Windows (artefactos del CI de upstream) incluyen FFmpeg | Sin cuelgues al expulsar o cerrar, ninguna lectura corta (ni truncado de la pista), los 4 formatos abren con cabecera y cola, y lista de plataformas con FFmpeg |
+
+**Resultado de Q6 (medido en F6.C-PR2, 2026-11-15).** Diego no tiene equipo de DJ ni puede escuchar, así que Q6 se mide en vez de escucharse: `src/test/crate/eqmap_test.cpp` carga en el deck 1 un seno de 60 Hz o de 5 kHz a -12 dBFS, pasa el audio por el motor real (`EngineMixer`, con el EQ por defecto, "Biquad Full Kill Equalizer", cargado en el rack del deck y los cruces de la app: 246 Hz y 2484 Hz) y mide el RMS de la salida principal con cada control movido frente al EQ neutro.
+
+| Control de `[EqualizerRack1_[Channel1]_Effect1]` | 60 Hz | 5 kHz |
+| --- | --- | --- |
+| `parameter1` = 0 | -49,1 dB | -0,03 dB |
+| `button_parameter1` = 1 | -49,1 dB | -0,03 dB |
+| `parameter2` = 0 / `button_parameter2` = 1 | -0,6 dB | — |
+| `parameter3` = 0 / `button_parameter3` = 1 | -0,8 / -0,01 dB | -28,2 dB |
+
+- **Mapa confirmado:** `parameter1` es la ganancia de graves (1 neutro, 0 el corte más hondo, hasta 4 de realce) y `button_parameter1` su kill; `parameter2`/`button_parameter2` los medios y `parameter3`/`button_parameter3` los agudos. Todos los EQ de mezcla declaran los parámetros en ese orden (`EqualizerUtil::createCommonParameters`). Queda en `src/crate/smartmix/eqmap.h`.
+- **El knob no es la ganancia de la banda por debajo de 1:** a 60 Hz, `parameter1` = 0,5 corta 4,2 dB, 0,25 corta 8,1 dB (no 12) y 0,075 corta 22,8 dB; por debajo de 0,25 el EQ funde con el kill del aislador. Para el intercambio de bajos de Android (un shelf de -24 dB a 150 Hz) el director usa la curva medida (`eqmap::lowGainForCutDb()`, -24 dB ≈ 0,067), y el test comprueba que cada corte pedido (-3, -6, -12, -18 y -24 dB) sale con ±1 dB.
+- **El kill de agudos no es tan hondo** como el de graves (-28 dB frente a -49 dB). Smart Mix no lo usa.
 
 ### F0.2. Preparación
 
