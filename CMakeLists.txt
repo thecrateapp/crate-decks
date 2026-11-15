@@ -5379,6 +5379,7 @@ if(CRATE)
       src/crate/session/crateloopbackserver.cpp
       src/crate/session/cratesecretstore.cpp
       src/crate/session/cratesession.cpp
+      src/crate/smartmix/planclient.cpp
       src/crate/smartmix/transitionplan.cpp
       src/crate/stems/resampler.cpp
       src/crate/stems/nistemexport.cpp
@@ -5458,6 +5459,7 @@ if(CRATE)
         src/test/crate/dlgprefcrate_test.cpp
         src/test/crate/cratesession_test.cpp
         src/test/crate/modelstore_test.cpp
+        src/test/crate/planclient_test.cpp
         src/test/crate/stemanalyzer_test.cpp
         src/test/crate/stemdsp_test.cpp
         src/test/crate/stemjobs_test.cpp
