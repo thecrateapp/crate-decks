@@ -325,7 +325,8 @@ CrateServerFeature::CrateServerFeature(Library* pLibrary,
             return onSearch(pModel, text);
         });
     }
-    for (CrateServerTrackModel* pModel : trackModels()) {
+    const QList<CrateServerTrackModel*> models = trackModels();
+    for (CrateServerTrackModel* pModel : models) {
         pModel->setMenuActions([this](const QList<CrateTrackRef>& tracks,
                                        const QStringList& labels,
                                        QObject* pParent) {
@@ -571,7 +572,8 @@ void CrateServerFeature::startLoading() {
             &CrateLoadCoordinator::loadTrackIntoNextAvailableDeck,
             this,
             &LibraryFeature::loadTrack);
-    for (CrateServerTrackModel* pModel : trackModels()) {
+    const QList<CrateServerTrackModel*> models = trackModels();
+    for (CrateServerTrackModel* pModel : models) {
         pModel->setLoadCoordinator(m_pLoadCoordinator.get());
     }
 
@@ -797,7 +799,8 @@ void CrateServerFeature::stopLoading() {
     m_pPaths.reset();
     m_pRadio.reset();
     m_pRecommendations.reset();
-    for (CrateServerTrackModel* pModel : trackModels()) {
+    const QList<CrateServerTrackModel*> models = trackModels();
+    for (CrateServerTrackModel* pModel : models) {
         pModel->setLoadCoordinator(nullptr);
     }
     m_pStemJobs.reset();

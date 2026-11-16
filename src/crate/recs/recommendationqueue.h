@@ -35,7 +35,8 @@ class RecommendationQueue : public QObject {
 
     /// The Crate tracks in Auto DJ's queue, in its order, read off the main
     /// thread: `done` comes later, on the main thread.
-    virtual void readQueue(std::function<void(const QList<cache::TrackKey>& queued)> done) = 0;
+    virtual void readQueue(
+            const std::function<void(const QList<cache::TrackKey>& queued)>& done) = 0;
 
     /// Saves `tracks` as a new playlist named after `name` (made unique);
     /// the name it got, or an empty string if it could not.
@@ -73,7 +74,8 @@ class AutoDjRecommendationQueue : public RecommendationQueue {
     ~AutoDjRecommendationQueue() override;
 
     void enqueue(const QString& serverId, const QList<RecommendedTrack>& tracks) override;
-    void readQueue(std::function<void(const QList<cache::TrackKey>& queued)> done) override;
+    void readQueue(
+            const std::function<void(const QList<cache::TrackKey>& queued)>& done) override;
     QString saveAsPlaylist(const QString& name,
             const QString& serverId,
             const QList<RecommendedTrack>& tracks) override;

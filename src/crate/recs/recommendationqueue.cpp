@@ -115,12 +115,12 @@ void AutoDjRecommendationQueue::enqueue(
 }
 
 void AutoDjRecommendationQueue::readQueue(
-        std::function<void(const QList<cache::TrackKey>& queued)> done) {
+        const std::function<void(const QList<cache::TrackKey>& queued)>& done) {
     auto* pWatcher = new QFutureWatcher<QStringList>(this);
     connect(pWatcher,
             &QFutureWatcherBase::finished,
             this,
-            [this, pWatcher, done = std::move(done)] {
+            [this, pWatcher, done] {
                 pWatcher->deleteLater();
                 QList<cache::TrackKey> queued;
                 const QStringList locations = pWatcher->result();

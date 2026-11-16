@@ -52,7 +52,8 @@ class FakeQueue : public crate::recs::RecommendationQueue {
         emit queueChanged();
     }
 
-    void readQueue(std::function<void(const QList<TrackKey>&)> done) override {
+    void readQueue(
+            const std::function<void(const QList<TrackKey>&)>& done) override {
         ++reads;
         // Later, as the application's read off the main thread
         QMetaObject::invokeMethod(

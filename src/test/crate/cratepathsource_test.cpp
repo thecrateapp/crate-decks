@@ -44,7 +44,8 @@ class FakeQueue : public crate::recs::RecommendationQueue {
         enqueued.append(tracks);
     }
 
-    void readQueue(std::function<void(const QList<crate::cache::TrackKey>&)> done) override {
+    void readQueue(
+            const std::function<void(const QList<crate::cache::TrackKey>&)>& done) override {
         done({});
     }
 
