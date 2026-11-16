@@ -1103,6 +1103,11 @@ grep -rn "smart-mix-v2" app/crate | head
 
 **Decided (Diego, 2026-11-10):** Diego has no DJ gear and cannot run listening tests, so G4 uses automatic metrics on rendered transitions, as in SM5: beat phase in the overlap (Beat This!), voice on voice (YAMNet) and EBU R128 level jumps. The same 10 pairs are rendered offline twice, as Android Smart Mix and as Decks AutoDJ would play them, and the report compares both, together with the deviation CSVs. Diego still approves the gate on that report, and the agent still stops at it.
 
+**Decided (Diego, 2026-11-16):** G4 is deferred, not dropped. Work goes on as if it had passed: F5, F6b.PR1,
+F7, F8 and V3.PR2–PR3 start now. The report is still owed before the first release (G6), and whatever it finds
+is fixed then. Open questions it should answer: how often the fixed 30 s handover lead is too short, and why
+the first live run had no bass handoff.
+
 ---
 
 ## F6b · AI Assisted Mixing en Decks (D15)
