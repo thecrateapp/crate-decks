@@ -16,6 +16,8 @@
 #include <algorithm>
 #include <iostream>
 #include <memory>
+#include <utility>
+#include <vector>
 
 #include "control/controlobject.h"
 #include "crate/cache/audiocache.h"
@@ -36,6 +38,7 @@
 #include "library/trackset/crate/crate.h"
 #include "library/treeitem.h"
 #include "library/treeitemmodel.h"
+#include "mixer/playerinfo.h"
 #include "test/crate/fakecratenetwork.h"
 #include "test/librarytest.h"
 #include "track/track.h"
@@ -121,13 +124,32 @@ class CrateServerFeatureTest : public LibraryTest {
     void TearDown() override {
         m_pFeature.reset();
         m_pServers.reset();
+        if (!m_playerControls.empty()) {
+            PlayerInfo::destroy();
+            m_playerControls.clear();
+        }
     }
 
-    CrateServerFeature* makeFeature() {
+    /// The decks' tracks, as CoreServices gives the app's feature, with the
+    /// controls PlayerInfo reads; no decks.
+    PlayerInfo* createPlayerInfo() {
+        for (const auto& [group, item] :
+                {std::pair{QStringLiteral("[Master]"), QStringLiteral("crossfader")},
+                        std::pair{QStringLiteral("[App]"), QStringLiteral("num_decks")},
+                        std::pair{QStringLiteral("[App]"), QStringLiteral("num_samplers")},
+                        std::pair{QStringLiteral("[App]"),
+                                QStringLiteral("num_preview_decks")}}) {
+            m_playerControls.push_back(std::make_unique<ControlObject>(ConfigKey(group, item)));
+        }
+        return &PlayerInfo::create();
+    }
+
+    CrateServerFeature* makeFeature(PlayerInfo* pPlayerInfo = nullptr) {
         CrateServerFeature::Dependencies dependencies;
         dependencies.pTrackCollectionManager = trackCollectionManager();
         dependencies.pDbConnectionPool = dbConnectionPooler();
         dependencies.pServers = m_pServers.get();
+        dependencies.pPlayerInfo = pPlayerInfo;
         m_pFeature = std::make_unique<CrateServerFeature>(nullptr, config(), dependencies);
         // The sidebar is read off the main thread
         QSignalSpy updated(m_pFeature.get(), &CrateServerFeature::sidebarUpdated);
@@ -277,6 +299,7 @@ class CrateServerFeatureTest : public LibraryTest {
     FakeSecretStore m_store;
     std::unique_ptr<CrateServers> m_pServers;
     std::unique_ptr<CrateServerFeature> m_pFeature;
+    std::vector<std::unique_ptr<ControlObject>> m_playerControls;
     qsizetype m_sentAtStart = 0;
 };
 
@@ -983,10 +1006,22 @@ class MainThreadStalls {
 // The Smart Mix item (plan F6.C-PR4) shows the assistant, which the skin's
 // toolbar button [CrateDecks],show_smart_mix shows and hides; the button
 // follows the library pane.
+TEST_F(CrateServerFeatureTest, SmartMixNeedsTheDecks) {
+    storeTree();
+    // Never PlayerInfo::instance() in place of the one it is given
+    CrateServerFeature* pFeature = makeFeature();
+    EXPECT_EQ(nullptr, pFeature->smartMixAssist());
+    WLibrary library(nullptr);
+    pFeature->bindLibraryWidget(&library, nullptr);
+    auto* pPanel = library.findChild<crate::AssistPanel*>();
+    ASSERT_NE(nullptr, pPanel);
+    EXPECT_EQ(nullptr, pPanel->assist());
+}
+
 TEST_F(CrateServerFeatureTest, SmartMixShowsTheAssistant) {
     storeTree();
     ControlObject showSmartMix(CrateServerFeature::showSmartMixKey());
-    CrateServerFeature* pFeature = makeFeature();
+    CrateServerFeature* pFeature = makeFeature(createPlayerInfo());
     ASSERT_NE(nullptr, pFeature->smartMixAssist());
     WLibrary library(nullptr);
     pFeature->bindLibraryWidget(&library, nullptr);

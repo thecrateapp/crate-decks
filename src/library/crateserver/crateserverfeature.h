@@ -77,7 +77,10 @@ class CrateServerFeature : public LibraryFeature {
         /// one: CoreServices creates it after the library.
         CrateServers* pServers = nullptr;
         /// The players' tracks, so that a Crate track loaded some other way
-        /// (Auto DJ) takes Crate's analysis. Optional; not owned.
+        /// (Auto DJ) takes Crate's analysis, and the decks Smart Mix plays.
+        /// Optional, never PlayerInfo::instance() in its place: without one
+        /// there is no Smart Mix (Auto DJ's mode and the assistant). Not
+        /// owned.
         PlayerInfo* pPlayerInfo = nullptr;
     };
 
@@ -103,7 +106,8 @@ class CrateServerFeature : public LibraryFeature {
     /// `[CrateDecks],show_smart_mix`: the CrateDecks skin's toolbar button,
     /// on while the assistant shows. Declared by the skin's manifest.
     static const ConfigKey& showSmartMixKey();
-    /// The Smart Mix assist mode; nullptr until there is a server.
+    /// The Smart Mix assist mode; nullptr until there is a server, and
+    /// without the decks' PlayerInfo.
     SmartMixAssist* smartMixAssist() const {
         return m_pAssist.get();
     }

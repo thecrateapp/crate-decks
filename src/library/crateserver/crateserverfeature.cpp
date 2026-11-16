@@ -540,29 +540,32 @@ void CrateServerFeature::startLoading() {
                             return eqmap::isDefaultEqOn(*pEffects, group);
                         });
     };
-    AutoDJSmartMixAdapter::Options smartMix;
-    smartMix.pConfig = m_pConfig;
-    smartMix.pPlayerInfo = m_dependencies.pPlayerInfo;
-    smartMix.pPlaylistDao = &pCollection->internalCollection()->getPlaylistDAO();
-    smartMix.pDbConnectionPool = m_dependencies.pDbConnectionPool;
-    smartMix.pPreferences = pPreferences;
-    smartMix.trackOfFile = trackOfFile;
-    smartMix.planClientFor = planClientFor;
-    smartMix.capabilitiesOf = capabilitiesOf;
-    smartMix.defaultEqOn = defaultEqOn;
     // The old ones first, after a stopLoading(): the adapter is Auto DJ's
     // director while it lives, and the assistant owns its controls
     m_pAssist.reset();
     m_pSmartMix.reset();
-    m_pSmartMix = std::make_unique<AutoDJSmartMixAdapter>(std::move(smartMix));
-    SmartMixAssist::Options assist;
-    assist.pPlayerInfo = m_dependencies.pPlayerInfo;
-    assist.pPreferences = pPreferences;
-    assist.trackOfFile = trackOfFile;
-    assist.planClientFor = planClientFor;
-    assist.capabilitiesOf = capabilitiesOf;
-    assist.defaultEqOn = defaultEqOn;
-    m_pAssist = std::make_unique<SmartMixAssist>(std::move(assist));
+    // Both play the decks: without their tracks there is no Smart Mix
+    if (PlayerInfo* const pPlayerInfo = m_dependencies.pPlayerInfo) {
+        AutoDJSmartMixAdapter::Options smartMix;
+        smartMix.pConfig = m_pConfig;
+        smartMix.pPlayerInfo = pPlayerInfo;
+        smartMix.pPlaylistDao = &pCollection->internalCollection()->getPlaylistDAO();
+        smartMix.pDbConnectionPool = m_dependencies.pDbConnectionPool;
+        smartMix.pPreferences = pPreferences;
+        smartMix.trackOfFile = trackOfFile;
+        smartMix.planClientFor = planClientFor;
+        smartMix.capabilitiesOf = capabilitiesOf;
+        smartMix.defaultEqOn = defaultEqOn;
+        m_pSmartMix = std::make_unique<AutoDJSmartMixAdapter>(std::move(smartMix));
+        SmartMixAssist::Options assist;
+        assist.pPlayerInfo = pPlayerInfo;
+        assist.pPreferences = pPreferences;
+        assist.trackOfFile = trackOfFile;
+        assist.planClientFor = planClientFor;
+        assist.capabilitiesOf = capabilitiesOf;
+        assist.defaultEqOn = defaultEqOn;
+        m_pAssist = std::make_unique<SmartMixAssist>(std::move(assist));
+    }
     if (m_pAssistPanel) {
         m_pAssistPanel->setAssist(m_pAssist.get());
     }
