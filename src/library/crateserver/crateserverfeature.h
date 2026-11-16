@@ -43,6 +43,9 @@ struct RadioSeed;
 namespace widgets {
 class CamelotWheelModel;
 } // namespace widgets
+namespace writeback {
+class CratePlaylistEdit;
+} // namespace writeback
 class AssistPanel;
 class AutoDJSmartMixAdapter;
 class CrateServers;
@@ -157,6 +160,19 @@ class CrateServerFeature : public LibraryFeature {
     void activateChild(const QModelIndex& index) override;
     void onLazyChildExpandation(const QModelIndex& index) override;
     void onRightClickChild(const QPoint& globalPos, const QModelIndex& index) override;
+    /// Crate tracks dropped onto a Crate playlist join it (plan F7.C-PR3).
+    bool dropAcceptChild(const QModelIndex& index,
+            const QList<QUrl>& urls,
+            QObject* pSource) override;
+    bool dragMoveAcceptChild(const QModelIndex& index, const QList<QUrl>& urls) override;
+
+    /// Edits the server's playlists (plan F7.C-PR3).
+    writeback::CratePlaylistEdit* playlistEdit() const {
+        return m_pPlaylistEdit.get();
+    }
+    /// Creates a playlist on the server with the Crate tracks of the Decks
+    /// playlist `playlistId`, under its name.
+    void exportPlaylistToCrate(const QString& serverId, int playlistId);
 
     /// Loads Crate tracks into decks; nullptr until there is a server.
     CrateLoadCoordinator* loadCoordinator() const {
@@ -307,6 +323,16 @@ class CrateServerFeature : public LibraryFeature {
             const QString& fromLabel,
             const CrateTrackRef& to,
             const QString& toLabel);
+    /// The container of the server's playlist `playlistId`; 0 if the tree
+    /// read last has none.
+    qint64 playlistContainer(const QString& serverId, qint64 playlistId) const;
+    /// The server's playlist of a container; 0 for another kind.
+    qint64 playlistIdOf(qint64 containerId) const;
+    /// Lets the container's track table edit the playlist, if it is one.
+    void editPlaylistIn(const QString& serverId, qint64 containerId);
+    /// The Crate tracks of these files join the server's playlist.
+    void addToPlaylist(const QString& serverId, qint64 playlistId, const QStringList& locations);
+    void showWarning(const QString& message);
     /// The master deck's Crate track, if it has one.
     std::optional<cache::TrackKey> crateTrackOnAir() const;
     void showRadio();
@@ -371,6 +397,7 @@ class CrateServerFeature : public LibraryFeature {
     std::unique_ptr<recs::CratePathSource> m_pPaths;
     QPointer<recs::CompatiblesView> m_pCompatiblesView;
     QMetaObject::Connection m_selectionConnection;
+    std::unique_ptr<writeback::CratePlaylistEdit> m_pPlaylistEdit;
     /// likeOnAirKey(), unless another feature made it first.
     std::unique_ptr<ControlPushButton> m_pLikeOnAir;
     QThreadPool m_pool;

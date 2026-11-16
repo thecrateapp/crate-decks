@@ -319,6 +319,8 @@ TEST_F(CrateLibrarySyncTest, NotModifiedKeepsRows) {
     ASSERT_TRUE(dirty.wait(5000));
     ASSERT_TRUE(stored(warmUp).needsSync());
 
+    // Synced, though nothing changed: a playlist edit waits for this (F7)
+    QSignalSpy synced(pSync, &LibrarySync::containerSynced);
     pSync->syncContainerTracks(warmUp);
     ASSERT_TRUE(waitForRequests(2));
     EXPECT_EQ(QByteArrayLiteral("\"t1\""), m_network.last().request.rawHeader("If-None-Match"));
@@ -328,6 +330,8 @@ TEST_F(CrateLibrarySyncTest, NotModifiedKeepsRows) {
     EXPECT_EQ(QStringList({QStringLiteral("Lattice")}), titles(warmUp));
     EXPECT_FALSE(stored(warmUp).needsSync());
     EXPECT_EQ(1, updated.count());
+    ASSERT_EQ(1, synced.count());
+    EXPECT_EQ(warmUp, synced.first().first().toLongLong());
 }
 
 // The tree's ETag only changes with membership, and a page's ETag covers that

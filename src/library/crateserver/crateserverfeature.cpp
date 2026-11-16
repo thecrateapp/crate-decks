@@ -2,6 +2,7 @@
 
 #include <QFutureWatcher>
 #include <QIconEngine>
+#include <QInputDialog>
 #include <QJsonDocument>
 #include <QLocale>
 #include <QMenu>
@@ -14,6 +15,7 @@
 #include <QTimer>
 #include <QtConcurrentRun>
 #include <chrono>
+#include <limits>
 
 #include "control/controlproxy.h"
 #include "control/controlpushbutton.h"
@@ -53,6 +55,7 @@
 #include "crate/ui/widgets/camelotwheelmodel.h"
 #include "crate/ui/widgets/instrumentpainter.h"
 #include "crate/writeback/cratelikes.h"
+#include "crate/writeback/crateplaylistedit.h"
 #include "crate/writeback/crateratings.h"
 #include "crate/writeback/historyreporter.h"
 #include "library/crateserver/crateservertrackmodel.h"
@@ -329,6 +332,81 @@ CrateServerFeature::CrateServerFeature(Library* pLibrary,
                           }},
                   this)) {
     m_pool.setMaxThreadCount(1);
+    // Edits of the servers' playlists (plan F7.C-PR3)
+    writeback::CratePlaylistEdit::Options edit;
+    edit.clientFor = [this](const QString& serverId) -> Client* {
+        return m_pServers ? m_pServers->client(serverId) : nullptr;
+    };
+    edit.readStored = [this](const QString& serverId,
+                              qint64 playlistId,
+                              const std::function<void(std::optional<QStringList>)>& done) {
+        const qint64 containerId = playlistContainer(serverId, playlistId);
+        if (containerId <= 0) {
+            done(std::nullopt);
+            return;
+        }
+        auto* pWatcher = new QFutureWatcher<QStringList>(this);
+        connect(pWatcher, &QFutureWatcherBase::finished, this, [pWatcher, done] {
+            pWatcher->deleteLater();
+            done(pWatcher->result());
+        });
+        pWatcher->setFuture(QtConcurrent::run(&m_pool,
+                [pPool = m_dependencies.pDbConnectionPool, containerId] {
+                    const mixxx::DbConnectionPooler pooler(pPool);
+                    return loadContainerTrackUids(mixxx::DbConnectionPooled(pPool),
+                            containerId,
+                            0,
+                            std::numeric_limits<int>::max());
+                }));
+    };
+    edit.resync = [this](const QString& serverId,
+                          qint64 playlistId,
+                          const std::function<void(bool)>& done) {
+        Server* pServer = server(serverId);
+        if (!pServer) {
+            done(false);
+            return;
+        }
+        LibrarySync* pSync = pServer->pSync.get();
+        const qint64 containerId = playlistId > 0 ? playlistContainer(serverId, playlistId) : 0;
+        if (containerId <= 0) {
+            // A new playlist, or one the tree does not have yet
+            pSync->syncContainers();
+            done(playlistId <= 0);
+            return;
+        }
+        // Answered once, by the first sync of the container that ends
+        auto pConnections = std::make_shared<std::pair<QMetaObject::Connection,
+                QMetaObject::Connection>>();
+        const auto finish = [pConnections, done](bool ok) {
+            QObject::disconnect(pConnections->first);
+            QObject::disconnect(pConnections->second);
+            done(ok);
+        };
+        pConnections->first = connect(pSync,
+                &LibrarySync::containerSynced,
+                this,
+                [containerId, finish](qint64 synced) {
+                    if (synced == containerId) {
+                        finish(true);
+                    }
+                });
+        pConnections->second = connect(pSync,
+                &LibrarySync::syncFailed,
+                this,
+                [containerId, finish](qint64 failed) {
+                    if (failed == containerId) {
+                        finish(false);
+                    }
+                });
+        pSync->syncContainerTracks(containerId);
+    };
+    m_pPlaylistEdit = std::make_unique<writeback::CratePlaylistEdit>(std::move(edit));
+    connect(m_pPlaylistEdit.get(),
+            &writeback::CratePlaylistEdit::warning,
+            this,
+            &CrateServerFeature::showWarning);
+
     // A mapping's way to like the track on air; the first feature owns it
     if (!ControlObject::exists(likeOnAirKey())) {
         m_pLikeOnAir = std::make_unique<ControlPushButton>(likeOnAirKey());
@@ -1105,6 +1183,144 @@ void CrateServerFeature::startRadio(const QString& serverId, const recs::RadioSe
         return;
     }
     m_pRadio->start(pClient, serverId, seed);
+}
+
+qint64 CrateServerFeature::playlistContainer(const QString& serverId, qint64 playlistId) const {
+    const QString remoteId = QString::number(playlistId);
+    for (auto it = m_containers.cbegin(); it != m_containers.cend(); ++it) {
+        if (it->serverId == serverId && it->kind == QLatin1String("playlist") &&
+                it->remoteId == remoteId) {
+            return it.key();
+        }
+    }
+    return 0;
+}
+
+qint64 CrateServerFeature::playlistIdOf(qint64 containerId) const {
+    const auto it = m_containers.constFind(containerId);
+    if (it == m_containers.cend() || it->kind != QLatin1String("playlist")) {
+        return 0;
+    }
+    bool ok = false;
+    const qint64 playlistId = it->remoteId.toLongLong(&ok);
+    return ok ? playlistId : 0;
+}
+
+void CrateServerFeature::editPlaylistIn(const QString& serverId, qint64 containerId) {
+    const qint64 playlistId = playlistIdOf(containerId);
+    if (playlistId <= 0) {
+        m_pContainerModel->setPlaylistEditor(std::nullopt);
+        return;
+    }
+    CrateServerTrackModel::PlaylistEditor editor;
+    editor.remove = [this, serverId, playlistId](const QList<std::pair<int, QString>>& rows) {
+        QList<writeback::CratePlaylistEdit::Row> edits;
+        for (const auto& [index, entityUid] : rows) {
+            edits.append({index, entityUid});
+        }
+        m_pPlaylistEdit->remove(serverId, playlistId, edits);
+    };
+    editor.reorder = [this, serverId, playlistId](const QStringList& entityUids) {
+        m_pPlaylistEdit->reorder(serverId, playlistId, entityUids);
+    };
+    editor.add = [this, serverId, playlistId](const QStringList& locations) {
+        addToPlaylist(serverId, playlistId, locations);
+    };
+    m_pContainerModel->setPlaylistEditor(std::move(editor));
+}
+
+void CrateServerFeature::addToPlaylist(
+        const QString& serverId, qint64 playlistId, const QStringList& locations) {
+    const cache::AudioCache* pCache = m_pServers ? m_pServers->existingAudioCache() : nullptr;
+    const auto tracks = writeback::CratePlaylistEdit::crateTracksOf(serverId,
+            locations,
+            [pCache](const QString& location) -> std::optional<cache::TrackKey> {
+                return pCache ? pCache->trackOfFile(location) : std::nullopt;
+            });
+    const int rejected = tracks.rejected;
+    m_pPlaylistEdit->add(serverId,
+            playlistId,
+            tracks.entityUids,
+            [this, rejected](const writeback::CratePlaylistEdit::Outcome& outcome) {
+                if (outcome.ok && rejected > 0) {
+                    showWarning(tr(
+                            "%n track(s) left out: only Crate tracks of this server "
+                            "can go into its playlists.",
+                            nullptr,
+                            rejected));
+                }
+            });
+}
+
+void CrateServerFeature::exportPlaylistToCrate(const QString& serverId, int playlistId) {
+    TrackCollectionManager* pCollection = m_dependencies.pTrackCollectionManager;
+    if (!pCollection) {
+        return;
+    }
+    // A few queries of upstream's tables, which live on this thread
+    PlaylistDAO& playlists = pCollection->internalCollection()->getPlaylistDAO();
+    const TrackDAO& tracks = pCollection->internalCollection()->getTrackDAO();
+    QStringList locations;
+    const QList<TrackId> trackIds = playlists.getTrackIdsInPlaylistOrder(playlistId);
+    for (const TrackId& trackId : trackIds) {
+        locations.append(tracks.getTrackLocation(trackId));
+    }
+    const cache::AudioCache* pCache = m_pServers ? m_pServers->existingAudioCache() : nullptr;
+    const auto crateTracks = writeback::CratePlaylistEdit::crateTracksOf(serverId,
+            locations,
+            [pCache](const QString& location) -> std::optional<cache::TrackKey> {
+                return pCache ? pCache->trackOfFile(location) : std::nullopt;
+            });
+    m_pPlaylistEdit->exportTracks(serverId,
+            playlists.getPlaylistName(playlistId),
+            crateTracks.entityUids,
+            crateTracks.rejected,
+            [this](const writeback::CratePlaylistEdit::Outcome& outcome) {
+                if (outcome.ok && outcome.rejected > 0) {
+                    showWarning(tr(
+                            "The playlist is on Crate without %n track(s) that are "
+                            "not Crate tracks of this server.",
+                            nullptr,
+                            outcome.rejected));
+                }
+            });
+}
+
+void CrateServerFeature::showWarning(const QString& message) {
+    auto* pBox = new QMessageBox(QMessageBox::Warning, tr("Crate"), message, QMessageBox::Ok);
+    pBox->setAttribute(Qt::WA_DeleteOnClose);
+    pBox->open();
+}
+
+bool CrateServerFeature::dropAcceptChild(
+        const QModelIndex& index, const QList<QUrl>& urls, QObject* pSource) {
+    Q_UNUSED(pSource);
+    const Node node = nodeOf(index);
+    const qint64 playlistId =
+            node.kind == Node::Kind::Container ? playlistIdOf(node.containerId) : 0;
+    if (playlistId <= 0) {
+        return false;
+    }
+    QStringList locations;
+    for (const QUrl& url : urls) {
+        if (url.isLocalFile()) {
+            locations.append(url.toLocalFile());
+        }
+    }
+    addToPlaylist(node.serverId, playlistId, locations);
+    return true;
+}
+
+bool CrateServerFeature::dragMoveAcceptChild(const QModelIndex& index, const QList<QUrl>& urls) {
+    const Node node = nodeOf(index);
+    if (node.kind != Node::Kind::Container || playlistIdOf(node.containerId) <= 0) {
+        return false;
+    }
+    const cache::AudioCache* pCache = m_pServers ? m_pServers->existingAudioCache() : nullptr;
+    return pCache && std::any_of(urls.cbegin(), urls.cend(), [&](const QUrl& url) {
+        const auto track = pCache->trackOfFile(url.toLocalFile());
+        return track && track->serverId == node.serverId;
+    });
 }
 
 bool CrateServerFeature::toggleLikeOnAir() {
@@ -2002,6 +2218,7 @@ void CrateServerFeature::showContainer(const QString& serverId, qint64 container
             BaseTrackTableModel::kBpmColumnPrecisionDefault));
     // The stored tracks at once; the server's if they changed
     m_pContainerModel->showContainer(containerId);
+    editPlaylistIn(serverId, containerId);
     emit showTrackModel(m_pContainerModel);
     QTimer::singleShot(0, this, &CrateServerFeature::watchSelection);
     emit enableCoverArtDisplay(false);
@@ -2117,6 +2334,11 @@ void CrateServerFeature::onRightClickChild(const QPoint& globalPos, const QModel
     }
     QMenu menu;
     QAction* pRefresh = menu.addAction(tr("Refresh"));
+    QAction* pExport = nullptr;
+    if (node.kind == Node::Kind::Section && node.section == static_cast<int>(Section::Playlists)) {
+        //: Creates a playlist on Crate from a playlist of Decks' own library
+        pExport = menu.addAction(tr("Export a Decks playlist to Crate..."));
+    }
     QAction* pOffline = nullptr;
     QAction* pRadio = nullptr;
     std::optional<recs::RadioSeed> radioSeed;
@@ -2134,6 +2356,30 @@ void CrateServerFeature::onRightClickChild(const QPoint& globalPos, const QModel
         }
     }
     QAction* const pChosen = menu.exec(globalPos);
+    if (pChosen && pChosen == pExport && m_dependencies.pTrackCollectionManager) {
+        const QList<QPair<int, QString>> playlists =
+                m_dependencies.pTrackCollectionManager->internalCollection()
+                        ->getPlaylistDAO()
+                        .getPlaylists(PlaylistDAO::PLHT_NOT_HIDDEN);
+        QStringList names;
+        for (const auto& playlist : playlists) {
+            names.append(playlist.second);
+        }
+        bool ok = false;
+        const QString name = QInputDialog::getItem(m_pSidebarWidget,
+                tr("Export to Crate"),
+                //: Only its Crate tracks of this server go to Crate
+                tr("Playlist to export (only its Crate tracks go):"),
+                names,
+                0,
+                false,
+                &ok);
+        const int chosen = static_cast<int>(names.indexOf(name));
+        if (ok && chosen >= 0) {
+            exportPlaylistToCrate(node.serverId, playlists[chosen].first);
+        }
+        return;
+    }
     if (pChosen && pChosen == pRadio) {
         startRadio(node.serverId, *radioSeed);
         return;

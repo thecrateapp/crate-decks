@@ -87,6 +87,9 @@ class LibrarySync : public QObject {
     /// The tracks of a container changed. Not emitted when the server said
     /// nothing changed.
     void containerUpdated(qint64 containerId);
+    /// A sync of a container's tracks ended well, whether they changed or
+    /// not (after containerUpdated()).
+    void containerSynced(qint64 containerId);
     void containersDirty(const QList<qint64>& containerIds);
     /// `containerId` is 0 for the tree.
     void syncFailed(qint64 containerId, const crate::Error& error);

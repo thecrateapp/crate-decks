@@ -975,8 +975,93 @@ TrackModel::Capabilities CrateServerTrackModel::getCapabilities() const {
     }
     // Uncached tracks load through requestTrackLoad() and go to Auto DJ
     // through getTrackIdsForAutoDJ()
-    return Capability::Sorting | Capability::LoadToDeck | Capability::LoadToSampler |
-            Capability::LoadToPreviewDeck | Capability::AddToAutoDJ;
+    Capabilities capabilities = Capability::Sorting | Capability::LoadToDeck |
+            Capability::LoadToSampler | Capability::LoadToPreviewDeck | Capability::AddToAutoDJ;
+    if (m_playlistEditor) {
+        capabilities |= Capability::RemovePlaylist | Capability::ReceiveDrops;
+        if (canReorder()) {
+            capabilities |= Capability::Reorder;
+        }
+    }
+    return capabilities;
+}
+
+void CrateServerTrackModel::setPlaylistEditor(std::optional<PlaylistEditor> editor) {
+    m_playlistEditor = std::move(editor);
+}
+
+bool CrateServerTrackModel::canReorder() const {
+    // Only the whole playlist, as the server stores it
+    return m_playlistEditor && m_source == Source::Container && m_sortColumn == kPositionColumn &&
+            m_sortOrder == Qt::AscendingOrder && (m_search.isEmpty() || !m_filterBySearch);
+}
+
+void CrateServerTrackModel::removeTracks(const QModelIndexList& indices) {
+    if (!m_playlistEditor || !m_playlistEditor->remove) {
+        return;
+    }
+    QList<std::pair<int, QString>> rows;
+    QSet<int> seen;
+    for (const QModelIndex& index : indices) {
+        if (!index.isValid() || index.row() >= m_rows.size() || seen.contains(index.row())) {
+            continue;
+        }
+        seen.insert(index.row());
+        const Row& row = m_rows[index.row()];
+        rows.append({row.position - 1, row.entityUid});
+    }
+    if (!rows.isEmpty()) {
+        m_playlistEditor->remove(rows);
+    }
+}
+
+void CrateServerTrackModel::moveTrack(
+        const QModelIndex& sourceIndex, const QModelIndex& destIndex) {
+    if (!canReorder() || !sourceIndex.isValid() || sourceIndex.row() >= m_rows.size()) {
+        return;
+    }
+    const int from = sourceIndex.row();
+    // Below the last row: to the end
+    const int to = destIndex.isValid()
+            ? std::min(destIndex.row(), static_cast<int>(m_rows.size()) - 1)
+            : static_cast<int>(m_rows.size()) - 1;
+    if (from == to) {
+        return;
+    }
+    // At once here, so that the view's next move sees it; the server gets
+    // the whole order once the view is done
+    beginMoveRows(QModelIndex(), from, from, QModelIndex(), to > from ? to + 1 : to);
+    m_rows.move(from, to);
+    endMoveRows();
+    for (int i = 0; i < m_rows.size(); ++i) {
+        m_rows[i].position = i + 1;
+    }
+    emit dataChanged(index(0, kPositionColumn), index(rowCount() - 1, kPositionColumn));
+    if (m_reorderPending) {
+        return;
+    }
+    m_reorderPending = true;
+    QTimer::singleShot(0, this, [this] {
+        m_reorderPending = false;
+        if (!m_playlistEditor || !m_playlistEditor->reorder) {
+            return;
+        }
+        QStringList order;
+        order.reserve(m_rows.size());
+        for (const Row& row : std::as_const(m_rows)) {
+            order.append(row.entityUid);
+        }
+        m_playlistEditor->reorder(order);
+    });
+}
+
+int CrateServerTrackModel::addTracks(const QModelIndex& index, const QList<QString>& locations) {
+    Q_UNUSED(index);
+    if (m_playlistEditor && m_playlistEditor->add && !locations.isEmpty()) {
+        // The server appends them; they show once the playlist syncs again
+        m_playlistEditor->add(locations);
+    }
+    return 0;
 }
 
 TrackModel::SortColumnId CrateServerTrackModel::sortColumnIdFromColumnIndex(int column) const {

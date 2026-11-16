@@ -150,6 +150,9 @@ class CrateServerTrackModel : public QAbstractTableModel, public TrackModel {
     bool isColumnSortable(int column) const override;
     QAbstractItemDelegate* delegateForColumn(const int column, QObject* pParent) override;
     Capabilities getCapabilities() const override;
+    void removeTracks(const QModelIndexList& indices) override;
+    void moveTrack(const QModelIndex& sourceIndex, const QModelIndex& destIndex) override;
+    int addTracks(const QModelIndex& index, const QList<QString>& locations) override;
     SortColumnId sortColumnIdFromColumnIndex(int column) const override;
     int columnIndexFromSortColumnId(SortColumnId sortColumn) const override;
     int fieldIndex(const QString& fieldName) const override;
@@ -210,6 +213,23 @@ class CrateServerTrackModel : public QAbstractTableModel, public TrackModel {
     /// The likes of `serverId` changed: the Liked column repaints.
     void likesChanged(const QString& serverId);
 
+    /// The edits of a Crate playlist shown here (plan F7.C-PR3). With one,
+    /// the track table can remove its rows, reorder them by dragging (while
+    /// sorted by position and not filtered) and take dropped tracks.
+    struct PlaylistEditor {
+        /// Each row's index in the playlist, from 0, and its track.
+        std::function<void(const QList<std::pair<int, QString>>& rows)> remove;
+        /// Every track of the playlist, in the new order.
+        std::function<void(const QStringList& entityUids)> reorder;
+        /// The tracks of these files go at the end.
+        std::function<void(const QStringList& locations)> add;
+    };
+    /// nullopt makes the rows read-only again.
+    void setPlaylistEditor(std::optional<PlaylistEditor> editor);
+    bool isPlaylistEditable() const {
+        return m_playlistEditor.has_value();
+    }
+
   signals:
     /// New rows are in.
     void loaded();
@@ -254,6 +274,8 @@ class CrateServerTrackModel : public QAbstractTableModel, public TrackModel {
             QObject* pParent);
 
     void load();
+    /// Whether a drag in the table may reorder the playlist.
+    bool canReorder() const;
     /// Source::Memory: filters and sorts m_memoryRows into the rows shown.
     void loadFromMemory();
     void swapRowsKeepingSelection(QVector<Row>&& rows);
@@ -285,6 +307,9 @@ class CrateServerTrackModel : public QAbstractTableModel, public TrackModel {
     QString m_memoryKey;
     MenuActions m_menuActions;
     LikedOf m_likedOf;
+    std::optional<PlaylistEditor> m_playlistEditor;
+    /// A local reorder is sent once the view has made all its moves.
+    bool m_reorderPending = false;
     /// modelKey() of the rows shown.
     QString m_rowsKey;
     QPointer<CrateLoadCoordinator> m_pCoordinator;

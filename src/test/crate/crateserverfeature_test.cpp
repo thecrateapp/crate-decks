@@ -1253,6 +1253,35 @@ TEST_F(CrateServerFeatureTest, LikeFromTheTrackMenuShowsInTheLikedColumn) {
     EXPECT_TRUE(ControlObject::exists(CrateServerFeature::likeOnAirKey()));
 }
 
+// A Crate playlist's track table removes, reorders and takes tracks on the
+// server, checking the playlist first (plan F7.C-PR3)
+TEST_F(CrateServerFeatureTest, PlaylistTableEditsThePlaylistOnTheServer) {
+    storeTree();
+    storeContainerTracks(containerId(QStringLiteral("playlist"), QStringLiteral("7")),
+            {remoteTrack(QStringLiteral("e1"), QStringLiteral("Lattice"), 0.7, QString()),
+                    remoteTrack(QStringLiteral("e2"), QStringLiteral("Glass"), 0.5, QString())});
+    CrateServerFeature* pFeature = makeFeature();
+    CrateServerTrackModel* pModel = showWarmUp(pFeature);
+    ASSERT_NE(nullptr, pModel);
+    ASSERT_TRUE(QTest::qWaitFor([&] { return pModel->rowCount() == 2; }, 5000));
+    EXPECT_TRUE(pModel->isPlaylistEditable());
+    EXPECT_TRUE(pModel->hasCapabilities(TrackModel::Capability::RemovePlaylist));
+    EXPECT_TRUE(pModel->hasCapabilities(TrackModel::Capability::ReceiveDrops));
+    EXPECT_TRUE(pModel->hasCapabilities(TrackModel::Capability::Reorder));
+
+    pModel->removeTracks({pModel->index(1, 0)});
+
+    const QString path = QStringLiteral("/api/playlists/7");
+    ASSERT_TRUE(QTest::qWaitFor([&] { return sentTo(path) == 1; }, 5000));
+    lastTo(path)->pReply->respond(200,
+            QByteArrayLiteral(R"({"id": 7, "can_edit": true, "tracks": [
+                {"id": 31, "position": 1, "track_entity_uid": "e1"},
+                {"id": 32, "position": 2, "track_entity_uid": "e2"}]})"));
+    const QString remove = QStringLiteral("/api/playlists/7/tracks/2");
+    ASSERT_TRUE(QTest::qWaitFor([&] { return sentTo(remove) == 1; }, 5000));
+    EXPECT_EQ(QNetworkAccessManager::DeleteOperation, lastTo(remove)->operation);
+}
+
 TEST_F(CrateServerFeatureTest, CacheItemShowsTheCacheView) {
     storeTree();
     storeContainerTracks(containerId(QStringLiteral("likes"), QStringLiteral("me")),

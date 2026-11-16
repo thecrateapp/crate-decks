@@ -414,8 +414,13 @@ void LibrarySync::finishJob(
         kLogger.warning() << "Cannot sync the Crate container" << containerId << ":"
                           << error->message;
         emit syncFailed(containerId, *error);
-    } else if (updated) {
-        emit containerUpdated(containerId);
+    } else {
+        if (updated) {
+            emit containerUpdated(containerId);
+        }
+        if (self) {
+            emit containerSynced(containerId);
+        }
     }
     if (self && again) {
         syncContainerTracks(containerId);
