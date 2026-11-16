@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include <QTemporaryDir>
+#include <QThread>
 #include <cmath>
 #include <numbers>
 
@@ -23,6 +24,11 @@ constexpr double kAmplitude = 0.25 * 32767.0;
 // settle, and buffers measured: about 0.3 s and 0.5 s.
 constexpr int kSettleBuffers = 24;
 constexpr int kMeasureBuffers = 40;
+// Where every measurement starts (1 s into the 20 s sine), how close two
+// runs must be, and how many runs to try.
+constexpr double kMeasureFrom = 0.05;
+constexpr double kSteadyDb = 0.02;
+constexpr int kMaxAttempts = 20;
 
 /// F0 Q6, measured instead of heard: a deck plays a sine through the real
 /// engine with the default mixing EQ loaded in its equalizer rack, and the
@@ -62,11 +68,34 @@ class CrateEqMapTest : public BaseSignalPathTest {
     /// `item` set to `value` and every other control at its default.
     double levelDb(const QString& item, double value) {
         resetEq();
-        const double reference = rmsOfMainOutput();
+        const double reference = steadyRms();
         ControlObject::set(eqKey(item), value);
-        const double level = rmsOfMainOutput();
+        const double level = steadyRms();
         resetEq();
         return 20.0 * std::log10(level / reference);
+    }
+
+    /// The RMS of the same stretch of the sine, measured until two runs in a
+    /// row agree. The engine reads the track on the caching reader's thread:
+    /// on a busy machine a stretch read for the first time may still be
+    /// silent, which made the CI measure the +6 dB boost as +5.4 and +13 dB.
+    /// Played again from the same position, the stretch comes from the cache.
+    double steadyRms() {
+        double previous = -1.0;
+        for (int attempt = 0; attempt < kMaxAttempts; ++attempt) {
+            ControlObject::set(ConfigKey(m_sGroup1, QStringLiteral("playposition")),
+                    kMeasureFrom);
+            const double rms = rmsOfMainOutput();
+            if (previous > 0.0 && rms > 0.0 &&
+                    std::abs(20.0 * std::log10(rms / previous)) < kSteadyDb) {
+                return rms;
+            }
+            previous = rms;
+            // Lets the reader thread fill the cache
+            QThread::msleep(20);
+        }
+        ADD_FAILURE() << "The level never settled";
+        return previous;
     }
 
     void resetEq() {
@@ -157,11 +186,7 @@ TEST_F(CrateEqMapTest, LowGainForCutDbGivesTheCut) {
                 1.0)
                 << cutDb << " dB";
     }
-    // Above neutral the knob is the shelf's gain, which a 60 Hz sine meets
-    // a little under (+5.4 to +5.8 dB measured, by build and run). The
-    // director only uses boosts to give the DJ's own knob back, which
-    // CutDbForLowGainInvertsLowGainForCutDb checks exactly.
-    EXPECT_NEAR(levelDb(crate::eqmap::kLowGain, crate::eqmap::lowGainForCutDb(6.0)), 6.0, 1.0);
+    EXPECT_NEAR(levelDb(crate::eqmap::kLowGain, crate::eqmap::lowGainForCutDb(6.0)), 6.0, 0.5);
 }
 
 TEST(CrateEqMapCurveTest, CutDbForLowGainInvertsLowGainForCutDb) {
