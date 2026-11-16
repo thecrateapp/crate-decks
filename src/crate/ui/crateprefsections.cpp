@@ -242,8 +242,7 @@ CacheSection::CacheSection(QWidget* pParent)
             tr("Prewarm compatibles"), tr("downloads the top 5 of the Compatibles view"));
     m_pProgressive = addToggle(tr("Progressive playback"),
             tr("FLAC, AAC, ALAC, Opus · plays before the download ends"));
-    // Plans F5 and F4b
-    m_pPrewarm->parentWidget()->hide();
+    // Plan F4b
     m_pProgressive->parentWidget()->hide();
 }
 

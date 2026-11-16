@@ -13,6 +13,8 @@
 #include "library/trackmodel.h"
 #include "util/db/dbconnectionpool.h"
 
+class QAction;
+
 namespace crate::library {
 
 class CrateLoadCoordinator;
@@ -62,6 +64,9 @@ class CrateServerTrackModel : public QAbstractTableModel, public TrackModel {
         Container,
         /// Every track of a server that Decks has synced.
         Library,
+        /// Rows given with setRows(), such as the recommendations of F5:
+        /// filtered and sorted in memory, never read from the tables.
+        Memory,
     };
 
     /// Field names, as TrackModel::kHeaderNameRole gives them: upstream's for
@@ -178,12 +183,67 @@ class CrateServerTrackModel : public QAbstractTableModel, public TrackModel {
         QString sourceRevision;
     };
 
+    /// Source::Memory: shows `rows` of the server `serverId`, in their order
+    /// until the user sorts them. `key` names them for modelKey(), such as
+    /// the track they are recommended for.
+    void setRows(const QString& serverId, const QString& key, QVector<Row> rows);
+
+    /// More entries for the track menu of the selected rows, after Download
+    /// and Remove from cache (such as Radio's "More like this"): the rows'
+    /// tracks and their "Artist - Title", in the same order.
+    using MenuActions = std::function<QList<QAction*>(const QList<CrateTrackRef>& tracks,
+            const QStringList& labels,
+            QObject* pParent)>;
+    void setMenuActions(MenuActions actions) {
+        m_menuActions = std::move(actions);
+    }
+
   signals:
     /// New rows are in.
     void loaded();
 
+  protected:
+    /// Source::Memory: the TrackModel settings of a subclass with its own
+    /// columns, so that its header state is not another model's.
+    CrateServerTrackModel(const QSqlDatabase& database,
+            mixxx::DbConnectionPoolPtr pDbConnectionPool,
+            const char* settingsNamespace,
+            QObject* pParent);
+
+    /// The row shown at `row`; nullptr out of range.
+    const Row* rowAt(int row) const;
+    /// Source::Memory: whether `row` is shown. A subclass filters with it;
+    /// call refilter() when the answer changes.
+    virtual bool acceptsRow(const Row& row) const {
+        Q_UNUSED(row);
+        return true;
+    }
+    /// Source::Memory: the order of a column of a subclass; the base
+    /// columns sort by their values.
+    virtual std::optional<bool> lessThan(int column, const Row& left, const Row& right) const {
+        Q_UNUSED(column);
+        Q_UNUSED(left);
+        Q_UNUSED(right);
+        return std::nullopt;
+    }
+    void refilter();
+    int sortColumn() const {
+        return m_sortColumn;
+    }
+    Qt::SortOrder sortOrder() const {
+        return m_sortOrder;
+    }
+
   private:
+    CrateServerTrackModel(Source source,
+            const QSqlDatabase& database,
+            mixxx::DbConnectionPoolPtr pDbConnectionPool,
+            const char* settingsNamespace,
+            QObject* pParent);
+
     void load();
+    /// Source::Memory: filters and sorts m_memoryRows into the rows shown.
+    void loadFromMemory();
     void swapRowsKeepingSelection(QVector<Row>&& rows);
     /// The cached file of a row's track, if any.
     std::optional<QString> cachedPathOf(const Row& row) const;
@@ -208,6 +268,10 @@ class CrateServerTrackModel : public QAbstractTableModel, public TrackModel {
     quint64 m_generation = 0;
     bool m_loading = false;
     QVector<Row> m_rows;
+    /// Source::Memory: every row given, in its order.
+    QVector<Row> m_memoryRows;
+    QString m_memoryKey;
+    MenuActions m_menuActions;
     /// modelKey() of the rows shown.
     QString m_rowsKey;
     QPointer<CrateLoadCoordinator> m_pCoordinator;

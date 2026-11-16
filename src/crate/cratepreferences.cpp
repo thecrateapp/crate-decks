@@ -14,6 +14,7 @@ const QString kGroup = QStringLiteral("[Crate]");
 constexpr const char* kCacheDirectory = "CacheDirectory";
 constexpr const char* kCacheLimitBytes = "CacheLimitBytes";
 constexpr const char* kPrefetchAutoDj = "PrefetchAutoDj";
+constexpr const char* kPrewarmCompatibles = "PrewarmCompatibles";
 constexpr const char* kKeyFromCrate = "KeyFromCrate";
 constexpr const char* kStemsOnGpu = "StemsOnGpu";
 constexpr const char* kStemsFineTuned = "StemsFineTuned";
@@ -115,6 +116,14 @@ void CratePreferences::setPrefetchAutoDj(bool enabled) {
     if (setFlag(kPrefetchAutoDj, enabled, true)) {
         emit prefetchAutoDjChanged(enabled);
     }
+}
+
+bool CratePreferences::prewarmCompatibles() const {
+    return flag(kPrewarmCompatibles, true);
+}
+
+void CratePreferences::setPrewarmCompatibles(bool enabled) {
+    setFlag(kPrewarmCompatibles, enabled, true);
 }
 
 bool CratePreferences::smartMixKeylock() const {

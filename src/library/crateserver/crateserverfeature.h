@@ -29,6 +29,19 @@ class WLibrary;
 class WLibrarySidebar;
 
 namespace crate {
+namespace recs {
+class AutoDjRecommendationQueue;
+class Compatibles;
+class CompatiblesModel;
+class CompatiblesView;
+class CratePathSource;
+class CrateRadioSource;
+struct PathRequest;
+struct RadioSeed;
+} // namespace recs
+namespace widgets {
+class CamelotWheelModel;
+} // namespace widgets
 class AssistPanel;
 class AutoDJSmartMixAdapter;
 class CrateServers;
@@ -103,6 +116,8 @@ class CrateServerFeature : public LibraryFeature {
     static const QString kCacheViewName;
     /// The name of the Smart Mix assistant's view (AssistPanel).
     static const QString kSmartMixViewName;
+    /// The name of the Compatibles view (plan F5.C-PR1).
+    static const QString kCompatiblesViewName;
     /// `[CrateDecks],show_smart_mix`: the CrateDecks skin's toolbar button,
     /// on while the assistant shows. Declared by the skin's manifest.
     static const ConfigKey& showSmartMixKey();
@@ -114,6 +129,20 @@ class CrateServerFeature : public LibraryFeature {
     /// What the cache's view shows.
     CacheStatusModel* cacheStatus() const {
         return m_pCacheStatus;
+    }
+    /// The Compatibles view's logic, which follows the master deck or the
+    /// selection.
+    recs::Compatibles* compatibles() const {
+        return m_pCompatibles.get();
+    }
+    /// Crate's Radio as a source of Auto DJ (plan F5.C-PR2); nullptr until
+    /// there is a server.
+    recs::CrateRadioSource* radio() const {
+        return m_pRadio.get();
+    }
+    /// The tracks of the radio, which its sidebar item shows.
+    CrateServerTrackModel* radioModel() const {
+        return m_pRadioModel.get();
     }
 
     void activate() override;
@@ -179,6 +208,8 @@ class CrateServerFeature : public LibraryFeature {
             Section,
             Container,
             SmartMix,
+            Compatibles,
+            Radio,
             Cache,
         };
         Kind kind = Kind::None;
@@ -255,6 +286,26 @@ class CrateServerFeature : public LibraryFeature {
     void onShowSmartMix(double value);
     void onLibraryViewChanged();
     TreeItem* smartMixItem() const;
+    void showCompatibles();
+    /// Every track model of the section.
+    QList<CrateServerTrackModel*> trackModels() const;
+    /// The Crate entries of the track menu: Radio's and Music Paths'.
+    QList<QAction*> trackActions(
+            const QList<CrateTrackRef>& tracks, const QStringList& labels, QObject* pParent);
+    void startRadio(const QString& serverId, const recs::RadioSeed& seed);
+    /// Asks how many tracks and where to, then for the path from `from` to
+    /// `to` (plan F5.C-PR3).
+    void askForPath(const CrateTrackRef& from,
+            const QString& fromLabel,
+            const CrateTrackRef& to,
+            const QString& toLabel);
+    /// The master deck's Crate track, if it has one.
+    std::optional<cache::TrackKey> crateTrackOnAir() const;
+    void showRadio();
+    void updateRadioRows();
+    /// Follows the selection of the library's track table while it shows a
+    /// Crate list, uncached tracks too, for the Compatibles view.
+    void watchSelection();
 
     const Dependencies m_dependencies;
     QPointer<CrateServers> m_pServers;
@@ -298,7 +349,18 @@ class CrateServerFeature : public LibraryFeature {
     std::unique_ptr<StemJobs> m_pStemJobs;
     /// Servers whose capabilities let this account upload stem analyses.
     QSet<QString> m_stemUploads;
+    /// The Compatibles view (plan F5.C-PR1).
+    parented_ptr<recs::CompatiblesModel> m_pCompatiblesModel;
+    /// Radio (plan F5.C-PR2) and Music Paths (F5.C-PR3) fill Auto DJ's queue
+    parented_ptr<CrateServerTrackModel> m_pRadioModel;
     parented_ptr<CacheStatusModel> m_pCacheStatus;
+    std::unique_ptr<recs::Compatibles> m_pCompatibles;
+    std::unique_ptr<widgets::CamelotWheelModel> m_pWheelModel;
+    std::unique_ptr<recs::AutoDjRecommendationQueue> m_pRecommendations;
+    std::unique_ptr<recs::CrateRadioSource> m_pRadio;
+    std::unique_ptr<recs::CratePathSource> m_pPaths;
+    QPointer<recs::CompatiblesView> m_pCompatiblesView;
+    QMetaObject::Connection m_selectionConnection;
     QThreadPool m_pool;
 };
 
