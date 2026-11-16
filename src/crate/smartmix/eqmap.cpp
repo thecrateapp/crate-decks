@@ -77,9 +77,11 @@ double cutDbForLowGain(double gain) {
 bool isDefaultEqOn(const EffectsManager& effects, const QString& deckGroup) {
     const EqualizerEffectChainPointer pChain = effects.getEqualizerEffectChain(deckGroup);
     const EffectSlotPointer pSlot = pChain ? pChain->getEffectSlot(0) : EffectSlotPointer();
-    // The preferences' "Bypass EQ" switches the slot off
-    const double enabled =
-            ControlObject::get(ConfigKey(effectGroup(deckGroup), QStringLiteral("enabled")));
+    // The preferences' "Bypass EQ" switches the slot off. The slot owns that
+    // control: a deck without an EQ chain has none to read.
+    const double enabled = pSlot
+            ? ControlObject::get(ConfigKey(pSlot->getGroup(), QStringLiteral("enabled")))
+            : 0.0;
     const bool on = pSlot && pSlot->isLoaded() && pSlot->id() == BiquadFullKillEQEffect::getId() &&
             enabled > 0.0;
     if (!on) {
