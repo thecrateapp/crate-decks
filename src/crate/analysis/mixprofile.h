@@ -48,6 +48,9 @@ struct MixProfile {
     std::optional<qint64> activeEndMs;
     std::optional<double> integratedLufs;
     std::optional<double> truePeakDbfs;
+    /// The energy of the intro and of the outro, from 0 to 1.
+    std::optional<double> introEnergy;
+    std::optional<double> outroEnergy;
 
     bool isFull() const {
         return quality == Quality::Full;

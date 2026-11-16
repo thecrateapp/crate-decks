@@ -137,6 +137,8 @@ Result<MixProfile> parseMixProfile(const QJsonObject& object) {
     profile.activeEndMs = reader.milliseconds("activeEndMs");
     profile.integratedLufs = reader.number("integratedLufs");
     profile.truePeakDbfs = reader.number("truePeakDbfs");
+    profile.introEnergy = reader.number("introEnergy");
+    profile.outroEnergy = reader.number("outroEnergy");
     if (profile.entityUid.isEmpty()) {
         reader.fail("trackEntityUid");
     }

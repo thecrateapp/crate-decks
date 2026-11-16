@@ -5409,6 +5409,7 @@ if(CRATE)
       src/crate/smartmix/curves.cpp
       src/crate/smartmix/eqmap.cpp
       src/crate/smartmix/planclient.cpp
+      src/crate/smartmix/sethistory.cpp
       src/crate/smartmix/smartmixassist.cpp
       src/crate/smartmix/smartmixdirector.cpp
       src/crate/smartmix/transitionplan.cpp
@@ -5496,6 +5497,7 @@ if(CRATE)
         src/test/crate/cratesession_test.cpp
         src/test/crate/modelstore_test.cpp
         src/test/crate/planclient_test.cpp
+        src/test/crate/sethistory_test.cpp
         src/test/crate/smartmixdirector_test.cpp
         src/test/crate/stemanalyzer_test.cpp
         src/test/crate/stemdsp_test.cpp
