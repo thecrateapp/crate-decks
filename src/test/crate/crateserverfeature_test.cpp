@@ -1302,10 +1302,10 @@ TEST_F(CrateServerFeatureTest, TrackMenuClearsTheCorrectionOnCrate) {
     const QString query = QStringLiteral("/api/decks/corrections/query");
     ASSERT_TRUE(QTest::qWaitFor([&] { return sentTo(query) == 1; }, 5000));
     lastTo(query)->pReply->respond(200, QByteArrayLiteral(R"({"corrections": {"e1": {
-        "entity_uid": "e1", "revision": 2, "updated_at": "2026-11-16T18:10:02Z",
+        "entity_uid": "e1", "revision": 2, "updated_at": "2026-11-16T18:10:02.771940Z",
         "client_id": "install-2", "bpm": 124.5, "beat_grid_format": null,
         "beat_grid_ms": null, "key": "8A"}}, "missing": [],
-        "server_time": "2026-11-16T22:00:00Z"})"));
+        "server_time": "2026-11-16T22:00:00.000000Z"})"));
     ASSERT_TRUE(QTest::qWaitFor(
             [&] { return pCorrections->hasCorrection(kServer, QStringLiteral("e1")); }, 5000));
     EXPECT_EQ(nullptr, deckEntry(QStringLiteral("Save correction to Crate")));

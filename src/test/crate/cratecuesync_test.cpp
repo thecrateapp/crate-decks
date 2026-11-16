@@ -458,7 +458,7 @@ TEST_F(CrateCueSyncTest, ResendsOnConflictWithAnOlderWrite) {
             2,
             QJsonArray{cue(cuetype::kHotcue, 7, 7000.0)},
             kOtherInstallation,
-            QStringLiteral("2026-11-16T21:00:00Z"));
+            QStringLiteral("2026-11-16T21:00:00.000000Z"));
     puts().constFirst().pReply->respond(409, conflictAnswer(current));
     waitForPuts(2);
     const QJsonObject body = bodyOf(puts().constLast());
@@ -489,7 +489,7 @@ TEST_F(CrateCueSyncTest, DecidesConflictsOnTheServerClock) {
             kUid,
             queryAnswer({cueSet(kUid, 3, QJsonArray{cue(cuetype::kHotcue, 0, 1000.0)})},
                     {},
-                    QStringLiteral("2026-11-16T22:30:00.000000Z")));
+                    QStringLiteral("2026-11-16T22:30:00.664907Z")));
     pTrack->createAndAddCue(mixxx::CueType::HotCue,
             1,
             mixxx::audio::FramePos(framesOf(2000.0)),
@@ -500,10 +500,13 @@ TEST_F(CrateCueSyncTest, DecidesConflictsOnTheServerClock) {
     const QList<QJsonObject> pending =
             m_pOutbox->pendingPayloads(kServer, crate::writeback::outboxkind::kCueSet);
     ASSERT_EQ(1, pending.size());
-    EXPECT_EQ(QDateTime(QDate(2026, 11, 16), QTime(22, 30), QTimeZone::UTC),
-            QDateTime::fromString(
-                    pending.first().value(QStringLiteral("edited_at")).toString(),
-                    Qt::ISODateWithMs));
+    // The server's microseconds are read too
+    EXPECT_NEAR(0,
+            QDateTime(QDate(2026, 11, 16), QTime(22, 30, 0, 665), QTimeZone::UTC)
+                    .msecsTo(QDateTime::fromString(
+                            pending.first().value(QStringLiteral("edited_at")).toString(),
+                            Qt::ISODateWithMs)),
+            1);
 
     // Another computer wrote at 22:10 server time: before the edit, which
     // the local clock alone would have put at 22:00
@@ -520,7 +523,8 @@ TEST_F(CrateCueSyncTest, DecidesConflictsOnTheServerClock) {
     ASSERT_NE(nullptr, pTrack->findHotcueByIndex(1));
 }
 
-// Without any server_time yet, the edit keeps the local clock, as before.
+// A server that sends no server_time (one older than e463d653e): the edit
+// keeps the local clock, as before.
 TEST_F(CrateCueSyncTest, FallsBackToTheLocalClockWithoutServerTime) {
     makeSync();
     QSignalSpy replaced(m_pSync.get(), &CrateCueSync::localEditsReplaced);

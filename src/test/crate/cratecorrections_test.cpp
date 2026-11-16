@@ -526,7 +526,7 @@ TEST_F(CrateCorrectionsTest, ConflictAppliesTheNewerCorrection) {
                                                   QJsonValue(),
                                                   QStringLiteral("5A"),
                                                   QStringLiteral("install-2"),
-                                                  QStringLiteral("2026-11-16T22:10:00Z"))}})
+                                                  QStringLiteral("2026-11-16T22:10:00.000000Z"))}})
                     .toJson());
     ASSERT_TRUE(QTest::qWaitFor([&] {
         return replaced.size() == 1;
