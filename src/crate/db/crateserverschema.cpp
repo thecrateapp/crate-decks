@@ -109,7 +109,11 @@ const QStringList kAnalysisStatements = {
 // which an entry expires after seven days. `crateserver_ratings` holds the
 // last rating (0-5) crate::writeback::CrateRatings queued for each Crate
 // track, so that only a change is sent (F7.C-PR2); `entity_uid` is
-// lowercase.
+// lowercase. `crateserver_user_sync` (F8) holds, per track and `kind`
+// (`cues` or `corrections`), the last revision of the user's data Decks
+// read from or wrote to the server and `baseline`, the JSON content Decks
+// counts as in sync with it: crate::writeback::CrateCueSync and
+// crate::writeback::CrateCorrections.
 const QStringList kWritebackStatements = {
         QStringLiteral("CREATE TABLE IF NOT EXISTS crateserver_outbox ("
                        "id TEXT PRIMARY KEY NOT NULL, "
@@ -123,6 +127,14 @@ const QStringList kWritebackStatements = {
                        "rating INTEGER NOT NULL, "
                        "sent_at TEXT NOT NULL, "
                        "PRIMARY KEY (server_id, entity_uid))"),
+        QStringLiteral("CREATE TABLE IF NOT EXISTS crateserver_user_sync ("
+                       "server_id TEXT NOT NULL, "
+                       "entity_uid TEXT NOT NULL, "
+                       "kind TEXT NOT NULL, "
+                       "revision INTEGER NOT NULL, "
+                       "baseline TEXT NOT NULL, "
+                       "updated_at TEXT NOT NULL, "
+                       "PRIMARY KEY (server_id, entity_uid, kind))"),
 };
 
 // Each statement must be idempotent: they run at every start.

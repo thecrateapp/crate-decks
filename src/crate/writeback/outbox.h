@@ -2,6 +2,7 @@
 
 #include <QDateTime>
 #include <QHash>
+#include <QJsonDocument>
 #include <QJsonObject>
 #include <QList>
 #include <QObject>
@@ -35,10 +36,17 @@ inline const QString kUnlike = QStringLiteral("unlike");
 /// up first with `GET /api/tracks/by-entity/{uid}/info` unless the payload
 /// already has it.
 inline const QString kRate = QStringLiteral("rate");
+/// `PUT /api/decks/cues/{entity_uid}` (plan F8.C-PR1). The payload has
+/// `entity_uid`, `edited_at` (when the edit was made, ISO 8601 UTC) and
+/// `body`, the request's body, which carries its `base_revision`.
+inline const QString kCueSet = QStringLiteral("cue_set");
+/// `PUT /api/decks/corrections/{entity_uid}` (plan F8.C-PR2), with the
+/// payload of kCueSet.
+inline const QString kCorrection = QStringLiteral("correction");
 } // namespace outboxkind
 
 /// Delivers Decks' writes to the Crate servers (plan F7.C-PR1): play
-/// events, likes and ratings.
+/// events, likes and ratings, and since F8 cue sets and corrections.
 ///
 /// An entry is stored in `crateserver_outbox` as soon as it is enqueued, so
 /// it survives a restart, and leaves it once the server took it. Each
@@ -49,6 +57,10 @@ inline const QString kRate = QStringLiteral("rate");
 /// sending it again would get the same answer. An entry older than seven
 /// days is dropped with a log line instead of being sent. flush() sends at
 /// once whatever waits, for when the network or the session comes back.
+///
+/// The cue sets and corrections (F8) are compare-and-set writes: a 409
+/// leaves the outbox through conflicted(), with the stored content the
+/// server answered, for their sync to resolve.
 ///
 /// The main thread never touches SQLite (design §9): the entries are kept
 /// in memory and the table is read and written on a worker thread of its
@@ -97,6 +109,9 @@ class Outbox : public QObject {
 
     /// The entries not delivered yet, of one server or of all.
     int pendingCount(const QString& serverId = QString()) const;
+    /// The payloads of a server's entries of `kind` not delivered yet, in
+    /// order, including the one in flight.
+    QList<QJsonObject> pendingPayloads(const QString& serverId, const QString& kind) const;
 
     /// Waits until the table has every write made so far. For shutdown and
     /// tests.
@@ -105,8 +120,17 @@ class Outbox : public QObject {
   signals:
     /// start() has read the stored entries.
     void loaded();
-    /// The server took an entry.
-    void delivered(const QString& serverId, const QString& kind, const QJsonObject& payload);
+    /// The server took an entry; `answer` is the body of its answer.
+    void delivered(const QString& serverId,
+            const QString& kind,
+            const QJsonObject& payload,
+            const QJsonDocument& answer);
+    /// The server answered 409 to a kCueSet or kCorrection entry, which
+    /// leaves the outbox: `current` is the content and revision it has.
+    void conflicted(const QString& serverId,
+            const QString& kind,
+            const QJsonObject& payload,
+            const QJsonObject& current);
     /// An entry was dropped without being delivered: too old, or refused.
     void dropped(const QString& serverId, const QString& kind, const QString& reason);
 
@@ -139,14 +163,21 @@ class Outbox : public QObject {
     void pump(const QString& serverId);
     void send(const QString& serverId, Client* pClient, const Entry& entry);
     void sendRate(const QString& serverId, Client* pClient, const Entry& entry);
+    void sendPut(const QString& serverId, Client* pClient, const Entry& entry);
     /// Waits for the request of the first entry. Without `onFinished`, its
     /// answer delivers the entry, or not.
     void watch(const QString& serverId,
             Reply* pReply,
             const std::function<void(const JsonResult&)>& onFinished = nullptr);
-    void apply(const QString& serverId, Outcome outcome, const QString& reason);
+    void apply(const QString& serverId,
+            Outcome outcome,
+            const QString& reason,
+            const QJsonDocument& answer = QJsonDocument());
     void retryLater(const QString& serverId);
-    void remove(const QString& serverId, const QString& reason, bool delivered);
+    void remove(const QString& serverId,
+            const QString& reason,
+            bool delivered,
+            const QJsonDocument& answer = QJsonDocument());
     static Outcome outcomeOf(const Error& error);
 
     void storeInsert(const Entry& entry);

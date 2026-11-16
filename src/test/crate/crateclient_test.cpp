@@ -189,6 +189,29 @@ TEST_F(CrateClientTest, SendsDeleteWithJsonBody) {
     EXPECT_TRUE(outcome.result->ok());
 }
 
+// A 409 of the cue and correction routes carries the stored content (plan
+// F8): the Reply keeps the body of an error answer.
+TEST_F(CrateClientTest, KeepsTheBodyOfAnErrorAnswer) {
+    const auto pClient = makeClient();
+    Reply* pReply = pClient->put(QStringLiteral("/api/decks/cues/u-1"),
+            QJsonDocument(QJsonObject{{QStringLiteral("base_revision"), 1}}));
+    Outcome outcome(pReply);
+    QByteArray body;
+    QObject::connect(pReply, &Reply::finished, pReply, [&body, pReply] {
+        body = pReply->body();
+    });
+    const QByteArray conflict = QByteArrayLiteral(
+            R"({"detail": "Cue set revision conflict", "current": {"revision": 5}})");
+
+    m_network.last().pReply->respond(409, conflict);
+
+    ASSERT_TRUE(outcome.finished());
+    ASSERT_FALSE(outcome.result->ok());
+    EXPECT_EQ(409, outcome.result->error().httpStatus);
+    EXPECT_EQ(QStringLiteral("Cue set revision conflict"), outcome.result->error().message);
+    EXPECT_EQ(conflict, body);
+}
+
 TEST_F(CrateClientTest, HonoursRetryAfter) {
     const auto pClient = makeClient();
     Outcome shortWait(pClient->get(QStringLiteral("/api/a")));

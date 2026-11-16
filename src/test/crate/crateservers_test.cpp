@@ -125,6 +125,32 @@ TEST_F(CrateServersTest, AnnouncesTheCapabilitiesItKeeps) {
     EXPECT_EQ(json, pServers->lastCapabilities(QStringLiteral("a")));
 }
 
+// Plan F8: cues sync only with a server that announces the
+// `cues` feature, and follow its capabilities as they change.
+TEST_F(CrateServersTest, SyncsCuesWithServersThatServeThem) {
+    ASSERT_TRUE(crate::db::createCrateServerSchema(dbConnection()));
+    ServerProfile saved;
+    saved.id = QStringLiteral("a");
+    saved.baseUrl = QUrl(QStringLiteral("https://a.test"));
+    ASSERT_TRUE(crate::db::saveServerProfile(dbConnection(), saved));
+    const auto pServers = makeServers();
+    pServers->start();
+    ASSERT_NE(nullptr, pServers->cueSync());
+    const QByteArray without = R"({"decks": {"available": true,
+        "min_client_version": "0.1.0", "contract_version": 1,
+        "features": ["library_cursor"]}})";
+    const QByteArray with = R"({"decks": {"available": true,
+        "min_client_version": "0.1.0", "contract_version": 1,
+        "features": ["library_cursor", "cues"]}})";
+
+    EXPECT_FALSE(pServers->serverHas(QStringLiteral("a"), crate::DecksFeature::Cues));
+    pServers->rememberCapabilities(QStringLiteral("a"), without);
+    EXPECT_FALSE(pServers->serverHas(QStringLiteral("a"), crate::DecksFeature::Cues));
+    pServers->rememberCapabilities(QStringLiteral("a"), with);
+    EXPECT_TRUE(pServers->serverHas(QStringLiteral("a"), crate::DecksFeature::Cues));
+    EXPECT_FALSE(pServers->serverHas(QStringLiteral("unknown"), crate::DecksFeature::Cues));
+}
+
 // Plan F7.C-PR1: the writes of a server wait while it is signed out and go
 // out once it signs in.
 TEST_F(CrateServersTest, OutboxSendsOnceTheServerSignsIn) {

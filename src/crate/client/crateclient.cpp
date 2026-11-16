@@ -555,6 +555,9 @@ void Client::onNetworkReplyFinished(const CallPtr& pCall) {
     }
     if (status < 200 || status >= 300) {
         kLogger.warning() << "Request to" << pCall->url.path() << "failed with HTTP" << status;
+        // Kept for the callers that read more than the detail, such as the
+        // stored content of a 409
+        response.body = body;
         complete({pCall}, httpError(status, body), response);
         return;
     }

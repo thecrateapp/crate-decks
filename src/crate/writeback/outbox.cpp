@@ -26,6 +26,8 @@ const QString kRatePath = QStringLiteral("/api/track/rate");
 const QString kTrackIdKey = QStringLiteral("track_id");
 const QString kEntityUidKey = QStringLiteral("entity_uid");
 const QString kRatingKey = QStringLiteral("rating");
+const QString kBodyKey = QStringLiteral("body");
+const QString kCurrentKey = QStringLiteral("current");
 
 QString isoOf(const QDateTime& time) {
     return time.toUTC().toString(Qt::ISODateWithMs);
@@ -42,6 +44,13 @@ auto withDatabase(const mixxx::DbConnectionPoolPtr& pPool, Task&& task) {
     const mixxx::DbConnectionPooler pooler(pPool);
     const QSqlDatabase database = mixxx::DbConnectionPooled(pPool);
     return task(database);
+}
+
+QString putPath(const QString& kind, const QString& entityUid) {
+    const QString resource = kind == outboxkind::kCueSet ? QStringLiteral("cues")
+                                                         : QStringLiteral("corrections");
+    return QStringLiteral("/api/decks/%1/%2")
+            .arg(resource, QString::fromLatin1(QUrl::toPercentEncoding(entityUid)));
 }
 
 } // namespace
@@ -169,6 +178,20 @@ void Outbox::flush() {
     }
 }
 
+QList<QJsonObject> Outbox::pendingPayloads(const QString& serverId, const QString& kind) const {
+    QList<QJsonObject> payloads;
+    const auto it = m_servers.constFind(serverId);
+    if (it == m_servers.cend()) {
+        return payloads;
+    }
+    for (const Entry& entry : it->entries) {
+        if (entry.kind == kind) {
+            payloads.append(entry.payload);
+        }
+    }
+    return payloads;
+}
+
 int Outbox::pendingCount(const QString& serverId) const {
     if (!serverId.isEmpty()) {
         const auto it = m_servers.constFind(serverId);
@@ -224,6 +247,8 @@ void Outbox::send(const QString& serverId, Client* pClient, const Entry& entry) 
         watch(serverId, pClient->del(kLikesPath, body));
     } else if (entry.kind == outboxkind::kRate) {
         sendRate(serverId, pClient, entry);
+    } else if (entry.kind == outboxkind::kCueSet || entry.kind == outboxkind::kCorrection) {
+        sendPut(serverId, pClient, entry);
     } else {
         kLogger.warning() << "Dropping a write of unknown kind" << entry.kind;
         remove(serverId, QStringLiteral("unknown kind"), false);
@@ -261,6 +286,42 @@ void Outbox::sendRate(const QString& serverId, Client* pClient, const Entry& ent
             });
 }
 
+void Outbox::sendPut(const QString& serverId, Client* pClient, const Entry& entry) {
+    Reply* pReply = pClient->put(putPath(entry.kind, entry.payload.value(kEntityUidKey).toString()),
+            QJsonDocument(entry.payload.value(kBodyKey).toObject()));
+    watch(serverId,
+            pReply,
+            [this, serverId, pReply = QPointer<Reply>(pReply)](const JsonResult& result) {
+                if (result.ok()) {
+                    apply(serverId, Outcome::Delivered, QString(), result.value());
+                    return;
+                }
+                const Error& error = result.error();
+                ServerState& state = m_servers[serverId];
+                if (error.kind != Error::Kind::Http || error.httpStatus != 409 ||
+                        state.entries.isEmpty()) {
+                    apply(serverId, outcomeOf(error), error.message);
+                    return;
+                }
+                // The server has another revision: its sync resolves it
+                const QJsonObject current = pReply
+                        ? QJsonDocument::fromJson(pReply->body())
+                                  .object()
+                                  .value(kCurrentKey)
+                                  .toObject()
+                        : QJsonObject();
+                const Entry entry = state.entries.first();
+                state.failures = 0;
+                state.entries.removeFirst();
+                storeDelete(entry.id);
+                kLogger.info() << "A" << entry.kind << "write for the Crate server" << serverId
+                               << "conflicts with revision"
+                               << current.value(QStringLiteral("revision")).toInteger();
+                emit conflicted(serverId, entry.kind, entry.payload, current);
+                pump(serverId);
+            });
+}
+
 void Outbox::watch(const QString& serverId,
         Reply* pReply,
         const std::function<void(const JsonResult&)>& onFinished) {
@@ -274,7 +335,7 @@ void Outbox::watch(const QString& serverId,
         if (onFinished) {
             onFinished(result);
         } else if (result.ok()) {
-            apply(serverId, Outcome::Delivered, QString());
+            apply(serverId, Outcome::Delivered, QString(), result.value());
         } else {
             apply(serverId, outcomeOf(result.error()), result.error().message);
         }
@@ -310,7 +371,10 @@ Outbox::Outcome Outbox::outcomeOf(const Error& error) {
     return Outcome::Retry;
 }
 
-void Outbox::apply(const QString& serverId, Outcome outcome, const QString& reason) {
+void Outbox::apply(const QString& serverId,
+        Outcome outcome,
+        const QString& reason,
+        const QJsonDocument& answer) {
     ServerState& state = m_servers[serverId];
     if (state.entries.isEmpty()) {
         return;
@@ -318,7 +382,7 @@ void Outbox::apply(const QString& serverId, Outcome outcome, const QString& reas
     switch (outcome) {
     case Outcome::Delivered:
         state.failures = 0;
-        remove(serverId, QString(), true);
+        remove(serverId, QString(), true, answer);
         pump(serverId);
         return;
     case Outcome::Drop:
@@ -352,12 +416,15 @@ void Outbox::retryLater(const QString& serverId) {
     });
 }
 
-void Outbox::remove(const QString& serverId, const QString& reason, bool delivered) {
+void Outbox::remove(const QString& serverId,
+        const QString& reason,
+        bool delivered,
+        const QJsonDocument& answer) {
     ServerState& state = m_servers[serverId];
     const Entry entry = state.entries.takeFirst();
     storeDelete(entry.id);
     if (delivered) {
-        emit this->delivered(serverId, entry.kind, entry.payload);
+        emit this->delivered(serverId, entry.kind, entry.payload, answer);
     } else {
         emit dropped(serverId, entry.kind, reason);
     }

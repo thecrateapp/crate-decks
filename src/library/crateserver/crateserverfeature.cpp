@@ -54,6 +54,7 @@
 #include "crate/ui/cachestatusview.h"
 #include "crate/ui/widgets/camelotwheelmodel.h"
 #include "crate/ui/widgets/instrumentpainter.h"
+#include "crate/writeback/cratecuesync.h"
 #include "crate/writeback/cratelikes.h"
 #include "crate/writeback/crateplaylistedit.h"
 #include "crate/writeback/crateratings.h"
@@ -509,6 +510,17 @@ void CrateServerFeature::watchServers(CrateServers* pServers) {
                 pServers->ratings(),
                 &writeback::CrateRatings::onTracksChanged);
     }
+    // Cues that another computer changed after the edits here replace them
+    // (plan F8): the user hears of it
+    connect(pServers->cueSync(),
+            &writeback::CrateCueSync::localEditsReplaced,
+            this,
+            [this](const QString&, const QString&, const QString& title) {
+                showWarning(tr(
+                        "The cues of \u201c%1\u201d were changed on another computer. "
+                        "Decks now uses those in place of the ones set here.")
+                                .arg(title));
+            });
     // The Liked column
     writeback::CrateLikes* pLikes = pServers->likes();
     const QList<CrateServerTrackModel*> models = trackModels();
@@ -1560,14 +1572,22 @@ void CrateServerFeature::applyAnalysis(
         return;
     }
     const QString uid = entityUid.toLower();
+    // The user's own cues, read with the other tracks taken now, go over the
+    // profile's (plan F8): the profile never replaces a cue of a type the
+    // track has
+    writeback::CrateCueSync* const pCueSync = m_pServers->cueSync();
+    pCueSync->attach(pTrack, serverId, uid);
     // What the Crate preferences say when the track is taken
     const analysis::Policy policy = m_pServers->preferences()->analysisPolicy();
     analysis::ProfileFetch* pFetch = pStore->get({uid});
     connect(pFetch,
             &analysis::ProfileFetch::finished,
             this,
-            [pTrack, pStore = QPointer<analysis::ProfileStore>(pStore), uid, policy](
-                    const analysis::ProfileResults& results) {
+            [pTrack,
+                    pStore = QPointer<analysis::ProfileStore>(pStore),
+                    pCueSync = QPointer<writeback::CrateCueSync>(pCueSync),
+                    uid,
+                    policy](const analysis::ProfileResults& results) {
                 const auto it = results.profiles.constFind(uid);
                 if (it == results.profiles.cend()) {
                     return;
@@ -1576,6 +1596,10 @@ void CrateServerFeature::applyAnalysis(
                         pTrack, it->profile, policy, it->appliedCues);
                 if (outcome.appliedCues && pStore) {
                     pStore->recordAppliedCues(uid, *outcome.appliedCues);
+                }
+                // What the profile changed is not the user's edit
+                if (pCueSync) {
+                    pCueSync->absorbAutomaticChanges(pTrack);
                 }
             });
 }

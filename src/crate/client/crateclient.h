@@ -123,7 +123,8 @@ class Reply : public QObject {
     }
     /// A header of the answer, such as ETag; empty if it has none.
     QByteArray rawHeader(const QByteArray& name) const;
-    /// The body of a RequestOptions::rawBody request.
+    /// The body of a RequestOptions::rawBody request, or of an answer with
+    /// an HTTP error status.
     const QByteArray& body() const {
         return m_response.body;
     }
