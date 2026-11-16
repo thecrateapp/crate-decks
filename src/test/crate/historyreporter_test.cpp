@@ -233,7 +233,8 @@ TEST_F(HistoryReporterTest, NowPlayingEvery60s) {
     EXPECT_TRUE(m_scheduler.tasks.isEmpty());
 
     // A deck beyond the fourth is not sent
-    for (auto* pReply : m_network.openReplies()) {
+    const QList<crate::test::FakeReply*> replies = m_network.openReplies();
+    for (auto* pReply : std::as_const(replies)) {
         pReply->respond(200, QByteArrayLiteral(R"({"ok": true})"));
     }
     m_pReporter->setPlayingDeck(5);

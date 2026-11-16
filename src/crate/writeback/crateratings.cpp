@@ -115,28 +115,27 @@ void CrateRatings::check(const TrackPointer& pTrack) {
             outboxkind::kRate,
             QJsonObject{{QStringLiteral("entity_uid"), crateTrack->entityUid},
                     {QStringLiteral("rating"), rating}});
-    QtConcurrent::run(&m_pool,
-            [pPool = m_options.pDbConnectionPool,
-                    serverId = crateTrack->serverId,
-                    uid = crateTrack->entityUid.toLower(),
-                    rating,
-                    now = QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs)] {
-                const mixxx::DbConnectionPooler pooler(pPool);
-                const QSqlDatabase database = mixxx::DbConnectionPooled(pPool);
-                QSqlQuery query(database);
-                query.prepare(QStringLiteral(
-                        "INSERT OR REPLACE INTO crateserver_ratings "
-                        "(server_id, entity_uid, rating, sent_at) "
-                        "VALUES (:server, :uid, :rating, :sent)"));
-                query.bindValue(QStringLiteral(":server"), serverId);
-                query.bindValue(QStringLiteral(":uid"), uid);
-                query.bindValue(QStringLiteral(":rating"), rating);
-                query.bindValue(QStringLiteral(":sent"), now);
-                if (!query.exec()) {
-                    kLogger.warning() << "Cannot keep the rating sent:"
-                                      << query.lastError().text();
-                }
-            });
+    m_pool.start([pPool = m_options.pDbConnectionPool,
+                         serverId = crateTrack->serverId,
+                         uid = crateTrack->entityUid.toLower(),
+                         rating,
+                         now = QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs)] {
+        const mixxx::DbConnectionPooler pooler(pPool);
+        const QSqlDatabase database = mixxx::DbConnectionPooled(pPool);
+        QSqlQuery query(database);
+        query.prepare(QStringLiteral(
+                "INSERT OR REPLACE INTO crateserver_ratings "
+                "(server_id, entity_uid, rating, sent_at) "
+                "VALUES (:server, :uid, :rating, :sent)"));
+        query.bindValue(QStringLiteral(":server"), serverId);
+        query.bindValue(QStringLiteral(":uid"), uid);
+        query.bindValue(QStringLiteral(":rating"), rating);
+        query.bindValue(QStringLiteral(":sent"), now);
+        if (!query.exec()) {
+            kLogger.warning() << "Cannot keep the rating sent:"
+                              << query.lastError().text();
+        }
+    });
 }
 
 } // namespace crate::writeback

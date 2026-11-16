@@ -111,7 +111,8 @@ class CratePlaylistEditTest : public testing::Test {
     }
 
     void answerAll() {
-        for (auto* pReply : m_network.openReplies()) {
+        const QList<crate::test::FakeReply*> replies = m_network.openReplies();
+        for (auto* pReply : std::as_const(replies)) {
             pReply->respond(200, QByteArrayLiteral(R"({"ok": true})"));
         }
     }

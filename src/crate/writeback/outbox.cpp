@@ -364,32 +364,31 @@ void Outbox::remove(const QString& serverId, const QString& reason, bool deliver
 }
 
 void Outbox::storeInsert(const Entry& entry) {
-    QtConcurrent::run(&m_pool,
-            [pPool = m_options.pDbConnectionPool,
-                    entry,
-                    payload = QJsonDocument(entry.payload).toJson(QJsonDocument::Compact)] {
-                withDatabase(pPool, [&](const QSqlDatabase& database) {
-                    QSqlQuery query(database);
-                    query.prepare(QStringLiteral(
-                            "INSERT OR REPLACE INTO crateserver_outbox "
-                            "(id, server_id, kind, payload, created_at) "
-                            "VALUES (:id, :server, :kind, :payload, :created)"));
-                    query.bindValue(QStringLiteral(":id"), entry.id);
-                    query.bindValue(QStringLiteral(":server"), entry.serverId);
-                    query.bindValue(QStringLiteral(":kind"), entry.kind);
-                    query.bindValue(QStringLiteral(":payload"), QString::fromUtf8(payload));
-                    query.bindValue(QStringLiteral(":created"), isoOf(entry.createdAt));
-                    if (!query.exec()) {
-                        kLogger.warning() << "Cannot store a write in the outbox:"
-                                          << query.lastError().text();
-                    }
-                    return true;
-                });
-            });
+    m_pool.start([pPool = m_options.pDbConnectionPool,
+                         entry,
+                         payload = QJsonDocument(entry.payload).toJson(QJsonDocument::Compact)] {
+        withDatabase(pPool, [&](const QSqlDatabase& database) {
+            QSqlQuery query(database);
+            query.prepare(QStringLiteral(
+                    "INSERT OR REPLACE INTO crateserver_outbox "
+                    "(id, server_id, kind, payload, created_at) "
+                    "VALUES (:id, :server, :kind, :payload, :created)"));
+            query.bindValue(QStringLiteral(":id"), entry.id);
+            query.bindValue(QStringLiteral(":server"), entry.serverId);
+            query.bindValue(QStringLiteral(":kind"), entry.kind);
+            query.bindValue(QStringLiteral(":payload"), QString::fromUtf8(payload));
+            query.bindValue(QStringLiteral(":created"), isoOf(entry.createdAt));
+            if (!query.exec()) {
+                kLogger.warning() << "Cannot store a write in the outbox:"
+                                  << query.lastError().text();
+            }
+            return true;
+        });
+    });
 }
 
 void Outbox::storeDelete(const QString& id) {
-    QtConcurrent::run(&m_pool, [pPool = m_options.pDbConnectionPool, id] {
+    m_pool.start([pPool = m_options.pDbConnectionPool, id] {
         withDatabase(pPool, [&](const QSqlDatabase& database) {
             QSqlQuery query(database);
             query.prepare(QStringLiteral("DELETE FROM crateserver_outbox WHERE id = :id"));
