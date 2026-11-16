@@ -57,6 +57,72 @@ TEST(CrateCapabilitiesTest, ParsesTheStemFeatures) {
     EXPECT_FALSE(result.value().has(DecksFeature::Cues));
 }
 
+// Planner v3 in Decks (plan F6b.PR1): the planners the plan API takes and
+// whether most of the library has phrases, as the dev stack serves them. The
+// AI refinement (`ai_assisted`) was dropped after SG3 and is not read.
+TEST(CrateCapabilitiesTest, ParsesPlannerVersionsAndStructure) {
+    const auto result = Capabilities::fromJson(parse(R"({
+        "smart_mix": {
+            "available": true,
+            "planner_version": "smart-mix-v2",
+            "planner_versions": ["smart-mix-v2", "smart-mix-v3"],
+            "structure": true,
+            "listen_planner_version": "smart-mix-v2",
+            "ai_assisted": {"available": false, "provider_kind": null, "model_label": null,
+                            "prompt_version": "sm3-refine-3", "typical_latency_ms": null,
+                            "reason": "disabled"}
+        },
+        "decks": {
+            "available": true,
+            "min_client_version": "0.1.0",
+            "contract_version": 1,
+            "features": ["beatmatch", "local_refinement"]
+        }
+    })"));
+
+    ASSERT_TRUE(result.ok()) << result.error().message.toStdString();
+    const Capabilities& capabilities = result.value();
+    EXPECT_EQ(QStringLiteral("smart-mix-v2"), capabilities.defaultPlannerVersion());
+    EXPECT_EQ((QStringList{QStringLiteral("smart-mix-v2"), QStringLiteral("smart-mix-v3")}),
+            capabilities.plannerVersions());
+    EXPECT_TRUE(capabilities.offersPlanner(QStringLiteral("smart-mix-v3")));
+    EXPECT_FALSE(capabilities.offersPlanner(QStringLiteral("smart-mix-v4")));
+    EXPECT_TRUE(capabilities.structureAvailable());
+}
+
+// A server before smart-mix-v3 lists no planners, and one with Smart Mix off
+// lists none and has a null default: no planner is offered, so Decks asks v2.
+TEST(CrateCapabilitiesTest, MissingPlannerVersionsOfferNoPlanner) {
+    const auto older = Capabilities::fromJson(parse(R"({
+        "smart_mix": {"available": true, "planner_version": "smart-mix-v2"}
+    })"));
+    const auto off = Capabilities::fromJson(parse(R"({
+        "smart_mix": {"available": false, "planner_version": null,
+                      "planner_versions": [], "structure": false}
+    })"));
+    const auto none = Capabilities::fromJson(parse(R"({})"));
+
+    for (const auto* pResult : {&older, &off, &none}) {
+        ASSERT_TRUE(pResult->ok()) << pResult->error().message.toStdString();
+        EXPECT_TRUE(pResult->value().plannerVersions().isEmpty());
+        EXPECT_FALSE(pResult->value().offersPlanner(QStringLiteral("smart-mix-v3")));
+        EXPECT_FALSE(pResult->value().structureAvailable());
+    }
+    EXPECT_EQ(QStringLiteral("smart-mix-v2"), older.value().defaultPlannerVersion());
+    EXPECT_TRUE(off.value().defaultPlannerVersion().isEmpty());
+}
+
+TEST(CrateCapabilitiesTest, MalformedSmartMixSectionIsADecodeError) {
+    const auto result = Capabilities::fromJson(parse(R"({
+        "smart_mix": {"available": true, "planner_versions": "smart-mix-v3"}
+    })"));
+
+    ASSERT_FALSE(result.ok());
+    EXPECT_EQ(Error::Kind::Decode, result.error().kind);
+    EXPECT_EQ(QStringLiteral("smart_mix.planner_versions is not an array"),
+            result.error().message);
+}
+
 TEST(CrateCapabilitiesTest, MissingDecksSectionMeansUnavailable) {
     const auto result = Capabilities::fromJson(parse(R"({"smart_mix": {"available": true}})"));
 

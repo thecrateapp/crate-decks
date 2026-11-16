@@ -53,12 +53,22 @@ Result<Capabilities> Capabilities::fromJson(const QJsonDocument& document) {
         return root.error();
     }
     json::ObjectReader rootReader(root.value());
+    const std::optional<QJsonObject> smartMix = rootReader.optionalObject(u"smart_mix");
     const std::optional<QJsonObject> decks = rootReader.optionalObject(u"decks");
     if (!rootReader.ok()) {
         return rootReader.error();
     }
 
     Capabilities capabilities;
+    if (smartMix) {
+        json::ObjectReader reader(*smartMix, QStringLiteral("smart_mix"));
+        capabilities.m_defaultPlannerVersion = reader.optionalString(u"planner_version");
+        capabilities.m_plannerVersions = reader.optionalStringList(u"planner_versions");
+        capabilities.m_structureAvailable = reader.optionalBool(u"structure", false);
+        if (!reader.ok()) {
+            return reader.error();
+        }
+    }
     if (!decks) {
         return capabilities;
     }
