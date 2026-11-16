@@ -196,6 +196,10 @@ class Client : public QObject {
             const QJsonDocument& body,
             const RequestOptions& options = RequestOptions());
     Reply* del(const QString& path, const RequestOptions& options = RequestOptions());
+    /// A DELETE with a JSON body, such as `DELETE /api/me/likes`.
+    Reply* del(const QString& path,
+            const QJsonDocument& body,
+            const RequestOptions& options = RequestOptions());
 
     /// Opens a long-lived GET such as a server-sent event stream: the same
     /// headers as get() plus `Accept: text/event-stream`, no transfer

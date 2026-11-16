@@ -170,6 +170,25 @@ TEST_F(CrateClientTest, DoesNotRetryPost) {
     EXPECT_EQ(503, outcome.result->error().httpStatus);
 }
 
+TEST_F(CrateClientTest, SendsDeleteWithJsonBody) {
+    const auto pClient = makeClient();
+    Outcome outcome(pClient->del(QStringLiteral("/api/me/likes"),
+            QJsonDocument(QJsonObject{{QStringLiteral("track_entity_uid"),
+                    QStringLiteral("u-1")}})));
+
+    const auto sent = m_network.last();
+    EXPECT_EQ(QNetworkAccessManager::CustomOperation, sent.operation);
+    EXPECT_EQ(QByteArrayLiteral("DELETE"),
+            sent.request.attribute(QNetworkRequest::CustomVerbAttribute).toByteArray());
+    EXPECT_EQ(QByteArrayLiteral("application/json"),
+            sent.request.header(QNetworkRequest::ContentTypeHeader).toByteArray());
+    EXPECT_EQ(QByteArrayLiteral(R"({"track_entity_uid":"u-1"})"), sent.body);
+    EXPECT_EQ(QStringLiteral("/base/api/me/likes"), sent.request.url().path());
+    sent.pReply->respond(200, kOkBody);
+    ASSERT_TRUE(outcome.finished());
+    EXPECT_TRUE(outcome.result->ok());
+}
+
 TEST_F(CrateClientTest, HonoursRetryAfter) {
     const auto pClient = makeClient();
     Outcome shortWait(pClient->get(QStringLiteral("/api/a")));
