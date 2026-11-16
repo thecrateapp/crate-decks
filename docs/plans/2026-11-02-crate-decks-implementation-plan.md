@@ -1286,6 +1286,63 @@ elegido en SG3 de smart-mix-3. Activarlo por defecto en el servidor es decisión
     - `RejectsNonCrateTracks`
     - `RefetchesOnConflict`
 
+**Implementado (F7, 2026-11-16).** Rama `feat/decks-writeback`, sobre la integración de F5 y F6b (4d27d88bfc). El servidor (F7.S-PR1) está en la rama del monorepo del worktree `decks-s6-events` (0f2247474, "feat(me): report Decks now playing and play events"), sin publicar: el stack dev, que corre `origin/main`, todavía no lo tiene, así que no hay prueba contra un servidor real.
+
+- **Contratos comprobados en el servidor:**
+  - S6 tal como quedó: `POST /api/me/now-playing` acepta `deck` (entero `1`–`4`, estricto) y `mix_session_id` (hasta 128 caracteres). Un play event se atribuye a Decks por `X-Crate-App: decks/<versión>` o por una sesión `crate-decks`, que rellenan `device_type`, `app_platform` y `play_source_type` si faltan; Decks los manda igualmente. **`transition_source` se descartó en S6**: Decks no lo envía, y su medición en uso real (F6b.PR2) queda sin hacer.
+  - `POST /api/me/play-events` deduplica por `client_event_id` y no tiene más requisitos para una sesión de Decks (`_require_vdj_scope` solo mira los tokens `crv_`).
+  - Likes: `POST` y `DELETE /api/me/likes`, los dos con `LikeTrackRequest` en el cuerpo (`track_entity_uid`), también el `DELETE`.
+  - `POST /api/track/rate` solo toma `track_id` numérico o `path`. `GET /api/tracks/by-entity/{uid}/info` **sí devuelve `id`**: está en las columnas que lee (`_TRACK_INFO_QUERY_COLS`) y `TrackInfoResponse` deja pasar los campos que no declara (`extra="allow"`), aunque el esquema no lo nombre.
+  - Playlists, sin `ETag` ni `If-Match`: añadir es `POST /api/playlists/{id}/tracks` con `{"tracks": [{"entity_uid": …}]}`, al final; quitar es `DELETE /api/playlists/{id}/tracks/{position}`, por posición (desde 1) y renumerando las demás; reordenar es `POST /api/playlists/{id}/reorder` con `track_ids`, los ids de fila (`tracks[].id`) en el nuevo orden, que tienen que ser una permutación completa: si no, `reorder_playlist` lanza un `ValueError` que nadie captura (500). `GET /api/playlists/{id}` da `can_edit`.
+- **Decisiones de Diego (2026-11-16)**, que sustituyen al texto del plan donde difieren, sin cambios de servidor:
+  - (a) Playlists: como no hay `ETag`, antes de cada edición se relee la playlist y se compara con la copia de Decks; si cambió, se sincroniza otra vez y se reintenta una vez; si sigue distinta, se avisa. Reordenar manda la lista completa de ids de fila.
+  - (b) Valoraciones: el id numérico sale de `GET /api/tracks/by-entity/{uid}/info` (comprobado arriba).
+  - (c) No existe `CrateServerCollection::saveTrack`: se escucha `TrackCollection::tracksChanged` y se compara con la última valoración enviada, guardada en una tabla `crateserver_` nueva. Sin parche de Mixxx.
+- **Común:** `crate::Client` manda un `DELETE` con cuerpo JSON (`del(path, body)`), que `deleteResource()` no puede: sale como petición propia con su `Content-Type` y se sigue reintentando como idempotente.
+- **F7.C-PR1 · `Outbox` y `HistoryReporter`** (`src/crate/writeback/`):
+  - Tabla `crateserver_outbox` (`id` UUID, `server_id`, `kind`, `payload` JSON y `created_at`), en orden de `rowid`. `enqueue(serverId, kind, payload)`; los tipos son `play_event`, `like`, `unlike` y `rate`.
+  - Cada servidor manda sus entradas de una en una y en orden; un servidor no espera a otro. Lo que puede pasar (red, sesión, 408, 425, 429 o 5xx) se reintenta a 1 s, 5 s, 30 s, 5 min y luego cada 30 min; un 4xx descarta la entrada con una línea de log, porque repetirla daría lo mismo. Una entrada de más de siete días se descarta con log, también al arrancar.
+  - El hilo principal no toca SQLite: las entradas viven en memoria y la tabla se lee y escribe en un hilo propio, en orden.
+  - El vaciado al recuperar la red: `flush()` al iniciar sesión cada servidor y cuando `QNetworkInformation` pasa a `Online` (si la plataforma tiene backend). Mientras un servidor no tiene sesión, sus entradas esperan sin reintentos.
+  - `HistoryReporter` sigue a `PlayerInfo::currentPlayingTrackChanged` y `currentPlayingDeckChanged`. Como el historial de upstream, una pista nula (nada en el aire) no termina la pista, y la misma pista que vuelve al aire continúa. `played_seconds` es el tiempo en el aire, sin las pausas; `started_at` es cuando entró por primera vez y `ended_at` cuando salió por última. Lleva `completion_ratio` y `track_duration_seconds` si la pista tiene duración, y no manda `was_skipped` ni `was_completed`.
+  - El umbral es `[Crate],HistoryMinimumSeconds` (30 s por defecto, solo en el fichero de ajustes, sin interfaz). El `client_event_id` es un UUID v4 por reproducción, que sus reintentos conservan.
+  - Now playing va directo al servidor, sin outbox: al entrar una pista Crate y cada 60 s mientras sigue, con `deck` (solo si es 1–4) y `mix_session_id`. **No hay sesión de mezcla en Decks**: `mix_session_id` es un UUID por ejecución de la aplicación. Al salir del aire se manda `{"playing": false}`.
+  - `CrateServers` es dueño del outbox y del reporter, y al cerrarse termina la pista en el aire: su play event queda en la tabla para el siguiente arranque. `CrateServerFeature` conecta `PlayerInfo`.
+- **F7.C-PR2 · Likes y valoraciones:**
+  - `crate::writeback::CrateLikes` mezcla el contenedor Likes del servidor, tal como Decks lo sincronizó, con los likes hechos desde Decks, que se ven al momento y se mantienen hasta que una recarga encuentra al servidor de acuerdo. Los likes van por la outbox.
+  - **Menú:** "Like" o "Unlike" en el menú de pista de las tablas Crate.
+  - **Columna:** "Liked" en `CrateServerTrackModel`, con el texto "Liked" (no ordenable). El dibujo con icono queda para V3.
+  - **Atajo:** **no hay tecla por defecto**: es el control `[CrateDecks],like_on_air`, que da o quita el like a la pista Crate en el aire, para los mappings de teclado y controladoras. Asignarle una tecla en los mappings de upstream sería parchear sus ficheros.
+  - `crate::writeback::CrateRatings` escucha `TrackCollection::tracksChanged` (cualquier cambio de una pista en memoria lo emite) y encola `rate` solo si la valoración difiere de la última enviada, que guarda la tabla nueva `crateserver_ratings` (`server_id`, `entity_uid`, `rating`, `sent_at`). Una pista nunca enviada solo se manda desde una valoración mayor que 0: un 0 en Decks quiere decir "sin valoración", no "borra la de Crate". Las pistas se buscan en la caché de pistas de upstream, sin leer la base de datos.
+  - El outbox resuelve el `track_id` con `GET /api/tracks/by-entity/{uid}/info` justo antes de mandar la valoración, y lo conserva para los reintentos. Un 404 descarta la entrada.
+- **F7.C-PR3 · Editar playlists de Crate:**
+  - `crate::writeback::CratePlaylistEdit` hace las ediciones con la comprobación de (a). Copia de Decks: el contenedor de la playlist en `crateserver_container_tracks`; se compara con las filas de `GET /api/playlists/{id}` que tienen `track_entity_uid`, porque las que no lo tienen (pistas sin fichero local) no las lista Decks.
+  - Al reintentar, las filas se vuelven a encontrar por su pista (la aparición más cercana a su sitio). Si tampoco coincide la segunda vez, se avisa y se sincroniza otra vez, para que Decks muestre lo que hay en el servidor. También avisan una playlist que el usuario no puede editar (`can_edit`), un 5xx y cualquier otro error.
+  - **Quitar** manda un `DELETE` por pista, de la última posición a la primera, con una sola comprobación por edición del usuario, no por petición.
+  - **Reordenar** manda todos los ids de fila; las filas que Decks no lista se quedan en su sitio. Arrastrar en la tabla reordena primero la copia local y manda el orden completo cuando la vista acaba.
+  - **Añadir** solo pone pistas al final (el servidor no tiene posición de inserción) y aparecen al resincronizar.
+  - `LibrarySync` emite `containerSynced` al terminar bien la sincronización de un contenedor, aunque no cambie nada, para que el reintento sepa cuándo seguir.
+  - **Tabla:** `CrateServerTrackModel` tiene un `PlaylistEditor`. Con él, una playlist Crate da "Remove from Playlist", recibe pistas soltadas y se reordena arrastrando mientras está ordenada por posición y sin filtrar. **Solo se arrastran las filas con el audio en caché**, como antes de F7.
+  - **Barra lateral:** soltar pistas en una playlist Crate las añade.
+  - **Exportar:** el menú de la sección Playlists tiene "Export a Decks playlist to Crate...": se elige una playlist de la biblioteca de Decks y se crea en Crate con su nombre (`POST /api/playlists`) y sus pistas Crate de ese servidor. Las demás quedan fuera, con un aviso que las cuenta.
+- **Diferencias con el plan:**
+  - Valoraciones: con `tracksChanged` en lugar de `CrateServerCollection::saveTrack`, que no existe (decisión c).
+  - Conflictos de playlists: con relectura y comparación en lugar de `ETag` (decisión a).
+  - Sin `transition_source`.
+  - `mix_session_id` es por ejecución.
+  - El atajo de like es un control mapeable, sin tecla por defecto.
+  - La columna Liked es texto.
+  - Exportar está en la barra lateral de Crate, no en el menú de las playlists de upstream, para no parchear Mixxx.
+  - El now playing no pasa por la outbox.
+- **Tests:**
+  - `outbox_test.cpp` (7), con los cuatro del plan y `DropsWhatTheServerRefuses`, `FlushesOnNetworkRecovery` y `RateLooksUpTheNumericTrackId`.
+  - `historyreporter_test.cpp` (5), los del plan.
+  - `cratelikes_test.cpp` (3), los del plan; `RatingChangeQueuesRate` cubre también el id numérico y que la última valoración enviada sobrevive a un reinicio.
+  - `crateplaylistedit_test.cpp` (3), los del plan; `RefetchesOnConflict` cubre la relectura, la comparación, el reintento único, el aviso, el 5xx y `can_edit`.
+  - Además: `CrateClientTest.SendsDeleteWithJsonBody`, `CrateServerSchemaTest.CreatesTheOutboxTableIdempotently` y `CreatesTheRatingsTableIdempotently`, `CrateServersTest.OutboxSendsOnceTheServerSignsIn`, `CrateAddServerFlowTest.HistoryThresholdDefaultsToThirtySeconds`, `CrateServerFeatureTest.LikeFromTheTrackMenuShowsInTheLikedColumn` y `PlaylistTableEditsThePlaylistOnTheServer`, y `containerSynced` en `CrateLibrarySyncTest.NotModifiedKeepsRows`.
+  - `TEST_GAP`: el menú de la sección Playlists, el diálogo de exportar y los avisos necesitan un bucle de eventos con la ventana abierta. La exportación desde una playlist de Decks (`exportPlaylistToCrate`) no tiene test de integración: su lógica está en `RejectsNonCrateTracks`.
+- **Pendiente:** probar contra el stack dev cuando lleve S6 (now playing con `deck`, play events de Decks en el historial, likes, valoraciones y edición de playlists).
+
 ---
 
 ## F8 · Cues y correcciones sincronizadas
