@@ -101,6 +101,21 @@ const QStringList kAnalysisStatements = {
                        "PRIMARY KEY (server_id, entity_uid))"),
 };
 
+// F7: what Decks writes back to the servers (plan F7). `crateserver_outbox`
+// holds the writes crate::writeback::Outbox has not delivered yet, in the
+// order they were made (`rowid`): `id` is a random UUID, `kind` says which
+// request the entry is (`play_event`, `like`, `unlike` or `rate`),
+// `payload` is its JSON object and `created_at` an ISO 8601 UTC time, from
+// which an entry expires after seven days.
+const QStringList kWritebackStatements = {
+        QStringLiteral("CREATE TABLE IF NOT EXISTS crateserver_outbox ("
+                       "id TEXT PRIMARY KEY NOT NULL, "
+                       "server_id TEXT NOT NULL, "
+                       "kind TEXT NOT NULL, "
+                       "payload TEXT NOT NULL, "
+                       "created_at TEXT NOT NULL)"),
+};
+
 // Each statement must be idempotent: they run at every start.
 const QStringList kStatements = {
         // Design §5.2. No secrets: the refresh token is in the keychain.
@@ -146,7 +161,8 @@ bool createCrateServerSchema(const QSqlDatabase& database) {
         kLogger.warning() << "Cannot start a transaction for the Crate tables";
         return false;
     }
-    const QStringList statements = kStatements + kLibraryStatements + kAnalysisStatements;
+    const QStringList statements =
+            kStatements + kLibraryStatements + kAnalysisStatements + kWritebackStatements;
     for (const QString& statement : statements) {
         QSqlQuery query(database);
         if (!query.exec(statement)) {

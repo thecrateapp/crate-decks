@@ -22,6 +22,8 @@ namespace crate::db {
 ///   library as Decks synced it, written by crate::library::LibrarySync.
 /// - `crateserver_profiles` (design §6, plan F4.C-PR2): the mix profiles
 ///   crate::analysis::ProfileStore fetched.
+/// - `crateserver_outbox` (plan F7.C-PR1): the writes to the servers that
+///   crate::writeback::Outbox has not delivered yet.
 ///
 /// Returns false, after rolling back, if any statement fails.
 bool createCrateServerSchema(const QSqlDatabase& database);

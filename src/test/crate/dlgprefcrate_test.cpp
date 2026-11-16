@@ -934,6 +934,20 @@ TEST_F(CrateAddServerFlowTest, SmartMixKeylockSwitchSetsThePreference) {
     EXPECT_TRUE(pKeylock->isChecked());
 }
 
+// How long a Crate track plays before Decks reports it to the server's
+// history (plan F7.C-PR1): 30 s unless the settings file says otherwise.
+TEST_F(CrateAddServerFlowTest, HistoryThresholdDefaultsToThirtySeconds) {
+    using crate::CratePreferences;
+    EXPECT_EQ(30, CratePreferences(nullptr).historyMinimumSeconds());
+    EXPECT_EQ(30, CratePreferences(config()).historyMinimumSeconds());
+    config()->setValue(ConfigKey("[Crate]", "HistoryMinimumSeconds"), QStringLiteral("45"));
+    EXPECT_EQ(45, CratePreferences(config()).historyMinimumSeconds());
+    config()->setValue(ConfigKey("[Crate]", "HistoryMinimumSeconds"), QStringLiteral("-3"));
+    EXPECT_EQ(0, CratePreferences(config()).historyMinimumSeconds());
+    config()->setValue(ConfigKey("[Crate]", "HistoryMinimumSeconds"), QStringLiteral("soon"));
+    EXPECT_EQ(30, CratePreferences(config()).historyMinimumSeconds());
+}
+
 // The assistant's transition length is a Crate preference: 8 s by default,
 // within what the plan request takes (1 s to 12 s) whatever is asked or
 // written in the settings file.

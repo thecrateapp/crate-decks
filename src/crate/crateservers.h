@@ -29,6 +29,11 @@ namespace cache {
 class AudioCache;
 } // namespace cache
 
+namespace writeback {
+class HistoryReporter;
+class Outbox;
+} // namespace writeback
+
 /// The Crate servers of this installation, each with its Client and Session.
 ///
 /// CoreServices creates it at start (`CRATE` builds); the interface reaches
@@ -102,6 +107,19 @@ class CrateServers : public QObject {
     /// the first time they are asked for.
     analysis::ProfileStore* profileStore(const QString& serverId);
 
+    /// What Decks writes back to the servers (plan F7). It starts sending
+    /// once start() created the Crate tables. A server's entries go out
+    /// while its session is signed in; signing in and the network coming
+    /// back send whatever waits.
+    writeback::Outbox* outbox() const {
+        return m_pOutbox.get();
+    }
+    /// Reports the tracks on air to their servers. The library connects it to
+    /// PlayerInfo.
+    writeback::HistoryReporter* historyReporter() const {
+        return m_pHistory.get();
+    }
+
     /// Whether a server with this origin is kept or being added.
     bool hasOrigin(const QUrl& origin) const;
     /// Whether the server is saved: signed in once and stored.
@@ -117,6 +135,8 @@ class CrateServers : public QObject {
   private:
     struct Server;
     Server* createServer(const ServerProfile& profile, bool saved);
+    /// The outbox, started once the tables exist, and the history reporter.
+    void createWriteback();
     bool save(Server* pServer);
     QSqlDatabase database() const;
 
@@ -128,6 +148,8 @@ class CrateServers : public QObject {
     std::vector<std::unique_ptr<Server>> m_retired;
     std::unique_ptr<CratePreferences> m_pPreferences;
     std::unique_ptr<cache::AudioCache> m_pAudioCache;
+    std::unique_ptr<writeback::Outbox> m_pOutbox;
+    std::unique_ptr<writeback::HistoryReporter> m_pHistory;
 };
 
 } // namespace crate

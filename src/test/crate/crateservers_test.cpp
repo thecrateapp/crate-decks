@@ -5,10 +5,13 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QSignalSpy>
+#include <QTest>
 #include <memory>
 
 #include "crate/db/crateserverprofiles.h"
 #include "crate/db/crateserverschema.h"
+#include "crate/writeback/historyreporter.h"
+#include "crate/writeback/outbox.h"
 #include "test/crate/fakecratenetwork.h"
 #include "test/mixxxdbtest.h"
 
@@ -120,6 +123,34 @@ TEST_F(CrateServersTest, AnnouncesTheCapabilitiesItKeeps) {
     ASSERT_EQ(1, changed.count());
     EXPECT_EQ(QStringLiteral("a"), changed.first().first().toString());
     EXPECT_EQ(json, pServers->lastCapabilities(QStringLiteral("a")));
+}
+
+// Plan F7.C-PR1: the writes of a server wait while it is signed out and go
+// out once it signs in.
+TEST_F(CrateServersTest, OutboxSendsOnceTheServerSignsIn) {
+    const auto pServers = makeServers();
+    pServers->start();
+    crate::writeback::Outbox* pOutbox = pServers->outbox();
+    ASSERT_NE(nullptr, pOutbox);
+    ASSERT_NE(nullptr, pServers->historyReporter());
+    ASSERT_TRUE(QTest::qWaitFor([pOutbox] {
+        return pOutbox->isLoaded();
+    }));
+    Session* pSession = pServers->addServer(
+            QUrl(QStringLiteral("https://b.test")), QStringLiteral("Club"));
+    ASSERT_NE(nullptr, pSession);
+    pOutbox->enqueue(pSession->profile().id,
+            crate::writeback::outboxkind::kLike,
+            QJsonObject{{QStringLiteral("track_entity_uid"), QStringLiteral("u-1")}});
+    EXPECT_TRUE(m_network.sent.isEmpty());
+
+    pSession->loginWithPassword(QStringLiteral("dj@crate.test"), QStringLiteral("pw"));
+    lastSent().pReply->respond(200, kLoginAnswer);
+
+    ASSERT_FALSE(m_network.sent.isEmpty());
+    EXPECT_EQ(QUrl(QStringLiteral("https://b.test/api/me/likes")), lastSent().request.url());
+    // With the session's token (kLoginAnswer)
+    EXPECT_EQ(QByteArrayLiteral("Bearer access-1"), lastSent().request.rawHeader("Authorization"));
 }
 
 TEST_F(CrateServersTest, RemoveServerSignsOutAndForgets) {

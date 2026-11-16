@@ -2,6 +2,7 @@
 
 #include <QJsonDocument>
 #include <QNetworkAccessManager>
+#include <QNetworkInformation>
 #include <QTimer>
 #include <QUuid>
 #include <algorithm>
@@ -17,6 +18,8 @@
 #include "crate/db/crateserverschema.h"
 #include "crate/session/cratesecretstore.h"
 #include "crate/stems/stemsidecar.h"
+#include "crate/writeback/historyreporter.h"
+#include "crate/writeback/outbox.h"
 #include "util/db/dbconnectionpooled.h"
 #include "util/logger.h"
 
@@ -55,12 +58,17 @@ CrateServers::CrateServers(const Dependencies& dependencies, QObject* parent)
         m_pOwnSecretStore = std::make_unique<KeychainSecretStore>();
         m_dependencies.pSecretStore = m_pOwnSecretStore.get();
     }
+    createWriteback();
 }
 
 CrateServers::~CrateServers() {
     if (s_pInstance == this) {
         s_pInstance = nullptr;
     }
+    // The track on air gets its play event, which the outbox stores for the
+    // next run
+    m_pHistory.reset();
+    m_pOutbox.reset();
     // The cache's downloads use the Clients.
     m_pAudioCache.reset();
     // Sessions before the stores and the network they use.
@@ -93,7 +101,45 @@ void CrateServers::start() {
         }
         createServer(profile, true)->pSession->restore();
     }
+    m_pOutbox->start();
     emit serversChanged();
+}
+
+void CrateServers::createWriteback() {
+    writeback::Outbox::Options outbox;
+    outbox.pDbConnectionPool = m_dependencies.pDbConnectionPool;
+    outbox.clientFor = [this](const QString& serverId) -> Client* {
+        const Session* pSession = session(serverId);
+        return pSession && pSession->state() == Session::State::SignedIn ? client(serverId)
+                                                                         : nullptr;
+    };
+    m_pOutbox = std::make_unique<writeback::Outbox>(std::move(outbox));
+    // The network coming back sends what waits, without its backoff
+    if (QNetworkInformation::loadDefaultBackend()) {
+        if (QNetworkInformation* pInformation = QNetworkInformation::instance()) {
+            connect(pInformation,
+                    &QNetworkInformation::reachabilityChanged,
+                    m_pOutbox.get(),
+                    [pOutbox = m_pOutbox.get()](QNetworkInformation::Reachability reachability) {
+                        if (reachability == QNetworkInformation::Reachability::Online) {
+                            pOutbox->flush();
+                        }
+                    });
+        }
+    }
+
+    writeback::HistoryReporter::Options history;
+    history.pOutbox = m_pOutbox.get();
+    history.trackOfFile = [this](const QString& location) -> std::optional<cache::TrackKey> {
+        return m_pAudioCache ? m_pAudioCache->trackOfFile(location) : std::nullopt;
+    };
+    history.clientFor = [this](const QString& serverId) -> Client* {
+        const Session* pSession = session(serverId);
+        return pSession && pSession->state() == Session::State::SignedIn ? client(serverId)
+                                                                         : nullptr;
+    };
+    history.minimumPlayed = std::chrono::seconds(m_pPreferences->historyMinimumSeconds());
+    m_pHistory = std::make_unique<writeback::HistoryReporter>(std::move(history));
 }
 
 QList<Session*> CrateServers::sessions() const {
@@ -266,6 +312,11 @@ CrateServers::Server* CrateServers::createServer(const ServerProfile& profile, b
             emit serversChanged();
         }
     });
+    // What waited for the session goes out
+    connect(pCreated->pSession.get(),
+            &Session::signedIn,
+            m_pOutbox.get(),
+            &writeback::Outbox::flush);
     // The preferences page shows the keychain state of every session.
     connect(pCreated->pSession.get(),
             &Session::secretStoreUnavailable,

@@ -51,6 +51,7 @@
 #include "crate/ui/cachestatusview.h"
 #include "crate/ui/widgets/camelotwheelmodel.h"
 #include "crate/ui/widgets/instrumentpainter.h"
+#include "crate/writeback/historyreporter.h"
 #include "library/crateserver/crateservertrackmodel.h"
 #include "library/library.h"
 #include "library/library_prefs.h"
@@ -394,6 +395,18 @@ CrateServers* CrateServerFeature::servers() {
 void CrateServerFeature::watchServers(CrateServers* pServers) {
     m_pServers = pServers;
     connect(pServers, &CrateServers::serversChanged, this, &CrateServerFeature::updateServers);
+    // The server's history hears of the tracks on air (plan F7.C-PR1)
+    if (PlayerInfo* pPlayerInfo = m_dependencies.pPlayerInfo) {
+        writeback::HistoryReporter* pHistory = pServers->historyReporter();
+        connect(pPlayerInfo,
+                &PlayerInfo::currentPlayingDeckChanged,
+                pHistory,
+                &writeback::HistoryReporter::setPlayingDeck);
+        connect(pPlayerInfo,
+                &PlayerInfo::currentPlayingTrackChanged,
+                pHistory,
+                &writeback::HistoryReporter::setPlayingTrack);
+    }
     // CoreServices destroys the servers before the library: their Clients go
     // first, and the syncs with them
     connect(pServers, &QObject::destroyed, this, [this] {

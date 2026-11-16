@@ -236,4 +236,26 @@ TEST_F(CrateServerSchemaTest, CreatesProfilesTable) {
             "json, fetched_at) VALUES ('5b0c', 'e1', 'r2', '{}', '2026-11-11T10:00:00Z')")));
 }
 
+TEST_F(CrateServerSchemaTest, CreatesTheOutboxTableIdempotently) {
+    ASSERT_TRUE(crate::db::createCrateServerSchema(dbConnection()));
+    QSqlQuery insert(dbConnection());
+    ASSERT_TRUE(insert.exec(QStringLiteral(
+            "INSERT INTO crateserver_outbox (id, server_id, kind, payload, created_at) "
+            "VALUES ('e-1', '5b0c', 'like', '{}', '2026-11-16T10:00:00.000Z')")));
+
+    ASSERT_TRUE(crate::db::createCrateServerSchema(dbConnection()));
+
+    // Plan F7.C-PR1: the writes the outbox has not delivered yet
+    EXPECT_EQ(QStringList({QStringLiteral("id"),
+                      QStringLiteral("server_id"),
+                      QStringLiteral("kind"),
+                      QStringLiteral("payload"),
+                      QStringLiteral("created_at")}),
+            columns(QStringLiteral("crateserver_outbox")));
+    QSqlQuery count(dbConnection());
+    ASSERT_TRUE(count.exec(QStringLiteral("SELECT COUNT(*) FROM crateserver_outbox")));
+    ASSERT_TRUE(count.next());
+    EXPECT_EQ(1, count.value(0).toInt());
+}
+
 } // namespace

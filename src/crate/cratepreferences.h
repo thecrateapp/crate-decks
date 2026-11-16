@@ -74,6 +74,12 @@ class CratePreferences : public QObject {
     /// most the plan request takes. Longer blends, up to the plan's
     /// `policyLimits.maximumLongBeatmatchMs`, are the planner's choice, not
     /// this one.
+    /// A Crate track that plays for less than this gets no play event in the
+    /// server's history (plan F7.C-PR1). `HistoryMinimumSeconds`, only in
+    /// the settings file; 30 by default.
+    static constexpr int kDefaultHistoryMinimumSeconds = 30;
+    int historyMinimumSeconds() const;
+
     static constexpr int kDefaultAssistTransitionSeconds = 8;
     static constexpr int kMinimumAssistTransitionSeconds = 1;
     static constexpr int kMaximumAssistTransitionSeconds = 12;

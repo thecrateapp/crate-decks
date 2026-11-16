@@ -23,6 +23,7 @@ constexpr const char* kGainFromLufs = "GainFromLufs";
 constexpr const char* kSmartMixKeylock = "SmartMixKeylock";
 // In seconds, as Auto DJ's own transition time ([Auto DJ],Transition)
 constexpr const char* kSmartMixAssistTransition = "SmartMixAssistTransition";
+constexpr const char* kHistoryMinimumSeconds = "HistoryMinimumSeconds";
 
 ConfigKey keyOf(const char* item) {
     return ConfigKey(kGroup, QLatin1String(item));
@@ -134,6 +135,15 @@ void CratePreferences::setSmartMixKeylock(bool enabled) {
     if (setFlag(kSmartMixKeylock, enabled, true)) {
         emit smartMixKeylockChanged(enabled);
     }
+}
+
+int CratePreferences::historyMinimumSeconds() const {
+    if (!m_pConfig) {
+        return kDefaultHistoryMinimumSeconds;
+    }
+    bool ok = false;
+    const int seconds = m_pConfig->getValueString(keyOf(kHistoryMinimumSeconds)).toInt(&ok);
+    return ok ? std::max(0, seconds) : kDefaultHistoryMinimumSeconds;
 }
 
 int CratePreferences::smartMixAssistTransitionSeconds() const {
