@@ -68,5 +68,6 @@ En la máquina de desarrollo (CachyOS, Qt 6.12), `build/mixxx-test` falla en tes
 | `ControllerScriptEngineLegacyTimerTest.beginTimer_singleShot{BindFunction,ArrowFunction,BindFunctionInClass,ArrowFunctionInClass}` | Qt 6.12; el CI usa la Qt 6.4 de Ubuntu 24.04 |
 | `TrackMetadataExportTest.keepWithespaceKey` | Solo cuando todos los tests van en un proceso; con `ctest` pasa |
 | `QmlSkins/QmlStartupSmokeTest.Starts/NewUi` | Violación de segmento solo con todos los tests en un proceso; tumba el resto de la batería. Para pasarla entera: `build/mixxx-test --gtest_filter='-QmlSkins/QmlStartupSmokeTest.Starts/NewUi'` |
+| `CrateSkinLoadTest.*` (20), `CrateBrandVisibleTest.NoMixxxAnywhere` y `CrateBrandTest.NoLinkLeadsToMixxx`, solo en `build-asserts/` (`make test-asserts`) | `DEBUG_ASSERT(!m_path.isEmpty())` en `PixmapSource::getPath()`: el `qDebug()` de `WSliderComposed::setHandlePixmap()` (Mixxx) lee la ruta de un `SliderComposed` sin `<Handle>`, como los carriles de medidores de `toolbar.xml` y `mixer_vu.xml`. En el job de cobertura del CI (Debug, Qt 6.4) pasan; no está claro por qué. Pendiente de decidir el arreglo |
 
 Cualquier otro fallo es nuevo.

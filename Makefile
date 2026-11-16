@@ -5,6 +5,8 @@
 #   TYPE     CMake build type                     (RelWithDebInfo)
 #   JOBS     parallel jobs                        (all cores)
 #   FILTER   GoogleTest filter for `test-unit`    (Crate*)
+#   ASSERTS_BUILD  build directory of `test-asserts` (build-asserts)
+#   TESTS    ctest regex for `test-asserts`; empty runs the whole suite
 #   PROFILE  settings folder for `run`; empty is a new temporary one. Never
 #            ~/.cratedecks or ~/.mixxx (AGENTS.md)
 #   BASE     branch the checks compare against    (origin/main)
@@ -20,6 +22,8 @@ BUILD ?= build
 TYPE ?= RelWithDebInfo
 JOBS ?= $(shell nproc)
 FILTER ?= Crate*
+ASSERTS_BUILD ?= build-asserts
+TESTS ?=
 PROFILE ?=
 BASE ?= origin/main
 SHOTS ?=
@@ -41,7 +45,7 @@ TEST_ENV := QT_QPA_PLATFORM=offscreen GTEST_COLOR=1
 .DEFAULT_GOAL := help
 .PHONY: help deps hooks configure build build-tests build-all run run-last \
 	install-desktop uninstall-desktop desktop-caches \
-	test test-unit test-design checks checks-tidy checks-clazy format \
+	test test-unit test-asserts test-design checks checks-tidy checks-clazy format \
 	tokens tokens-check screenshots ci clean
 
 help: ## List the targets
@@ -161,6 +165,19 @@ test: build-all ## Run the whole suite as the CI does (ctest, one process per te
 test-unit: build-tests ## Run the tests matching FILTER in one process (fast)
 	$(TEST_ENV) $(BUILD)/mixxx-test --gtest_filter='$(FILTER)'
 
+# DEBUG_ASSERT is on in the CI's coverage job (a Debug build) and off in a
+# RelWithDebInfo one: this build turns the assertions on, and fatal
+$(ASSERTS_BUILD)/build.ninja:
+	cmake -S . -B $(ASSERTS_BUILD) -G Ninja -DCMAKE_BUILD_TYPE=$(TYPE) -DBUILD_TESTING=ON \
+		-DCRATE=ON -DDEBUG_ASSERTIONS_FATAL=ON \
+		-DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+		$(CMAKE_ARGS)
+
+test-asserts: $(ASSERTS_BUILD)/build.ninja ## Run the tests with DEBUG_ASSERT on, as the CI's coverage job (TESTS)
+	cmake --build $(ASSERTS_BUILD) --target mixxx-test -j $(JOBS)
+	$(TEST_ENV) CTEST_OUTPUT_ON_FAILURE=1 ctest --test-dir $(ASSERTS_BUILD) --timeout 45 -j $(JOBS) \
+		$(if $(TESTS),-R '$(TESTS)')
+
 test-design: ## Test the design-token generator and the brand inventory
 	python3 -m pytest -q -p no:cacheprovider tools/crate-design tools/crate-brand
 
@@ -194,7 +211,7 @@ screenshots: build-tests ## Render the skin and dialogs to PNG (SHOTS, TRACKS)
 
 ## Before a push
 
-ci: checks tokens-check test-design test ## What the CI checks, before a push (the full suite takes a while)
+ci: checks tokens-check test-design test test-asserts ## What the CI checks, before a push (the full suite, twice, takes a while)
 
 clean: ## Remove the build outputs (keeps the configuration)
 	cmake --build $(BUILD) --target clean
