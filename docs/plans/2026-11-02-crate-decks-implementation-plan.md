@@ -907,6 +907,36 @@ Si el deck maestro no tiene una pista Crate, la vista muestra "Carga una pista d
     - `EnqueuesPathInOrder`
     - `SavesPathAsPlaylist`
 
+**Implementado (F5, 2026-11-16).** Rama `feat/decks-recs`, sobre `main` (9ccbe927d3). Los fixtures de `src/test/crate/data/recs/` son respuestas reales del stack dev, pedidas con la sesión `decks` (`X-Crate-App: decks/…`).
+
+- **Comprobado en el servidor:** una sesión nativa `decks` puede llamar a `compatible`, a todo `/api/radio/*` y a `/api/paths*`. El JWT de Decks pasa por `_require_auth` y nada filtra por app; la lista blanca de rutas solo se aplica a los tokens `crv_`. No hace falta ningún S-PR en esta fase.
+- **Común:** `CrateServerTrackModel` tiene una fuente `Memory` (filas dadas con `setRows()`, filtradas y ordenadas en memoria) y un gancho para añadir entradas al menú de pista. Compatibles y la radio se muestran con ella, así que cargan, se descargan, se arrastran y van a AutoDJ como cualquier pista de Crate.
+- **F5.C-PR1 · Compatibles:**
+  - La lógica está en `crate::recs::Compatibles`, sin widgets. `CompatiblesView` es la capa fina: barra (a quién sigue y contexto), aviso y el `WTrackTableView` de upstream sobre `CompatiblesModel`, como la vista de AutoDJ.
+  - Sigue a `PlayerInfo::currentPlayingTrackChanged` desde el arranque. En modo selección sigue a `Library::trackSelected` y a la selección de las tablas de Crate, también las filas sin descargar.
+  - **Δ BPM y Δ energía no salen de `scoreBreakdown`:** el servidor da puntuaciones de 0 a 1, no diferencias. Se calculan contra la pista seguida tal como está en `crateserver_tracks`; para el BPM, si no está ahí, contra el BPM de la pista del deck. Δ energía va en niveles de la columna de energía (1 a 10). La puntuación se muestra de 0 a 100.
+  - Un 404 del servidor (pista sin perfil de Smart Mix utilizable) dice "Crate has not analyzed this track for Smart Mix yet".
+  - Las respuestas se guardan en `crateserver_tracks` (título, artista, álbum, duración, BPM, Camelot, energía, género y carátula). Formato, tamaño, revisiones, calidad del perfil y `playable` no se tocan, porque la respuesta no los trae.
+  - **Rueda Camelot:** ya está a la izquierda de la lista. Muestra las tonalidades de los resultados y la de la pista seguida, y un clic filtra la lista por esa tonalidad (otro clic la quita). El estilo final sigue siendo de V3.PR2.
+  - **Precalentar compatibles:** el interruptor de Preferencias ya se ve. Está activado por defecto, como en la maqueta de GU1, y descarga las 5 mejores con prioridad de prefetch.
+- **F5.C-PR2 · Radio:**
+  - Usa el modo indexado de la radio: Decks elige el `session_id` y numera los lotes (`batch_index`), y manda en `buffer_refs` las pistas que siguen en la cola.
+  - Mantiene 5 pistas por delante. Un 409 (sesión ocupada) se repite al cabo de un segundo.
+  - Se para cuando todas sus pistas desaparecen de golpe de la cola (de dos o más a ninguna; AutoDJ las quita de una en una), cuando el servidor dice `exhausted` o con "Stop radio". Al pararse cierra la sesión con `DELETE /api/radio/session/{id}`.
+  - Se inicia desde el menú de una pista ("Start radio from this track") o desde una playlist o un crate de la barra lateral. Los géneros y los moods no pueden ser semilla: la radio pide el *slug* del género y los contenedores de S3 dan su id numérico.
+  - El nodo "Radio" de la barra lateral muestra sus pistas, y su menú manda "More like this" o "Less like this" a `radio/feedback` (con el `track_id` numérico que pide el servidor).
+- **F5.C-PR3 · Music Paths:**
+  - **Llama a `POST /api/paths/preview` en vez de `POST /api/paths`.** La vista previa calcula el mismo camino sin guardarlo entre los paths del usuario en Listen. Además, en el stack dev `POST /api/paths` falla con un 500 (`TypeError: Object of type Decimal is not JSON serializable` en `create_music_path_record`, `app/crate/db/repositories/paths.py:59`).
+  - "Music Path..." en el menú de pista va de la primera pista seleccionada a la segunda, o de la pista en el aire a la seleccionada. El diálogo pide de 5 a 100 pistas y el destino: el final de la cola de AutoDJ o una playlist nueva de la biblioteca local, con el nombre del path (único).
+- **Tests:**
+  - `compatiblesmodel_test.cpp` (4), con `UpsertsTrackMetadataFromResponse`.
+  - `compatiblesview_test.cpp` (6), con los cinco del plan.
+  - `crateradiosource_test.cpp` (6), con los tres del plan.
+  - `cratepathsource_test.cpp` (4), con los dos del plan.
+  - `recommendationqueue_test.cpp` (2): la cola de AutoDJ y las playlists.
+  - En `crateserverfeature_test.cpp`: `CompatiblesFollowTheDeckOnAir`, `RadioFromATrackFillsAutoDj` y `MusicPathNeedsTwoEnds`.
+  - `TEST_GAP`: los menús de la barra lateral, los avisos y el diálogo de paths dentro de la aplicación necesitan un bucle de eventos con el menú abierto.
+
 ---
 
 ## F6 · Smart Mix en los decks
