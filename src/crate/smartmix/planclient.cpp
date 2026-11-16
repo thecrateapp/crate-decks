@@ -81,8 +81,9 @@ QJsonObject PlanContext::toJson() const {
     }
     if (!setHistory.isEmpty() && plannerVersion == kSmartMixV3) {
         QJsonArray history;
-        for (const SetHistoryEntry& entry : setHistory.mid(
-                     std::max<qsizetype>(0, setHistory.size() - SetHistory::kSize))) {
+        const QList<SetHistoryEntry> last = setHistory.mid(
+                std::max<qsizetype>(0, setHistory.size() - SetHistory::kSize));
+        for (const SetHistoryEntry& entry : last) {
             history.append(entry.toJson());
         }
         context.insert(QStringLiteral("setHistory"), history);

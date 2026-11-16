@@ -492,6 +492,7 @@ TEST_F(CrateTransitionPlanMenuTest, MirrorsTheServersLimitCheck) {
                                      .toArray();
     ASSERT_EQ(43, cases.size());
     int withCodes = 0;
+    QStringList expected;
     for (const QJsonValue& value : cases) {
         const QJsonObject testCase = value.toObject();
         const std::string name = testCase.value(QStringLiteral("name")).toString().toStdString();
@@ -500,7 +501,7 @@ TEST_F(CrateTransitionPlanMenuTest, MirrorsTheServersLimitCheck) {
         const auto parsed = TransitionPlan::fromJson(json);
         ASSERT_TRUE(parsed.ok()) << name << ": " << parsed.error().message.toStdString();
         const TransitionPlan& plan = parsed.value();
-        QStringList expected;
+        expected.clear();
         const QJsonArray codes = testCase.value(QStringLiteral("codes")).toArray();
         for (const QJsonValue& code : codes) {
             expected.append(code.toString());
