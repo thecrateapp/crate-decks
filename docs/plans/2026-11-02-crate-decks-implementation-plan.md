@@ -1341,7 +1341,8 @@ elegido en SG3 de smart-mix-3. Activarlo por defecto en el servidor es decisión
   - `crateplaylistedit_test.cpp` (3), los del plan; `RefetchesOnConflict` cubre la relectura, la comparación, el reintento único, el aviso, el 5xx y `can_edit`.
   - Además: `CrateClientTest.SendsDeleteWithJsonBody`, `CrateServerSchemaTest.CreatesTheOutboxTableIdempotently` y `CreatesTheRatingsTableIdempotently`, `CrateServersTest.OutboxSendsOnceTheServerSignsIn`, `CrateAddServerFlowTest.HistoryThresholdDefaultsToThirtySeconds`, `CrateServerFeatureTest.LikeFromTheTrackMenuShowsInTheLikedColumn` y `PlaylistTableEditsThePlaylistOnTheServer`, y `containerSynced` en `CrateLibrarySyncTest.NotModifiedKeepsRows`.
   - `TEST_GAP`: el menú de la sección Playlists, el diálogo de exportar y los avisos necesitan un bucle de eventos con la ventana abierta. La exportación desde una playlist de Decks (`exportPlaylistToCrate`) no tiene test de integración: su lógica está en `RejectsNonCrateTracks`.
-- **Pendiente:** probar contra el stack dev cuando lleve S6 (now playing con `deck`, play events de Decks en el historial, likes, valoraciones y edición de playlists).
+- **Confirmado por Diego (2026-11-16):** sin tecla por defecto para el like (basta el control mapeable); `mix_session_id` por ejecución; un 0 nunca enviado no borra la valoración de Crate.
+- **Pendiente:** probar contra el stack dev cuando lleve S6 (now playing con `deck`, play events de Decks en el historial, likes, valoraciones y edición de playlists). Diego lo deja para cuando se abra el PR del servidor.
 
 ---
 
