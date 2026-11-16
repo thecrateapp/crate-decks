@@ -264,7 +264,7 @@ bool CrateCorrections::save(const QString& serverId, const QString& entityUid) {
     if (correction == stored) {
         return false;
     }
-    enqueuePut(key, toJson(correction), now());
+    enqueuePut(key, toJson(correction), editStamp(key));
     takeSnapshot(key, pTrack);
     return true;
 }
@@ -275,8 +275,38 @@ bool CrateCorrections::clear(const QString& serverId, const QString& entityUid) 
         return false;
     }
     m_offers.remove(key);
-    enqueuePut(key, toJson(Correction()), now());
+    const Correction cleared = correctionFromJson(stateOf(key).baseline);
+    enqueuePut(key, toJson(Correction()), editStamp(key));
+    // Crate's analysis applies again here (Diego, 2026-11-16)
+    if (const TrackPointer pTrack = trackOf(key)) {
+        changeQuietly(key, [&] {
+            revertCorrection(key, pTrack, cleared);
+        });
+        takeSnapshot(key, pTrack);
+    }
     return true;
+}
+
+void CrateCorrections::revertCorrection(
+        const QString& key, const TrackPointer& pTrack, const Correction& cleared) {
+    bool reverted = false;
+    const mixxx::BeatsPointer pBeats = pTrack->getBeats();
+    if (pBeats && pBeats->getSubVersion() == kCorrectionBeatsSubVersion) {
+        // The profile, or upstream's analysis, may replace it now
+        pTrack->setBpmLocked(false);
+        reverted = true;
+    }
+    const mixxx::track::io::key::ChromaticKey correctedKey =
+            analysis::keyFromCamelot(cleared.key);
+    if (correctedKey != mixxx::track::io::key::INVALID && pTrack->getKey() == correctedKey &&
+            analysis::keySourceOf(pTrack) == mixxx::track::io::key::USER) {
+        // The same key, no longer the user's: the profile's replaces it
+        pTrack->setKeys(KeyFactory::makeBasicKeys(correctedKey, mixxx::track::io::key::ANALYZER));
+        reverted = true;
+    }
+    if (reverted && m_restoreProfile) {
+        m_restoreProfile(pTrack, serverIdOf(key), entityUidOf(key));
+    }
 }
 
 bool CrateCorrections::reconcile(const QString& key,
@@ -308,9 +338,12 @@ QJsonObject CrateCorrections::contentOf(const QJsonObject& serverEntry) const {
 }
 
 QJsonObject CrateCorrections::applyServerContent(
-        const TrackPointer& pTrack, const QJsonObject& content) {
+        const QString& key, const TrackPointer& pTrack, const QJsonObject& content) {
     const Correction correction = correctionFromJson(content);
-    if (!correction.isEmpty() && !applyCorrection(pTrack, correction)) {
+    if (correction.isEmpty()) {
+        // Cleared on another computer: Crate's analysis applies again
+        revertCorrection(key, pTrack, correctionFromJson(stateOf(key).baseline));
+    } else if (!applyCorrection(pTrack, correction)) {
         kLogger.warning() << "Cannot apply the correction of" << pTrack->getLocation()
                           << ": its sample rate is not known yet";
     }

@@ -30,6 +30,8 @@ const QString kBaseRevisionKey = QStringLiteral("base_revision");
 const QString kClientIdKey = QStringLiteral("client_id");
 const QString kRevisionKey = QStringLiteral("revision");
 const QString kUpdatedAtKey = QStringLiteral("updated_at");
+const QString kServerTimeKey = QStringLiteral("server_time");
+const QString kCurrentKey = QStringLiteral("current");
 
 QString isoOf(const QDateTime& time) {
     return time.toUTC().toString(Qt::ISODateWithMs);
@@ -262,14 +264,18 @@ void TrackDataSync::query(const QString& serverId) {
         }
         Reply* pReply = pClient->post(m_endpoint.queryPath,
                 QJsonDocument(QJsonObject{{QStringLiteral("entity_uids"), uids}}));
-        connect(pReply, &Reply::finished, this, [this, batch](const JsonResult& result) {
-            if (!result.ok()) {
-                kLogger.warning() << "Cannot read the user's" << m_endpoint.kind << "of"
-                                  << batch.size() << "tracks:" << result.error().message;
-                return;
-            }
-            onAnswer(batch, result.value().object());
-        });
+        connect(pReply,
+                &Reply::finished,
+                this,
+                [this, serverId, batch](const JsonResult& result) {
+                    if (!result.ok()) {
+                        kLogger.warning() << "Cannot read the user's" << m_endpoint.kind << "of"
+                                          << batch.size() << "tracks:" << result.error().message;
+                        return;
+                    }
+                    observeServerTime(serverId, result.value().object());
+                    onAnswer(batch, result.value().object());
+                });
     }
 }
 
@@ -419,7 +425,7 @@ void TrackDataSync::applyFromServer(const QString& key,
         qint64 revision) {
     State& state = m_states[key];
     m_applying = true;
-    state.baseline = applyServerContent(pTrack, content);
+    state.baseline = applyServerContent(key, pTrack, content);
     m_applying = false;
     state.revision = revision;
     storeState(key);
@@ -439,6 +445,7 @@ void TrackDataSync::onDelivered(const QString& serverId,
     if (kind != m_endpoint.outboxKind) {
         return;
     }
+    observeServerTime(serverId, answer.object());
     const QString key = keyOf(serverId, payload.value(kEntityUidKey).toString());
     const qint64 revision = answer.object().value(kRevisionKey).toInteger(-1);
     if (revision < 0) {
@@ -453,16 +460,20 @@ void TrackDataSync::onDelivered(const QString& serverId,
 void TrackDataSync::onConflicted(const QString& serverId,
         const QString& kind,
         const QJsonObject& payload,
-        const QJsonObject& current) {
+        const QJsonObject& answer) {
     if (kind != m_endpoint.outboxKind) {
         return;
     }
+    observeServerTime(serverId, answer);
+    const QJsonObject current = answer.value(kCurrentKey).toObject();
     const QString key = keyOf(serverId, payload.value(kEntityUidKey).toString());
     const qint64 serverRevision = current.value(kRevisionKey).toInteger(0);
     const QDateTime editedAt = timeOf(payload.value(kEditedAtKey));
     const QDateTime writtenAt = timeOf(current.value(kUpdatedAtKey));
     const QString writer = current.value(kClientIdKey).toString();
     const bool ownWrite = !writer.isEmpty() && writer == m_options.clientId;
+    // Both on the server's clock, when the edit was stamped with it
+    // (editStamp()); on this computer's otherwise, as before Diego's answer
     const bool serverNewer = !ownWrite && writtenAt.isValid() && editedAt.isValid() &&
             writtenAt > editedAt;
     State& state = m_states[key];
@@ -479,7 +490,7 @@ void TrackDataSync::onConflicted(const QString& serverId,
                        << "again on top of revision" << serverRevision;
         enqueuePut(key,
                 contentToResend(key, contentOfBody(payload.value(kBodyKey).toObject())),
-                editedAt.isValid() ? editedAt : now());
+                editedAt.isValid() ? editedAt : editStamp(key));
         return;
     }
     kLogger.info() << "The" << m_endpoint.kind << "of" << entityUidOf(key)
@@ -496,6 +507,33 @@ void TrackDataSync::onConflicted(const QString& serverId,
     // Without the track in memory the revision stays: the next load finds
     // the server's newer and applies it
     emit localEditsReplaced(serverId, entityUidOf(key), title);
+}
+
+void TrackDataSync::observeServerTime(const QString& serverId, const QJsonObject& answer) {
+    const QDateTime serverTime = timeOf(answer.value(kServerTimeKey));
+    if (!serverTime.isValid()) {
+        return;
+    }
+    m_clockOffsets.insert(serverId, now().msecsTo(serverTime));
+}
+
+QDateTime TrackDataSync::editStamp(const QString& key) const {
+    const auto it = m_clockOffsets.constFind(serverIdOf(key));
+    if (it == m_clockOffsets.cend()) {
+        return now();
+    }
+    return now().addMSecs(it.value());
+}
+
+void TrackDataSync::changeQuietly(const QString& key, const std::function<void()>& change) {
+    m_applying = true;
+    change();
+    m_applying = false;
+    auto it = m_attached.find(key);
+    if (it != m_attached.end()) {
+        ++it->generation;
+        m_due.remove(key);
+    }
 }
 
 } // namespace crate::writeback

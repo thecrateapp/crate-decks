@@ -222,14 +222,7 @@ bool applySyncedCues(const TrackPointer& pTrack, const SyncedCues& cues) {
     if (!sampleRate.isValid()) {
         return false;
     }
-    QSet<int> replacedTypes;
-    for (const SyncedCue& cue : cues) {
-        if (!isSlotted(cue.type)) {
-            if (const auto type = upstreamTypeOf(cue.type)) {
-                replacedTypes.insert(static_cast<int>(*type));
-            }
-        }
-    }
+    // What the contract has no place for stays
     QList<CuePointer> cuePoints;
     const QList<CuePointer> current = pTrack->getCuePoints();
     for (const CuePointer& pCue : current) {
@@ -238,7 +231,9 @@ bool applySyncedCues(const TrackPointer& pTrack, const SyncedCues& cues) {
         const bool slotted = (type == mixxx::CueType::HotCue || type == mixxx::CueType::Loop ||
                                      type == mixxx::CueType::Jump) &&
                 hotCue >= 0 && hotCue < kSyncedHotcueSlots;
-        if (!slotted && !replacedTypes.contains(static_cast<int>(type))) {
+        const bool single = type == mixxx::CueType::MainCue || type == mixxx::CueType::Intro ||
+                type == mixxx::CueType::Outro;
+        if (!slotted && !single) {
             cuePoints.append(pCue);
         }
     }
@@ -304,6 +299,51 @@ QJsonArray toJson(const SyncedCues& cues) {
         });
     }
     return json;
+}
+
+CueMerge mergeLocalCues(const SyncedCues& server, const SyncedCues& local) {
+    CueMerge merge;
+    merge.cues = server;
+    QSet<int> taken;
+    for (const SyncedCue& cue : server) {
+        if (isSlotted(cue.type)) {
+            taken.insert(cue.slot);
+        }
+    }
+    const auto alreadyThere = [&server](const SyncedCue& cue) {
+        return std::any_of(server.cbegin(), server.cend(), [&cue](const SyncedCue& other) {
+            return isSlotted(other.type) && other.type == cue.type &&
+                    other.startMs == cue.startMs && other.endMs == cue.endMs;
+        });
+    };
+    SyncedCues homeless;
+    for (const SyncedCue& cue : local) {
+        if (!isSlotted(cue.type) || alreadyThere(cue)) {
+            continue;
+        }
+        if (taken.contains(cue.slot)) {
+            homeless.append(cue);
+            continue;
+        }
+        taken.insert(cue.slot);
+        merge.cues.append(cue);
+    }
+    for (SyncedCue cue : std::as_const(homeless)) {
+        int slot = 0;
+        while (slot < kSyncedHotcueSlots && taken.contains(slot)) {
+            ++slot;
+        }
+        if (slot >= kSyncedHotcueSlots) {
+            merge.dropped.append(cue);
+            continue;
+        }
+        cue.slot = slot;
+        taken.insert(slot);
+        merge.cues.append(cue);
+        ++merge.moved;
+    }
+    merge.cues = canonical(merge.cues);
+    return merge;
 }
 
 SyncedCues automaticCues(const SyncedCues& cues) {

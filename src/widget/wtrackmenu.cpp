@@ -55,6 +55,9 @@
 #ifdef __STEM__
 #include "widget/wtrackstemmenu.h"
 #endif
+#ifdef __CRATE__
+#include "crate/ui/trackmenuhook.h"
+#endif
 
 constexpr WTrackMenu::Features WTrackMenu::kDeckTrackMenuFeatures;
 
@@ -166,6 +169,11 @@ void WTrackMenu::popup(const QPoint& pos, QAction* at) {
     if (isEmpty()) {
         return;
     }
+#ifdef __CRATE__
+    // Crate Decks: the entries of a Crate track in every track menu, as it
+    // opens (plan F8.C-PR2)
+    crate::ui::updateTrackMenu(this, getTrackCount() == 1 ? getFirstTrackPointer() : nullptr);
+#endif
     QMenu::popup(pos, at);
     emit trackMenuVisible(true);
 }

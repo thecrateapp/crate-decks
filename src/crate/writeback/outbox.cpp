@@ -304,11 +304,8 @@ void Outbox::sendPut(const QString& serverId, Client* pClient, const Entry& entr
                     return;
                 }
                 // The server has another revision: its sync resolves it
-                const QJsonObject current = pReply
-                        ? QJsonDocument::fromJson(pReply->body())
-                                  .object()
-                                  .value(kCurrentKey)
-                                  .toObject()
+                const QJsonObject answer = pReply
+                        ? QJsonDocument::fromJson(pReply->body()).object()
                         : QJsonObject();
                 const Entry entry = state.entries.first();
                 state.failures = 0;
@@ -316,8 +313,11 @@ void Outbox::sendPut(const QString& serverId, Client* pClient, const Entry& entr
                 storeDelete(entry.id);
                 kLogger.info() << "A" << entry.kind << "write for the Crate server" << serverId
                                << "conflicts with revision"
-                               << current.value(QStringLiteral("revision")).toInteger();
-                emit conflicted(serverId, entry.kind, entry.payload, current);
+                               << answer.value(kCurrentKey)
+                                          .toObject()
+                                          .value(QStringLiteral("revision"))
+                                          .toInteger();
+                emit conflicted(serverId, entry.kind, entry.payload, answer);
                 pump(serverId);
             });
 }

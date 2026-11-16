@@ -59,12 +59,25 @@ using SyncedCues = QList<SyncedCue>;
 SyncedCues syncedCuesOf(const TrackPointer& pTrack);
 
 /// Replaces the track's cues with `cues`, in one change of its cue list:
-/// every hot cue, loop and jump of slots 0-35 goes, and main, intro and
-/// outro go only when `cues` has one of that type, since Decks and upstream
-/// place those by themselves (Crate's profile and upstream's silence
-/// analysis). The temporary loop, N60dBSound and hot cues above slot 35
-/// stay. Returns false, changing nothing, without the sample rate.
+/// `cues` is the whole set of every type the contract has (Diego,
+/// 2026-11-16), so a set without an intro removes the track's. The
+/// temporary loop, N60dBSound and hot cues above slot 35 stay. Returns
+/// false, changing nothing, without the sample rate.
 bool applySyncedCues(const TrackPointer& pTrack, const SyncedCues& cues);
+
+/// The server's set with the hot cues, loops and jumps of `local` it lacks
+/// (plan F8.C-PR1, Diego, 2026-11-16: the first sync of a track merges).
+struct CueMerge {
+    SyncedCues cues;
+    /// Local cues put in another, free slot: theirs had a cue of the server.
+    int moved = 0;
+    /// Local cues left out: no slot was free.
+    SyncedCues dropped;
+};
+/// Keeps every cue of `server`. A local hot cue, loop or jump the server
+/// does not have already (same type and times) keeps its slot if the server
+/// leaves it free, or takes the lowest free one; without one it is dropped.
+CueMerge mergeLocalCues(const SyncedCues& server, const SyncedCues& local);
 
 /// The `cues` of a cue set as the server sends them, in canonical order.
 /// A cue that is not one is left out with a log line.

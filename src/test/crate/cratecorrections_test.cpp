@@ -64,13 +64,22 @@ QJsonObject correction(qint64 revision,
             {QStringLiteral("key"), key}};
 }
 
+/// The server's clock in the fakes' answers, the test's local clock.
+const QString kServerTime = QStringLiteral("2026-11-16T22:00:00.000000Z");
+
+/// `server_time`, which every S7 answer carries.
+QJsonObject withServerTime(QJsonObject answer) {
+    answer.insert(QStringLiteral("server_time"), kServerTime);
+    return answer;
+}
+
 QByteArray queryAnswer(const QList<QJsonObject>& corrections, const QStringList& missing) {
     QJsonObject byUid;
     for (const QJsonObject& entry : corrections) {
         byUid.insert(entry.value(QStringLiteral("entity_uid")).toString(), entry);
     }
-    return QJsonDocument(QJsonObject{{QStringLiteral("corrections"), byUid},
-                                 {QStringLiteral("missing"), QJsonArray::fromStringList(missing)}})
+    return QJsonDocument(withServerTime(QJsonObject{{QStringLiteral("corrections"), byUid},
+                                 {QStringLiteral("missing"), QJsonArray::fromStringList(missing)}}))
             .toJson();
 }
 
@@ -201,10 +210,11 @@ class CrateCorrectionsTest : public MixxxDbTest, SoundSourceProviderRegistration
     }
 
     void attachAndAnswer(const TrackPointer& pTrack, const QByteArray& answer) {
+        const auto queries = sentTo(QNetworkAccessManager::PostOperation, kQueryPath).size();
         m_pSync->attach(pTrack, kServer, kUid);
         m_scheduler.runAll();
         ASSERT_TRUE(QTest::qWaitFor([&] {
-            return !sentTo(QNetworkAccessManager::PostOperation, kQueryPath).isEmpty();
+            return sentTo(QNetworkAccessManager::PostOperation, kQueryPath).size() > queries;
         }));
         sentTo(QNetworkAccessManager::PostOperation, kQueryPath)
                 .constLast()
@@ -285,7 +295,8 @@ TEST_F(CrateCorrectionsTest, OffersUploadAfterManualGridEdit) {
     EXPECT_FALSE(m_pSync->offer(kServer, kUid));
 
     puts().constFirst().pReply->respond(200,
-            QJsonDocument(correction(1, 120.0, beats, QJsonValue(), kInstallation)).toJson());
+            QJsonDocument(withServerTime(correction(1, 120.0, beats, QJsonValue(), kInstallation)))
+                    .toJson());
     ASSERT_TRUE(QTest::qWaitFor([this] {
         return m_pSync->revision(kServer, kUid) == 1;
     }));
@@ -407,8 +418,14 @@ TEST_F(CrateCorrectionsTest, ClearsTheCorrection) {
     attachAndAnswer(pTrack,
             queryAnswer({correction(3, 126.0, QJsonValue(), QStringLiteral("8A"))}, {}));
     ASSERT_TRUE(m_pSync->hasCorrection(kServer, kUid));
+    ASSERT_TRUE(pTrack->isBpmLocked());
+    ASSERT_EQ(mixxx::track::io::key::USER, crate::analysis::keySourceOf(pTrack));
 
     ASSERT_TRUE(m_pSync->clear(kServer, kUid));
+    // Diego, 2026-11-16: the grid is unlocked and the correction's key is no
+    // longer the user's, so that Crate's analysis applies again
+    EXPECT_FALSE(pTrack->isBpmLocked());
+    EXPECT_NE(mixxx::track::io::key::USER, crate::analysis::keySourceOf(pTrack));
     waitForPuts(1);
     const QJsonObject body = bodyOf(puts().constFirst());
     EXPECT_EQ(3, body.value(QStringLiteral("base_revision")).toInt());
@@ -420,13 +437,73 @@ TEST_F(CrateCorrectionsTest, ClearsTheCorrection) {
     }
     EXPECT_FALSE(m_pSync->hasCorrection(kServer, kUid));
     puts().constFirst().pReply->respond(200,
-            QJsonDocument(correction(4, QJsonValue(), QJsonValue(), QJsonValue(), kInstallation))
+            QJsonDocument(withServerTime(correction(
+                                  4, QJsonValue(), QJsonValue(), QJsonValue(), kInstallation)))
                     .toJson());
     ASSERT_TRUE(QTest::qWaitFor([this] {
         return m_pSync->revision(kServer, kUid) == 4;
     }));
     // Nothing more to clear
     EXPECT_FALSE(m_pSync->clear(kServer, kUid));
+}
+
+// Diego, 2026-11-16: clearing a correction puts Crate's profile back on the
+// track, here and on the other computers once they see it is gone.
+TEST_F(CrateCorrectionsTest, ClearingRestoresTheProfile) {
+    const crate::analysis::MixProfile mixProfile = profile();
+    crate::analysis::Policy policy;
+    policy.crateBeats = true;
+    policy.crateKey = true;
+    QStringList restored;
+    m_pSync->setProfileRestorer(
+            [&](const TrackPointer& pTrack, const QString& serverId, const QString& uid) {
+                restored.append(serverId + QLatin1Char('/') + uid);
+                crate::analysis::AnalysisImporter::apply(pTrack, mixProfile, policy);
+                m_pSync->absorbAutomaticChanges(pTrack);
+            });
+    const TrackPointer pTrack = openedTrack();
+    ASSERT_TRUE(crate::analysis::AnalysisImporter::apply(pTrack, mixProfile, policy).beatsImported);
+    attachAndAnswer(pTrack,
+            queryAnswer({correction(2, 125.0, grid(600, 480.0, 64), QStringLiteral("9B"))}, {}));
+    ASSERT_NEAR(125.0, pTrack->getBpm(), 1e-6);
+
+    ASSERT_TRUE(m_pSync->clear(kServer, kUid));
+    EXPECT_EQ(QStringList{kServer + QStringLiteral("/") + kUid}, restored);
+    EXPECT_NEAR(124.0, pTrack->getBpm(), 1e-6);
+    EXPECT_EQ(mixxx::track::io::key::A_MINOR, pTrack->getKey());
+    // Crate's grid, which the profile locks as its own
+    EXPECT_EQ(crate::analysis::CrateBeatsImporter::subVersion(mixProfile.profileRevision),
+            pTrack->getBeats()->getSubVersion());
+    m_scheduler.runAll();
+    EXPECT_FALSE(m_pSync->offer(kServer, kUid));
+}
+
+TEST_F(CrateCorrectionsTest, RevertsWhenTheCorrectionIsGoneElsewhere) {
+    const crate::analysis::MixProfile mixProfile = profile();
+    crate::analysis::Policy policy;
+    policy.crateBeats = true;
+    policy.crateKey = true;
+    int restores = 0;
+    m_pSync->setProfileRestorer([&](const TrackPointer& pTrack, const QString&, const QString&) {
+        ++restores;
+        crate::analysis::AnalysisImporter::apply(pTrack, mixProfile, policy);
+        m_pSync->absorbAutomaticChanges(pTrack);
+    });
+    const TrackPointer pTrack = openedTrack();
+    ASSERT_TRUE(crate::analysis::AnalysisImporter::apply(pTrack, mixProfile, policy).beatsImported);
+    attachAndAnswer(pTrack,
+            queryAnswer({correction(2, 125.0, grid(600, 480.0, 64), QStringLiteral("9B"))}, {}));
+    ASSERT_NEAR(125.0, pTrack->getBpm(), 1e-6);
+    EXPECT_EQ(0, restores);
+
+    // Another computer cleared it
+    attachAndAnswer(pTrack,
+            queryAnswer({correction(3, QJsonValue(), QJsonValue(), QJsonValue())}, {}));
+    EXPECT_EQ(1, restores);
+    EXPECT_EQ(3, m_pSync->revision(kServer, kUid));
+    EXPECT_NEAR(124.0, pTrack->getBpm(), 1e-6);
+    EXPECT_EQ(mixxx::track::io::key::A_MINOR, pTrack->getKey());
+    EXPECT_FALSE(m_pSync->hasCorrection(kServer, kUid));
 }
 
 TEST_F(CrateCorrectionsTest, ConflictAppliesTheNewerCorrection) {
@@ -440,7 +517,7 @@ TEST_F(CrateCorrectionsTest, ConflictAppliesTheNewerCorrection) {
 
     // Another computer saved one at 22:10, after the edit here
     puts().constFirst().pReply->respond(409,
-            QJsonDocument(QJsonObject{
+            QJsonDocument(QJsonObject{{QStringLiteral("server_time"), kServerTime},
                                   {QStringLiteral("detail"),
                                           QStringLiteral("Correction revision conflict")},
                                   {QStringLiteral("current"),

@@ -4,6 +4,7 @@
 #include <QJsonObject>
 #include <QString>
 #include <QVector>
+#include <functional>
 #include <optional>
 
 #include "audio/types.h"
@@ -81,7 +82,17 @@ class CrateCorrections : public TrackDataSync {
         bool key = false;
     };
 
+    /// Puts Crate's profile (BPM, grid, key) back on a track whose
+    /// correction is gone.
+    using ProfileRestorer = std::function<void(
+            const TrackPointer& pTrack, const QString& serverId, const QString& entityUid)>;
+
     explicit CrateCorrections(Options options, QObject* pParent = nullptr);
+
+    /// CrateServerFeature sets it: the profile is the library's.
+    void setProfileRestorer(ProfileRestorer restorer) {
+        m_restoreProfile = std::move(restorer);
+    }
 
     std::optional<Offer> offer(const QString& serverId, const QString& entityUid) const;
     /// Whether the server has a correction of the track with a value.
@@ -89,8 +100,10 @@ class CrateCorrections : public TrackDataSync {
     /// Saves the offered correction to Crate. Returns false when there is
     /// nothing to save.
     bool save(const QString& serverId, const QString& entityUid);
-    /// Clears the track's correction on Crate. The track keeps its grid and
-    /// key here. Returns false when there is none.
+    /// Clears the track's correction on Crate. Here, as on the other
+    /// computers when they see it gone, the grid is unlocked, the key is no
+    /// longer the user's and Crate's profile applies again (Diego,
+    /// 2026-11-16). Returns false when there is none.
     bool clear(const QString& serverId, const QString& entityUid);
 
   signals:
@@ -103,8 +116,9 @@ class CrateCorrections : public TrackDataSync {
             qint64 serverRevision,
             const QJsonObject& serverEntry) override;
     QJsonObject contentOf(const QJsonObject& serverEntry) const override;
-    QJsonObject applyServerContent(
-            const TrackPointer& pTrack, const QJsonObject& content) override;
+    QJsonObject applyServerContent(const QString& key,
+            const TrackPointer& pTrack,
+            const QJsonObject& content) override;
     QJsonObject contentToResend(const QString& key, const QJsonObject& sent) override;
     void trackChanged(const QString& key, const TrackPointer& pTrack, Change change) override;
     void absorb(const QString& key, const TrackPointer& pTrack) override;
@@ -116,12 +130,17 @@ class CrateCorrections : public TrackDataSync {
     };
 
     void takeSnapshot(const QString& key, const TrackPointer& pTrack);
+    /// Unlocks the grid of a correction and gives its key back to the
+    /// analysis, then puts Crate's profile back (setProfileRestorer()).
+    void revertCorrection(
+            const QString& key, const TrackPointer& pTrack, const Correction& cleared);
     void offerNow(const QString& key);
 
     QHash<QString, Snapshot> m_snapshots;
     /// Edits waiting for their debounce.
     QHash<QString, Offer> m_dirty;
     QHash<QString, Offer> m_offers;
+    ProfileRestorer m_restoreProfile;
 };
 
 } // namespace crate::writeback

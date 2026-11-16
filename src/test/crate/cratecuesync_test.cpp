@@ -92,13 +92,39 @@ QJsonObject cueSet(const QString& uid,
             {QStringLiteral("cues"), cues}};
 }
 
-QByteArray queryAnswer(const QList<QJsonObject>& sets, const QStringList& missing) {
+/// The server's clock in the fakes' answers: the same as the test's local
+/// clock unless a test says otherwise.
+const QString kServerTime = QStringLiteral("2026-11-16T22:00:00.000000Z");
+
+/// `server_time`, which every S7 answer carries; none for an empty one.
+QJsonObject withServerTime(QJsonObject answer, const QString& serverTime = kServerTime) {
+    if (!serverTime.isEmpty()) {
+        answer.insert(QStringLiteral("server_time"), serverTime);
+    }
+    return answer;
+}
+
+QByteArray queryAnswer(const QList<QJsonObject>& sets,
+        const QStringList& missing,
+        const QString& serverTime = kServerTime) {
     QJsonObject cueSets;
     for (const QJsonObject& set : sets) {
         cueSets.insert(set.value(QStringLiteral("entity_uid")).toString(), set);
     }
-    return QJsonDocument(QJsonObject{{QStringLiteral("cue_sets"), cueSets},
-                                 {QStringLiteral("missing"), QJsonArray::fromStringList(missing)}})
+    return QJsonDocument(withServerTime(QJsonObject{{QStringLiteral("cue_sets"), cueSets},
+                                                {QStringLiteral("missing"),
+                                                        QJsonArray::fromStringList(missing)}},
+                                 serverTime))
+            .toJson();
+}
+
+/// A 409 of a PUT.
+QByteArray conflictAnswer(const QJsonObject& current, const QString& serverTime = kServerTime) {
+    return QJsonDocument(withServerTime(QJsonObject{{QStringLiteral("detail"),
+                                                            QStringLiteral(
+                                                                    "Cue set revision conflict")},
+                                                {QStringLiteral("current"), current}},
+                                 serverTime))
             .toJson();
 }
 
@@ -279,18 +305,21 @@ TEST_F(CrateCueSyncTest, AppliesUserCuesOverProfileCues) {
     EXPECT_NEAR(1500.517 * perMs, pHotcue->getPosition().value(), 0.01);
     EXPECT_EQ(QStringLiteral("Drop"), pHotcue->getLabel());
     EXPECT_EQ(mixxx::RgbColor(0xff8800), pHotcue->getColor());
-    // The set has no Outro: the profile's stays
-    const CuePointer pOutro = pTrack->findCueByType(mixxx::CueType::Outro);
-    ASSERT_NE(nullptr, pOutro);
-    EXPECT_NEAR(165802 * perMs, pOutro->getPosition().value(), 1.0);
+    // The user's set is the track's whole set: it has no Outro, so the
+    // profile's goes (Diego, 2026-11-16: deletions propagate)
+    EXPECT_EQ(nullptr, pTrack->findCueByType(mixxx::CueType::Outro));
     EXPECT_EQ(3, m_pSync->revision(kServer, kUid));
 
-    // The profile again, as at the next start: the user's Intro stays
-    crate::analysis::AnalysisImporter::apply(pTrack, mixProfile, {}, outcome.appliedCues);
+    // The profile again, of a new revision: it puts back no Outro and does
+    // not move the user's Intro
+    crate::analysis::MixProfile newer = mixProfile;
+    newer.profileRevision = QStringLiteral("a-newer-revision");
+    crate::analysis::AnalysisImporter::apply(pTrack, newer, {}, outcome.appliedCues);
     m_pSync->absorbAutomaticChanges(pTrack);
     EXPECT_NEAR(1000.0 * perMs,
             pTrack->findCueByType(mixxx::CueType::Intro)->getPosition().value(),
             0.01);
+    EXPECT_EQ(nullptr, pTrack->findCueByType(mixxx::CueType::Outro));
 
     // Nothing of it is an edit to send
     m_scheduler.runAll();
@@ -355,7 +384,7 @@ TEST_F(CrateCueSyncTest, UploadsEditsDebounced) {
             body.keys());
 
     puts().constFirst().pReply->respond(
-            200, QJsonDocument(cueSet(kUid, 1, cues, kInstallation)).toJson());
+            200, QJsonDocument(withServerTime(cueSet(kUid, 1, cues, kInstallation))).toJson());
     ASSERT_TRUE(QTest::qWaitFor([this] {
         return m_pSync->revision(kServer, kUid) == 1;
     }));
@@ -393,11 +422,7 @@ TEST_F(CrateCueSyncTest, ResolvesConflictServerWins) {
                     QStringLiteral("Theirs"))},
             kOtherInstallation,
             QStringLiteral("2026-11-16T22:05:00.000000Z"));
-    puts().constFirst().pReply->respond(409,
-            QJsonDocument(QJsonObject{{QStringLiteral("detail"),
-                                              QStringLiteral("Cue set revision conflict")},
-                                  {QStringLiteral("current"), current}})
-                    .toJson());
+    puts().constFirst().pReply->respond(409, conflictAnswer(current));
 
     // The server's set is the track's now, and the user hears of it
     ASSERT_TRUE(QTest::qWaitFor([&] {
@@ -434,8 +459,7 @@ TEST_F(CrateCueSyncTest, ResendsOnConflictWithAnOlderWrite) {
             QJsonArray{cue(cuetype::kHotcue, 7, 7000.0)},
             kOtherInstallation,
             QStringLiteral("2026-11-16T21:00:00Z"));
-    puts().constFirst().pReply->respond(
-            409, QJsonDocument(QJsonObject{{QStringLiteral("current"), current}}).toJson());
+    puts().constFirst().pReply->respond(409, conflictAnswer(current));
     waitForPuts(2);
     const QJsonObject body = bodyOf(puts().constLast());
     EXPECT_EQ(2, body.value(QStringLiteral("base_revision")).toInt());
@@ -445,11 +469,206 @@ TEST_F(CrateCueSyncTest, ResendsOnConflictWithAnOlderWrite) {
     EXPECT_EQ(nullptr, pTrack->findHotcueByIndex(7));
 
     puts().constLast().pReply->respond(200,
-            QJsonDocument(cueSet(kUid, 3, body.value(QStringLiteral("cues")).toArray()))
+            QJsonDocument(withServerTime(
+                                  cueSet(kUid, 3, body.value(QStringLiteral("cues")).toArray())))
                     .toJson());
     ASSERT_TRUE(QTest::qWaitFor([this] {
         return m_pSync->revision(kServer, kUid) == 3;
     }));
+}
+
+// Diego, 2026-11-16: "more recent" is decided on the server's clock. Every S7
+// answer carries `server_time`; an edit is stamped in server time with the
+// offset of the latest answer.
+TEST_F(CrateCueSyncTest, DecidesConflictsOnTheServerClock) {
+    makeSync();
+    QSignalSpy replaced(m_pSync.get(), &CrateCueSync::localEditsReplaced);
+    const TrackPointer pTrack = dummyTrack();
+    // This computer's clock is 30 minutes behind the server's
+    attachAndAnswer(pTrack,
+            kUid,
+            queryAnswer({cueSet(kUid, 3, QJsonArray{cue(cuetype::kHotcue, 0, 1000.0)})},
+                    {},
+                    QStringLiteral("2026-11-16T22:30:00.000000Z")));
+    pTrack->createAndAddCue(mixxx::CueType::HotCue,
+            1,
+            mixxx::audio::FramePos(framesOf(2000.0)),
+            mixxx::audio::kInvalidFramePos);
+    m_scheduler.runAll();
+    waitForPuts(1);
+    // The edit, at 22:00 here, is 22:30 on the server
+    const QList<QJsonObject> pending =
+            m_pOutbox->pendingPayloads(kServer, crate::writeback::outboxkind::kCueSet);
+    ASSERT_EQ(1, pending.size());
+    EXPECT_EQ(QDateTime(QDate(2026, 11, 16), QTime(22, 30), QTimeZone::UTC),
+            QDateTime::fromString(
+                    pending.first().value(QStringLiteral("edited_at")).toString(),
+                    Qt::ISODateWithMs));
+
+    // Another computer wrote at 22:10 server time: before the edit, which
+    // the local clock alone would have put at 22:00
+    puts().constFirst().pReply->respond(409,
+            conflictAnswer(cueSet(kUid,
+                                   5,
+                                   QJsonArray{cue(cuetype::kHotcue, 4, 4000.0)},
+                                   kOtherInstallation,
+                                   QStringLiteral("2026-11-16T22:10:00.000000Z")),
+                    QStringLiteral("2026-11-16T22:30:02.000000Z")));
+    waitForPuts(2);
+    EXPECT_TRUE(replaced.isEmpty());
+    EXPECT_EQ(5, bodyOf(puts().constLast()).value(QStringLiteral("base_revision")).toInt());
+    ASSERT_NE(nullptr, pTrack->findHotcueByIndex(1));
+}
+
+// Without any server_time yet, the edit keeps the local clock, as before.
+TEST_F(CrateCueSyncTest, FallsBackToTheLocalClockWithoutServerTime) {
+    makeSync();
+    QSignalSpy replaced(m_pSync.get(), &CrateCueSync::localEditsReplaced);
+    const TrackPointer pTrack = dummyTrack();
+    attachAndAnswer(pTrack,
+            kUid,
+            queryAnswer({cueSet(kUid, 3, QJsonArray{cue(cuetype::kHotcue, 0, 1000.0)})},
+                    {},
+                    QString()));
+    pTrack->createAndAddCue(mixxx::CueType::HotCue,
+            1,
+            mixxx::audio::FramePos(framesOf(2000.0)),
+            mixxx::audio::kInvalidFramePos);
+    m_scheduler.runAll();
+    waitForPuts(1);
+    const QList<QJsonObject> pending =
+            m_pOutbox->pendingPayloads(kServer, crate::writeback::outboxkind::kCueSet);
+    ASSERT_EQ(1, pending.size());
+    EXPECT_EQ(m_now,
+            QDateTime::fromString(
+                    pending.first().value(QStringLiteral("edited_at")).toString(),
+                    Qt::ISODateWithMs));
+
+    // 22:10 on the server is after 22:00 here: the server wins
+    puts().constFirst().pReply->respond(409,
+            conflictAnswer(cueSet(kUid,
+                                   5,
+                                   QJsonArray{cue(cuetype::kHotcue, 4, 4000.0)},
+                                   kOtherInstallation,
+                                   QStringLiteral("2026-11-16T22:10:00.000000Z")),
+                    QStringLiteral("2026-11-16T22:30:02.000000Z")));
+    ASSERT_TRUE(QTest::qWaitFor([&] {
+        return replaced.size() == 1;
+    }));
+    ASSERT_NE(nullptr, pTrack->findHotcueByIndex(4));
+    EXPECT_EQ(nullptr, pTrack->findHotcueByIndex(1));
+}
+
+// Diego, 2026-11-16: the first sync of a track with hot cues on both sides
+// keeps the server's and moves the local ones to free slots, then uploads.
+TEST_F(CrateCueSyncTest, MergesLocalHotCuesOnFirstSync) {
+    makeSync();
+    QSignalSpy merged(m_pSync.get(), &CrateCueSync::cuesMerged);
+    const TrackPointer pTrack = dummyTrack();
+    // Set on this computer before it ever synced the track
+    pTrack->createAndAddCue(mixxx::CueType::HotCue,
+            0,
+            mixxx::audio::FramePos(framesOf(1000.0)),
+            mixxx::audio::kInvalidFramePos);
+    pTrack->createAndAddCue(mixxx::CueType::Loop,
+            1,
+            mixxx::audio::FramePos(framesOf(3000.0)),
+            mixxx::audio::FramePos(framesOf(4000.0)));
+    pTrack->createAndAddCue(mixxx::CueType::HotCue,
+            5,
+            mixxx::audio::FramePos(framesOf(5000.0)),
+            mixxx::audio::kInvalidFramePos);
+
+    // The server's: slot 0 is taken, slot 1 has the same loop
+    attachAndAnswer(pTrack,
+            kUid,
+            queryAnswer({cueSet(kUid,
+                                2,
+                                QJsonArray{cue(cuetype::kIntro, 0, 500.0),
+                                        cue(cuetype::kHotcue, 0, 2000.0),
+                                        cue(cuetype::kLoop, 1, 3000.0, 4000.0)})},
+                    {}));
+
+    // The server's slot 0 stays; the local one moved to the first free slot
+    ASSERT_NE(nullptr, pTrack->findHotcueByIndex(0));
+    EXPECT_NEAR(framesOf(2000.0), pTrack->findHotcueByIndex(0)->getPosition().value(), 0.01);
+    ASSERT_NE(nullptr, pTrack->findHotcueByIndex(2));
+    EXPECT_NEAR(framesOf(1000.0), pTrack->findHotcueByIndex(2)->getPosition().value(), 0.01);
+    EXPECT_EQ(mixxx::CueType::Loop, pTrack->findHotcueByIndex(1)->getType());
+    ASSERT_NE(nullptr, pTrack->findHotcueByIndex(5));
+    EXPECT_NE(nullptr, pTrack->findCueByType(mixxx::CueType::Intro));
+    ASSERT_EQ(1, merged.size());
+    EXPECT_EQ(1, merged.first().at(3).toInt()); // moved
+    EXPECT_EQ(0, merged.first().at(4).toInt()); // dropped
+
+    // And the merged set goes up on top of revision 2
+    waitForPuts(1);
+    const QJsonObject body = bodyOf(puts().constFirst());
+    EXPECT_EQ(2, body.value(QStringLiteral("base_revision")).toInt());
+    EXPECT_EQ(5, body.value(QStringLiteral("cues")).toArray().size());
+}
+
+TEST_F(CrateCueSyncTest, DropsLocalCuesWithoutAFreeSlot) {
+    makeSync();
+    QSignalSpy merged(m_pSync.get(), &CrateCueSync::cuesMerged);
+    const TrackPointer pTrack = dummyTrack();
+    pTrack->createAndAddCue(mixxx::CueType::HotCue,
+            3,
+            mixxx::audio::FramePos(framesOf(99000.0)),
+            mixxx::audio::kInvalidFramePos);
+    QJsonArray full;
+    for (int slot = 0; slot < crate::writeback::kSyncedHotcueSlots; ++slot) {
+        full.append(cue(cuetype::kHotcue, slot, 1000.0 * (slot + 1)));
+    }
+    attachAndAnswer(pTrack, kUid, queryAnswer({cueSet(kUid, 2, full)}, {}));
+
+    EXPECT_NEAR(framesOf(4000.0), pTrack->findHotcueByIndex(3)->getPosition().value(), 0.01);
+    ASSERT_EQ(1, merged.size());
+    EXPECT_EQ(0, merged.first().at(3).toInt());
+    EXPECT_EQ(1, merged.first().at(4).toInt());
+    // Nothing to add to the server's set
+    m_scheduler.runAll();
+    QCoreApplication::processEvents();
+    EXPECT_TRUE(puts().isEmpty());
+}
+
+// Diego, 2026-11-16: once synced, the server's set rules every cue type, so
+// deleting the intro on one computer deletes it on the others.
+TEST_F(CrateCueSyncTest, PropagatesDeletionsOfAutomaticCues) {
+    makeSync();
+    const TrackPointer pTrack = dummyTrack();
+    attachAndAnswer(pTrack,
+            kUid,
+            queryAnswer({cueSet(kUid,
+                                3,
+                                QJsonArray{cue(cuetype::kMain, 0, 100.0),
+                                        cue(cuetype::kIntro, 0, 500.0),
+                                        cue(cuetype::kHotcue, 0, 1000.0)})},
+                    {}));
+    ASSERT_NE(nullptr, pTrack->findCueByType(mixxx::CueType::Intro));
+
+    // Another computer deleted the intro
+    attachAndAnswer(pTrack,
+            kUid,
+            queryAnswer({cueSet(kUid,
+                                4,
+                                QJsonArray{cue(cuetype::kMain, 0, 100.0),
+                                        cue(cuetype::kHotcue, 0, 1000.0)})},
+                    {}));
+    EXPECT_EQ(nullptr, pTrack->findCueByType(mixxx::CueType::Intro));
+    EXPECT_EQ(4, m_pSync->revision(kServer, kUid));
+
+    // Upstream's silence analysis puts one back: the synced set wins
+    pTrack->createAndAddCue(mixxx::CueType::Intro,
+            Cue::kNoHotCue,
+            mixxx::audio::FramePos(framesOf(250.0)),
+            mixxx::audio::kInvalidFramePos);
+    pTrack->analysisFinished();
+    QCoreApplication::processEvents();
+    EXPECT_EQ(nullptr, pTrack->findCueByType(mixxx::CueType::Intro));
+    m_scheduler.runAll();
+    QCoreApplication::processEvents();
+    EXPECT_TRUE(puts().isEmpty());
 }
 
 TEST_F(CrateCueSyncTest, OutboxRetryKeepsTheSameBody) {

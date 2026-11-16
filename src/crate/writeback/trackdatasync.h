@@ -48,7 +48,9 @@ class Outbox;
 ///   resolves as plan F8.C-PR1 says: the server's content wins if it was
 ///   written after the edit here and by another installation, and is
 ///   applied to the track with localEditsReplaced(); otherwise the content
-///   is sent again on top of the server's revision.
+///   is sent again on top of the server's revision. "After" is on the
+///   server's clock: every answer carries `server_time`, and edits are
+///   stamped with the offset of the latest one (editStamp()).
 /// - Only for servers that announce the `cues` feature (enabledFor).
 ///
 /// On the main thread; the table is read and written on a thread of its own.
@@ -149,7 +151,7 @@ class TrackDataSync : public QObject {
     virtual QJsonObject contentOf(const QJsonObject& serverEntry) const = 0;
     /// Puts the server's content on the track; returns the baseline after.
     virtual QJsonObject applyServerContent(
-            const TrackPointer& pTrack, const QJsonObject& content) = 0;
+            const QString& key, const TrackPointer& pTrack, const QJsonObject& content) = 0;
     /// What to send again when a 409 goes this installation's way.
     virtual QJsonObject contentToResend(const QString& key, const QJsonObject& sent) = 0;
     /// The track changed, not by Crate's or upstream's analysis.
@@ -189,6 +191,13 @@ class TrackDataSync : public QObject {
             const QJsonObject& content,
             qint64 revision);
     QDateTime now() const;
+    /// When an edit made now happened, on the server's clock: the local
+    /// time plus the offset of the server's latest `server_time` (Diego,
+    /// 2026-11-16). On the local clock while no answer has told it.
+    QDateTime editStamp(const QString& key) const;
+    /// Makes a change to the track that is not the user's edit: its signals
+    /// are ignored and a debounce waiting is void.
+    void changeQuietly(const QString& key, const std::function<void()>& change);
 
   private:
     struct Attached {
@@ -212,6 +221,8 @@ class TrackDataSync : public QObject {
     void onSignal(const QString& key, Change change);
     /// Updates the import flags; returns whether an import just completed.
     bool importCompleted(Attached& attached, const TrackPointer& pTrack);
+    /// Keeps the offset of the server's clock from an answer's `server_time`.
+    void observeServerTime(const QString& serverId, const QJsonObject& answer);
     void onDelivered(const QString& serverId,
             const QString& kind,
             const QJsonObject& payload,
@@ -219,7 +230,7 @@ class TrackDataSync : public QObject {
     void onConflicted(const QString& serverId,
             const QString& kind,
             const QJsonObject& payload,
-            const QJsonObject& current);
+            const QJsonObject& answer);
 
     const Endpoint m_endpoint;
     Options m_options;
@@ -234,6 +245,8 @@ class TrackDataSync : public QObject {
     QHash<QString, QStringList> m_queued;
     QHash<QString, bool> m_queryScheduled;
     QHash<QString, Due> m_due;
+    /// The server's clock minus this computer's, in ms, by server.
+    QHash<QString, qint64> m_clockOffsets;
     bool m_applying = false;
 };
 

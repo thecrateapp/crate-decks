@@ -52,6 +52,7 @@
 #endif
 #include "crate/stems/stemsync.h"
 #include "crate/ui/cachestatusview.h"
+#include "crate/ui/trackmenuhook.h"
 #include "crate/ui/widgets/camelotwheelmodel.h"
 #include "crate/ui/widgets/instrumentpainter.h"
 #include "crate/writeback/cratecorrections.h"
@@ -475,6 +476,8 @@ CrateServerFeature::CrateServerFeature(Library* pLibrary,
 }
 
 CrateServerFeature::~CrateServerFeature() {
+    // Its entries leave upstream's track menus with it
+    crate::ui::setTrackMenuProvider(nullptr);
     disconnect(m_selectionConnection);
     m_pCompatibles.reset();
     stopLoading();
@@ -531,6 +534,41 @@ void CrateServerFeature::watchServers(CrateServers* pServers) {
                         "computer after you saved yours. Decks now uses that one.")
                                 .arg(title));
             });
+    // The first sync of a track with hot cues on both computers merges them
+    connect(pServers->cueSync(),
+            &writeback::CrateCueSync::cuesMerged,
+            this,
+            [this](const QString&,
+                    const QString&,
+                    const QString& title,
+                    int moved,
+                    int dropped) {
+                QString message =
+                        tr("The cues of \u201c%1\u201d on Crate and on this computer were "
+                           "put together.")
+                                .arg(title);
+                if (moved > 0) {
+                    message += QLatin1Char(' ') +
+                            tr("%n cue(s) set here moved to a free hot cue.", nullptr, moved);
+                }
+                if (dropped > 0) {
+                    message += QLatin1Char(' ') +
+                            tr("%n cue(s) set here were left out: no hot cue was free.",
+                                    nullptr,
+                                    dropped);
+                }
+                showWarning(message);
+            });
+    // Clearing a correction puts Crate's profile back (Diego, 2026-11-16)
+    pServers->corrections()->setProfileRestorer(
+            [this](const TrackPointer& pTrack, const QString& serverId, const QString& uid) {
+                applyProfile(pTrack, serverId, uid);
+            });
+    // The correction entries, in every track menu of a Crate track (plan
+    // F8.C-PR2, the WTrackMenu hook)
+    crate::ui::setTrackMenuProvider([this](const TrackPointer& pTrack, QObject* pParent) {
+        return correctionActions(pTrack, pParent);
+    });
     // The Liked column
     writeback::CrateLikes* pLikes = pServers->likes();
     const QList<CrateServerTrackModel*> models = trackModels();
@@ -1129,7 +1167,6 @@ QList<QAction*> CrateServerFeature::trackActions(
             }
         });
         actions.append(pLike);
-        appendCorrectionActions(tracks, pParent, &actions);
     }
     if (!m_pRadio) {
         return actions;
@@ -1200,44 +1237,48 @@ QList<QAction*> CrateServerFeature::trackActions(
     return actions;
 }
 
-void CrateServerFeature::appendCorrectionActions(
-        const QList<CrateTrackRef>& tracks, QObject* pParent, QList<QAction*>* pActions) {
-    // BPM, grid and key corrections (plan F8.C-PR2): offered here, in the
-    // track's menu, and nowhere else, so that a correction made during a set
-    // never interrupts it
-    writeback::CrateCorrections* const pCorrections = m_pServers->corrections();
-    if (tracks.size() != 1 || !pCorrections) {
-        return;
+QList<QAction*> CrateServerFeature::correctionActions(
+        const TrackPointer& pTrack, QObject* pParent) {
+    // BPM, grid and key corrections (plan F8.C-PR2): in the track's menu,
+    // wherever it opens, so that a correction made during a set never
+    // interrupts it
+    QList<QAction*> actions;
+    cache::AudioCache* const pCache = m_pServers ? m_pServers->existingAudioCache() : nullptr;
+    const std::optional<cache::TrackKey> track =
+            pCache && pTrack ? pCache->trackOfFile(pTrack->getLocation()) : std::nullopt;
+    if (!track) {
+        return actions;
     }
-    const CrateTrackRef& track = tracks.first();
-    if (pCorrections->offer(track.serverId, track.entityUid)) {
+    writeback::CrateCorrections* const pCorrections = m_pServers->corrections();
+    if (pCorrections->offer(track->serverId, track->entityUid)) {
         //: Track menu: sends the BPM, beat grid or key the user corrected in
         //: Decks to Crate, so that their other computers use it too
         auto* pSave = new QAction(tr("Save correction to Crate"), pParent);
         connect(pSave,
                 &QAction::triggered,
                 this,
-                [pCorrections = QPointer(pCorrections), track] {
+                [pCorrections = QPointer(pCorrections), track = *track] {
                     if (pCorrections) {
                         pCorrections->save(track.serverId, track.entityUid);
                     }
                 });
-        pActions->append(pSave);
+        actions.append(pSave);
     }
-    if (pCorrections->hasCorrection(track.serverId, track.entityUid)) {
+    if (pCorrections->hasCorrection(track->serverId, track->entityUid)) {
         //: Track menu: removes the user's BPM, grid and key correction of the
         //: track from Crate; Crate's analysis applies again on their computers
         auto* pClear = new QAction(tr("Clear correction on Crate"), pParent);
         connect(pClear,
                 &QAction::triggered,
                 this,
-                [pCorrections = QPointer(pCorrections), track] {
+                [pCorrections = QPointer(pCorrections), track = *track] {
                     if (pCorrections) {
                         pCorrections->clear(track.serverId, track.entityUid);
                     }
                 });
-        pActions->append(pClear);
+        actions.append(pClear);
     }
+    return actions;
 }
 
 void CrateServerFeature::startRadio(const QString& serverId, const recs::RadioSeed& seed) {
@@ -1624,12 +1665,26 @@ void CrateServerFeature::applyAnalysis(
     }
     const QString uid = entityUid.toLower();
     // The user's own cues and corrections, read with the other tracks taken
-    // now, go over the profile's (plan F8): the profile never replaces a cue
-    // of a type the track has, a grid locked by a correction or the user's key
+    // now, go over the profile's (plan F8): the synced cue set rules every
+    // cue type, and the profile never replaces a grid locked by a correction
+    // or the user's key
     writeback::CrateCueSync* const pCueSync = m_pServers->cueSync();
     writeback::CrateCorrections* const pCorrections = m_pServers->corrections();
     pCueSync->attach(pTrack, serverId, uid);
     pCorrections->attach(pTrack, serverId, uid);
+    applyProfile(pTrack, serverId, uid);
+}
+
+void CrateServerFeature::applyProfile(
+        const TrackPointer& pTrack, const QString& serverId, const QString& entityUid) {
+    analysis::ProfileStore* const pStore =
+            m_pServers ? m_pServers->profileStore(serverId) : nullptr;
+    if (!pStore || !pTrack) {
+        return;
+    }
+    const QString uid = entityUid.toLower();
+    writeback::CrateCueSync* const pCueSync = m_pServers->cueSync();
+    writeback::CrateCorrections* const pCorrections = m_pServers->corrections();
     // What the Crate preferences say when the track is taken
     const analysis::Policy policy = m_pServers->preferences()->analysisPolicy();
     analysis::ProfileFetch* pFetch = pStore->get({uid});

@@ -281,6 +281,11 @@ class CrateServerFeature : public LibraryFeature {
     void applyAnalysis(const TrackPointer& pTrack,
             const QString& serverId,
             const QString& entityUid);
+    /// Applies Crate's profile of the track, as the preferences say: at load
+    /// and when the user's correction of it is cleared.
+    void applyProfile(const TrackPointer& pTrack,
+            const QString& serverId,
+            const QString& entityUid);
     Server* server(const QString& serverId) const;
     QString titleOf(const QString& serverId) const;
 
@@ -333,10 +338,10 @@ class CrateServerFeature : public LibraryFeature {
     /// The Crate tracks of these files join the server's playlist.
     void addToPlaylist(const QString& serverId, qint64 playlistId, const QStringList& locations);
     void showWarning(const QString& message);
-    /// "Save correction to Crate" and "Clear correction on Crate" for one
-    /// selected track, when they apply.
-    void appendCorrectionActions(
-            const QList<CrateTrackRef>& tracks, QObject* pParent, QList<QAction*>* pActions);
+    /// "Save correction to Crate" and "Clear correction on Crate" for a
+    /// Crate track, when they apply: the entries of upstream's track menus
+    /// (crate::ui::setTrackMenuProvider()).
+    QList<QAction*> correctionActions(const TrackPointer& pTrack, QObject* pParent);
     /// The master deck's Crate track, if it has one.
     std::optional<cache::TrackKey> crateTrackOnAir() const;
     void showRadio();

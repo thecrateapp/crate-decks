@@ -51,6 +51,7 @@
 #include "test/librarytest.h"
 #include "track/track.h"
 #include "widget/wlibrary.h"
+#include "widget/wtrackmenu.h"
 
 namespace {
 
@@ -130,6 +131,7 @@ class CrateServerFeatureTest : public LibraryTest {
     }
 
     void TearDown() override {
+        m_menus.clear();
         m_pFeature.reset();
         m_pServers.reset();
         if (!m_playerControls.empty()) {
@@ -308,6 +310,8 @@ class CrateServerFeatureTest : public LibraryTest {
     std::unique_ptr<CrateServers> m_pServers;
     std::unique_ptr<CrateServerFeature> m_pFeature;
     std::vector<std::unique_ptr<ControlObject>> m_playerControls;
+    /// Track menus a test opened, kept until it ends.
+    std::vector<std::unique_ptr<WTrackMenu>> m_menus;
     qsizetype m_sentAtStart = 0;
 };
 
@@ -1254,13 +1258,14 @@ TEST_F(CrateServerFeatureTest, LikeFromTheTrackMenuShowsInTheLikedColumn) {
     EXPECT_TRUE(ControlObject::exists(CrateServerFeature::likeOnAirKey()));
 }
 
-// The track menu offers to clear the user's correction stored on Crate, and
-// to save one only once the user corrected the track (plan F8.C-PR2)
+// Diego, 2026-11-16: the correction entries are in upstream's track menu
+// of a Crate track everywhere (decks, Auto DJ, upstream's lists, the Crate
+// tables), once, through the Crate hook of WTrackMenu (plan F8.C-PR2)
 TEST_F(CrateServerFeatureTest, TrackMenuClearsTheCorrectionOnCrate) {
     storeTree();
     storeContainerTracks(containerId(QStringLiteral("playlist"), QStringLiteral("7")),
             {remoteTrack(QStringLiteral("e1"), QStringLiteral("Lattice"), 0.7, QString())});
-    CrateServerFeature* pFeature = makeFeature();
+    CrateServerFeature* pFeature = makeFeature(createPlayerInfo());
     CrateServerTrackModel* pModel = showWarmUp(pFeature);
     ASSERT_NE(nullptr, pModel);
     ASSERT_TRUE(QTest::qWaitFor([&] { return pModel->rowCount() == 1; }, 5000));
@@ -1269,38 +1274,52 @@ TEST_F(CrateServerFeatureTest, TrackMenuClearsTheCorrectionOnCrate) {
     m_pServers->rememberCapabilities(kServer,
             QByteArrayLiteral(R"({"decks": {"available": true, "min_client_version": "0.1.0",
                 "contract_version": 1, "features": ["library_cursor", "cues"]}})"));
-    QObject parent;
-    const auto entry = [&](const QString& text) -> QAction* {
-        const QList<QAction*> actions = pModel->trackMenuActions({pModel->index(0, 0)}, &parent);
+
+    // The track is loaded, and the user has a correction of it on Crate
+    const std::optional<QString> path = m_pServers->audioCache()->filePathFor(
+            kServer, QStringLiteral("e1"), QStringLiteral("flac"));
+    ASSERT_TRUE(path);
+    const TrackPointer pTrack = Track::newTemporary(*path);
+    pTrack->setAudioProperties(mixxx::audio::ChannelCount::stereo(),
+            mixxx::audio::SampleRate(44100),
+            mixxx::audio::Bitrate(320),
+            mixxx::Duration::fromSeconds(372));
+    const auto deckEntry = [&](const QString& text) -> QAction* {
+        auto* pMenu = new WTrackMenu(nullptr, config(), nullptr, WTrackMenu::Feature::Properties);
+        pMenu->loadTrack(pTrack, QStringLiteral("[Channel1]"));
+        // As the deck's track widgets open it
+        pMenu->popup(QPoint(0, 0));
+        pMenu->close();
+        m_menus.emplace_back(pMenu);
+        const QList<QAction*> actions = pMenu->actions();
         const auto it = std::find_if(actions.cbegin(), actions.cend(), [&](const QAction* pAction) {
             return pAction->text() == text;
         });
         return it == actions.cend() ? nullptr : *it;
     };
-    EXPECT_EQ(nullptr, entry(QStringLiteral("Clear correction on Crate")));
-
-    // The track is loaded, and the user has a correction of it on Crate
-    const TrackPointer pTrack = Track::newTemporary(m_cacheDir.filePath(QStringLiteral("e1.flac")));
-    pTrack->setAudioProperties(mixxx::audio::ChannelCount::stereo(),
-            mixxx::audio::SampleRate(44100),
-            mixxx::audio::Bitrate(320),
-            mixxx::Duration::fromSeconds(372));
+    EXPECT_EQ(nullptr, deckEntry(QStringLiteral("Clear correction on Crate")));
     pCorrections->attach(pTrack, kServer, QStringLiteral("e1"));
     const QString query = QStringLiteral("/api/decks/corrections/query");
     ASSERT_TRUE(QTest::qWaitFor([&] { return sentTo(query) == 1; }, 5000));
     lastTo(query)->pReply->respond(200, QByteArrayLiteral(R"({"corrections": {"e1": {
         "entity_uid": "e1", "revision": 2, "updated_at": "2026-11-16T18:10:02Z",
         "client_id": "install-2", "bpm": 124.5, "beat_grid_format": null,
-        "beat_grid_ms": null, "key": "8A"}}, "missing": []})"));
+        "beat_grid_ms": null, "key": "8A"}}, "missing": [],
+        "server_time": "2026-11-16T22:00:00Z"})"));
     ASSERT_TRUE(QTest::qWaitFor(
-            [&] {
-                return pCorrections->hasCorrection(
-                        kServer, QStringLiteral("e1"));
-            },
-            5000));
-    EXPECT_EQ(nullptr, entry(QStringLiteral("Save correction to Crate")));
-    QAction* pClear = entry(QStringLiteral("Clear correction on Crate"));
+            [&] { return pCorrections->hasCorrection(kServer, QStringLiteral("e1")); }, 5000));
+    EXPECT_EQ(nullptr, deckEntry(QStringLiteral("Save correction to Crate")));
+    QAction* pClear = deckEntry(QStringLiteral("Clear correction on Crate"));
     ASSERT_NE(nullptr, pClear);
+    // The Crate table's own entries do not repeat it: its menu is a
+    // WTrackMenu too, which has it from the hook
+    QObject parent;
+    const QList<QAction*> modelActions = pModel->trackMenuActions({pModel->index(0, 0)}, &parent);
+    EXPECT_TRUE(std::none_of(modelActions.cbegin(),
+            modelActions.cend(),
+            [](const QAction* pAction) {
+                return pAction->text().contains(QStringLiteral("correction"));
+            }));
 
     pClear->trigger();
 
@@ -1310,7 +1329,7 @@ TEST_F(CrateServerFeatureTest, TrackMenuClearsTheCorrectionOnCrate) {
     EXPECT_EQ(2, body.value(QStringLiteral("base_revision")).toInt());
     EXPECT_TRUE(body.value(QStringLiteral("bpm")).isNull());
     EXPECT_TRUE(body.value(QStringLiteral("key")).isNull());
-    EXPECT_EQ(nullptr, entry(QStringLiteral("Clear correction on Crate")));
+    EXPECT_EQ(nullptr, deckEntry(QStringLiteral("Clear correction on Crate")));
 }
 
 // A Crate playlist's track table removes, reorders and takes tracks on the

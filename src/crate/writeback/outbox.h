@@ -126,11 +126,12 @@ class Outbox : public QObject {
             const QJsonObject& payload,
             const QJsonDocument& answer);
     /// The server answered 409 to a kCueSet or kCorrection entry, which
-    /// leaves the outbox: `current` is the content and revision it has.
+    /// leaves the outbox. `answer` is the body of the 409: `current`, the
+    /// content and revision the server has, and its `server_time`.
     void conflicted(const QString& serverId,
             const QString& kind,
             const QJsonObject& payload,
-            const QJsonObject& current);
+            const QJsonObject& answer);
     /// An entry was dropped without being delivered: too old, or refused.
     void dropped(const QString& serverId, const QString& kind, const QString& reason);
 

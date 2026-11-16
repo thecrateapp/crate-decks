@@ -42,7 +42,8 @@ QJsonObject CrateCueSync::contentOf(const QJsonObject& serverEntry) const {
 }
 
 QJsonObject CrateCueSync::applyServerContent(
-        const TrackPointer& pTrack, const QJsonObject& content) {
+        const QString& key, const TrackPointer& pTrack, const QJsonObject& content) {
+    Q_UNUSED(key);
     if (!applySyncedCues(pTrack, cuesOfContent(content))) {
         kLogger.warning() << "Cannot apply the synced cues of" << pTrack->getLocation()
                           << ": its sample rate is not known yet";
@@ -75,16 +76,30 @@ bool CrateCueSync::reconcile(const QString& key,
     const SyncedCues local = syncedCuesOf(pTrack);
     if (serverRevision > known.revision) {
         const SyncedCues server = syncedCuesFromJson(serverEntry.value(kCuesKey).toArray());
-        // Hot cues set on this computer before it ever synced the track
-        // give way to the ones the user made elsewhere
-        const SyncedCues localHotcues = withAutomaticCues(local, {});
-        if (!known.known && !localHotcues.isEmpty() &&
-                localHotcues != withAutomaticCues(server, {})) {
-            emit localEditsReplaced(serverIdOf(key),
-                    entityUidOf(key),
-                    pTrack->getTitle().isEmpty() ? entityUidOf(key) : pTrack->getTitle());
+        if (known.known || withAutomaticCues(local, {}).isEmpty()) {
+            // The server's set is the track's whole set
+            applyFromServer(key, pTrack, cueSetContent(server), serverRevision);
+            return true;
         }
-        applyFromServer(key, pTrack, cueSetContent(server), serverRevision);
+        // The first sync of a track with hot cues set here: the server's
+        // stay, the ones of this computer go to free slots, and the merged
+        // set goes up (Diego, 2026-11-16)
+        const CueMerge merge = mergeLocalCues(server, local);
+        for (const SyncedCue& cue : merge.dropped) {
+            kLogger.warning() << "No free hot cue slot for the" << cue.type << "at" << *cue.startMs
+                              << "ms of" << entityUidOf(key) << ": dropped";
+        }
+        applyFromServer(key, pTrack, cueSetContent(merge.cues), serverRevision);
+        if (merge.cues != server) {
+            enqueuePut(key, cueSetContent(syncedCuesOf(pTrack)), editStamp(key));
+        }
+        if (merge.moved > 0 || !merge.dropped.isEmpty()) {
+            emit cuesMerged(serverIdOf(key),
+                    entityUidOf(key),
+                    pTrack->getTitle().isEmpty() ? entityUidOf(key) : pTrack->getTitle(),
+                    merge.moved,
+                    static_cast<int>(merge.dropped.size()));
+        }
         return true;
     }
     if (!known.known) {
@@ -128,11 +143,24 @@ void CrateCueSync::trackChanged(const QString& key, const TrackPointer& pTrack, 
 
 void CrateCueSync::absorb(const QString& key, const TrackPointer& pTrack) {
     State& known = state(key);
-    const QJsonObject baseline = cueSetContent(
-            withAutomaticCues(cuesOfContent(known.baseline), syncedCuesOf(pTrack)));
-    if (baseline != known.baseline) {
-        known.baseline = baseline;
-        storeState(key);
+    const SyncedCues local = syncedCuesOf(pTrack);
+    if (known.revision > 0) {
+        // The server has the user's set, which rules main, intro and outro
+        // too: what the analysis put there or took away goes back to it
+        const SyncedCues wanted = withAutomaticCues(local, cuesOfContent(known.baseline));
+        if (wanted != local) {
+            changeQuietly(key, [&] {
+                applySyncedCues(pTrack, wanted);
+            });
+        }
+    } else {
+        // Never on the server: the analysis' cues are no edit
+        const QJsonObject baseline =
+                cueSetContent(withAutomaticCues(cuesOfContent(known.baseline), local));
+        if (baseline != known.baseline) {
+            known.baseline = baseline;
+            storeState(key);
+        }
     }
     // A change of the hot cues meanwhile is still an edit
     if (cueSetContent(syncedCuesOf(pTrack)) != known.baseline) {
@@ -151,7 +179,7 @@ void CrateCueSync::check(const QString& key) {
     if (content == stateOf(key).baseline) {
         return;
     }
-    enqueuePut(key, content, now());
+    enqueuePut(key, content, editStamp(key));
 }
 
 } // namespace crate::writeback
