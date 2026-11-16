@@ -5399,6 +5399,9 @@ if(CRATE)
       src/crate/library/cratesearch.cpp
       src/crate/library/cratesessionpins.cpp
       src/crate/library/cratetrackpreparer.cpp
+      src/crate/recs/compatiblesmodel.cpp
+      src/crate/recs/compatiblesview.cpp
+      src/crate/recs/recsjson.cpp
       src/crate/session/crateloopbackserver.cpp
       src/crate/session/cratesecretstore.cpp
       src/crate/session/cratesession.cpp
@@ -5477,6 +5480,8 @@ if(CRATE)
         src/test/crate/profilestore_test.cpp
         src/test/crate/cratecapabilities_test.cpp
         src/test/crate/crateclient_test.cpp
+        src/test/crate/compatiblesmodel_test.cpp
+        src/test/crate/compatiblesview_test.cpp
         src/test/crate/crateeventsubscriber_test.cpp
         src/test/crate/cratejson_test.cpp
         src/test/crate/cratelibrarysync_test.cpp
