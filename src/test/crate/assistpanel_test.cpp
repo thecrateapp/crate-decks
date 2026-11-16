@@ -84,8 +84,9 @@ class FakeEnvironment : public crate::SmartMixEnvironment {
 class CrateSmartMixAssistTest : public MixxxTest {
   protected:
     CrateSmartMixAssistTest() {
-        PlayerInfo::create();
         addControl(QStringLiteral("[App]"), QStringLiteral("num_decks"), 2.0);
+        addControl(QStringLiteral("[App]"), QStringLiteral("num_samplers"), 0.0);
+        addControl(QStringLiteral("[App]"), QStringLiteral("num_preview_decks"), 0.0);
         for (const QString& group : {kDeck1, kDeck2}) {
             for (const QString& item : {QStringLiteral("playposition"),
                          QStringLiteral("duration"),
@@ -101,6 +102,7 @@ class CrateSmartMixAssistTest : public MixxxTest {
             pPlay->setButtonMode(mixxx::control::ButtonMode::Toggle);
             m_buttons.push_back(std::move(pPlay));
             addControl(group, QStringLiteral("pregain"), 1.0);
+            addControl(group, QStringLiteral("volume"), 1.0);
             addControl(group, QStringLiteral("rate_ratio"), 1.0);
             const QString eq = crate::eqmap::effectGroup(group);
             for (const QString& item : {crate::eqmap::kLowGain,
@@ -114,6 +116,8 @@ class CrateSmartMixAssistTest : public MixxxTest {
         auto pAutoDj = std::make_unique<ControlPushButton>(ConfigKey("[AutoDJ]", "enabled"));
         pAutoDj->setButtonMode(mixxx::control::ButtonMode::Toggle);
         m_buttons.push_back(std::move(pAutoDj));
+        // After the controls it reads
+        PlayerInfo::create();
 
         m_outgoingFile = getTestDataDir().filePath(QStringLiteral("outgoing.mp3"));
         m_incomingFile = getTestDataDir().filePath(QStringLiteral("incoming.mp3"));
