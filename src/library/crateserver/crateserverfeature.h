@@ -35,6 +35,7 @@ class CrateServers;
 class LocalStemSeparator;
 class PlanClient;
 class ModelStore;
+class SetHistory;
 class SmartMixAssist;
 class StemJobs;
 class StemSync;
@@ -287,6 +288,8 @@ class CrateServerFeature : public LibraryFeature {
     /// The Smart Mix plans of each server, and Auto DJ's Crate Smart Mix,
     /// which asks them (plan F6.C-PR3).
     std::map<QString, std::unique_ptr<PlanClient>> m_planClients;
+    /// The transitions Auto DJ and the assistant played, for smart-mix-v3
+    std::unique_ptr<SetHistory> m_pSetHistory;
     std::unique_ptr<AutoDJSmartMixAdapter> m_pSmartMix;
     std::unique_ptr<SmartMixAssist> m_pAssist;
     std::unique_ptr<CrateSessionPins> m_pSessionPins;

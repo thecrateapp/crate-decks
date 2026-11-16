@@ -17,6 +17,7 @@
 #include "crate/cache/audiocache.h"
 #include "crate/client/cratecapabilities.h"
 #include "crate/smartmix/planclient.h"
+#include "crate/smartmix/sethistory.h"
 #include "crate/smartmix/smartmixdirector.h"
 #include "crate/smartmix/transitionplan.h"
 #include "library/autodj/autodjprocessor.h"
@@ -60,16 +61,17 @@ bool autoDjSmartMixOffered();
 ///   director and Auto DJ fades now itself; the director never starts early
 ///   (Diego, 2026-11-15). Once it plays, "Fade now" changes nothing.
 ///
-/// Plans are asked of `smart-mix-v3` (the stems layer only applies there),
-/// for Auto DJ's own transition time within the server's limits, with
-/// beatmatch, bass handoff and long blends as the server announces them;
-/// bass handoff only when Auto DJ's decks have the default mixing EQ on
-/// (eqmap::isDefaultEqOn()). Keylock follows the Smart Mix preference.
+/// Plans are asked of `smart-mix-v3` with its candidate menu when the server
+/// offers them, and of `smart-mix-v2` otherwise (PlanContext::forServer(),
+/// plan F6b.PR1), for Auto DJ's own transition time within the server's
+/// limits, with beatmatch, bass handoff and long blends as the server
+/// announces them; bass handoff only when Auto DJ's decks have the default
+/// mixing EQ on (eqmap::isDefaultEqOn()), and with the set history. The
+/// director plays the server's pick or the next entry of its menu that fits
+/// (TransitionPlan::playable()). Keylock follows the Smart Mix preference.
 class AutoDJSmartMixAdapter : public QObject, public AutoDJProcessor::TransitionDirector {
     Q_OBJECT
   public:
-    /// The planner Auto DJ asks.
-    static inline const QString kPlannerVersion = QStringLiteral("smart-mix-v3");
     /// The most `preferredDurationMs` the server takes (its request schema).
     static constexpr int kMaxPreferredDurationMs = PlanContext::kMaxPreferredDurationMs;
 
@@ -91,6 +93,9 @@ class AutoDJSmartMixAdapter : public QObject, public AutoDJProcessor::Transition
         std::function<PlanClient*(const QString& serverId)> planClientFor;
         /// What a server announced last.
         std::function<std::optional<Capabilities>(const QString& serverId)> capabilitiesOf;
+        /// The transitions of the set, which it records and sends; none
+        /// without it.
+        SetHistory* pSetHistory = nullptr;
         /// Whether these decks have the default mixing EQ, on.
         std::function<bool(const QStringList& deckGroups)> defaultEqOn;
         /// The director; the app's one without it.

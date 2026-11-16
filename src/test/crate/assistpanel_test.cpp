@@ -170,7 +170,9 @@ class CrateSmartMixAssistTest : public MixxxTest {
                     ? QByteArray(R"("beatmatch", "bass_handoff", "long_beatmatch")")
                     : QByteArray(R"("beatmatch")");
             const auto capabilities = crate::Capabilities::fromJson(QJsonDocument::fromJson(
-                    R"({"decks": {"available": true, "min_client_version": "0.1.0",
+                    R"({"smart_mix": {"available": true,
+                        "planner_versions": ["smart-mix-v2", "smart-mix-v3"]},
+                        "decks": {"available": true, "min_client_version": "0.1.0",
                         "contract_version": 1, "features": [)" +
                     features + "]}}"));
             return capabilities.value();
