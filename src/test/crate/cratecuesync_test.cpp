@@ -221,7 +221,7 @@ class CrateCueSyncTest : public MixxxDbTest, SoundSourceProviderRegistration {
         ASSERT_TRUE(QTest::qWaitFor([&] {
             return sentTo(QStringLiteral("POST"), kQueryPath).size() > queries;
         }));
-        sentTo(QStringLiteral("POST"), kQueryPath).last().pReply->respond(200, answer);
+        sentTo(QStringLiteral("POST"), kQueryPath).constLast().pReply->respond(200, answer);
         QCoreApplication::processEvents();
     }
 
@@ -332,7 +332,7 @@ TEST_F(CrateCueSyncTest, UploadsEditsDebounced) {
     m_scheduler.runAll();
     waitForPuts(1);
     ASSERT_EQ(1, puts().size());
-    const QJsonObject body = bodyOf(puts().first());
+    const QJsonObject body = bodyOf(puts().constFirst());
     EXPECT_EQ(0, body.value(QStringLiteral("base_revision")).toInt(-1));
     EXPECT_EQ(kInstallation, body.value(QStringLiteral("client_id")).toString());
     const QJsonArray cues = body.value(QStringLiteral("cues")).toArray();
@@ -354,7 +354,7 @@ TEST_F(CrateCueSyncTest, UploadsEditsDebounced) {
                       QStringLiteral("cues")}),
             body.keys());
 
-    puts().first().pReply->respond(
+    puts().constFirst().pReply->respond(
             200, QJsonDocument(cueSet(kUid, 1, cues, kInstallation)).toJson());
     ASSERT_TRUE(QTest::qWaitFor([this] {
         return m_pSync->revision(kServer, kUid) == 1;
@@ -364,7 +364,7 @@ TEST_F(CrateCueSyncTest, UploadsEditsDebounced) {
     pTrack->findHotcueByIndex(0)->setLabel(QStringLiteral("Drop"));
     m_scheduler.runAll();
     waitForPuts(2);
-    EXPECT_EQ(1, bodyOf(puts().last()).value(QStringLiteral("base_revision")).toInt(-1));
+    EXPECT_EQ(1, bodyOf(puts().constLast()).value(QStringLiteral("base_revision")).toInt(-1));
 }
 
 TEST_F(CrateCueSyncTest, ResolvesConflictServerWins) {
@@ -383,7 +383,7 @@ TEST_F(CrateCueSyncTest, ResolvesConflictServerWins) {
             mixxx::audio::kInvalidFramePos);
     m_scheduler.runAll();
     waitForPuts(1);
-    EXPECT_EQ(3, bodyOf(puts().first()).value(QStringLiteral("base_revision")).toInt());
+    EXPECT_EQ(3, bodyOf(puts().constFirst()).value(QStringLiteral("base_revision")).toInt());
     const QJsonObject current = cueSet(kUid,
             5,
             QJsonArray{cue(cuetype::kHotcue,
@@ -393,7 +393,7 @@ TEST_F(CrateCueSyncTest, ResolvesConflictServerWins) {
                     QStringLiteral("Theirs"))},
             kOtherInstallation,
             QStringLiteral("2026-11-16T22:05:00.000000Z"));
-    puts().first().pReply->respond(409,
+    puts().constFirst().pReply->respond(409,
             QJsonDocument(QJsonObject{{QStringLiteral("detail"),
                                               QStringLiteral("Cue set revision conflict")},
                                   {QStringLiteral("current"), current}})
@@ -434,17 +434,17 @@ TEST_F(CrateCueSyncTest, ResendsOnConflictWithAnOlderWrite) {
             QJsonArray{cue(cuetype::kHotcue, 7, 7000.0)},
             kOtherInstallation,
             QStringLiteral("2026-11-16T21:00:00Z"));
-    puts().first().pReply->respond(
+    puts().constFirst().pReply->respond(
             409, QJsonDocument(QJsonObject{{QStringLiteral("current"), current}}).toJson());
     waitForPuts(2);
-    const QJsonObject body = bodyOf(puts().last());
+    const QJsonObject body = bodyOf(puts().constLast());
     EXPECT_EQ(2, body.value(QStringLiteral("base_revision")).toInt());
     EXPECT_EQ(1, body.value(QStringLiteral("cues")).toArray().size());
     EXPECT_TRUE(replaced.isEmpty());
     ASSERT_NE(nullptr, pTrack->findHotcueByIndex(0));
     EXPECT_EQ(nullptr, pTrack->findHotcueByIndex(7));
 
-    puts().last().pReply->respond(200,
+    puts().constLast().pReply->respond(200,
             QJsonDocument(cueSet(kUid, 3, body.value(QStringLiteral("cues")).toArray()))
                     .toJson());
     ASSERT_TRUE(QTest::qWaitFor([this] {
@@ -462,7 +462,7 @@ TEST_F(CrateCueSyncTest, OutboxRetryKeepsTheSameBody) {
             mixxx::audio::kInvalidFramePos);
     m_scheduler.runAll();
     waitForPuts(1);
-    puts().first().pReply->respond(503);
+    puts().constFirst().pReply->respond(503);
     ASSERT_TRUE(QTest::qWaitFor([this] {
         return !m_outboxScheduler.tasks.isEmpty();
     }));
@@ -470,7 +470,7 @@ TEST_F(CrateCueSyncTest, OutboxRetryKeepsTheSameBody) {
     waitForPuts(2);
     // The same base revision and content: if the first one was stored, the
     // server answers 200 to this one too
-    EXPECT_EQ(puts().first().body, puts().last().body);
+    EXPECT_EQ(puts().constFirst().body, puts().constLast().body);
 }
 
 TEST_F(CrateCueSyncTest, QueriesLoadedTracksInOneBatch) {
@@ -490,11 +490,11 @@ TEST_F(CrateCueSyncTest, QueriesLoadedTracksInOneBatch) {
     }));
     ASSERT_EQ(1, sentTo(QStringLiteral("POST"), kQueryPath).size());
     EXPECT_EQ(QJsonArray({kUid, kUidB, kUidC}),
-            bodyOf(sentTo(QStringLiteral("POST"), kQueryPath).first())
+            bodyOf(sentTo(QStringLiteral("POST"), kQueryPath).constFirst())
                     .value(QStringLiteral("entity_uids"))
                     .toArray());
     sentTo(QStringLiteral("POST"), kQueryPath)
-            .first()
+            .constFirst()
             .pReply->respond(200,
                     queryAnswer({cueSet(kUidB, 1, QJsonArray{cue(cuetype::kHotcue, 3, 900.0)})},
                             {kUid, kUidC}));

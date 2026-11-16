@@ -5,6 +5,7 @@
 #include <QCoreApplication>
 #include <QEvent>
 #include <QJsonObject>
+#include <QPointer>
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <memory>
@@ -196,10 +197,8 @@ TEST_F(CrateClientTest, KeepsTheBodyOfAnErrorAnswer) {
     Reply* pReply = pClient->put(QStringLiteral("/api/decks/cues/u-1"),
             QJsonDocument(QJsonObject{{QStringLiteral("base_revision"), 1}}));
     Outcome outcome(pReply);
-    QByteArray body;
-    QObject::connect(pReply, &Reply::finished, pReply, [&body, pReply] {
-        body = pReply->body();
-    });
+    // Deleted later, once the event loop runs
+    const QPointer<Reply> pFinished(pReply);
     const QByteArray conflict = QByteArrayLiteral(
             R"({"detail": "Cue set revision conflict", "current": {"revision": 5}})");
 
@@ -209,7 +208,8 @@ TEST_F(CrateClientTest, KeepsTheBodyOfAnErrorAnswer) {
     ASSERT_FALSE(outcome.result->ok());
     EXPECT_EQ(409, outcome.result->error().httpStatus);
     EXPECT_EQ(QStringLiteral("Cue set revision conflict"), outcome.result->error().message);
-    EXPECT_EQ(conflict, body);
+    ASSERT_TRUE(pFinished);
+    EXPECT_EQ(conflict, pFinished->body());
 }
 
 TEST_F(CrateClientTest, HonoursRetryAfter) {

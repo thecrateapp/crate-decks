@@ -187,8 +187,8 @@ void CrateServers::createWriteback() {
 }
 
 bool CrateServers::serverHas(const QString& serverId, DecksFeature feature) const {
-    auto it = m_features.constFind(serverId);
-    if (it == m_features.cend()) {
+    auto it = m_features.find(serverId);
+    if (it == m_features.end()) {
         // Read once per server and answer: every load asks
         std::optional<Capabilities> parsed;
         const QByteArray json = isSaved(serverId) ? lastCapabilities(serverId) : QByteArray();

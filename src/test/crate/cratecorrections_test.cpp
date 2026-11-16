@@ -207,7 +207,7 @@ class CrateCorrectionsTest : public MixxxDbTest, SoundSourceProviderRegistration
             return !sentTo(QNetworkAccessManager::PostOperation, kQueryPath).isEmpty();
         }));
         sentTo(QNetworkAccessManager::PostOperation, kQueryPath)
-                .last()
+                .constLast()
                 .pReply->respond(200, answer);
         QCoreApplication::processEvents();
     }
@@ -264,7 +264,7 @@ TEST_F(CrateCorrectionsTest, OffersUploadAfterManualGridEdit) {
 
     ASSERT_TRUE(m_pSync->save(kServer, kUid));
     waitForPuts(1);
-    const QJsonObject body = bodyOf(puts().first());
+    const QJsonObject body = bodyOf(puts().constFirst());
     EXPECT_EQ(QStringList({QStringLiteral("base_revision"),
                       QStringLiteral("beat_grid_format"),
                       QStringLiteral("beat_grid_ms"),
@@ -284,7 +284,7 @@ TEST_F(CrateCorrectionsTest, OffersUploadAfterManualGridEdit) {
     EXPECT_TRUE(body.value(QStringLiteral("key")).isNull());
     EXPECT_FALSE(m_pSync->offer(kServer, kUid));
 
-    puts().first().pReply->respond(200,
+    puts().constFirst().pReply->respond(200,
             QJsonDocument(correction(1, 120.0, beats, QJsonValue(), kInstallation)).toJson());
     ASSERT_TRUE(QTest::qWaitFor([this] {
         return m_pSync->revision(kServer, kUid) == 1;
@@ -309,7 +309,7 @@ TEST_F(CrateCorrectionsTest, OffersTheKeyTheUserTyped) {
 
     ASSERT_TRUE(m_pSync->save(kServer, kUid));
     waitForPuts(1);
-    const QJsonObject body = bodyOf(puts().first());
+    const QJsonObject body = bodyOf(puts().constFirst());
     EXPECT_EQ(2, body.value(QStringLiteral("base_revision")).toInt());
     EXPECT_EQ(QStringLiteral("8A"), body.value(QStringLiteral("key")).toString());
     // The stored BPM stays corrected
@@ -410,7 +410,7 @@ TEST_F(CrateCorrectionsTest, ClearsTheCorrection) {
 
     ASSERT_TRUE(m_pSync->clear(kServer, kUid));
     waitForPuts(1);
-    const QJsonObject body = bodyOf(puts().first());
+    const QJsonObject body = bodyOf(puts().constFirst());
     EXPECT_EQ(3, body.value(QStringLiteral("base_revision")).toInt());
     for (const QString& value : {QStringLiteral("bpm"),
                  QStringLiteral("beat_grid_format"),
@@ -419,7 +419,7 @@ TEST_F(CrateCorrectionsTest, ClearsTheCorrection) {
         EXPECT_TRUE(body.value(value).isNull()) << value.toStdString();
     }
     EXPECT_FALSE(m_pSync->hasCorrection(kServer, kUid));
-    puts().first().pReply->respond(200,
+    puts().constFirst().pReply->respond(200,
             QJsonDocument(correction(4, QJsonValue(), QJsonValue(), QJsonValue(), kInstallation))
                     .toJson());
     ASSERT_TRUE(QTest::qWaitFor([this] {
@@ -439,7 +439,7 @@ TEST_F(CrateCorrectionsTest, ConflictAppliesTheNewerCorrection) {
     waitForPuts(1);
 
     // Another computer saved one at 22:10, after the edit here
-    puts().first().pReply->respond(409,
+    puts().constFirst().pReply->respond(409,
             QJsonDocument(QJsonObject{
                                   {QStringLiteral("detail"),
                                           QStringLiteral("Correction revision conflict")},
