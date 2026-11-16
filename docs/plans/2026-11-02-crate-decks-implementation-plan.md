@@ -1402,6 +1402,52 @@ elegido en SG3 de smart-mix-3. Activarlo por defecto en el servidor es decisión
 - **G5 aprobado (Diego, 2026-11-16):** el contrato de S7 tal como quedó en `docs/technical/crate-decks.md` del servidor (rama `feat/decks-cues`, sección "Cues and corrections (S7)"): una revisión por usuario, pista y conjunto; un `PUT` con el contenido ya guardado devuelve 200; hotcue, loop y jump comparten los slots 0–35 de Mixxx; tonalidad en Camelot; el servidor no cruza el grid con el BPM; BPM 30–300, etiquetas ≤ 200 caracteres; `contract_version` sigue en 1.
 - **Decisión:** las correcciones **sí** alimentarán Smart Mix, en F8.SM, después de F8.C-PR2.
 
+**Implementado (F8.C-PR1 y F8.C-PR2, 2026-11-16).** Rama `feat/decks-cues-sync`, sobre la integración de F5, F6b y F7 (ce39db97a5). El servidor (S7) está en la rama `feat/decks-cues` del worktree `decks-s7-cues` del monorepo (d2febe83f, "feat(decks): serve synchronised cues and corrections to Decks"), sin publicar: el stack dev, que corre `origin/main`, no tiene estas rutas, así que no hay prueba contra un servidor real. Todo es código de Crate: **ningún parche a ficheros de Mixxx**.
+
+- **Contrato comprobado en el servidor** (esquemas de `decks_cues.py`): coincide con lo aprobado en G5. Detalles que el cliente tuvo que respetar:
+  - Los cuerpos rechazan cualquier campo de más (`extra="forbid"`), así que la entrada del outbox guarda el cuerpo del `PUT` aparte (`{entity_uid, edited_at, body}`) y manda solo `body`.
+  - El 409 lleva el contenido guardado en `current`, que el cliente no podía leer: `Reply::body()` guarda ahora también el cuerpo de una respuesta de error.
+  - `client_id` es el `X-Device-Fingerprint` de la instalación, como propone el contrato; sirve para distinguir los conflictos con una escritura propia anterior.
+- **Común** (`src/crate/writeback/trackdatasync.{h,cpp}`, base de las dos sincronías):
+  - Tabla nueva `crateserver_user_sync` (`server_id`, `entity_uid`, `kind` = `cues` o `corrections`, `revision`, `baseline`, `updated_at`): la última revisión que Decks leyó o escribió de cada pista y el contenido que da por sincronizado con ella. Se lee entera al arrancar, como `crateserver_ratings`, y se escribe en un hilo propio.
+  - **Al cargar:** `CrateServerFeature::applyAnalysis` (la misma vez por ejecución que el perfil) engancha la pista a las dos sincronías. Las pistas que llegan en 100 ms van en una sola consulta (`POST …/query`, hasta 200 UIDs), por servidor.
+  - **Solo con `cues`:** `CrateServers::serverHas()` lee las últimas capacidades guardadas una vez por servidor y las cachea en memoria hasta que cambian, para no leer SQLite en cada carga.
+  - **Cambios automáticos:** lo que cambian el análisis de Crate o el de upstream no cuenta como edición: se absorbe al terminar el análisis (`Track::analyzed`), cuando se completa una importación de cues o beats que esperaba al fichero, y justo después de `AnalysisImporter::apply`.
+  - **Outbox:** dos tipos nuevos, `cue_set` y `correction` (`PUT /api/decks/{cues|corrections}/{uid}`). Un reintento repite el mismo cuerpo y la misma `base_revision`, que el servidor contesta con 200 si el primero llegó a guardarse. Un 409 saca la entrada del outbox por la señal `conflicted()`, con `current`; `delivered()` lleva ahora la respuesta, de la que sale la revisión nueva.
+  - **Conflictos** (regla de F8.C-PR1, para las dos): gana el servidor si `current` lo escribió otra instalación (`client_id` distinto) y su `updated_at` es posterior a la edición de aquí (`edited_at`, con el reloj local). Entonces se aplica a la pista y se avisa con el aviso no modal de F7 (`showWarning`). Si no, la edición se manda otra vez sobre `current.revision`. Si la pista ya no está en memoria, no se toca la revisión y la siguiente carga aplica la del servidor.
+- **F8.C-PR1 · Cues** (`cuemapping.{h,cpp}`, `cratecuesync.{h,cpp}`):
+  - **Mapeo:** `main` es el cue principal; `intro` y `outro`, sus rangos con inicio o fin opcionales; `hotcue`, `loop` y `jump` son hot cues de upstream con su índice como `slot` (0–35). El `jump` guarda destino y origen tal como upstream (`start_ms` = posición, `end_ms` = fin). Tiempos en ms redondeados a 0,001, como el servidor; color `#rrggbb` en minúsculas; etiqueta en blanco = sin etiqueta y recortada a 200 caracteres.
+  - **Lo que el contrato no expresa se queda fuera:** N60dBSound (el análisis de silencio de upstream), el tipo Beat, el bucle temporal (un loop sin hot cue), los hot cues por encima del 35, los tiempos fuera de 0–24 h y los cues que rompen las reglas de su tipo. Color y etiqueta solo se mandan para `hotcue`, `loop` y `jump`: upstream no los muestra en los demás.
+  - **Al cargar**, si la revisión del servidor es más nueva que la sincronizada, su conjunto sustituye al de la pista. Los slots 0–35 son solo suyos; main, intro y outro solo se sustituyen si el conjunto los trae, porque Decks y upstream los colocan solos. El perfil nunca reemplaza un cue de un tipo que la pista ya tiene, así que el del usuario tiene prioridad en cualquier orden de llegada.
+  - **Al editar**, con debounce de 2 s, el conjunto entero va por el outbox.
+  - **Primera vez:** una pista nunca sincronizada toma como base sus cues automáticos (main, intro y outro). Por eso solo se suben los hot cues que el usuario ya tenía o pone, no el análisis.
+  - **Al cerrar**, las ediciones que esperan su debounce pasan al outbox, que las guarda para el siguiente arranque.
+- **F8.C-PR2 · Correcciones** (`cratecorrections.{h,cpp}`):
+  - **Al cargar:** una corrección más nueva que la sincronizada se aplica sobre el perfil. El grid queda con el BPM bloqueado y la sub-versión `crate-user-correction`, que `AnalysisImporter` no reemplaza (solo reemplaza su propio grid `crate-mix-profile-*`). La tonalidad entra con origen `USER`, y `AnalysisImporter` ya **no reemplaza una tonalidad del usuario**, tampoco una puesta a mano en Decks.
+  - **Qué es una corrección:** un cambio del grid fuera del análisis (que exige desbloquear el BPM) o una tonalidad con origen `USER`. Las tonalidades de las etiquetas o del análisis no cuentan. No se manda sola: tras 2 s sin cambios se ofrece.
+  - **Interfaz (la menos intrusiva):** "Save correction to Crate" en el menú de pista de las tablas Crate, solo con una pista seleccionada y solo cuando hay algo que guardar. "Clear correction on Crate" aparece si el servidor tiene una. Nada de diálogos durante una sesión. Señal `correctionOffered` para una futura indicación en la skin.
+  - **Guardar** manda la corrección guardada con los valores corregidos aquí: corregir solo la tonalidad conserva el BPM y el grid que ya había.
+  - **Grid:** `delta-ms-v1` con cada beat desde el inicio del fichero hasta el final de la pista, en ms enteros, estrictamente creciente, el primero > 0 y como mucho 100.000 beats. Al aplicarlo, un grid constante con 2 ms de margen vuelve a ser un grid constante (con el BPM de la corrección si lo trae); si no, un mapa de beats. Un BPM sin grid conserva el primer beat de la pista.
+  - **Borrar** manda una corrección sin valores. La pista de este equipo conserva su grid y su tonalidad.
+- **Diferencias con el plan:**
+  - Las cues del servidor se aplican con un solo `Track::setCuePoints`, no con `createAndAddCue` por cue: un único cambio y una sola señal, con etiqueta y color.
+  - Las correcciones van también por el outbox (el plan solo lo decía de las cues).
+  - "Guardar corrección en Crate" es una entrada del menú de pista, no un aviso.
+  - La tabla `crateserver_user_sync` es común a cues y correcciones.
+  - El cambio en `AnalysisImporter` (no tocar una tonalidad `USER`) afecta también a las tonalidades puestas a mano antes de F8.
+- **Tests:**
+  - `cratecuesync_test.cpp` (9): los tres del plan, `ResendsOnConflictWithAnOlderWrite`, `OutboxRetryKeepsTheSameBody`, `QueriesLoadedTracksInOneBatch`, `SyncsOnlyWithTheCuesFeature`, `KeepsTheRevisionAcrossRestarts` y `MapsCuesBothWays` (ida y vuelta, y lo que se queda fuera).
+  - `cratecorrections_test.cpp` (6): los dos del plan, `OffersTheKeyTheUserTyped`, `EncodesTheGridAsDeltaMsV1`, `ClearsTheCorrection` y `ConflictAppliesTheNewerCorrection`.
+  - Además: `CrateServerSchemaTest.CreatesTheUserSyncTableIdempotently`, `CrateServersTest.SyncsCuesWithServersThatServeThem`, `CrateServerFeatureTest.TrackMenuClearsTheCorrectionOnCrate`, `CrateClientTest.KeepsTheBodyOfAnErrorAnswer` y `AnalysisImporterTest.KeepsTheKeyTheUserSet`.
+  - `TEST_GAP`: el aviso de conflicto (`showWarning`) necesita la ventana abierta. "Save correction to Crate" desde el menú no tiene test de integración; su lógica está en `OffersUploadAfterManualGridEdit`.
+- **Preguntas abiertas para Diego:**
+  1. **"Más reciente" usa el reloj local de la edición contra el `updated_at` del servidor.** Con relojes desajustados puede ganar el lado equivocado. ¿Vale, o el servidor debería devolver su hora en cada respuesta?
+  2. **Primera sincronización con hot cues en los dos lados:** los locales se sustituyen por los del servidor (con aviso), sin fusión por slots libres. ¿Fusionar?
+  3. **Un conjunto sin main, intro u outro** no borra los de la pista, porque los vuelven a poner el perfil o upstream. Por eso borrar el intro en un equipo no se propaga. ¿Correcto?
+  4. **La oferta de corrección solo se ve en el menú de las tablas Crate.** Una pista cargada desde Auto DJ o desde la biblioteca de upstream no tiene ese menú sin parchear `WTrackMenu`. ¿Basta, o se añade un control mapeable (como `like_on_air`) o una indicación en la skin (V3)?
+  5. **Borrar la corrección** deja el grid bloqueado en este equipo. ¿Debería desbloquearlo y volver a aplicar el perfil?
+- **Pendiente:** probar contra el stack dev cuando lleve S7.
+
 ### F8.SM · Correcciones en Smart Mix
 
 - **Servidor:** el planner (plans y menú v3) usa la corrección del usuario (BPM, grid, tonalidad) por encima del perfil, solo para los planes de ese usuario. Los perfiles compartidos no cambian. Un lote, sin N+1: las correcciones de las pistas del plan en una consulta.
