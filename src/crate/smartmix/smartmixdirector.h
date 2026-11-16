@@ -11,6 +11,7 @@
 #include "preferences/configobject.h"
 
 class ControlProxy;
+class PlayerInfo;
 
 namespace crate {
 
@@ -32,8 +33,9 @@ class SmartMixEnvironment {
     /// empty without one.
     virtual QString trackKey(const QString& group) const = 0;
 
-    /// The app's: a steady clock, VisualPlayPosition and PlayerInfo.
-    static std::unique_ptr<SmartMixEnvironment> engine();
+    /// The app's: a steady clock, VisualPlayPosition and the decks' tracks
+    /// of `playerInfo`, which must outlive it.
+    static std::unique_ptr<SmartMixEnvironment> engine(PlayerInfo& playerInfo);
 };
 
 /// Options of SmartMixDirector::arm().
@@ -142,8 +144,9 @@ class SmartMixDirector : public QObject {
     /// predicted when the plan arrived.
     static constexpr double kCueDeadlineMarginMs = 5000.0;
 
-    /// The app's director: engine positions, a steady clock and its timers.
-    explicit SmartMixDirector(QObject* pParent = nullptr);
+    /// The app's director: engine positions, a steady clock, its timers and
+    /// the decks' tracks of `playerInfo`, which must outlive it.
+    explicit SmartMixDirector(PlayerInfo& playerInfo, QObject* pParent = nullptr);
     /// A director on another environment; it starts no timers, so the caller
     /// calls tick() (tests).
     explicit SmartMixDirector(

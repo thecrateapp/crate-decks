@@ -45,9 +45,10 @@ SmartMixAssist::SmartMixAssist(Options options, QObject* pParent)
           m_options(std::move(options)),
           m_pPlayerInfo(m_options.pPlayerInfo ? m_options.pPlayerInfo : &PlayerInfo::instance()),
           m_pEnvironment(m_options.pEnvironment ? std::move(m_options.pEnvironment)
-                                                : SmartMixEnvironment::engine()),
-          m_pDirector(m_options.pDirector ? std::move(m_options.pDirector)
-                                          : std::make_unique<SmartMixDirector>()) {
+                                                : SmartMixEnvironment::engine(*m_pPlayerInfo)),
+          m_pDirector(m_options.pDirector
+                          ? std::move(m_options.pDirector)
+                          : std::make_unique<SmartMixDirector>(*m_pPlayerInfo)) {
     if (m_options.mappable) {
         const auto button = [this](const QString& item, std::function<void()> action) {
             auto pButton = std::make_unique<ControlPushButton>(ConfigKey(kControlGroup, item));

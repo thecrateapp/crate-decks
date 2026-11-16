@@ -32,7 +32,8 @@ constexpr int kCrossfaderBisections = 32;
 
 class EngineEnvironment : public SmartMixEnvironment {
   public:
-    EngineEnvironment() {
+    explicit EngineEnvironment(PlayerInfo& playerInfo)
+            : m_playerInfo(playerInfo) {
         m_clock.start();
     }
 
@@ -45,7 +46,7 @@ class EngineEnvironment : public SmartMixEnvironment {
     }
 
     QString trackKey(const QString& group) const override {
-        const TrackPointer pTrack = PlayerInfo::instance().getTrackInfo(group);
+        const TrackPointer pTrack = m_playerInfo.getTrackInfo(group);
         if (!pTrack) {
             return {};
         }
@@ -57,6 +58,7 @@ class EngineEnvironment : public SmartMixEnvironment {
     }
 
   private:
+    PlayerInfo& m_playerInfo;
     QElapsedTimer m_clock;
 };
 
@@ -66,8 +68,8 @@ QString reasonOf(const TransitionPlan& plan) {
 
 } // namespace
 
-std::unique_ptr<SmartMixEnvironment> SmartMixEnvironment::engine() {
-    return std::make_unique<EngineEnvironment>();
+std::unique_ptr<SmartMixEnvironment> SmartMixEnvironment::engine(PlayerInfo& playerInfo) {
+    return std::make_unique<EngineEnvironment>(playerInfo);
 }
 
 /// The controls of one deck. The automated ones (pregain, the bass EQ and,
@@ -251,9 +253,9 @@ struct SmartMixDirector::TempoRestore {
     double startMs = 0.0;
 };
 
-SmartMixDirector::SmartMixDirector(QObject* pParent)
+SmartMixDirector::SmartMixDirector(PlayerInfo& playerInfo, QObject* pParent)
         : QObject(pParent),
-          m_pEnvironment(SmartMixEnvironment::engine()),
+          m_pEnvironment(SmartMixEnvironment::engine(playerInfo)),
           m_ownTimers(true) {
     m_timer.setTimerType(Qt::PreciseTimer);
     m_timer.setInterval(kTickMs);

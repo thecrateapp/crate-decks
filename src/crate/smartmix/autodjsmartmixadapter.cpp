@@ -78,8 +78,9 @@ AutoDJSmartMixAdapter::AutoDJSmartMixAdapter(Options options, QObject* pParent)
         : QObject(pParent),
           m_options(std::move(options)),
           m_pPlayerInfo(m_options.pPlayerInfo ? m_options.pPlayerInfo : &PlayerInfo::instance()),
-          m_pDirector(m_options.pDirector ? std::move(m_options.pDirector)
-                                          : std::make_unique<SmartMixDirector>()) {
+          m_pDirector(m_options.pDirector
+                          ? std::move(m_options.pDirector)
+                          : std::make_unique<SmartMixDirector>(*m_pPlayerInfo)) {
     m_pool.setMaxThreadCount(1);
     m_settleTimer.setSingleShot(true);
     m_settleTimer.setInterval(m_options.settleTime);
