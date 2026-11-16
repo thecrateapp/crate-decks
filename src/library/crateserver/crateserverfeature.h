@@ -29,6 +29,14 @@ class WLibrary;
 class WLibrarySidebar;
 
 namespace crate {
+namespace recs {
+class Compatibles;
+class CompatiblesModel;
+class CompatiblesView;
+} // namespace recs
+namespace widgets {
+class CamelotWheelModel;
+} // namespace widgets
 class AssistPanel;
 class AutoDJSmartMixAdapter;
 class CrateServers;
@@ -103,6 +111,8 @@ class CrateServerFeature : public LibraryFeature {
     static const QString kCacheViewName;
     /// The name of the Smart Mix assistant's view (AssistPanel).
     static const QString kSmartMixViewName;
+    /// The name of the Compatibles view (plan F5.C-PR1).
+    static const QString kCompatiblesViewName;
     /// `[CrateDecks],show_smart_mix`: the CrateDecks skin's toolbar button,
     /// on while the assistant shows. Declared by the skin's manifest.
     static const ConfigKey& showSmartMixKey();
@@ -114,6 +124,11 @@ class CrateServerFeature : public LibraryFeature {
     /// What the cache's view shows.
     CacheStatusModel* cacheStatus() const {
         return m_pCacheStatus;
+    }
+    /// The Compatibles view's logic, which follows the master deck or the
+    /// selection.
+    recs::Compatibles* compatibles() const {
+        return m_pCompatibles.get();
     }
 
     void activate() override;
@@ -179,6 +194,7 @@ class CrateServerFeature : public LibraryFeature {
             Section,
             Container,
             SmartMix,
+            Compatibles,
             Cache,
         };
         Kind kind = Kind::None;
@@ -255,6 +271,10 @@ class CrateServerFeature : public LibraryFeature {
     void onShowSmartMix(double value);
     void onLibraryViewChanged();
     TreeItem* smartMixItem() const;
+    void showCompatibles();
+    /// Follows the selection of the library's track table while it shows a
+    /// Crate list, uncached tracks too, for the Compatibles view.
+    void watchSelection();
 
     const Dependencies m_dependencies;
     QPointer<CrateServers> m_pServers;
@@ -298,7 +318,13 @@ class CrateServerFeature : public LibraryFeature {
     std::unique_ptr<StemJobs> m_pStemJobs;
     /// Servers whose capabilities let this account upload stem analyses.
     QSet<QString> m_stemUploads;
+    /// The Compatibles view (plan F5.C-PR1).
+    parented_ptr<recs::CompatiblesModel> m_pCompatiblesModel;
     parented_ptr<CacheStatusModel> m_pCacheStatus;
+    std::unique_ptr<recs::Compatibles> m_pCompatibles;
+    std::unique_ptr<widgets::CamelotWheelModel> m_pWheelModel;
+    QPointer<recs::CompatiblesView> m_pCompatiblesView;
+    QMetaObject::Connection m_selectionConnection;
     QThreadPool m_pool;
 };
 

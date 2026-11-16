@@ -4,6 +4,7 @@
 
 #include <QAction>
 #include <QElapsedTimer>
+#include <QFile>
 #include <QFileInfo>
 #include <QIcon>
 #include <QItemSelectionModel>
@@ -29,6 +30,8 @@
 #include "crate/library/cratelibrarystore.h"
 #include "crate/library/crateloadcoordinator.h"
 #include "crate/library/crateprefetcher.h"
+#include "crate/recs/compatiblesmodel.h"
+#include "crate/recs/compatiblesview.h"
 #include "crate/smartmix/assistpanel.h"
 #include "crate/smartmix/smartmixassist.h"
 #include "crate/ui/cachestatusmodel.h"
@@ -327,14 +330,16 @@ TEST_F(CrateServerFeatureTest, SidebarShowsServerAndSections) {
                       QStringLiteral("Crates (1)"),
                       QStringLiteral("Genres"),
                       QStringLiteral("Likes (2)"),
+                      QStringLiteral("Compatibles"),
                       QStringLiteral("Smart Mix"),
                       QStringLiteral("Cache")}),
             labels(root()));
     // Their Solar icons, by name, for the CrateDecks sidebar
     EXPECT_EQ(QStringLiteral("crate-library"), root()->child(0)->getIcon().name());
     EXPECT_EQ(QStringLiteral("crate-likes"), root()->child(4)->getIcon().name());
-    EXPECT_EQ(QStringLiteral("crate-smartmix"), root()->child(5)->getIcon().name());
-    EXPECT_EQ(QStringLiteral("crate-cache"), root()->child(6)->getIcon().name());
+    EXPECT_EQ(QStringLiteral("crate-compatibles"), root()->child(5)->getIcon().name());
+    EXPECT_EQ(QStringLiteral("crate-smartmix"), root()->child(6)->getIcon().name());
+    EXPECT_EQ(QStringLiteral("crate-cache"), root()->child(7)->getIcon().name());
     // The server's order, and its count when there is one
     EXPECT_EQ(QStringList({QStringLiteral("Peak hour"), QStringLiteral("Warm-up (52)")}),
             labels(root()->child(1)));
@@ -617,7 +622,7 @@ TEST_F(CrateServerFeatureTest, ReadsASmartMixPlaylistByItsIdOnTheServer) {
             {remoteTrack(QStringLiteral("e1"), QStringLiteral("Lattice"), 0.7, QString()),
                     remoteTrack(QStringLiteral("e2"), QStringLiteral("Glass"), 0.5, QString())});
     CrateServerFeature* pFeature = makeFeature();
-    ASSERT_TRUE(QTest::qWaitFor([&] { return labels(root()).size() == 7; }, 5000));
+    ASSERT_TRUE(QTest::qWaitFor([&] { return labels(root()).size() == 8; }, 5000));
     const qsizetype sent = m_network.sent.size();
 
     std::optional<std::optional<QList<crate::library::CrateTrackRef>>> read;
@@ -823,6 +828,7 @@ TEST_F(CrateServerFeatureTest, LazyExpansionFetchesOnce) {
     EXPECT_EQ(QStringList({QStringLiteral("Library"),
                       QStringLiteral("Playlists"),
                       QStringLiteral("Crates"),
+                      QStringLiteral("Compatibles"),
                       QStringLiteral("Smart Mix"),
                       QStringLiteral("Cache")}),
             labels(root()));
@@ -835,7 +841,7 @@ TEST_F(CrateServerFeatureTest, LazyExpansionFetchesOnce) {
     const QString tree = QStringLiteral("/api/decks/containers");
     ASSERT_TRUE(QTest::qWaitFor([&] { return sentTo(tree) == 1; }, 5000));
     lastTo(tree)->pReply->respond(200, kTree);
-    ASSERT_TRUE(QTest::qWaitFor([&] { return labels(root()).size() == 7; }, 5000));
+    ASSERT_TRUE(QTest::qWaitFor([&] { return labels(root()).size() == 8; }, 5000));
     EXPECT_EQ(QStringLiteral("Library (136512)"), root()->child(0)->getLabel());
     pPlaylists = childLabelled(root(), QStringLiteral("Playlists"));
     EXPECT_EQ(QStringLiteral("Playlists (2)"), pPlaylists->getLabel());
@@ -955,7 +961,7 @@ TEST_F(CrateServerFeatureTest, SearchInTheCrateSectionAsksTheServer) {
     EXPECT_EQ(QStringLiteral("bpm:120-128 key:8A"), pResults->currentSearch());
     // Not a sidebar node
     EXPECT_EQ(2, labels(childLabelled(root(), QStringLiteral("Playlists"))).size());
-    EXPECT_EQ(7, labels(root()).size());
+    EXPECT_EQ(8, labels(root()).size());
 
     // Clearing the search shows the playlist again, unfiltered
     pResults->search(QString());
@@ -1055,6 +1061,54 @@ TEST_F(CrateServerFeatureTest, SmartMixShowsTheAssistant) {
     EXPECT_EQ(1.0, showSmartMix.get());
     pFeature->activateChild(indexOf(childLabelled(root(), QStringLiteral("Cache"))));
     EXPECT_EQ(0.0, showSmartMix.get());
+}
+
+// The Compatibles item (plan F5.C-PR1) shows the Compatibles view, which
+// follows the deck on air from the start
+TEST_F(CrateServerFeatureTest, CompatiblesFollowTheDeckOnAir) {
+    storeTree();
+    PlayerInfo* pPlayerInfo = createPlayerInfo();
+    CrateServerFeature* pFeature = makeFeature(pPlayerInfo);
+    ASSERT_NE(nullptr, pFeature->compatibles());
+    WLibrary library(nullptr);
+    pFeature->bindLibraryWidget(&library, nullptr);
+    QObject::connect(pFeature, &LibraryFeature::switchToView, &library, &WLibrary::switchToView);
+    auto* pView = library.findChild<crate::recs::CompatiblesView*>();
+    ASSERT_NE(nullptr, pView);
+    EXPECT_FALSE(pView->hint()->isHidden());
+
+    TreeItem* pItem = childLabelled(root(), QStringLiteral("Compatibles"));
+    ASSERT_NE(nullptr, pItem);
+    QSignalSpy searchDisabled(pFeature, &LibraryFeature::disableSearch);
+    pFeature->activateChild(indexOf(pItem));
+    EXPECT_EQ(pView, library.currentWidget());
+    EXPECT_EQ(1, searchDisabled.size());
+
+    // A cached Crate track goes on air
+    crate::cache::AudioCache* pAudioCache = m_pServers->audioCache();
+    ASSERT_TRUE(QTest::qWaitFor([&] { return pAudioCache->isLoaded(); }, 5000));
+    const QString uid = QStringLiteral("afe794ee-23ea-53d3-8280-ff633310da60");
+    emit pPlayerInfo->currentPlayingTrackChanged(Track::newTemporary(cachedPathOf(uid)));
+    const QString path = QStringLiteral("/api/tracks/by-entity/%1/compatible").arg(uid);
+    ASSERT_TRUE(QTest::qWaitFor([&] { return sentTo(path) == 1; }, 5000));
+    QFile answer(getTestDir().filePath(QStringLiteral("crate/data/recs/real-compatibles.json")));
+    ASSERT_TRUE(answer.open(QIODevice::ReadOnly));
+    lastTo(path)->pReply->respond(200, answer.readAll());
+    ASSERT_TRUE(QTest::qWaitFor(
+            [&] {
+                return pFeature->compatibles()->state() == crate::recs::Compatibles::State::Ready;
+            },
+            5000));
+    EXPECT_TRUE(pView->hint()->isHidden());
+    EXPECT_EQ(8, pFeature->compatibles()->model()->rowCount());
+    // The five best download ahead, as the preference says by default
+    ASSERT_TRUE(QTest::qWaitFor(
+            [&] {
+                return sentTo(QStringLiteral("/api/tracks/by-entity/"
+                                             "8e618027-6f6d-57c5-9769-f73a02b14d54/stream")) ==
+                        1;
+            },
+            5000));
 }
 
 TEST_F(CrateServerFeatureTest, CacheItemShowsTheCacheView) {
