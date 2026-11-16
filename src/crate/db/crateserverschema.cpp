@@ -106,7 +106,10 @@ const QStringList kAnalysisStatements = {
 // order they were made (`rowid`): `id` is a random UUID, `kind` says which
 // request the entry is (`play_event`, `like`, `unlike` or `rate`),
 // `payload` is its JSON object and `created_at` an ISO 8601 UTC time, from
-// which an entry expires after seven days.
+// which an entry expires after seven days. `crateserver_ratings` holds the
+// last rating (0-5) crate::writeback::CrateRatings queued for each Crate
+// track, so that only a change is sent (F7.C-PR2); `entity_uid` is
+// lowercase.
 const QStringList kWritebackStatements = {
         QStringLiteral("CREATE TABLE IF NOT EXISTS crateserver_outbox ("
                        "id TEXT PRIMARY KEY NOT NULL, "
@@ -114,6 +117,12 @@ const QStringList kWritebackStatements = {
                        "kind TEXT NOT NULL, "
                        "payload TEXT NOT NULL, "
                        "created_at TEXT NOT NULL)"),
+        QStringLiteral("CREATE TABLE IF NOT EXISTS crateserver_ratings ("
+                       "server_id TEXT NOT NULL, "
+                       "entity_uid TEXT NOT NULL, "
+                       "rating INTEGER NOT NULL, "
+                       "sent_at TEXT NOT NULL, "
+                       "PRIMARY KEY (server_id, entity_uid))"),
 };
 
 // Each statement must be idempotent: they run at every start.

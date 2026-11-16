@@ -258,4 +258,25 @@ TEST_F(CrateServerSchemaTest, CreatesTheOutboxTableIdempotently) {
     EXPECT_EQ(1, count.value(0).toInt());
 }
 
+TEST_F(CrateServerSchemaTest, CreatesTheRatingsTableIdempotently) {
+    ASSERT_TRUE(crate::db::createCrateServerSchema(dbConnection()));
+    QSqlQuery insert(dbConnection());
+    ASSERT_TRUE(insert.exec(QStringLiteral(
+            "INSERT INTO crateserver_ratings (server_id, entity_uid, rating, sent_at) "
+            "VALUES ('5b0c', 'e1', 4, '2026-11-16T10:00:00.000Z')")));
+
+    ASSERT_TRUE(crate::db::createCrateServerSchema(dbConnection()));
+
+    // Plan F7.C-PR2: the last rating sent of each track
+    EXPECT_EQ(QStringList({QStringLiteral("server_id"),
+                      QStringLiteral("entity_uid"),
+                      QStringLiteral("rating"),
+                      QStringLiteral("sent_at")}),
+            columns(QStringLiteral("crateserver_ratings")));
+    QSqlQuery duplicate(dbConnection());
+    EXPECT_FALSE(duplicate.exec(QStringLiteral(
+            "INSERT INTO crateserver_ratings (server_id, entity_uid, rating, sent_at) "
+            "VALUES ('5b0c', 'e1', 2, '2026-11-16T10:00:00.000Z')")));
+}
+
 } // namespace

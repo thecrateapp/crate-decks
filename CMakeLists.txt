@@ -5465,6 +5465,8 @@ if(CRATE)
       src/crate/ui/widgets/levelring.cpp
       src/crate/ui/widgets/transitionplanview.cpp
       src/crate/ui/widgets/transitionplanviewmodel.cpp
+      src/crate/writeback/cratelikes.cpp
+      src/crate/writeback/crateratings.cpp
       src/crate/writeback/historyreporter.cpp
       src/crate/writeback/outbox.cpp
       src/library/crateserver/crateserverfeature.cpp
@@ -5491,6 +5493,7 @@ if(CRATE)
         src/test/crate/cratepathsource_test.cpp
         src/test/crate/crateradiosource_test.cpp
         src/test/crate/recommendationqueue_test.cpp
+        src/test/crate/cratelikes_test.cpp
         src/test/crate/historyreporter_test.cpp
         src/test/crate/outbox_test.cpp
         src/test/crate/crateeventsubscriber_test.cpp

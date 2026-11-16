@@ -56,6 +56,8 @@ class CrateServerTrackModel : public QAbstractTableModel, public TrackModel {
         kBitrateColumn,
         kFileTypeColumn,
         kSampleRateColumn,
+        /// Whether the user likes the track on Crate (plan F7.C-PR2).
+        kLikedColumn,
         kColumnCount,
     };
 
@@ -74,6 +76,7 @@ class CrateServerTrackModel : public QAbstractTableModel, public TrackModel {
     static const QString kEnergyField;
     static const QString kProfileField;
     static const QString kCacheField;
+    static const QString kLikedField;
 
     CrateServerTrackModel(Source source,
             const QSqlDatabase& database,
@@ -198,6 +201,15 @@ class CrateServerTrackModel : public QAbstractTableModel, public TrackModel {
         m_menuActions = std::move(actions);
     }
 
+    /// Whether the user likes a track, for the Liked column; without one,
+    /// the column is empty.
+    using LikedOf = std::function<bool(const QString& serverId, const QString& entityUid)>;
+    void setLikedOf(LikedOf likedOf) {
+        m_likedOf = std::move(likedOf);
+    }
+    /// The likes of `serverId` changed: the Liked column repaints.
+    void likesChanged(const QString& serverId);
+
   signals:
     /// New rows are in.
     void loaded();
@@ -272,6 +284,7 @@ class CrateServerTrackModel : public QAbstractTableModel, public TrackModel {
     QVector<Row> m_memoryRows;
     QString m_memoryKey;
     MenuActions m_menuActions;
+    LikedOf m_likedOf;
     /// modelKey() of the rows shown.
     QString m_rowsKey;
     QPointer<CrateLoadCoordinator> m_pCoordinator;

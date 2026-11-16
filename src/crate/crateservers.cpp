@@ -18,6 +18,8 @@
 #include "crate/db/crateserverschema.h"
 #include "crate/session/cratesecretstore.h"
 #include "crate/stems/stemsidecar.h"
+#include "crate/writeback/cratelikes.h"
+#include "crate/writeback/crateratings.h"
 #include "crate/writeback/historyreporter.h"
 #include "crate/writeback/outbox.h"
 #include "util/db/dbconnectionpooled.h"
@@ -68,6 +70,8 @@ CrateServers::~CrateServers() {
     // The track on air gets its play event, which the outbox stores for the
     // next run
     m_pHistory.reset();
+    m_pRatings.reset();
+    m_pLikes.reset();
     m_pOutbox.reset();
     // The cache's downloads use the Clients.
     m_pAudioCache.reset();
@@ -102,6 +106,7 @@ void CrateServers::start() {
         createServer(profile, true)->pSession->restore();
     }
     m_pOutbox->start();
+    m_pRatings->start();
     emit serversChanged();
 }
 
@@ -130,9 +135,11 @@ void CrateServers::createWriteback() {
 
     writeback::HistoryReporter::Options history;
     history.pOutbox = m_pOutbox.get();
-    history.trackOfFile = [this](const QString& location) -> std::optional<cache::TrackKey> {
+    // A Crate track is one whose file is in the audio cache
+    const auto trackOfFile = [this](const QString& location) -> std::optional<cache::TrackKey> {
         return m_pAudioCache ? m_pAudioCache->trackOfFile(location) : std::nullopt;
     };
+    history.trackOfFile = trackOfFile;
     history.clientFor = [this](const QString& serverId) -> Client* {
         const Session* pSession = session(serverId);
         return pSession && pSession->state() == Session::State::SignedIn ? client(serverId)
@@ -140,6 +147,14 @@ void CrateServers::createWriteback() {
     };
     history.minimumPlayed = std::chrono::seconds(m_pPreferences->historyMinimumSeconds());
     m_pHistory = std::make_unique<writeback::HistoryReporter>(std::move(history));
+
+    m_pLikes = std::make_unique<writeback::CrateLikes>(
+            writeback::CrateLikes::Options{m_pOutbox.get(), m_dependencies.pDbConnectionPool});
+    writeback::CrateRatings::Options ratings;
+    ratings.pOutbox = m_pOutbox.get();
+    ratings.pDbConnectionPool = m_dependencies.pDbConnectionPool;
+    ratings.trackOfFile = trackOfFile;
+    m_pRatings = std::make_unique<writeback::CrateRatings>(std::move(ratings));
 }
 
 QList<Session*> CrateServers::sessions() const {

@@ -30,6 +30,8 @@ class AudioCache;
 } // namespace cache
 
 namespace writeback {
+class CrateLikes;
+class CrateRatings;
 class HistoryReporter;
 class Outbox;
 } // namespace writeback
@@ -119,6 +121,15 @@ class CrateServers : public QObject {
     writeback::HistoryReporter* historyReporter() const {
         return m_pHistory.get();
     }
+    /// The tracks the user likes on each server, and the likes Decks sends.
+    writeback::CrateLikes* likes() const {
+        return m_pLikes.get();
+    }
+    /// Sends the ratings of Crate tracks. The library connects it to
+    /// TrackCollection::tracksChanged.
+    writeback::CrateRatings* ratings() const {
+        return m_pRatings.get();
+    }
 
     /// Whether a server with this origin is kept or being added.
     bool hasOrigin(const QUrl& origin) const;
@@ -150,6 +161,8 @@ class CrateServers : public QObject {
     std::unique_ptr<cache::AudioCache> m_pAudioCache;
     std::unique_ptr<writeback::Outbox> m_pOutbox;
     std::unique_ptr<writeback::HistoryReporter> m_pHistory;
+    std::unique_ptr<writeback::CrateLikes> m_pLikes;
+    std::unique_ptr<writeback::CrateRatings> m_pRatings;
 };
 
 } // namespace crate

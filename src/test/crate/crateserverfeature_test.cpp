@@ -37,6 +37,7 @@
 #include "crate/smartmix/smartmixassist.h"
 #include "crate/ui/cachestatusmodel.h"
 #include "crate/ui/delegates/delegateroles.h"
+#include "crate/writeback/outbox.h"
 #include "library/crateserver/crateservertrackmodel.h"
 #include "library/dao/playlistdao.h"
 #include "library/dao/trackschema.h"
@@ -1204,6 +1205,52 @@ TEST_F(CrateServerFeatureTest, MusicPathNeedsTwoEnds) {
     QAction* pOne = pathAction({pModel->index(0, 0)});
     ASSERT_NE(nullptr, pOne);
     EXPECT_FALSE(pOne->isEnabled());
+}
+
+// The track menu likes a track on Crate, which the Liked column shows at once
+// (plan F7.C-PR2)
+TEST_F(CrateServerFeatureTest, LikeFromTheTrackMenuShowsInTheLikedColumn) {
+    storeTree();
+    storeContainerTracks(containerId(QStringLiteral("playlist"), QStringLiteral("7")),
+            {remoteTrack(QStringLiteral("e1"), QStringLiteral("Lattice"), 0.7, QString())});
+    CrateServerFeature* pFeature = makeFeature();
+    CrateServerTrackModel* pModel = showWarmUp(pFeature);
+    ASSERT_NE(nullptr, pModel);
+    ASSERT_TRUE(QTest::qWaitFor([&] { return pModel->rowCount() == 1; }, 5000));
+    ASSERT_TRUE(QTest::qWaitFor([&] { return m_pServers->outbox()->isLoaded(); }, 5000));
+    const int liked = pModel->fieldIndex(CrateServerTrackModel::kLikedField);
+    ASSERT_EQ(CrateServerTrackModel::kLikedColumn, liked);
+    EXPECT_EQ(QStringLiteral("Liked"), pModel->headerData(liked, Qt::Horizontal).toString());
+    EXPECT_TRUE(pModel->index(0, liked).data().toString().isEmpty());
+    QObject parent;
+    const auto entry = [&](const QString& text) -> QAction* {
+        const QList<QAction*> actions = pModel->trackMenuActions({pModel->index(0, 0)}, &parent);
+        const auto it = std::find_if(actions.cbegin(), actions.cend(), [&](const QAction* pAction) {
+            return pAction->text() == text;
+        });
+        return it == actions.cend() ? nullptr : *it;
+    };
+    QAction* pLike = entry(QStringLiteral("Like"));
+    ASSERT_NE(nullptr, pLike);
+    QSignalSpy repainted(pModel, &QAbstractItemModel::dataChanged);
+
+    pLike->trigger();
+
+    const QString path = QStringLiteral("/api/me/likes");
+    ASSERT_TRUE(QTest::qWaitFor([&] { return sentTo(path) == 1; }, 5000));
+    EXPECT_EQ(QStringLiteral("e1"),
+            QJsonDocument::fromJson(lastTo(path)->body)
+                    .object()
+                    .value(QStringLiteral("track_entity_uid"))
+                    .toString());
+    EXPECT_FALSE(repainted.isEmpty());
+    EXPECT_EQ(QStringLiteral("Liked"), pModel->index(0, liked).data().toString());
+    EXPECT_EQ(nullptr, entry(QStringLiteral("Like")));
+    EXPECT_NE(nullptr, entry(QStringLiteral("Unlike")));
+
+    // Nothing of Crate on air: the mapping's control does nothing
+    EXPECT_FALSE(pFeature->toggleLikeOnAir());
+    EXPECT_TRUE(ControlObject::exists(CrateServerFeature::likeOnAirKey()));
 }
 
 TEST_F(CrateServerFeatureTest, CacheItemShowsTheCacheView) {

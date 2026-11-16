@@ -62,6 +62,7 @@ const QString& fieldOf(int column) {
             LIBRARYTABLE_BITRATE,
             LIBRARYTABLE_FILETYPE,
             LIBRARYTABLE_SAMPLERATE,
+            CrateServerTrackModel::kLikedField,
     };
     static const QString kNone;
     return column >= 0 && column < CrateServerTrackModel::kColumnCount ? kFields[column] : kNone;
@@ -221,6 +222,7 @@ QString energyLevel(double energy) {
 const QString CrateServerTrackModel::kEnergyField = QStringLiteral("crate_energy");
 const QString CrateServerTrackModel::kProfileField = QStringLiteral("crate_profile");
 const QString CrateServerTrackModel::kCacheField = QStringLiteral("crate_cache");
+const QString CrateServerTrackModel::kLikedField = QStringLiteral("crate_liked");
 
 CrateServerTrackModel::CrateServerTrackModel(Source source,
         const QSqlDatabase& database,
@@ -653,6 +655,10 @@ QVariant CrateServerTrackModel::data(const QModelIndex& index, int role) const {
         return row.format;
     case kSampleRateColumn:
         return row.sampleRate ? QVariant(*row.sampleRate) : QVariant();
+    case kLikedColumn:
+        //: In the Liked column: the user likes the track on Crate
+        return m_likedOf && m_likedOf(row.serverId, row.entityUid) ? QVariant(tr("Liked"))
+                                                                   : QVariant();
     default:
         return QVariant();
     }
@@ -709,6 +715,9 @@ QVariant CrateServerTrackModel::headerData(
         return tr("Type");
     case kSampleRateColumn:
         return tr("Samplerate");
+    case kLikedColumn:
+        //: Whether the user likes the track on Crate
+        return tr("Liked");
     default:
         return QVariant();
     }
@@ -1016,6 +1025,13 @@ int CrateServerTrackModel::fieldIndex(const QString& fieldName) const {
         }
     }
     return -1;
+}
+
+void CrateServerTrackModel::likesChanged(const QString& serverId) {
+    if (m_rows.isEmpty() || (!m_serverId.isEmpty() && m_serverId != serverId)) {
+        return;
+    }
+    emit dataChanged(index(0, kLikedColumn), index(rowCount() - 1, kLikedColumn));
 }
 
 QString CrateServerTrackModel::modelKey(bool noSearch) const {

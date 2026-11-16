@@ -16,6 +16,7 @@
 #include <chrono>
 
 #include "control/controlproxy.h"
+#include "control/controlpushbutton.h"
 #include "controllers/keyboard/keyboardeventfilter.h"
 #include "crate/analysis/analysisimporter.h"
 #include "crate/analysis/profilestore.h"
@@ -51,6 +52,8 @@
 #include "crate/ui/cachestatusview.h"
 #include "crate/ui/widgets/camelotwheelmodel.h"
 #include "crate/ui/widgets/instrumentpainter.h"
+#include "crate/writeback/cratelikes.h"
+#include "crate/writeback/crateratings.h"
 #include "crate/writeback/historyreporter.h"
 #include "library/crateserver/crateservertrackmodel.h"
 #include "library/library.h"
@@ -251,6 +254,11 @@ const ConfigKey& CrateServerFeature::showSmartMixKey() {
     return kKey;
 }
 
+const ConfigKey& CrateServerFeature::likeOnAirKey() {
+    static const ConfigKey kKey(QStringLiteral("[CrateDecks]"), QStringLiteral("like_on_air"));
+    return kKey;
+}
+
 struct CrateServerFeature::Server {
     QString id;
     std::unique_ptr<LibrarySync> pSync;
@@ -321,6 +329,15 @@ CrateServerFeature::CrateServerFeature(Library* pLibrary,
                           }},
                   this)) {
     m_pool.setMaxThreadCount(1);
+    // A mapping's way to like the track on air; the first feature owns it
+    if (!ControlObject::exists(likeOnAirKey())) {
+        m_pLikeOnAir = std::make_unique<ControlPushButton>(likeOnAirKey());
+        connect(m_pLikeOnAir.get(), &ControlObject::valueChanged, this, [this](double value) {
+            if (value > 0) {
+                toggleLikeOnAir();
+            }
+        });
+    }
     for (CrateServerTrackModel* pModel :
             {m_pContainerModel.get(), m_pLibraryModel.get(), m_pSearchModel.get()}) {
         pModel->setSearchHandler([this, pModel](const QString& text) {
@@ -406,6 +423,25 @@ void CrateServerFeature::watchServers(CrateServers* pServers) {
                 &PlayerInfo::currentPlayingTrackChanged,
                 pHistory,
                 &writeback::HistoryReporter::setPlayingTrack);
+    }
+    // A Crate track's new rating goes to its server (plan F7.C-PR2)
+    if (TrackCollectionManager* pCollection = m_dependencies.pTrackCollectionManager) {
+        connect(pCollection->internalCollection(),
+                &TrackCollection::tracksChanged,
+                pServers->ratings(),
+                &writeback::CrateRatings::onTracksChanged);
+    }
+    // The Liked column
+    writeback::CrateLikes* pLikes = pServers->likes();
+    const QList<CrateServerTrackModel*> models = trackModels();
+    for (CrateServerTrackModel* pModel : models) {
+        pModel->setLikedOf([pLikes](const QString& serverId, const QString& entityUid) {
+            return pLikes->isLiked(serverId, entityUid);
+        });
+        connect(pLikes,
+                &writeback::CrateLikes::likesChanged,
+                pModel,
+                &CrateServerTrackModel::likesChanged);
     }
     // CoreServices destroys the servers before the library: their Clients go
     // first, and the syncs with them
@@ -970,7 +1006,31 @@ QList<CrateServerTrackModel*> CrateServerFeature::trackModels() const {
 QList<QAction*> CrateServerFeature::trackActions(
         const QList<CrateTrackRef>& tracks, const QStringList& labels, QObject* pParent) {
     QList<QAction*> actions;
-    if (tracks.isEmpty() || !m_pRadio) {
+    if (tracks.isEmpty()) {
+        return actions;
+    }
+    // Likes on Crate (plan F7.C-PR2)
+    if (m_pServers) {
+        QList<cache::TrackKey> keys;
+        for (const CrateTrackRef& track : tracks) {
+            keys.append(cache::TrackKey{track.serverId, track.entityUid});
+        }
+        writeback::CrateLikes* pLikes = m_pServers->likes();
+        const bool liked = pLikes->allLiked(keys);
+        auto* pLike = new QAction(liked
+                        //: Track menu: stops liking the selected tracks on Crate
+                        ? tr("Unlike")
+                        //: Track menu: likes the selected tracks on Crate
+                        : tr("Like"),
+                pParent);
+        connect(pLike, &QAction::triggered, this, [pLikes = QPointer(pLikes), keys, liked] {
+            if (pLikes) {
+                pLikes->setLiked(keys, !liked);
+            }
+        });
+        actions.append(pLike);
+    }
+    if (!m_pRadio) {
         return actions;
     }
     const CrateTrackRef& first = tracks.first();
@@ -1045,6 +1105,15 @@ void CrateServerFeature::startRadio(const QString& serverId, const recs::RadioSe
         return;
     }
     m_pRadio->start(pClient, serverId, seed);
+}
+
+bool CrateServerFeature::toggleLikeOnAir() {
+    const std::optional<cache::TrackKey> onAir = crateTrackOnAir();
+    if (!onAir || !m_pServers) {
+        return false;
+    }
+    m_pServers->likes()->toggle({*onAir});
+    return true;
 }
 
 std::optional<cache::TrackKey> CrateServerFeature::crateTrackOnAir() const {
@@ -1569,6 +1638,10 @@ TreeItem* CrateServerFeature::serverItem(const QString& serverId) const {
 }
 
 void CrateServerFeature::loadSidebar(const QString& serverId) {
+    // The Likes container may have changed with the rest
+    if (m_pServers) {
+        m_pServers->likes()->reload(serverId);
+    }
     auto* pWatcher = new QFutureWatcher<SidebarData>(this);
     connect(pWatcher, &QFutureWatcherBase::finished, this, [this, pWatcher, serverId] {
         pWatcher->deleteLater();

@@ -20,6 +20,7 @@
 #include "util/parented_ptr.h"
 
 class ControlProxy;
+class ControlPushButton;
 class KeyboardEventFilter;
 class QNetworkAccessManager;
 class PlayerInfo;
@@ -122,6 +123,12 @@ class CrateServerFeature : public LibraryFeature {
     /// `[CrateDecks],show_smart_mix`: the CrateDecks skin's toolbar button,
     /// on while the assistant shows. Declared by the skin's manifest.
     static const ConfigKey& showSmartMixKey();
+    /// `[CrateDecks],like_on_air`: likes the Crate track on air, or stops
+    /// liking it (plan F7.C-PR2), for keyboard and controller mappings.
+    static const ConfigKey& likeOnAirKey();
+    /// Likes the Crate track on air, or stops liking it. False if no Crate
+    /// track is on air.
+    bool toggleLikeOnAir();
     /// The Smart Mix assist mode; nullptr until there is a server, and
     /// without the decks' PlayerInfo.
     SmartMixAssist* smartMixAssist() const {
@@ -364,6 +371,8 @@ class CrateServerFeature : public LibraryFeature {
     std::unique_ptr<recs::CratePathSource> m_pPaths;
     QPointer<recs::CompatiblesView> m_pCompatiblesView;
     QMetaObject::Connection m_selectionConnection;
+    /// likeOnAirKey(), unless another feature made it first.
+    std::unique_ptr<ControlPushButton> m_pLikeOnAir;
     QThreadPool m_pool;
 };
 
