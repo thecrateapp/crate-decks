@@ -1,0 +1,745 @@
+{
+ "plannerVersion": "smart-mix-v3",
+ "plans": [
+  {
+   "plannerVersion": 2,
+   "outgoingTrackEntityUid": "95cc2062-f6d4-5c96-992d-09e237ecc10d",
+   "incomingTrackEntityUid": "875cfc54-74fd-5139-9bad-0b72cb348eb5",
+   "mode": "beatmatch",
+   "durationMs": 31219,
+   "outgoingCueMs": 393865,
+   "incomingCueMs": 10880,
+   "incomingTempoRatio": 0.976967,
+   "beatPhaseOffsetMs": 482,
+   "handoffProgress": 0.5,
+   "outgoingGainDb": -4.192,
+   "incomingGainDb": -6.0,
+   "curve": "dj-blend",
+   "bassHandoff": "balanced",
+   "confidence": 0.8549,
+   "structureUsed": true,
+   "stemsUsed": true,
+   "candidates": [
+    {
+     "index": 0,
+     "outgoingPhrase": 17,
+     "incomingPhrase": 0,
+     "lengthBars": 16,
+     "structureUsed": true,
+     "stemsUsed": true,
+     "score": 0.868276,
+     "breakdown": {
+      "alignment": 0.5,
+      "energy": 0.988,
+      "harmonic": 0.825198,
+      "stability": 0.718965,
+      "bass": 1.0,
+      "position": 1.0,
+      "vocal": 0.0,
+      "stems": {
+       "vocalOverlapMs": 0,
+       "bassOverlapMs": 0,
+       "drumsOnlyEntry": 0.0,
+       "vocalFreeExit": 0.999992
+      }
+     },
+     "plan": {
+      "plannerVersion": 2,
+      "outgoingTrackEntityUid": "95cc2062-f6d4-5c96-992d-09e237ecc10d",
+      "incomingTrackEntityUid": "875cfc54-74fd-5139-9bad-0b72cb348eb5",
+      "mode": "beatmatch",
+      "durationMs": 31219,
+      "outgoingCueMs": 393865,
+      "incomingCueMs": 10880,
+      "incomingTempoRatio": 0.976967,
+      "beatPhaseOffsetMs": 482,
+      "handoffProgress": 0.5,
+      "outgoingGainDb": -4.192,
+      "incomingGainDb": -6.0,
+      "curve": "dj-blend",
+      "bassHandoff": "balanced",
+      "confidence": 0.8549
+     }
+    },
+    {
+     "index": 1,
+     "outgoingPhrase": 18,
+     "incomingPhrase": 0,
+     "lengthBars": 16,
+     "structureUsed": true,
+     "stemsUsed": true,
+     "score": 0.864942,
+     "breakdown": {
+      "alignment": 0.5,
+      "energy": 0.971333,
+      "harmonic": 0.825198,
+      "stability": 0.718965,
+      "bass": 1.0,
+      "position": 1.0,
+      "vocal": 0.0,
+      "stems": {
+       "vocalOverlapMs": 0,
+       "bassOverlapMs": 0,
+       "drumsOnlyEntry": 0.0,
+       "vocalFreeExit": 0.999992
+      }
+     },
+     "plan": {
+      "plannerVersion": 2,
+      "outgoingTrackEntityUid": "95cc2062-f6d4-5c96-992d-09e237ecc10d",
+      "incomingTrackEntityUid": "875cfc54-74fd-5139-9bad-0b72cb348eb5",
+      "mode": "beatmatch",
+      "durationMs": 31219,
+      "outgoingCueMs": 409475,
+      "incomingCueMs": 10880,
+      "incomingTempoRatio": 0.976967,
+      "beatPhaseOffsetMs": 482,
+      "handoffProgress": 0.5,
+      "outgoingGainDb": -4.192,
+      "incomingGainDb": -6.0,
+      "curve": "dj-blend",
+      "bassHandoff": "balanced",
+      "confidence": 0.8549
+     }
+    },
+    {
+     "index": 2,
+     "outgoingPhrase": 19,
+     "incomingPhrase": 0,
+     "lengthBars": 8,
+     "structureUsed": true,
+     "stemsUsed": true,
+     "score": 0.854604,
+     "breakdown": {
+      "alignment": 0.5,
+      "energy": 0.971333,
+      "harmonic": 0.662594,
+      "stability": 0.859487,
+      "bass": 1.0,
+      "position": 1.0,
+      "vocal": 0.0,
+      "stems": {
+       "vocalOverlapMs": 0,
+       "bassOverlapMs": 0,
+       "drumsOnlyEntry": 0.0,
+       "vocalFreeExit": 1.0
+      }
+     },
+     "plan": {
+      "plannerVersion": 2,
+      "outgoingTrackEntityUid": "95cc2062-f6d4-5c96-992d-09e237ecc10d",
+      "incomingTrackEntityUid": "875cfc54-74fd-5139-9bad-0b72cb348eb5",
+      "mode": "beatmatch",
+      "durationMs": 15609,
+      "outgoingCueMs": 425084,
+      "incomingCueMs": 10880,
+      "incomingTempoRatio": 0.976967,
+      "beatPhaseOffsetMs": 482,
+      "handoffProgress": 0.5,
+      "outgoingGainDb": -4.192,
+      "incomingGainDb": -6.0,
+      "curve": "dj-blend",
+      "bassHandoff": "balanced",
+      "confidence": 0.8549
+     }
+    },
+    {
+     "index": 3,
+     "structureUsed": false,
+     "stemsUsed": true,
+     "score": 0.819809,
+     "breakdown": {
+      "alignment": 0.5,
+      "energy": 0.745667,
+      "harmonic": 0.825198,
+      "stability": 0.718965,
+      "bass": 1.0,
+      "position": 1.0,
+      "vocal": 0.0,
+      "stems": {
+       "vocalOverlapMs": 0,
+       "bassOverlapMs": 0,
+       "drumsOnlyEntry": 0.0,
+       "vocalFreeExit": 0.999992
+      }
+     },
+     "plan": {
+      "plannerVersion": 2,
+      "outgoingTrackEntityUid": "95cc2062-f6d4-5c96-992d-09e237ecc10d",
+      "incomingTrackEntityUid": "875cfc54-74fd-5139-9bad-0b72cb348eb5",
+      "mode": "beatmatch",
+      "durationMs": 31219,
+      "outgoingCueMs": 409474,
+      "incomingCueMs": 400,
+      "incomingTempoRatio": 0.976967,
+      "beatPhaseOffsetMs": 477,
+      "handoffProgress": 0.5,
+      "outgoingGainDb": -4.192,
+      "incomingGainDb": -6.0,
+      "curve": "dj-blend",
+      "bassHandoff": "balanced",
+      "confidence": 0.8549
+     }
+    },
+    {
+     "index": 4,
+     "outgoingPhrase": 17,
+     "incomingPhrase": 0,
+     "lengthBars": 8,
+     "structureUsed": true,
+     "stemsUsed": true,
+     "score": 0.818913,
+     "breakdown": {
+      "alignment": 0.5,
+      "energy": 0.988,
+      "harmonic": 0.662594,
+      "stability": 0.859487,
+      "bass": 1.0,
+      "position": 0.739837,
+      "vocal": 0.0,
+      "stems": {
+       "vocalOverlapMs": 0,
+       "bassOverlapMs": 0,
+       "drumsOnlyEntry": 0.0,
+       "vocalFreeExit": 1.0
+      }
+     },
+     "plan": {
+      "plannerVersion": 2,
+      "outgoingTrackEntityUid": "95cc2062-f6d4-5c96-992d-09e237ecc10d",
+      "incomingTrackEntityUid": "875cfc54-74fd-5139-9bad-0b72cb348eb5",
+      "mode": "beatmatch",
+      "durationMs": 15609,
+      "outgoingCueMs": 393865,
+      "incomingCueMs": 10880,
+      "incomingTempoRatio": 0.976967,
+      "beatPhaseOffsetMs": 482,
+      "handoffProgress": 0.5,
+      "outgoingGainDb": -4.192,
+      "incomingGainDb": -6.0,
+      "curve": "dj-blend",
+      "bassHandoff": "balanced",
+      "confidence": 0.8549
+     }
+    },
+    {
+     "index": 5,
+     "outgoingPhrase": 18,
+     "incomingPhrase": 0,
+     "lengthBars": 8,
+     "structureUsed": true,
+     "stemsUsed": true,
+     "score": 0.809471,
+     "breakdown": {
+      "alignment": 0.5,
+      "energy": 0.745667,
+      "harmonic": 0.662594,
+      "stability": 0.859487,
+      "bass": 1.0,
+      "position": 1.0,
+      "vocal": 0.0,
+      "stems": {
+       "vocalOverlapMs": 0,
+       "bassOverlapMs": 0,
+       "drumsOnlyEntry": 0.0,
+       "vocalFreeExit": 1.0
+      }
+     },
+     "plan": {
+      "plannerVersion": 2,
+      "outgoingTrackEntityUid": "95cc2062-f6d4-5c96-992d-09e237ecc10d",
+      "incomingTrackEntityUid": "875cfc54-74fd-5139-9bad-0b72cb348eb5",
+      "mode": "beatmatch",
+      "durationMs": 15609,
+      "outgoingCueMs": 409475,
+      "incomingCueMs": 10880,
+      "incomingTempoRatio": 0.976967,
+      "beatPhaseOffsetMs": 482,
+      "handoffProgress": 0.5,
+      "outgoingGainDb": -4.192,
+      "incomingGainDb": -6.0,
+      "curve": "dj-blend",
+      "bassHandoff": "balanced",
+      "confidence": 0.8549
+     }
+    },
+    {
+     "index": 6,
+     "outgoingPhrase": 19,
+     "incomingPhrase": 0,
+     "structureUsed": true,
+     "stemsUsed": true,
+     "score": 0.78839,
+     "breakdown": {
+      "alignment": 0.25,
+      "energy": 0.971333,
+      "harmonic": 0.604167,
+      "stability": 0.909979,
+      "bass": 1.0,
+      "position": 1.0,
+      "vocal": 0.0,
+      "stems": {
+       "vocalOverlapMs": 0,
+       "bassOverlapMs": 0,
+       "drumsOnlyEntry": 0.0,
+       "vocalFreeExit": 1.0
+      }
+     },
+     "plan": {
+      "plannerVersion": 2,
+      "outgoingTrackEntityUid": "95cc2062-f6d4-5c96-992d-09e237ecc10d",
+      "incomingTrackEntityUid": "875cfc54-74fd-5139-9bad-0b72cb348eb5",
+      "mode": "beatmatch",
+      "durationMs": 10000,
+      "outgoingCueMs": 425084,
+      "incomingCueMs": 10880,
+      "incomingTempoRatio": 0.976967,
+      "beatPhaseOffsetMs": 482,
+      "handoffProgress": 0.5,
+      "outgoingGainDb": -4.192,
+      "incomingGainDb": -6.0,
+      "curve": "equal-power",
+      "bassHandoff": "balanced",
+      "confidence": 0.8549
+     }
+    },
+    {
+     "index": 7,
+     "outgoingPhrase": 19,
+     "incomingPhrase": 0,
+     "structureUsed": true,
+     "stemsUsed": true,
+     "score": 0.78839,
+     "breakdown": {
+      "alignment": 0.25,
+      "energy": 0.971333,
+      "harmonic": 0.604167,
+      "stability": 0.909979,
+      "bass": 1.0,
+      "position": 1.0,
+      "vocal": 0.0,
+      "stems": {
+       "vocalOverlapMs": 0,
+       "bassOverlapMs": 0,
+       "drumsOnlyEntry": 0.0,
+       "vocalFreeExit": 1.0
+      }
+     },
+     "plan": {
+      "plannerVersion": 2,
+      "outgoingTrackEntityUid": "95cc2062-f6d4-5c96-992d-09e237ecc10d",
+      "incomingTrackEntityUid": "875cfc54-74fd-5139-9bad-0b72cb348eb5",
+      "mode": "beatmatch",
+      "durationMs": 10000,
+      "outgoingCueMs": 425084,
+      "incomingCueMs": 10880,
+      "incomingTempoRatio": 0.976967,
+      "beatPhaseOffsetMs": 482,
+      "handoffProgress": 0.5,
+      "outgoingGainDb": -4.192,
+      "incomingGainDb": -6.0,
+      "curve": "dj-blend",
+      "bassHandoff": "balanced",
+      "confidence": 0.8549
+     }
+    }
+   ],
+   "policyLimits": {
+    "rulesRevision": 6,
+    "beatmatchAllowed": true,
+    "tempoAdjustmentAllowed": true,
+    "bassHandoffAllowed": true,
+    "longBeatmatchAllowed": true,
+    "longBeatmatchEligible": true,
+    "maximumTempoAdjustment": 0.04,
+    "minimumTransitionMs": 1000,
+    "maximumTransitionMs": 12000,
+    "maximumLongBeatmatchMs": 48000,
+    "maximumBoostDb": 6.0,
+    "maximumCutDb": 6.0,
+    "outgoingPeakLimitedGainDb": -4.191995,
+    "incomingPeakLimitedGainDb": -4.247208,
+    "outgoingEarliestCueMs": 30000,
+    "outgoingLatestEndMs": 440975,
+    "incomingLatestEndMs": 318876,
+    "phraseLengths": [
+     8,
+     16,
+     32
+    ]
+   }
+  },
+  {
+   "plannerVersion": 2,
+   "outgoingTrackEntityUid": "246ba0f1-4396-55bb-8754-2c293a02e562",
+   "incomingTrackEntityUid": "89fb87d5-38be-5276-9909-e087f0eb6a44",
+   "mode": "adaptive",
+   "durationMs": 10000,
+   "outgoingCueMs": 185974,
+   "incomingCueMs": 7443,
+   "incomingTempoRatio": 1.0,
+   "beatPhaseOffsetMs": 0,
+   "handoffProgress": 0.5,
+   "outgoingGainDb": -4.0259,
+   "incomingGainDb": -3.6821,
+   "curve": "equal-power",
+   "bassHandoff": "none",
+   "confidence": 0.864896,
+   "fallbackReason": "incompatible_tempo",
+   "structureUsed": true,
+   "stemsUsed": true,
+   "candidates": [
+    {
+     "index": 0,
+     "outgoingPhrase": 11,
+     "incomingPhrase": 0,
+     "structureUsed": true,
+     "stemsUsed": true,
+     "score": 0.756457,
+     "breakdown": {
+      "alignment": 0.5,
+      "energy": 0.955,
+      "harmonic": 0.361111,
+      "stability": 1.0,
+      "bass": 1.0,
+      "position": 0.908602,
+      "vocal": 0.0,
+      "stems": {
+       "vocalOverlapMs": 0,
+       "bassOverlapMs": 0,
+       "drumsOnlyEntry": 0.0,
+       "vocalFreeExit": 0.0
+      }
+     },
+     "plan": {
+      "plannerVersion": 2,
+      "outgoingTrackEntityUid": "246ba0f1-4396-55bb-8754-2c293a02e562",
+      "incomingTrackEntityUid": "89fb87d5-38be-5276-9909-e087f0eb6a44",
+      "mode": "adaptive",
+      "durationMs": 10000,
+      "outgoingCueMs": 185974,
+      "incomingCueMs": 7443,
+      "incomingTempoRatio": 1.0,
+      "beatPhaseOffsetMs": 0,
+      "handoffProgress": 0.5,
+      "outgoingGainDb": -4.0259,
+      "incomingGainDb": -3.6821,
+      "curve": "equal-power",
+      "bassHandoff": "none",
+      "confidence": 0.864896,
+      "fallbackReason": "incompatible_tempo"
+     }
+    },
+    {
+     "index": 1,
+     "outgoingPhrase": 10,
+     "incomingPhrase": 0,
+     "structureUsed": true,
+     "stemsUsed": true,
+     "score": 0.712947,
+     "breakdown": {
+      "alignment": 0.5,
+      "energy": 0.931,
+      "harmonic": 0.361111,
+      "stability": 1.0,
+      "bass": 0.666667,
+      "position": 0.650538,
+      "vocal": 0.0,
+      "stems": {
+       "vocalOverlapMs": 0,
+       "bassOverlapMs": 3333,
+       "drumsOnlyEntry": 0.0,
+       "vocalFreeExit": 1.0
+      }
+     },
+     "plan": {
+      "plannerVersion": 2,
+      "outgoingTrackEntityUid": "246ba0f1-4396-55bb-8754-2c293a02e562",
+      "incomingTrackEntityUid": "89fb87d5-38be-5276-9909-e087f0eb6a44",
+      "mode": "adaptive",
+      "durationMs": 10000,
+      "outgoingCueMs": 170490,
+      "incomingCueMs": 7443,
+      "incomingTempoRatio": 1.0,
+      "beatPhaseOffsetMs": 0,
+      "handoffProgress": 0.5,
+      "outgoingGainDb": -4.0259,
+      "incomingGainDb": -3.6821,
+      "curve": "equal-power",
+      "bassHandoff": "none",
+      "confidence": 0.864896,
+      "fallbackReason": "incompatible_tempo"
+     }
+    },
+    {
+     "index": 2,
+     "outgoingPhrase": 11,
+     "incomingPhrase": 1,
+     "structureUsed": true,
+     "stemsUsed": true,
+     "score": 0.682744,
+     "breakdown": {
+      "alignment": 0.5,
+      "energy": 0.955667,
+      "harmonic": 0.361111,
+      "stability": 1.0,
+      "bass": 1.0,
+      "position": 0.416294,
+      "vocal": 0.0,
+      "stems": {
+       "vocalOverlapMs": 0,
+       "bassOverlapMs": 0,
+       "drumsOnlyEntry": 0.0,
+       "vocalFreeExit": 0.0
+      }
+     },
+     "plan": {
+      "plannerVersion": 2,
+      "outgoingTrackEntityUid": "246ba0f1-4396-55bb-8754-2c293a02e562",
+      "incomingTrackEntityUid": "89fb87d5-38be-5276-9909-e087f0eb6a44",
+      "mode": "adaptive",
+      "durationMs": 10000,
+      "outgoingCueMs": 185974,
+      "incomingCueMs": 36982,
+      "incomingTempoRatio": 1.0,
+      "beatPhaseOffsetMs": 0,
+      "handoffProgress": 0.5,
+      "outgoingGainDb": -4.0259,
+      "incomingGainDb": -3.6821,
+      "curve": "equal-power",
+      "bassHandoff": "none",
+      "confidence": 0.864896,
+      "fallbackReason": "incompatible_tempo"
+     }
+    },
+    {
+     "index": 3,
+     "outgoingPhrase": 11,
+     "incomingPhrase": 2,
+     "structureUsed": true,
+     "stemsUsed": true,
+     "score": 0.648755,
+     "breakdown": {
+      "alignment": 0.5,
+      "energy": 0.970333,
+      "harmonic": 0.361111,
+      "stability": 1.0,
+      "bass": 1.0,
+      "position": 0.170144,
+      "vocal": 0.0,
+      "stems": {
+       "vocalOverlapMs": 0,
+       "bassOverlapMs": 0,
+       "drumsOnlyEntry": 0.0,
+       "vocalFreeExit": 0.0
+      }
+     },
+     "plan": {
+      "plannerVersion": 2,
+      "outgoingTrackEntityUid": "246ba0f1-4396-55bb-8754-2c293a02e562",
+      "incomingTrackEntityUid": "89fb87d5-38be-5276-9909-e087f0eb6a44",
+      "mode": "adaptive",
+      "durationMs": 10000,
+      "outgoingCueMs": 185974,
+      "incomingCueMs": 51751,
+      "incomingTempoRatio": 1.0,
+      "beatPhaseOffsetMs": 0,
+      "handoffProgress": 0.5,
+      "outgoingGainDb": -4.0259,
+      "incomingGainDb": -3.6821,
+      "curve": "equal-power",
+      "bassHandoff": "none",
+      "confidence": 0.864896,
+      "fallbackReason": "incompatible_tempo"
+     }
+    },
+    {
+     "index": 4,
+     "structureUsed": false,
+     "stemsUsed": true,
+     "score": 0.639926,
+     "breakdown": {
+      "alignment": 0.0,
+      "energy": 0.928795,
+      "harmonic": 0.361111,
+      "stability": 1.0,
+      "bass": 1.0,
+      "position": 1.0,
+      "vocal": 0.0,
+      "stems": {
+       "vocalOverlapMs": 0,
+       "bassOverlapMs": 0,
+       "drumsOnlyEntry": 0.0,
+       "vocalFreeExit": 0.0
+      }
+     },
+     "plan": {
+      "plannerVersion": 2,
+      "outgoingTrackEntityUid": "246ba0f1-4396-55bb-8754-2c293a02e562",
+      "incomingTrackEntityUid": "89fb87d5-38be-5276-9909-e087f0eb6a44",
+      "mode": "adaptive",
+      "durationMs": 10000,
+      "outgoingCueMs": 192183,
+      "incomingCueMs": 58,
+      "incomingTempoRatio": 1.0,
+      "beatPhaseOffsetMs": 0,
+      "handoffProgress": 0.5,
+      "outgoingGainDb": -4.0259,
+      "incomingGainDb": -3.6821,
+      "curve": "equal-power",
+      "bassHandoff": "none",
+      "confidence": 0.864896,
+      "fallbackReason": "incompatible_tempo"
+     }
+    },
+    {
+     "index": 5,
+     "outgoingPhrase": 10,
+     "incomingPhrase": 1,
+     "structureUsed": true,
+     "stemsUsed": true,
+     "score": 0.638968,
+     "breakdown": {
+      "alignment": 0.5,
+      "energy": 0.930333,
+      "harmonic": 0.361111,
+      "stability": 1.0,
+      "bass": 0.666667,
+      "position": 0.15823,
+      "vocal": 0.0,
+      "stems": {
+       "vocalOverlapMs": 0,
+       "bassOverlapMs": 3333,
+       "drumsOnlyEntry": 0.0,
+       "vocalFreeExit": 1.0
+      }
+     },
+     "plan": {
+      "plannerVersion": 2,
+      "outgoingTrackEntityUid": "246ba0f1-4396-55bb-8754-2c293a02e562",
+      "incomingTrackEntityUid": "89fb87d5-38be-5276-9909-e087f0eb6a44",
+      "mode": "adaptive",
+      "durationMs": 10000,
+      "outgoingCueMs": 170490,
+      "incomingCueMs": 36982,
+      "incomingTempoRatio": 1.0,
+      "beatPhaseOffsetMs": 0,
+      "handoffProgress": 0.5,
+      "outgoingGainDb": -4.0259,
+      "incomingGainDb": -3.6821,
+      "curve": "equal-power",
+      "bassHandoff": "none",
+      "confidence": 0.864896,
+      "fallbackReason": "incompatible_tempo"
+     }
+    },
+    {
+     "index": 6,
+     "outgoingPhrase": 9,
+     "incomingPhrase": 0,
+     "structureUsed": true,
+     "stemsUsed": true,
+     "score": 0.627504,
+     "breakdown": {
+      "alignment": 0.5,
+      "energy": 0.947333,
+      "harmonic": 0.361111,
+      "stability": 1.0,
+      "bass": 0.666667,
+      "position": 0.392473,
+      "vocal": 0.0,
+      "stems": {
+       "vocalOverlapMs": 0,
+       "bassOverlapMs": 3333,
+       "drumsOnlyEntry": 0.0,
+       "vocalFreeExit": 0.0
+      }
+     },
+     "plan": {
+      "plannerVersion": 2,
+      "outgoingTrackEntityUid": "246ba0f1-4396-55bb-8754-2c293a02e562",
+      "incomingTrackEntityUid": "89fb87d5-38be-5276-9909-e087f0eb6a44",
+      "mode": "adaptive",
+      "durationMs": 10000,
+      "outgoingCueMs": 155006,
+      "incomingCueMs": 7443,
+      "incomingTempoRatio": 1.0,
+      "beatPhaseOffsetMs": 0,
+      "handoffProgress": 0.5,
+      "outgoingGainDb": -4.0259,
+      "incomingGainDb": -3.6821,
+      "curve": "equal-power",
+      "bassHandoff": "none",
+      "confidence": 0.864896,
+      "fallbackReason": "incompatible_tempo"
+     }
+    },
+    {
+     "index": 7,
+     "outgoingPhrase": 10,
+     "incomingPhrase": 2,
+     "structureUsed": true,
+     "stemsUsed": true,
+     "score": 0.6123,
+     "breakdown": {
+      "alignment": 0.5,
+      "energy": 0.915667,
+      "harmonic": 0.361111,
+      "stability": 1.0,
+      "bass": 0.666667,
+      "position": 0.0,
+      "vocal": 0.0,
+      "stems": {
+       "vocalOverlapMs": 0,
+       "bassOverlapMs": 3333,
+       "drumsOnlyEntry": 0.0,
+       "vocalFreeExit": 1.0
+      }
+     },
+     "plan": {
+      "plannerVersion": 2,
+      "outgoingTrackEntityUid": "246ba0f1-4396-55bb-8754-2c293a02e562",
+      "incomingTrackEntityUid": "89fb87d5-38be-5276-9909-e087f0eb6a44",
+      "mode": "adaptive",
+      "durationMs": 10000,
+      "outgoingCueMs": 170490,
+      "incomingCueMs": 51751,
+      "incomingTempoRatio": 1.0,
+      "beatPhaseOffsetMs": 0,
+      "handoffProgress": 0.5,
+      "outgoingGainDb": -4.0259,
+      "incomingGainDb": -3.6821,
+      "curve": "equal-power",
+      "bassHandoff": "none",
+      "confidence": 0.864896,
+      "fallbackReason": "incompatible_tempo"
+     }
+    }
+   ],
+   "policyLimits": {
+    "rulesRevision": 6,
+    "beatmatchAllowed": true,
+    "tempoAdjustmentAllowed": true,
+    "bassHandoffAllowed": true,
+    "longBeatmatchAllowed": true,
+    "longBeatmatchEligible": true,
+    "maximumTempoAdjustment": 0.04,
+    "minimumTransitionMs": 1000,
+    "maximumTransitionMs": 12000,
+    "maximumLongBeatmatchMs": 48000,
+    "maximumBoostDb": 6.0,
+    "maximumCutDb": 6.0,
+    "outgoingPeakLimitedGainDb": -4.025896,
+    "incomingPeakLimitedGainDb": -3.682135,
+    "outgoingEarliestCueMs": 30000,
+    "outgoingLatestEndMs": 202184,
+    "incomingLatestEndMs": 370203,
+    "phraseLengths": [
+     8,
+     16,
+     32
+    ]
+   }
+  }
+ ]
+}

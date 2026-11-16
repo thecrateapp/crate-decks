@@ -163,25 +163,23 @@ std::optional<cache::TrackKey> AutoDJSmartMixAdapter::crateTrackOn(const QString
 }
 
 PlanContext AutoDJSmartMixAdapter::contextFor(const QString& serverId) const {
-    PlanContext context;
-    context.plannerVersion = kPlannerVersion;
+    PlanContext context = PlanContext::forServer(
+            m_options.capabilitiesOf ? m_options.capabilitiesOf(serverId) : std::nullopt);
     context.automatic = true;
-    const std::optional<Capabilities> capabilities =
-            m_options.capabilitiesOf ? m_options.capabilitiesOf(serverId) : std::nullopt;
-    const auto has = [&capabilities](DecksFeature feature) {
-        return capabilities && capabilities->has(feature);
-    };
-    context.allowBeatmatch = has(DecksFeature::Beatmatch);
     context.allowTempoAdjustment = true;
     // The handoff cuts the lows with the default EQ's measured knob
     const QStringList decks = autoDjDecks();
     const bool defaultEq = m_options.defaultEqOn && m_options.defaultEqOn(decks);
-    context.allowBassHandoff = has(DecksFeature::BassHandoff) && defaultEq;
-    kLogger.info() << "Plan context: beatmatch" << has(DecksFeature::Beatmatch)
-                   << "- bass handoff" << context.allowBassHandoff << "(server"
-                   << has(DecksFeature::BassHandoff) << ", default EQ on" << decks << defaultEq
-                   << ") - long beatmatch" << has(DecksFeature::LongBeatmatch);
-    context.allowLongBeatmatch = has(DecksFeature::LongBeatmatch);
+    const bool serverBassHandoff = context.allowBassHandoff;
+    context.allowBassHandoff = serverBassHandoff && defaultEq;
+    kLogger.info() << "Plan context:" << context.plannerVersion << "- beatmatch"
+                   << context.allowBeatmatch << "- bass handoff" << context.allowBassHandoff
+                   << "(server" << serverBassHandoff << ", default EQ on" << decks << defaultEq
+                   << ") - long beatmatch" << context.allowLongBeatmatch << "- menu"
+                   << context.localRefinement;
+    if (m_options.pSetHistory) {
+        context.setHistory = m_options.pSetHistory->entries();
+    }
     // Auto DJ's own transition time; 0 (the server's own) for the pause of
     // a negative one
     const int seconds = m_options.pConfig
@@ -230,6 +228,9 @@ bool AutoDJSmartMixAdapter::startTransition(AutoDJProcessor* pProcessor,
     }
     const PlanEdge edge{outgoing->entityUid, incoming->entityUid, QString(), QString()};
     const PlanContext context = contextFor(serverId);
+    if (m_options.pSetHistory) {
+        m_options.pSetHistory->prepare(serverId, outgoing->entityUid, incoming->entityUid);
+    }
     if (const auto plan = pPlans->cachedPlan(edge, context)) {
         noteLimits(serverId, *plan);
         m_pDirector->setPlan(*plan);
@@ -285,6 +286,9 @@ void AutoDJSmartMixAdapter::onDirectorFinished() {
     if (!report.mixed && m_pProcessor) {
         // Not played: Auto DJ makes its own
         m_pProcessor->handBackTransition();
+    }
+    if (report.mixed && m_pDirector->plan() && m_options.pSetHistory) {
+        m_options.pSetHistory->record(*m_pDirector->plan(), report.durationMs);
     }
     scheduleRefresh();
 }

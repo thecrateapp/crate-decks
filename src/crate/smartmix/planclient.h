@@ -14,7 +14,9 @@
 #include <optional>
 #include <vector>
 
+#include "crate/client/cratecapabilities.h"
 #include "crate/client/crateresult.h"
+#include "crate/smartmix/sethistory.h"
 #include "crate/smartmix/transitionplan.h"
 
 namespace crate {
@@ -27,6 +29,10 @@ class Reply;
 /// `source` is always "decks" (S5), and the planner to ask. The defaults are
 /// AutoDJ's.
 struct PlanContext {
+    /// The planners Decks asks for (plan F6b.PR1).
+    static inline const QString kSmartMixV2 = QStringLiteral("smart-mix-v2");
+    static inline const QString kSmartMixV3 = QStringLiteral("smart-mix-v3");
+
     /// `smart-mix-v2` or `smart-mix-v3`; empty asks for the server's default
     /// (`capabilities.smart_mix.planner_version`).
     QString plannerVersion;
@@ -53,6 +59,19 @@ struct PlanContext {
     /// Asks `smart-mix-v3` for the candidate menu (STEM-D10). Sent only when
     /// set.
     bool localRefinement = false;
+    /// The last transitions of the set, oldest first, at most
+    /// SetHistory::kSize (SM3-D6). Sent only with `smart-mix-v3`: servers
+    /// before it reject the field. The planners do not read it, so it neither
+    /// changes the plan nor keys the cache, here or on the server.
+    QList<SetHistoryEntry> setHistory;
+
+    /// The context of the edges of a server that announced `capabilities`
+    /// (plan F6b.PR1): `smart-mix-v3` when it lists it in
+    /// `smart_mix.planner_versions`, `smart-mix-v2` otherwise; the candidate
+    /// menu with v3 when `decks.features` has `local_refinement`; beatmatch,
+    /// bass handoff and long blends as `decks.features` say. Without
+    /// capabilities, v2 without any of them. The rest are the defaults.
+    static PlanContext forServer(const std::optional<Capabilities>& capabilities);
 
     QJsonObject toJson() const;
 };
@@ -105,8 +124,9 @@ struct PlanClientOptions {
 /// design D8): the planner stays on the server and Decks plays its plans.
 ///
 /// - Edges whose plan is cached are answered from memory. The cache is keyed
-///   by both uids, both profile revisions and the context, so a new profile
-///   revision never gets an old plan. Asking with a new revision of a track,
+///   by both uids, both profile revisions, the planner and the context but
+///   its set history, so a new profile revision or planner never gets an old
+///   plan. Asking with a new revision of a track,
 ///   or invalidateTrack(), drops that track's older plans.
 /// - The rest go in `POST /api/playback/transition-plans`, up to
 ///   PlanClientOptions::maxEdgesPerRequest per request, without repeating an

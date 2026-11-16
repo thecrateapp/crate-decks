@@ -340,26 +340,35 @@ bool SmartMixDirector::setPlan(const TransitionPlan& plan) {
     if (m_state != State::Armed || m_plan) {
         return false;
     }
-    const auto problem = plan.validate(static_cast<qint64>(durationMs(*m_pOutgoing)),
-            static_cast<qint64>(durationMs(*m_pIncoming)));
-    if (problem) {
-        kLogger.warning() << "Plan rejected:" << *problem;
-        m_report.detail = *problem;
+    // The server's pick, or the next entry of its menu that fits (plan
+    // F6b.PR1)
+    QString problem;
+    const std::optional<TransitionPlan> playable =
+            plan.playable(static_cast<qint64>(durationMs(*m_pOutgoing)),
+                    static_cast<qint64>(durationMs(*m_pIncoming)),
+                    &problem);
+    if (!playable) {
+        kLogger.warning() << "Plan rejected:" << problem;
+        m_report.detail = problem;
         finish(State::FellBack, QStringLiteral("invalid_plan"));
         return false;
     }
-    m_plan = plan;
-    m_startAtMs = startAtMs(plan, durationMs(*m_pOutgoing));
+    if (playable->candidateIndex != plan.candidateIndex) {
+        kLogger.info() << "Candidate" << playable->candidateIndex
+                       << "of the server's menu instead of its pick:" << problem;
+        m_report.detail = problem;
+    }
+    m_report.candidateIndex = playable->candidateIndex;
+    m_plan = playable;
+    m_startAtMs = startAtMs(*m_plan, durationMs(*m_pOutgoing));
     m_report.plannedStartOutgoingMs = m_startAtMs;
     const double waitMs = (m_startAtMs - positionMs(*m_pOutgoing)) / outgoingRate();
     m_cueDeadlineMs = m_pEnvironment->nowMs() + std::max(0.0, waitMs) + kCueDeadlineMarginMs;
-    kLogger.info() << "Plan" << toString(plan.mode) << plan.durationMs << "ms from"
+    kLogger.info() << "Plan" << toString(m_plan->mode) << m_plan->durationMs << "ms from"
                    << m_startAtMs << "ms of the outgoing track"
-                   << (plan.fallbackReason ? toString(*plan.fallbackReason) : QString())
-                   << "- bass handoff"
-                   << (plan.bassHandoff == TransitionPlan::BassHandoff::Balanced ? "balanced"
-                                                                                 : "none")
-                   << "at" << plan.handoffProgress;
+                   << (m_plan->fallbackReason ? toString(*m_plan->fallbackReason) : QString())
+                   << "- bass handoff" << (m_plan->hasBassHandoff() ? "balanced" : "none") << "at"
+                   << m_plan->handoffProgress;
     tick();
     return true;
 }

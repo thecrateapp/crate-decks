@@ -41,6 +41,7 @@
 #include "crate/smartmix/autodjsmartmixadapter.h"
 #include "crate/smartmix/eqmap.h"
 #include "crate/smartmix/planclient.h"
+#include "crate/smartmix/sethistory.h"
 #include "crate/smartmix/smartmixassist.h"
 #include "crate/stems/stemjobs.h"
 #ifdef __CRATE_INFERENCE__
@@ -625,6 +626,31 @@ void CrateServerFeature::startLoading() {
     // director while it lives, and the assistant owns its controls
     m_pAssist.reset();
     m_pSmartMix.reset();
+    if (!m_pSetHistory) {
+        // The set goes on across reloads; its numbers come from the
+        // tracks' mix profiles (plan F6b.PR1)
+        SetHistory::Options history;
+        history.profilesOf = [pServers = m_pServers](const QString& serverId,
+                                     const QStringList& entityUids,
+                                     const SetHistory::Options::ProfilesDone& done) {
+            analysis::ProfileStore* pStore =
+                    pServers ? pServers->profileStore(serverId) : nullptr;
+            if (!pStore) {
+                done({});
+                return;
+            }
+            QObject::connect(pStore->get(entityUids),
+                    &analysis::ProfileFetch::finished,
+                    [done](const analysis::ProfileResults& results) {
+                        QList<analysis::MixProfile> profiles;
+                        for (const analysis::StoredProfile& stored : results.profiles) {
+                            profiles.append(stored.profile);
+                        }
+                        done(profiles);
+                    });
+        };
+        m_pSetHistory = std::make_unique<SetHistory>(std::move(history));
+    }
     // Both play the decks: without their tracks there is no Smart Mix
     if (PlayerInfo* const pPlayerInfo = m_dependencies.pPlayerInfo) {
         AutoDJSmartMixAdapter::Options smartMix;
@@ -637,6 +663,7 @@ void CrateServerFeature::startLoading() {
         smartMix.planClientFor = planClientFor;
         smartMix.capabilitiesOf = capabilitiesOf;
         smartMix.defaultEqOn = defaultEqOn;
+        smartMix.pSetHistory = m_pSetHistory.get();
         m_pSmartMix = std::make_unique<AutoDJSmartMixAdapter>(std::move(smartMix));
         SmartMixAssist::Options assist;
         assist.pPlayerInfo = pPlayerInfo;
@@ -645,6 +672,7 @@ void CrateServerFeature::startLoading() {
         assist.planClientFor = planClientFor;
         assist.capabilitiesOf = capabilitiesOf;
         assist.defaultEqOn = defaultEqOn;
+        assist.pSetHistory = m_pSetHistory.get();
         m_pAssist = std::make_unique<SmartMixAssist>(std::move(assist));
     }
     if (m_pAssistPanel) {

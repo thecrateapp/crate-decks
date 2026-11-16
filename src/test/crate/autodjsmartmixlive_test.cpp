@@ -238,6 +238,7 @@ TEST_F(AutoDJSmartMixLive, PlansAutoDJsEdgesWithinTheDeadline) {
     crate::AutoDJSmartMixAdapter adapter(std::move(options));
     const crate::PlanContext context = adapter.contextFor(m_serverId);
     EXPECT_EQ(QStringLiteral("smart-mix-v3"), context.plannerVersion);
+    EXPECT_TRUE(context.localRefinement);
     EXPECT_EQ(10000, context.preferredDurationMs);
     EXPECT_TRUE(context.allowBeatmatch);
     EXPECT_TRUE(context.allowBassHandoff);
@@ -274,6 +275,10 @@ TEST_F(AutoDJSmartMixLive, PlansAutoDJsEdgesWithinTheDeadline) {
     int withStems = 0;
     int bassHandoffs = 0;
     int checked = 0;
+    // F6b.PR1: Decks' check of the limits against the server's, on every
+    // candidate of every menu (the server serves only valid ones)
+    int candidates = 0;
+    int agreeing = 0;
     for (const PlanResults* pResults : {&ahead, &handover, &rest}) {
         for (const crate::Result<TransitionPlan>& result : pResults->plans) {
             ASSERT_TRUE(result.ok()) << result.error().message.toStdString();
@@ -281,6 +286,18 @@ TEST_F(AutoDJSmartMixLive, PlansAutoDJsEdgesWithinTheDeadline) {
             const auto problem = plan.validate(durations.value(plan.outgoingTrackEntityUid),
                     durations.value(plan.incomingTrackEntityUid));
             EXPECT_FALSE(problem.has_value()) << problem.value_or(QString()).toStdString();
+            if (context.localRefinement) {
+                EXPECT_FALSE(plan.candidates.empty());
+            }
+            for (const crate::TransitionPlanCandidate& candidate : plan.candidates) {
+                ++candidates;
+                const QStringList codes = candidate.plan.mixes() && candidate.plan.policyLimits
+                        ? candidate.plan.limitViolations(*candidate.plan.policyLimits)
+                        : QStringList();
+                agreeing += codes.isEmpty() ? 1 : 0;
+                EXPECT_TRUE(codes.isEmpty()) << candidate.index << ": "
+                                             << codes.join(QStringLiteral(", ")).toStdString();
+            }
             modes[crate::toString(plan.mode)] += 1;
             fallbacks += plan.fallbackReason ? 1 : 0;
             withLimits += plan.policyLimits ? 1 : 0;
@@ -298,6 +315,9 @@ TEST_F(AutoDJSmartMixLive, PlansAutoDJsEdgesWithinTheDeadline) {
     measure("fallback reasons " + std::to_string(fallbacks) + ", bass handoffs " +
             std::to_string(bassHandoffs) + ", stems used " + std::to_string(withStems) +
             " of " + std::to_string(checked));
+    measure(context.plannerVersion.toStdString() + ": Decks' limit check agrees with the " +
+            "server on " + std::to_string(agreeing) + " of " + std::to_string(candidates) +
+            " candidates");
 
     // The handover finds what was asked ahead in the cache
     EXPECT_TRUE(planClient.cachedPlan(edges[0], context).has_value());

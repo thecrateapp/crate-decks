@@ -2325,7 +2325,9 @@ class FakeServerAssist {
         };
         options.capabilitiesOf = [](const QString&) -> std::optional<crate::Capabilities> {
             return crate::Capabilities::fromJson(QJsonDocument::fromJson(
-                                                         R"({"decks": {"available": true,
+                                                         R"({"smart_mix": {"available": true,
+                    "planner_versions": ["smart-mix-v2", "smart-mix-v3"]},
+                    "decks": {"available": true,
                     "min_client_version": "0.1.0", "contract_version": 1,
                     "features": ["beatmatch", "bass_handoff", "long_beatmatch"]}})"))
                     .value();

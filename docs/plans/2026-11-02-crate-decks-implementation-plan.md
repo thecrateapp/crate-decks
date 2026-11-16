@@ -1169,6 +1169,21 @@ desarrollar se usa el stack dev con la IA activada en local (Ollama con Qwen), n
   - `SendsSetHistoryFromDirector`
   - `CacheKeyIncludesPlannerVersion`
 
+**Implemented (F6b.PR1, 2026-11-16).** Branch `feat/decks-planner-v3`, on `main` after F6. Server contract read from the monorepo (`f0d5b9b61` for the planners and `setHistory`, `aea3d084e` for the menu and the limits) and checked against the dev stack.
+
+- **Capabilities:** `smart_mix.planner_versions`, `planner_version` and `structure`. `ai_assisted` is not read (dropped with PR2 and PR3); the tests are `ParsesPlannerVersionsAndStructure`, `MissingPlannerVersionsOfferNoPlanner` and `MalformedSmartMixSectionIsADecodeError`.
+- **Planner:** `PlanContext::forServer()` asks `smart-mix-v3` when the server lists it and `smart-mix-v2` otherwise, with `localRefinement` when v3 is there and `decks.features` has `local_refinement`. Auto DJ and the assistant use it instead of the fixed `smart-mix-v3` of F6. The local cache key already had the planner; `setHistory` is left out of it, as on the server.
+- **Menu and limits:** `TransitionPlan` reads `candidates` (rank, phrases, length in bars, score, breakdown with stems, and a whole plan with the edge's limits) and every field of `policyLimits` that the server's check reads. `limitViolations()` is `limit_violations` code by code and in its order, and `mixes()` says which plans the server checks against the limits (`policy_violations` exempts gapless plans and the planner's short cut, an `adaptive` `insufficient_window` plan of up to 350 ms). `validate()` adds that check to its own when the plan has limits.
+- **Choice (`TransitionPlan::playable()`):** Decks plays the server's pick, the first candidate, when `validate()` passes on the decks' tracks; otherwise the first entry of the menu, in the server's order, that passes; none falls back as before (`invalid_plan`). That is the server's own selection (the best-ranked valid candidate) with Decks' own tracks as the only extra bound. The director plays the choice and reports it (`Report::candidateIndex`, and the pick's problem in `detail`); the assistant shows it, with "option N" in the planner row when it is not the pick. There is no local rescoring or recomposition of candidates.
+- **Agreement:** `limit-violations.json` (43 cases, from `make_limit_violation_cases.py`, which runs the monorepo's own `limit_violations`) pins the mirror: the 16 real candidates of two dev-stack menus pass, and 21 variations give exactly the server's codes. Where Decks is stricter (the loaded track ends before the profile's window) or the pick would break the limits, Decks takes the next candidate; the short cut is exempt on both sides. Live (`AutoDJSmartMixLive`): Decks' check agrees with the server on 88 of 88 candidates in "G3 · Auto DJ (industrial EBM)" and in "G3 · Electronic (Q3 Q5 grids)".
+- **Set history:** `crate::SetHistory` (`src/crate/smartmix/sethistory.{h,cpp}`), kept by `CrateServerFeature` for Auto DJ and the assistant: the last 3 transitions their directors played, with the mode, the length in bars at the outgoing profile's tempo and meter, and `introEnergy` of the incoming profile less `outroEnergy` of the outgoing one (both now read by `MixProfile`). The profiles come from the `ProfileStore` when the transition is handed over (Auto DJ) or planned (assistant); a transition without those numbers is not recorded. Sent only with v3. No deterministic planner reads it: it was the AI refinement's input, so today it changes no plan.
+- **`structureUsed`:** already read since F6.C-PR1; candidates carry their own.
+- **Fixtures:** `real-v3-menu-response.json` and `real-v3-menu-tracks.json` (`export_real_candidate_menus.py`, Auto DJ's context with `localRefinement` on "G3 · Electronic (Q3 Q5 grids)").
+
+`TEST_GAP:` how often the choice differs from the pick with real decks, and whether the next candidate sounds better than Auto DJ's own fallback, is for G4b.
+
+**For Diego:** keep or drop the set history while no planner reads it; and whether a pick that breaks the limits should fall back instead of taking the next candidate (today it never happens: the server serves only valid candidates).
+
 ### F6b.PR2 · Petición y recogida del refinamiento
 
 **Dropped (Diego, 2026-11-10):** no AI refinement after SG3's no-go. Kept for the record.

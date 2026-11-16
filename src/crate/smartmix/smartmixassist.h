@@ -17,6 +17,7 @@
 #include "crate/cache/audiocache.h"
 #include "crate/client/cratecapabilities.h"
 #include "crate/smartmix/planclient.h"
+#include "crate/smartmix/sethistory.h"
 #include "crate/smartmix/smartmixdirector.h"
 #include "crate/smartmix/transitionplan.h"
 #include "track/track_decl.h"
@@ -80,8 +81,6 @@ class SmartMixAssist : public QObject {
     };
     Q_ENUM(Status)
 
-    /// The planner the assistant asks.
-    static inline const QString kPlannerVersion = QStringLiteral("smart-mix-v3");
     /// The group of its controls.
     static inline const QString kControlGroup = QStringLiteral("[CrateSmartMix]");
 
@@ -97,6 +96,9 @@ class SmartMixAssist : public QObject {
         std::function<PlanClient*(const QString& serverId)> planClientFor;
         /// What a server announced last.
         std::function<std::optional<Capabilities>(const QString& serverId)> capabilitiesOf;
+        /// The transitions of the set, which it records and sends; none
+        /// without it.
+        SetHistory* pSetHistory = nullptr;
         /// Whether these decks have the default mixing EQ, on.
         std::function<bool(const QStringList& deckGroups)> defaultEqOn;
         /// The master deck's group, or empty; the deck on air by default.
@@ -125,9 +127,15 @@ class SmartMixAssist : public QObject {
     }
     TrackPointer outgoingTrack() const;
     TrackPointer incomingTrack() const;
-    /// The plan of the decks' edge, once the server gave one that fits.
+    /// The plan of the decks' edge, once the server gave one that fits: its
+    /// pick, or the next entry of its menu that fits the decks' tracks
+    /// (TransitionPlan::playable()).
     const std::optional<TransitionPlan>& plan() const {
         return m_plan;
+    }
+    /// The planner the plan was asked of (PlanContext::forServer()).
+    QString plannerVersion() const {
+        return m_plannerVersion;
     }
     /// Why there is no plan (Status::NoPlan).
     QString problem() const {
@@ -202,7 +210,9 @@ class SmartMixAssist : public QObject {
     QString m_incoming;
     PlanEdge m_edge;
     QString m_serverId;
-    /// The context the plan was asked with: another one asks again.
+    /// The planner and context the plan was asked with: another one asks
+    /// again.
+    QString m_plannerVersion;
     QJsonObject m_context;
     std::optional<TransitionPlan> m_plan;
     QString m_problem;
