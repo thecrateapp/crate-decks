@@ -37,6 +37,7 @@
 #include "crate/smartmix/smartmixassist.h"
 #include "crate/ui/cachestatusmodel.h"
 #include "crate/ui/delegates/delegateroles.h"
+#include "crate/writeback/cratecorrections.h"
 #include "crate/writeback/outbox.h"
 #include "library/crateserver/crateservertrackmodel.h"
 #include "library/dao/playlistdao.h"
@@ -1251,6 +1252,65 @@ TEST_F(CrateServerFeatureTest, LikeFromTheTrackMenuShowsInTheLikedColumn) {
     // Nothing of Crate on air: the mapping's control does nothing
     EXPECT_FALSE(pFeature->toggleLikeOnAir());
     EXPECT_TRUE(ControlObject::exists(CrateServerFeature::likeOnAirKey()));
+}
+
+// The track menu offers to clear the user's correction stored on Crate, and
+// to save one only once the user corrected the track (plan F8.C-PR2)
+TEST_F(CrateServerFeatureTest, TrackMenuClearsTheCorrectionOnCrate) {
+    storeTree();
+    storeContainerTracks(containerId(QStringLiteral("playlist"), QStringLiteral("7")),
+            {remoteTrack(QStringLiteral("e1"), QStringLiteral("Lattice"), 0.7, QString())});
+    CrateServerFeature* pFeature = makeFeature();
+    CrateServerTrackModel* pModel = showWarmUp(pFeature);
+    ASSERT_NE(nullptr, pModel);
+    ASSERT_TRUE(QTest::qWaitFor([&] { return pModel->rowCount() == 1; }, 5000));
+    crate::writeback::CrateCorrections* pCorrections = m_pServers->corrections();
+    ASSERT_TRUE(QTest::qWaitFor([&] { return pCorrections->isLoaded(); }, 5000));
+    m_pServers->rememberCapabilities(kServer,
+            QByteArrayLiteral(R"({"decks": {"available": true, "min_client_version": "0.1.0",
+                "contract_version": 1, "features": ["library_cursor", "cues"]}})"));
+    QObject parent;
+    const auto entry = [&](const QString& text) -> QAction* {
+        const QList<QAction*> actions = pModel->trackMenuActions({pModel->index(0, 0)}, &parent);
+        const auto it = std::find_if(actions.cbegin(), actions.cend(), [&](const QAction* pAction) {
+            return pAction->text() == text;
+        });
+        return it == actions.cend() ? nullptr : *it;
+    };
+    EXPECT_EQ(nullptr, entry(QStringLiteral("Clear correction on Crate")));
+
+    // The track is loaded, and the user has a correction of it on Crate
+    const TrackPointer pTrack = Track::newTemporary(m_cacheDir.filePath(QStringLiteral("e1.flac")));
+    pTrack->setAudioProperties(mixxx::audio::ChannelCount::stereo(),
+            mixxx::audio::SampleRate(44100),
+            mixxx::audio::Bitrate(320),
+            mixxx::Duration::fromSeconds(372));
+    pCorrections->attach(pTrack, kServer, QStringLiteral("e1"));
+    const QString query = QStringLiteral("/api/decks/corrections/query");
+    ASSERT_TRUE(QTest::qWaitFor([&] { return sentTo(query) == 1; }, 5000));
+    lastTo(query)->pReply->respond(200, QByteArrayLiteral(R"({"corrections": {"e1": {
+        "entity_uid": "e1", "revision": 2, "updated_at": "2026-11-16T18:10:02Z",
+        "client_id": "install-2", "bpm": 124.5, "beat_grid_format": null,
+        "beat_grid_ms": null, "key": "8A"}}, "missing": []})"));
+    ASSERT_TRUE(QTest::qWaitFor(
+            [&] {
+                return pCorrections->hasCorrection(
+                        kServer, QStringLiteral("e1"));
+            },
+            5000));
+    EXPECT_EQ(nullptr, entry(QStringLiteral("Save correction to Crate")));
+    QAction* pClear = entry(QStringLiteral("Clear correction on Crate"));
+    ASSERT_NE(nullptr, pClear);
+
+    pClear->trigger();
+
+    const QString put = QStringLiteral("/api/decks/corrections/e1");
+    ASSERT_TRUE(QTest::qWaitFor([&] { return sentTo(put) == 1; }, 5000));
+    const QJsonObject body = QJsonDocument::fromJson(lastTo(put)->body).object();
+    EXPECT_EQ(2, body.value(QStringLiteral("base_revision")).toInt());
+    EXPECT_TRUE(body.value(QStringLiteral("bpm")).isNull());
+    EXPECT_TRUE(body.value(QStringLiteral("key")).isNull());
+    EXPECT_EQ(nullptr, entry(QStringLiteral("Clear correction on Crate")));
 }
 
 // A Crate playlist's track table removes, reorders and takes tracks on the

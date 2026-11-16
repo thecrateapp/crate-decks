@@ -224,6 +224,26 @@ TEST_F(AnalysisImporterTest, RejectsDriftingGrid) {
     EXPECT_EQ(nullptr, pTrack->getBeats());
 }
 
+// A key the user set, here or as a correction synced from Crate (plan
+// F8.C-PR2), is never replaced by the profile's.
+TEST_F(AnalysisImporterTest, KeepsTheKeyTheUserSet) {
+    Policy policy;
+    policy.crateKey = true;
+    const MixProfile profile = fixture(kConstantFixture);
+    TrackPointer pTrack = unopenedTrack();
+    pTrack->setKeyText(QStringLiteral("G"), mixxx::track::io::key::USER);
+    ASSERT_EQ(mixxx::track::io::key::USER, crate::analysis::keySourceOf(pTrack));
+
+    EXPECT_FALSE(AnalysisImporter::apply(pTrack, profile, policy).keySet);
+    EXPECT_EQ(mixxx::track::io::key::G_MAJOR, pTrack->getKey());
+
+    // A key from the tags or upstream's analysis is replaced
+    pTrack->setKey(mixxx::track::io::key::D_MAJOR, mixxx::track::io::key::FILE_METADATA);
+    EXPECT_EQ(mixxx::track::io::key::FILE_METADATA, crate::analysis::keySourceOf(pTrack));
+    EXPECT_TRUE(AnalysisImporter::apply(pTrack, profile, policy).keySet);
+    EXPECT_EQ(mixxx::track::io::key::A_MINOR, pTrack->getKey());
+}
+
 TEST_F(AnalysisImporterTest, SetsKeyFromCamelot) {
     using namespace mixxx::track::io::key;
     const QList<std::pair<QString, ChromaticKey>> wheel = {
@@ -273,6 +293,8 @@ TEST_F(AnalysisImporterTest, SetsKeyFromCamelot) {
         TrackPointer pTrack = unopenedTrack();
         EXPECT_TRUE(AnalysisImporter::apply(pTrack, profile, policy).keySet);
         EXPECT_EQ(key, pTrack->getKey()) << camelot.toStdString();
+        // And back, for a correction (plan F8.C-PR2)
+        EXPECT_EQ(camelot, crate::analysis::camelotFromKey(key));
     }
 }
 

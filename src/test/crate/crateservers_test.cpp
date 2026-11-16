@@ -125,7 +125,7 @@ TEST_F(CrateServersTest, AnnouncesTheCapabilitiesItKeeps) {
     EXPECT_EQ(json, pServers->lastCapabilities(QStringLiteral("a")));
 }
 
-// Plan F8: cues sync only with a server that announces the
+// Plan F8: cues and corrections sync only with a server that announces the
 // `cues` feature, and follow its capabilities as they change.
 TEST_F(CrateServersTest, SyncsCuesWithServersThatServeThem) {
     ASSERT_TRUE(crate::db::createCrateServerSchema(dbConnection()));
@@ -136,6 +136,7 @@ TEST_F(CrateServersTest, SyncsCuesWithServersThatServeThem) {
     const auto pServers = makeServers();
     pServers->start();
     ASSERT_NE(nullptr, pServers->cueSync());
+    ASSERT_NE(nullptr, pServers->corrections());
     const QByteArray without = R"({"decks": {"available": true,
         "min_client_version": "0.1.0", "contract_version": 1,
         "features": ["library_cursor"]}})";

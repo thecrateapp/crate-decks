@@ -18,6 +18,7 @@
 #include "crate/db/crateserverschema.h"
 #include "crate/session/cratesecretstore.h"
 #include "crate/stems/stemsidecar.h"
+#include "crate/writeback/cratecorrections.h"
 #include "crate/writeback/cratecuesync.h"
 #include "crate/writeback/cratelikes.h"
 #include "crate/writeback/crateratings.h"
@@ -77,6 +78,7 @@ CrateServers::~CrateServers() {
         m_pCueSync->flushEdits();
     }
     m_pCueSync.reset();
+    m_pCorrections.reset();
     m_pRatings.reset();
     m_pLikes.reset();
     m_pOutbox.reset();
@@ -115,6 +117,7 @@ void CrateServers::start() {
     m_pOutbox->start();
     m_pRatings->start();
     m_pCueSync->start();
+    m_pCorrections->start();
     emit serversChanged();
 }
 
@@ -164,7 +167,7 @@ void CrateServers::createWriteback() {
     ratings.trackOfFile = trackOfFile;
     m_pRatings = std::make_unique<writeback::CrateRatings>(std::move(ratings));
 
-    // The user's cues (plan F8), from servers that serve them
+    // The user's cues and corrections (plan F8), from servers that serve them
     writeback::TrackDataSync::Options sync;
     sync.pOutbox = m_pOutbox.get();
     sync.pDbConnectionPool = m_dependencies.pDbConnectionPool;
@@ -179,7 +182,8 @@ void CrateServers::createWriteback() {
     if (m_dependencies.pConfig) {
         sync.clientId = deviceFingerprint(m_dependencies.pConfig);
     }
-    m_pCueSync = std::make_unique<writeback::CrateCueSync>(std::move(sync));
+    m_pCueSync = std::make_unique<writeback::CrateCueSync>(sync);
+    m_pCorrections = std::make_unique<writeback::CrateCorrections>(std::move(sync));
 }
 
 bool CrateServers::serverHas(const QString& serverId, DecksFeature feature) const {

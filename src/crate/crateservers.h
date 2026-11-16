@@ -33,6 +33,7 @@ class AudioCache;
 } // namespace cache
 
 namespace writeback {
+class CrateCorrections;
 class CrateCueSync;
 class CrateLikes;
 class CrateRatings;
@@ -140,6 +141,11 @@ class CrateServers : public QObject {
     writeback::CrateCueSync* cueSync() const {
         return m_pCueSync.get();
     }
+    /// The user's BPM, grid and key corrections of Crate tracks (plan
+    /// F8.C-PR2).
+    writeback::CrateCorrections* corrections() const {
+        return m_pCorrections.get();
+    }
     /// Whether the saved server announces `feature` in its last
     /// capabilities.
     bool serverHas(const QString& serverId, DecksFeature feature) const;
@@ -177,6 +183,7 @@ class CrateServers : public QObject {
     std::unique_ptr<writeback::CrateLikes> m_pLikes;
     std::unique_ptr<writeback::CrateRatings> m_pRatings;
     std::unique_ptr<writeback::CrateCueSync> m_pCueSync;
+    std::unique_ptr<writeback::CrateCorrections> m_pCorrections;
     /// The last capabilities of each server, as serverHas() read them.
     mutable QHash<QString, std::optional<Capabilities>> m_features;
 };

@@ -333,6 +333,10 @@ class CrateServerFeature : public LibraryFeature {
     /// The Crate tracks of these files join the server's playlist.
     void addToPlaylist(const QString& serverId, qint64 playlistId, const QStringList& locations);
     void showWarning(const QString& message);
+    /// "Save correction to Crate" and "Clear correction on Crate" for one
+    /// selected track, when they apply.
+    void appendCorrectionActions(
+            const QList<CrateTrackRef>& tracks, QObject* pParent, QList<QAction*>* pActions);
     /// The master deck's Crate track, if it has one.
     std::optional<cache::TrackKey> crateTrackOnAir() const;
     void showRadio();
