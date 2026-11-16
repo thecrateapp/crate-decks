@@ -1,8 +1,10 @@
 #include "crate/smartmix/transitionplan.h"
 
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonParseError>
 #include <QUuid>
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <utility>
@@ -86,15 +88,34 @@ class Problem {
     std::optional<QString> m_problem;
 };
 
-/// The parts of a plan's `policyLimits` that validate() checks.
+/// The tolerances of the server's limit check (evaluation.py): `_EPSILON`,
+/// `_TRUE_PEAK_TOLERANCE_DB` and `_TEMPO_ADJUSTMENT_FLOOR`.
+constexpr double kLimitEpsilon = 1e-6;
+constexpr double kTruePeakToleranceDb = 1e-3;
+constexpr double kTempoAdjustmentFloor = 0.001;
+
+/// A plan's `policyLimits`. `rulesRevision` and `phraseLengths` are not
+/// read: no check uses them.
 Result<TransitionPlanLimits> limitsFromJson(const QJsonObject& object) {
     const QString path = kPath + QStringLiteral(".policyLimits");
     json::ObjectReader reader(object, path);
     TransitionPlanLimits limits;
+    limits.beatmatchAllowed = reader.requiredBool(u"beatmatchAllowed");
+    limits.tempoAdjustmentAllowed = reader.requiredBool(u"tempoAdjustmentAllowed");
+    limits.bassHandoffAllowed = reader.requiredBool(u"bassHandoffAllowed");
+    limits.longBeatmatchAllowed = reader.requiredBool(u"longBeatmatchAllowed");
+    limits.longBeatmatchEligible = reader.requiredBool(u"longBeatmatchEligible");
+    limits.maxTempoAdjustment = reader.requiredDouble(u"maximumTempoAdjustment");
+    limits.minTransitionMs = reader.requiredInteger(u"minimumTransitionMs");
     limits.maxTransitionMs = reader.requiredInteger(u"maximumTransitionMs");
     limits.maxLongBeatmatchMs = reader.requiredInteger(u"maximumLongBeatmatchMs");
-    limits.maxTempoAdjustment = reader.requiredDouble(u"maximumTempoAdjustment");
-    limits.longBeatmatchEligible = reader.requiredBool(u"longBeatmatchEligible");
+    limits.maxBoostDb = reader.requiredDouble(u"maximumBoostDb");
+    limits.maxCutDb = reader.requiredDouble(u"maximumCutDb");
+    limits.outgoingPeakLimitedGainDb = reader.requiredDouble(u"outgoingPeakLimitedGainDb");
+    limits.incomingPeakLimitedGainDb = reader.requiredDouble(u"incomingPeakLimitedGainDb");
+    limits.outgoingEarliestCueMs = reader.requiredInteger(u"outgoingEarliestCueMs");
+    limits.outgoingLatestEndMs = reader.requiredInteger(u"outgoingLatestEndMs");
+    limits.incomingLatestEndMs = reader.requiredInteger(u"incomingLatestEndMs");
     if (!reader.ok()) {
         return reader.error();
     }
@@ -105,12 +126,93 @@ Result<TransitionPlanLimits> limitsFromJson(const QJsonObject& object) {
                 limits.maxTempoAdjustment <= TransitionPlan::kMaxTempoRatio - 1.0)) {
         return Error::decode(path + QStringLiteral(".maximumTempoAdjustment is out of range"));
     }
+    for (const double gain : {limits.maxBoostDb,
+                 limits.maxCutDb,
+                 limits.outgoingPeakLimitedGainDb,
+                 limits.incomingPeakLimitedGainDb}) {
+        if (!std::isfinite(gain)) {
+            return Error::decode(path + QStringLiteral(" has a gain that is not finite"));
+        }
+    }
     return limits;
+}
+
+std::optional<int> optionalInt(json::ObjectReader& reader, QStringView key) {
+    const std::optional<qint64> value = reader.optionalInteger(key);
+    if (!value) {
+        return std::nullopt;
+    }
+    return static_cast<int>(*value);
 }
 
 QString uidOf(const QString& text) {
     const QUuid uid = QUuid::fromString(text);
     return uid.isNull() ? QString() : uid.toString(QUuid::WithoutBraces);
+}
+
+/// One candidate of the menu of `edge`, at `position`.
+Result<TransitionPlanCandidate> candidateFromJson(
+        const QJsonValue& value, int position, const TransitionPlan& edge) {
+    const QString path = kPath + QStringLiteral(".candidates[%1]").arg(position);
+    if (!value.isObject()) {
+        return Error::decode(path + QStringLiteral(" is not an object"));
+    }
+    json::ObjectReader reader(value.toObject(), path);
+    TransitionPlanCandidate candidate;
+    candidate.index = static_cast<int>(reader.requiredInteger(u"index"));
+    candidate.outgoingPhrase = optionalInt(reader, u"outgoingPhrase");
+    candidate.incomingPhrase = optionalInt(reader, u"incomingPhrase");
+    candidate.lengthBars = optionalInt(reader, u"lengthBars");
+    candidate.structureUsed = reader.requiredBool(u"structureUsed");
+    candidate.stemsUsed = reader.optionalBool(u"stemsUsed", false);
+    candidate.score = reader.requiredDouble(u"score");
+    const QJsonObject breakdown = reader.requiredObject(u"breakdown");
+    const QJsonObject plan = reader.requiredObject(u"plan");
+    if (!reader.ok()) {
+        return reader.error();
+    }
+    json::ObjectReader scores(breakdown, path + QStringLiteral(".breakdown"));
+    TransitionPlanCandidate::Breakdown& parts = candidate.breakdown;
+    parts.alignment = scores.requiredDouble(u"alignment");
+    parts.energy = scores.requiredDouble(u"energy");
+    parts.harmonic = scores.requiredDouble(u"harmonic");
+    parts.stability = scores.requiredDouble(u"stability");
+    parts.bass = scores.requiredDouble(u"bass");
+    parts.position = scores.requiredDouble(u"position");
+    parts.vocal = scores.optionalDouble(u"vocal");
+    const std::optional<QJsonObject> stems = scores.optionalObject(u"stems");
+    if (!scores.ok()) {
+        return scores.error();
+    }
+    if (stems) {
+        json::ObjectReader stemReader(*stems, path + QStringLiteral(".breakdown.stems"));
+        TransitionPlanCandidate::StemScore stemScore;
+        stemScore.vocalOverlapMs = stemReader.requiredInteger(u"vocalOverlapMs");
+        stemScore.bassOverlapMs = stemReader.requiredInteger(u"bassOverlapMs");
+        stemScore.drumsOnlyEntry = stemReader.requiredDouble(u"drumsOnlyEntry");
+        stemScore.vocalFreeExit = stemReader.requiredDouble(u"vocalFreeExit");
+        if (!stemReader.ok()) {
+            return stemReader.error();
+        }
+        parts.stems = stemScore;
+    }
+    const Result<TransitionPlan> parsed = TransitionPlan::fromJson(plan);
+    if (!parsed.ok()) {
+        return Error::decode(path + QStringLiteral(": ") + parsed.error().message);
+    }
+    if (parsed.value().outgoingTrackEntityUid != edge.outgoingTrackEntityUid ||
+            parsed.value().incomingTrackEntityUid != edge.incomingTrackEntityUid) {
+        return Error::decode(path + QStringLiteral(" is for another edge"));
+    }
+    if (candidate.index < 0) {
+        return Error::decode(path + QStringLiteral(".index is negative"));
+    }
+    candidate.plan = parsed.value();
+    candidate.plan.structureUsed = candidate.structureUsed;
+    candidate.plan.stemsUsed = candidate.stemsUsed;
+    candidate.plan.policyLimits = edge.policyLimits;
+    candidate.plan.candidateIndex = candidate.index;
+    return candidate;
 }
 
 } // namespace
@@ -140,8 +242,12 @@ Result<TransitionPlan> TransitionPlan::fromJson(const QJsonObject& object) {
     }
     plan.stemsUsed = reader.optionalBool(u"stemsUsed", false);
     const std::optional<QJsonObject> policyLimits = reader.optionalObject(u"policyLimits");
+    const QJsonValue candidates = object.value(QStringLiteral("candidates"));
     if (!reader.ok()) {
         return reader.error();
+    }
+    if (!candidates.isUndefined() && !candidates.isNull() && !candidates.isArray()) {
+        return Error::decode(kPath + QStringLiteral(".candidates is not an array"));
     }
     if (policyLimits) {
         const Result<Limits> limits = limitsFromJson(*policyLimits);
@@ -206,6 +312,16 @@ Result<TransitionPlan> TransitionPlan::fromJson(const QJsonObject& object) {
     plan.curve = *parsedCurve;
     plan.bassHandoff = *parsedBassHandoff;
     plan.fallbackReason = parsedFallbackReason;
+    const QJsonArray menu = candidates.toArray();
+    plan.candidates.reserve(static_cast<std::size_t>(menu.size()));
+    for (int position = 0; position < menu.size(); ++position) {
+        const Result<TransitionPlanCandidate> candidate =
+                candidateFromJson(menu.at(position), position, plan);
+        if (!candidate.ok()) {
+            return candidate.error();
+        }
+        plan.candidates.push_back(candidate.value());
+    }
     return plan;
 }
 
@@ -225,7 +341,18 @@ Result<TransitionPlan> TransitionPlan::fromJson(const QByteArray& json) {
 
 std::optional<QString> TransitionPlan::validate(
         qint64 outgoingDurationMs, qint64 incomingDurationMs) const {
-    return validate(outgoingDurationMs, incomingDurationMs, policyLimits.value_or(Limits()));
+    if (auto problem = validate(
+                outgoingDurationMs, incomingDurationMs, policyLimits.value_or(Limits()))) {
+        return problem;
+    }
+    if (!policyLimits || !mixes()) {
+        return std::nullopt;
+    }
+    const QStringList codes = limitViolations(*policyLimits);
+    if (codes.isEmpty()) {
+        return std::nullopt;
+    }
+    return QStringLiteral("plan breaks the server's limits: ") + codes.join(QStringLiteral(", "));
 }
 
 std::optional<QString> TransitionPlan::validate(qint64 outgoingDurationMs,
@@ -277,6 +404,95 @@ std::optional<QString> TransitionPlan::validate(qint64 outgoingDurationMs,
             QStringLiteral("incomingCueMs"),
             "leaves the transition past the end of the incoming track");
     return problem.problem();
+}
+
+QStringList TransitionPlan::limitViolations(const Limits& limits) const {
+    // As `limit_violations` in the server's evaluation.py, check by check.
+    QStringList codes;
+    const bool beatmatch = isBeatmatch();
+    const double ratio = incomingTempoRatio;
+    const bool longBlend = durationMs > limits.maxTransitionMs;
+    if (durationMs < limits.minTransitionMs || durationMs > limits.maxLongBeatmatchMs) {
+        codes.append(QStringLiteral("duration_out_of_range"));
+    } else if (longBlend &&
+            !(beatmatch && curve == Curve::DjBlend && limits.longBeatmatchEligible)) {
+        codes.append(QStringLiteral("long_beatmatch_ineligible"));
+    }
+    const double maxAdjustment = beatmatch ? limits.maxTempoAdjustment : 0.0;
+    if (std::abs(ratio - 1.0) > maxAdjustment + kLimitEpsilon) {
+        codes.append(QStringLiteral("tempo_out_of_range"));
+    }
+    const std::array<std::pair<double, double>, 2> gains{{
+            {outgoingGainDb, limits.outgoingPeakLimitedGainDb},
+            {incomingGainDb, limits.incomingPeakLimitedGainDb},
+    }};
+    const bool gainsInRange = std::all_of(
+            gains.cbegin(), gains.cend(), [&limits](const auto& gain) {
+                return gain.first <= limits.maxBoostDb + kLimitEpsilon &&
+                        (gain.first >= -limits.maxCutDb - kLimitEpsilon ||
+                                std::abs(gain.first - gain.second) <=
+                                        kTruePeakToleranceDb);
+            });
+    if (!gainsInRange) {
+        codes.append(QStringLiteral("gain_out_of_range"));
+    }
+    if (std::any_of(gains.cbegin(), gains.cend(), [](const auto& gain) {
+            return gain.first > gain.second + kTruePeakToleranceDb;
+        })) {
+        codes.append(QStringLiteral("true_peak_exceeded"));
+    }
+    if (outgoingCueMs + durationMs > limits.outgoingLatestEndMs) {
+        codes.append(QStringLiteral("outgoing_window_out_of_range"));
+    }
+    if (outgoingCueMs < limits.outgoingEarliestCueMs) {
+        codes.append(QStringLiteral("outgoing_body_too_short"));
+    }
+    const double incomingRate = beatmatch ? ratio : 1.0;
+    if (static_cast<double>(incomingCueMs) + static_cast<double>(durationMs) * incomingRate >
+            static_cast<double>(limits.incomingLatestEndMs)) {
+        codes.append(QStringLiteral("incoming_body_too_short"));
+    }
+    if (beatmatch && !limits.beatmatchAllowed) {
+        codes.append(QStringLiteral("beatmatch_not_allowed"));
+    }
+    if (std::abs(ratio - 1.0) > kTempoAdjustmentFloor && !limits.tempoAdjustmentAllowed) {
+        codes.append(QStringLiteral("tempo_adjustment_not_allowed"));
+    }
+    if (hasBassHandoff() && !limits.bassHandoffAllowed) {
+        codes.append(QStringLiteral("bass_handoff_not_allowed"));
+    }
+    if (longBlend && !limits.longBeatmatchAllowed) {
+        codes.append(QStringLiteral("long_beatmatch_not_allowed"));
+    }
+    return codes;
+}
+
+bool TransitionPlan::mixes() const {
+    const bool shortCut = mode == Mode::Adaptive &&
+            fallbackReason == FallbackReason::InsufficientWindow &&
+            durationMs <= kShortCutMaxMs;
+    return mode != Mode::Gapless && !shortCut;
+}
+
+std::optional<TransitionPlan> TransitionPlan::playable(
+        qint64 outgoingDurationMs, qint64 incomingDurationMs, QString* pProblem) const {
+    const std::optional<QString> problem = validate(outgoingDurationMs, incomingDurationMs);
+    if (pProblem) {
+        *pProblem = problem.value_or(QString());
+    }
+    if (!problem) {
+        return *this;
+    }
+    // The server's next best, in its order; the first entry is this plan.
+    for (const TransitionPlanCandidate& candidate : candidates) {
+        if (candidate.index == candidateIndex) {
+            continue;
+        }
+        if (!candidate.plan.validate(outgoingDurationMs, incomingDurationMs)) {
+            return candidate.plan;
+        }
+    }
+    return std::nullopt;
 }
 
 qint64 TransitionPlan::startIncomingCueMs() const {

@@ -3,8 +3,11 @@
 #include <gtest/gtest.h>
 
 #include <QFile>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QStringList>
+#include <functional>
 
 #include "test/mixxxtest.h"
 
@@ -319,8 +322,294 @@ TEST_F(CrateTransitionPlanTest, ReadsPolicyLimitsStrictly) {
             withLimits(QStringLiteral("maximumLongBeatmatchMs"), 6000));
     EXPECT_EQ(QStringLiteral("plan.policyLimits.maximumTempoAdjustment is out of range"),
             withLimits(QStringLiteral("maximumTempoAdjustment"), 0.1));
-    // The fields validate() does not read are not required.
+    // The fields neither validate() nor limitViolations() reads are not
+    // required.
     EXPECT_EQ(QString(), withLimits(QStringLiteral("phraseLengths"), QJsonValue::Undefined));
+}
+
+// Planner v3 in Decks (plan F6b.PR1): the candidate menu and the limits the
+// server serves to the decks context with `localRefinement`, and the check
+// of those limits that Decks mirrors from the server (`limit_violations`).
+class CrateTransitionPlanMenuTest : public CrateTransitionPlanTest {
+  protected:
+    /// The real v3 answer for a beatmatch edge and a fallback edge
+    /// (real-v3-menu-response.json, from export_real_candidate_menus.py).
+    QJsonObject menuPlan(int position) const {
+        return object(QStringLiteral("real-v3-menu-response.json"))
+                .value(QStringLiteral("plans"))
+                .toArray()
+                .at(position)
+                .toObject();
+    }
+
+    TransitionPlan parseMenuPlan(int position) const {
+        const auto result = TransitionPlan::fromJson(menuPlan(position));
+        EXPECT_TRUE(result.ok()) << (result.ok() ? std::string()
+                                                 : result.error().message.toStdString());
+        return result.ok() ? result.value() : TransitionPlan();
+    }
+
+    /// The profile duration of a track of the menus (real-v3-menu-tracks.json).
+    qint64 menuDurationOf(const QString& uid) const {
+        return object(QStringLiteral("real-v3-menu-tracks.json"))
+                .value(QStringLiteral("durationMs"))
+                .toObject()
+                .value(uid)
+                .toInteger();
+    }
+};
+
+TEST_F(CrateTransitionPlanMenuTest, ParsesTheCandidateMenu) {
+    const TransitionPlan plan = parseMenuPlan(0);
+    EXPECT_EQ(TransitionPlan::Mode::Beatmatch, plan.mode);
+    EXPECT_EQ(0, plan.candidateIndex);
+    ASSERT_EQ(8U, plan.candidates.size());
+
+    // Every bound the server resolved for the edge.
+    ASSERT_TRUE(plan.policyLimits.has_value());
+    const TransitionPlan::Limits& limits = *plan.policyLimits;
+    EXPECT_TRUE(limits.beatmatchAllowed);
+    EXPECT_TRUE(limits.tempoAdjustmentAllowed);
+    EXPECT_TRUE(limits.bassHandoffAllowed);
+    EXPECT_TRUE(limits.longBeatmatchAllowed);
+    EXPECT_TRUE(limits.longBeatmatchEligible);
+    EXPECT_DOUBLE_EQ(0.04, limits.maxTempoAdjustment);
+    EXPECT_EQ(1000, limits.minTransitionMs);
+    EXPECT_EQ(12000, limits.maxTransitionMs);
+    EXPECT_EQ(48000, limits.maxLongBeatmatchMs);
+    EXPECT_DOUBLE_EQ(6.0, limits.maxBoostDb);
+    EXPECT_DOUBLE_EQ(6.0, limits.maxCutDb);
+    EXPECT_DOUBLE_EQ(-4.191995, limits.outgoingPeakLimitedGainDb);
+    EXPECT_DOUBLE_EQ(-4.247208, limits.incomingPeakLimitedGainDb);
+    EXPECT_EQ(30000, limits.outgoingEarliestCueMs);
+    EXPECT_EQ(440975, limits.outgoingLatestEndMs);
+    EXPECT_EQ(318876, limits.incomingLatestEndMs);
+
+    // Best first; the first one is the plan itself.
+    const crate::TransitionPlanCandidate& first = plan.candidates.front();
+    EXPECT_EQ(0, first.index);
+    EXPECT_DOUBLE_EQ(0.868276, first.score);
+    EXPECT_EQ(std::optional<int>(17), first.outgoingPhrase);
+    EXPECT_EQ(std::optional<int>(0), first.incomingPhrase);
+    EXPECT_EQ(std::optional<int>(16), first.lengthBars);
+    EXPECT_TRUE(first.structureUsed);
+    EXPECT_TRUE(first.stemsUsed);
+    EXPECT_DOUBLE_EQ(0.5, first.breakdown.alignment);
+    EXPECT_DOUBLE_EQ(0.988, first.breakdown.energy);
+    EXPECT_DOUBLE_EQ(0.825198, first.breakdown.harmonic);
+    EXPECT_DOUBLE_EQ(0.718965, first.breakdown.stability);
+    EXPECT_DOUBLE_EQ(1.0, first.breakdown.bass);
+    EXPECT_DOUBLE_EQ(1.0, first.breakdown.position);
+    EXPECT_EQ(std::optional<double>(0.0), first.breakdown.vocal);
+    ASSERT_TRUE(first.breakdown.stems.has_value());
+    EXPECT_EQ(0, first.breakdown.stems->vocalOverlapMs);
+    EXPECT_EQ(0, first.breakdown.stems->bassOverlapMs);
+    EXPECT_DOUBLE_EQ(0.0, first.breakdown.stems->drumsOnlyEntry);
+    EXPECT_DOUBLE_EQ(0.999992, first.breakdown.stems->vocalFreeExit);
+    EXPECT_EQ(plan.durationMs, first.plan.durationMs);
+    EXPECT_EQ(plan.outgoingCueMs, first.plan.outgoingCueMs);
+    EXPECT_EQ(plan.incomingCueMs, first.plan.incomingCueMs);
+    EXPECT_EQ(plan.beatPhaseOffsetMs, first.plan.beatPhaseOffsetMs);
+
+    // Each candidate is a whole plan of the edge, with the edge's limits.
+    double score = 1.0;
+    for (std::size_t index = 0; index < plan.candidates.size(); ++index) {
+        const crate::TransitionPlanCandidate& candidate = plan.candidates.at(index);
+        EXPECT_EQ(static_cast<int>(index), candidate.index);
+        EXPECT_LE(candidate.score, score);
+        score = candidate.score;
+        EXPECT_EQ(plan.outgoingTrackEntityUid, candidate.plan.outgoingTrackEntityUid);
+        EXPECT_EQ(plan.incomingTrackEntityUid, candidate.plan.incomingTrackEntityUid);
+        EXPECT_EQ(static_cast<int>(index), candidate.plan.candidateIndex);
+        EXPECT_TRUE(candidate.plan.candidates.empty());
+        ASSERT_TRUE(candidate.plan.policyLimits.has_value());
+        EXPECT_EQ(limits.outgoingLatestEndMs, candidate.plan.policyLimits->outgoingLatestEndMs);
+        EXPECT_EQ(std::optional<bool>(candidate.structureUsed), candidate.plan.structureUsed);
+    }
+    // The bar heuristic's own window: no phrases, no length.
+    const crate::TransitionPlanCandidate& heuristic = plan.candidates.at(3);
+    EXPECT_FALSE(heuristic.structureUsed);
+    EXPECT_FALSE(heuristic.outgoingPhrase.has_value());
+    EXPECT_FALSE(heuristic.lengthBars.has_value());
+    EXPECT_EQ(400, heuristic.plan.incomingCueMs);
+
+    // A plan without the menu has none: v2, or v3 without localRefinement.
+    QJsonObject withoutMenu = menuPlan(0);
+    withoutMenu.remove(QStringLiteral("candidates"));
+    const auto bare = TransitionPlan::fromJson(withoutMenu);
+    ASSERT_TRUE(bare.ok());
+    EXPECT_TRUE(bare.value().candidates.empty());
+}
+
+TEST_F(CrateTransitionPlanMenuTest, ReadsTheMenuStrictly) {
+    const auto withCandidate = [&](const std::function<void(QJsonObject&)>& change) {
+        QJsonObject plan = menuPlan(0);
+        QJsonArray candidates = plan.value(QStringLiteral("candidates")).toArray();
+        QJsonObject candidate = candidates.at(1).toObject();
+        change(candidate);
+        candidates.replace(1, candidate);
+        plan.insert(QStringLiteral("candidates"), candidates);
+        const auto result = TransitionPlan::fromJson(plan);
+        return result.ok() ? QString() : result.error().message;
+    };
+    EXPECT_EQ(QStringLiteral("plan.candidates[1].score is missing"),
+            withCandidate([](QJsonObject& candidate) {
+                candidate.remove(QStringLiteral("score"));
+            }));
+    EXPECT_EQ(QStringLiteral("plan.candidates[1].breakdown.energy is missing"),
+            withCandidate([](QJsonObject& candidate) {
+                QJsonObject breakdown = candidate.value(QStringLiteral("breakdown")).toObject();
+                breakdown.remove(QStringLiteral("energy"));
+                candidate.insert(QStringLiteral("breakdown"), breakdown);
+            }));
+    EXPECT_EQ(QStringLiteral("plan.candidates[1]: plan.mode is not a known mode"),
+            withCandidate([](QJsonObject& candidate) {
+                QJsonObject plan = candidate.value(QStringLiteral("plan")).toObject();
+                plan.insert(QStringLiteral("mode"), QStringLiteral("scratch"));
+                candidate.insert(QStringLiteral("plan"), plan);
+            }));
+    EXPECT_EQ(QStringLiteral("plan.candidates[1] is for another edge"),
+            withCandidate([](QJsonObject& candidate) {
+                QJsonObject plan = candidate.value(QStringLiteral("plan")).toObject();
+                plan.insert(QStringLiteral("incomingTrackEntityUid"), kBeatmatchIncoming);
+                candidate.insert(QStringLiteral("plan"), plan);
+            }));
+    // A phrase length the server may add later is read as it comes.
+    EXPECT_EQ(QString(), withCandidate([](QJsonObject& candidate) {
+        candidate.insert(QStringLiteral("lengthBars"), 64);
+    }));
+}
+
+// Decks' own check of the limits gives exactly the codes of the server's
+// `limit_violations`, in its order, and says which plans mix, as the server's
+// `policy_violations` does: limit-violations.json is the server's answer for
+// every candidate of both real menus and for variations built to cross each
+// bound or to sit on it (make_limit_violation_cases.py runs the server's
+// function).
+TEST_F(CrateTransitionPlanMenuTest, MirrorsTheServersLimitCheck) {
+    const QJsonArray cases = object(QStringLiteral("limit-violations.json"))
+                                     .value(QStringLiteral("cases"))
+                                     .toArray();
+    ASSERT_EQ(43, cases.size());
+    int withCodes = 0;
+    for (const QJsonValue& value : cases) {
+        const QJsonObject testCase = value.toObject();
+        const std::string name = testCase.value(QStringLiteral("name")).toString().toStdString();
+        QJsonObject json = testCase.value(QStringLiteral("plan")).toObject();
+        json.insert(QStringLiteral("policyLimits"), testCase.value(QStringLiteral("policyLimits")));
+        const auto parsed = TransitionPlan::fromJson(json);
+        ASSERT_TRUE(parsed.ok()) << name << ": " << parsed.error().message.toStdString();
+        const TransitionPlan& plan = parsed.value();
+        QStringList expected;
+        const QJsonArray codes = testCase.value(QStringLiteral("codes")).toArray();
+        for (const QJsonValue& code : codes) {
+            expected.append(code.toString());
+        }
+        withCodes += expected.isEmpty() ? 0 : 1;
+        EXPECT_EQ(expected, plan.limitViolations(*plan.policyLimits)) << name;
+        EXPECT_EQ(testCase.value(QStringLiteral("mixes")).toBool(), plan.mixes()) << name;
+    }
+    EXPECT_EQ(21, withCodes);
+}
+
+// Agreement: the server serves the plan it picked, the first of its menu;
+// Decks' check finds nothing in it on the tracks it planned for, and plays it.
+TEST_F(CrateTransitionPlanMenuTest, PlaysTheServersPickWhenTheChecksAgree) {
+    for (const int position : {0, 1}) {
+        const TransitionPlan plan = parseMenuPlan(position);
+        const qint64 outgoingMs = menuDurationOf(plan.outgoingTrackEntityUid);
+        const qint64 incomingMs = menuDurationOf(plan.incomingTrackEntityUid);
+        EXPECT_EQ(std::nullopt, plan.validate(outgoingMs, incomingMs)) << position;
+        // Every candidate passes too: the server serves only valid ones.
+        for (const crate::TransitionPlanCandidate& candidate : plan.candidates) {
+            EXPECT_EQ(std::nullopt, candidate.plan.validate(outgoingMs, incomingMs))
+                    << position << " " << candidate.index;
+        }
+        QString problem;
+        const std::optional<TransitionPlan> chosen =
+                plan.playable(outgoingMs, incomingMs, &problem);
+        ASSERT_TRUE(chosen.has_value()) << position;
+        EXPECT_EQ(0, chosen->candidateIndex);
+        EXPECT_EQ(plan.durationMs, chosen->durationMs);
+        EXPECT_EQ(plan.outgoingCueMs, chosen->outgoingCueMs);
+        EXPECT_EQ(QString(), problem);
+    }
+}
+
+// Disagreement, Decks stricter: the track Decks loaded ends before the
+// profile the server planned on, so the server's pick does not fit it. Decks
+// goes down the menu in the server's order and plays the first candidate
+// that fits; the problem of the pick is reported.
+TEST_F(CrateTransitionPlanMenuTest, TakesTheNextCandidateThatFitsDecksTracks) {
+    const TransitionPlan plan = parseMenuPlan(0);
+    const qint64 incomingMs = menuDurationOf(plan.incomingTrackEntityUid);
+    // Candidates 0 to 3 end at 425 084 ms or later; 4 ends at 409 474 ms.
+    QString problem;
+    const std::optional<TransitionPlan> chosen = plan.playable(420000, incomingMs, &problem);
+    ASSERT_TRUE(chosen.has_value());
+    EXPECT_EQ(4, chosen->candidateIndex);
+    EXPECT_EQ(15609, chosen->durationMs);
+    EXPECT_EQ(393865, chosen->outgoingCueMs);
+    EXPECT_EQ(TransitionPlan::Curve::DjBlend, chosen->curve);
+    EXPECT_EQ(std::optional<bool>(true), chosen->structureUsed);
+    EXPECT_TRUE(chosen->stemsUsed);
+    EXPECT_EQ(QStringLiteral("plan.outgoingCueMs leaves the transition past the end of the "
+                             "outgoing track"),
+            problem);
+
+    // No candidate fits: nothing to play, and the pick's problem.
+    EXPECT_FALSE(plan.playable(300000, incomingMs, &problem).has_value());
+    EXPECT_EQ(QStringLiteral("plan.outgoingCueMs leaves the transition past the end of the "
+                             "outgoing track"),
+            problem);
+}
+
+// Disagreement, Decks' mirror against the server: were the server to serve a
+// pick its own `limit_violations` rejects (here a cut deeper than its limits),
+// Decks would not play it and takes the next valid candidate. A plan without
+// the menu has nothing else to offer.
+TEST_F(CrateTransitionPlanMenuTest, PassesOverAPickThatBreaksTheLimits) {
+    TransitionPlan plan = parseMenuPlan(0);
+    const qint64 outgoingMs = menuDurationOf(plan.outgoingTrackEntityUid);
+    const qint64 incomingMs = menuDurationOf(plan.incomingTrackEntityUid);
+    plan.outgoingGainDb = -7.0;
+    plan.candidates.front().plan.outgoingGainDb = -7.0;
+    EXPECT_EQ(QStringList{QStringLiteral("gain_out_of_range")},
+            plan.limitViolations(*plan.policyLimits));
+    EXPECT_EQ(QStringLiteral("plan breaks the server's limits: gain_out_of_range"),
+            plan.validate(outgoingMs, incomingMs));
+
+    QString problem;
+    const std::optional<TransitionPlan> chosen = plan.playable(outgoingMs, incomingMs, &problem);
+    ASSERT_TRUE(chosen.has_value());
+    EXPECT_EQ(1, chosen->candidateIndex);
+    EXPECT_EQ(409475, chosen->outgoingCueMs);
+    EXPECT_DOUBLE_EQ(-4.192, chosen->outgoingGainDb);
+    EXPECT_EQ(QStringLiteral("plan breaks the server's limits: gain_out_of_range"), problem);
+
+    plan.candidates.clear();
+    EXPECT_FALSE(plan.playable(outgoingMs, incomingMs, &problem).has_value());
+}
+
+// Agreement on what is not checked: the planner's short cut (a 350 ms
+// crossfade when no window fits) breaks the duration bounds, but the server
+// exempts it, as it exempts gapless plans, and so does Decks.
+TEST_F(CrateTransitionPlanMenuTest, LeavesThePlannersShortCutToItsOwnChecks) {
+    TransitionPlan plan = parseMenuPlan(1);
+    const qint64 outgoingMs = menuDurationOf(plan.outgoingTrackEntityUid);
+    const qint64 incomingMs = menuDurationOf(plan.incomingTrackEntityUid);
+    plan.candidates.clear();
+    plan.durationMs = 350;
+    plan.fallbackReason = TransitionPlan::FallbackReason::InsufficientWindow;
+    EXPECT_FALSE(plan.mixes());
+    EXPECT_EQ(QStringList{QStringLiteral("duration_out_of_range")},
+            plan.limitViolations(*plan.policyLimits));
+    EXPECT_EQ(std::nullopt, plan.validate(outgoingMs, incomingMs));
+
+    plan.durationMs = 351;
+    EXPECT_TRUE(plan.mixes());
+    EXPECT_EQ(QStringLiteral("plan breaks the server's limits: duration_out_of_range"),
+            plan.validate(outgoingMs, incomingMs));
 }
 
 } // namespace

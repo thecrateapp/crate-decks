@@ -3,18 +3,22 @@
 #include <QByteArray>
 #include <QJsonObject>
 #include <QString>
+#include <QStringList>
 #include <optional>
+#include <vector>
 
 #include "crate/client/crateresult.h"
 
 namespace crate {
 
 /// The policy a TransitionPlan must keep to be played, beyond what any plan
-/// from the server keeps: the parts of the server's `policyLimits` (the
-/// planner policy resolved for one edge, `PolicyLimitsResponse`) that
-/// TransitionPlan::validate() checks. The defaults are what the server
-/// applies when it sends no limits: its `PlannerPolicy` for automatic mixing,
-/// which AutoDJ shares with Android (D8, G0), and the schema's tempo bound.
+/// from the server keeps: the server's `policyLimits`, the planner policy
+/// resolved for one edge (`PolicyLimitsResponse`, STEM-D10). The defaults of
+/// the first four fields are what the server applies when it sends no limits:
+/// its `PlannerPolicy` for automatic mixing, which AutoDJ shares with Android
+/// (D8, G0), and the schema's tempo bound; TransitionPlan::validate() checks
+/// them on any plan. The rest only come from a server, and only
+/// TransitionPlan::limitViolations() reads them.
 struct TransitionPlanLimits {
     /// The longest transition that is not a long blend
     /// (`maximumTransitionMs`).
@@ -29,7 +33,33 @@ struct TransitionPlanLimits {
     /// Both tracks' tempo is steady enough for a long blend
     /// (`longBeatmatchEligible`).
     bool longBeatmatchEligible = true;
+
+    /// What the context allowed (`beatmatchAllowed`, `tempoAdjustmentAllowed`,
+    /// `bassHandoffAllowed`, `longBeatmatchAllowed`).
+    bool beatmatchAllowed = true;
+    bool tempoAdjustmentAllowed = true;
+    bool bassHandoffAllowed = true;
+    bool longBeatmatchAllowed = true;
+    /// The shortest transition (`minimumTransitionMs`).
+    qint64 minTransitionMs = 0;
+    /// Each deck's gain: from -maxCutDb up to the lower of maxBoostDb and its
+    /// peak-limited gain, or exactly that peak-limited gain
+    /// (`maximumBoostDb`, `maximumCutDb`, `outgoingPeakLimitedGainDb`,
+    /// `incomingPeakLimitedGainDb`).
+    double maxBoostDb = 0.0;
+    double maxCutDb = 0.0;
+    double outgoingPeakLimitedGainDb = 0.0;
+    double incomingPeakLimitedGainDb = 0.0;
+    /// The windows, in each track's own time, of the profiles the server
+    /// planned on: the outgoing cue from `outgoingEarliestCueMs`, the cue plus
+    /// the duration up to `outgoingLatestEndMs`, and the incoming cue plus
+    /// the duration at the incoming tempo up to `incomingLatestEndMs`.
+    qint64 outgoingEarliestCueMs = 0;
+    qint64 outgoingLatestEndMs = 0;
+    qint64 incomingLatestEndMs = 0;
 };
+
+struct TransitionPlanCandidate;
 
 /// One Smart Mix transition as the server planned it: one item of `plans` in
 /// the answer of `POST /api/playback/transition-plans` (`TransitionPlanResponse`
@@ -112,16 +142,29 @@ struct TransitionPlan {
     /// The server's limits for the edge (`policyLimits`). A server with S5
     /// sends them with every plan of the decks context when both tracks have
     /// a profile; older servers, and the dev stack's plans in the fixtures,
-    /// send none.
+    /// send none. The candidates carry their edge's.
     std::optional<Limits> policyLimits;
+    /// `smart-mix-v3` with `localRefinement` only: the server's candidate
+    /// menu (SM3-D3, STEM-D10), best first, whose first entry is this plan.
+    /// Empty otherwise, and in the candidates themselves.
+    std::vector<TransitionPlanCandidate> candidates;
+    /// Which entry of the server's menu this plan is: 0 for the plan the
+    /// server picked, or the candidate playable() chose instead.
+    int candidateIndex = 0;
+
+    /// The planner's short cut, a crossfade this short when no window fits
+    /// (`manual_ramp_ms` of the server's policy, which `policyLimits` does
+    /// not carry).
+    static constexpr qint64 kShortCutMaxMs = 350;
 
     /// Reads one plan strictly: every field the server always sends must be
     /// there with its type, enumerations must hold a known value, and numbers
     /// must keep the server schema's bounds (times not negative, tempo ratio
     /// from kMinTempoRatio to kMaxTempoRatio, progress and confidence from 0
-    /// to 1, finite gains), and `policyLimits`, if any, the fields Limits
-    /// reads. Another plan version, or a uid that is not one, is a Decode
-    /// error. Fields this client does not know are ignored.
+    /// to 1, finite gains), `policyLimits`, if any, the fields Limits reads,
+    /// and `candidates`, if any, whole candidates of the same edge. Another
+    /// plan version, or a uid that is not one, is a Decode error. Fields this
+    /// client does not know are ignored.
     static Result<TransitionPlan> fromJson(const QJsonObject& object);
     static Result<TransitionPlan> fromJson(const QByteArray& json);
 
@@ -136,15 +179,44 @@ struct TransitionPlan {
     /// - a beat phase offset, a bass handoff and the `dj-blend` curve only
     ///   come with beatmatch, and the offset falls within the transition;
     /// - the transition fits in both tracks: the outgoing one from its cue,
-    ///   the incoming one from its cue at its tempo ratio.
+    ///   the incoming one from its cue at its tempo ratio;
+    /// - with the server's policyLimits, a plan that mixes() keeps them all
+    ///   (limitViolations() is empty).
     ///
     /// The limits are the plan's own policyLimits, or the defaults of Limits
     /// when the server sent none.
     std::optional<QString> validate(qint64 outgoingDurationMs, qint64 incomingDurationMs) const;
-    /// The same with other limits than the plan's.
+    /// The same with other limits than the plan's, without limitViolations().
     std::optional<QString> validate(qint64 outgoingDurationMs,
             qint64 incomingDurationMs,
             const Limits& limits) const;
+
+    /// The codes the server's reference check of a plan against the limits
+    /// of its edge gives (`limit_violations` in
+    /// app/crate/smart_mix/evaluation.py of the Crate monorepo, STEM-D10), in
+    /// its order: `duration_out_of_range`, `long_beatmatch_ineligible`,
+    /// `tempo_out_of_range`, `gain_out_of_range`, `true_peak_exceeded`,
+    /// `outgoing_window_out_of_range`, `outgoing_body_too_short`,
+    /// `incoming_body_too_short`, `beatmatch_not_allowed`,
+    /// `tempo_adjustment_not_allowed`, `bass_handoff_not_allowed` and
+    /// `long_beatmatch_not_allowed`. Empty for a plan within them. Only
+    /// meaningful for a plan that mixes().
+    QStringList limitViolations(const Limits& limits) const;
+    /// Whether the server checks the plan against its limits: neither gapless
+    /// nor the planner's short cut (an `adaptive` plan of
+    /// `insufficient_window` up to kShortCutMaxMs), which its
+    /// `policy_violations` exempts from the duration, peak and window rules.
+    bool mixes() const;
+
+    /// The plan to play on tracks of these durations, as the server would
+    /// pick it: this one, the server's pick, if validate() passes; otherwise
+    /// the first entry of its candidate menu, in the server's order, that
+    /// passes, with candidateIndex saying which. None if no entry passes.
+    /// `pProblem` gets validate()'s problem with this plan, or an empty
+    /// string.
+    std::optional<TransitionPlan> playable(qint64 outgoingDurationMs,
+            qint64 incomingDurationMs,
+            QString* pProblem = nullptr) const;
 
     /// Where the incoming track starts playing, in its own time. Beatmatch
     /// adds the phase offset at the incoming tempo; it is never subtracted.
@@ -157,6 +229,47 @@ struct TransitionPlan {
     bool hasBassHandoff() const {
         return bassHandoff == BassHandoff::Balanced;
     }
+};
+
+/// One entry of the server's candidate menu of an edge
+/// (`TransitionCandidateResponse`, SM3-D3): a whole plan, its score and the
+/// components of the score, each from 0 to 1.
+struct TransitionPlanCandidate {
+    /// The stems terms of a candidate (`StemScoreResponse`, STEM-D5).
+    struct StemScore {
+        qint64 vocalOverlapMs = 0;
+        qint64 bassOverlapMs = 0;
+        double drumsOnlyEntry = 0.0;
+        double vocalFreeExit = 0.0;
+    };
+    /// `CandidateScoreResponse`.
+    struct Breakdown {
+        double alignment = 0.0;
+        double energy = 0.0;
+        double harmonic = 0.0;
+        double stability = 0.0;
+        double bass = 0.0;
+        double position = 0.0;
+        /// Only when both tracks carry the voice per phrase.
+        std::optional<double> vocal;
+        /// Only when both tracks have a stems layer.
+        std::optional<StemScore> stems;
+    };
+
+    /// Its rank in the menu; 0 is the plan the server served.
+    int index = 0;
+    /// The phrases it mixes from and into, and its length in outgoing bars;
+    /// none on the bar heuristic, and no length for the preferred duration.
+    std::optional<int> outgoingPhrase;
+    std::optional<int> incomingPhrase;
+    std::optional<int> lengthBars;
+    bool structureUsed = false;
+    bool stemsUsed = false;
+    double score = 0.0;
+    Breakdown breakdown;
+    /// With the edge's policyLimits, its own structureUsed and stemsUsed, its
+    /// index as candidateIndex and no candidates.
+    TransitionPlan plan;
 };
 
 /// The server's names, for logs and requests.
