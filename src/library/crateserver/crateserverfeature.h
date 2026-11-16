@@ -34,7 +34,9 @@ class AutoDjRecommendationQueue;
 class Compatibles;
 class CompatiblesModel;
 class CompatiblesView;
+class CratePathSource;
 class CrateRadioSource;
+struct PathRequest;
 struct RadioSeed;
 } // namespace recs
 namespace widgets {
@@ -291,6 +293,14 @@ class CrateServerFeature : public LibraryFeature {
     QList<QAction*> trackActions(
             const QList<CrateTrackRef>& tracks, const QStringList& labels, QObject* pParent);
     void startRadio(const QString& serverId, const recs::RadioSeed& seed);
+    /// Asks how many tracks and where to, then for the path from `from` to
+    /// `to` (plan F5.C-PR3).
+    void askForPath(const CrateTrackRef& from,
+            const QString& fromLabel,
+            const CrateTrackRef& to,
+            const QString& toLabel);
+    /// The master deck's Crate track, if it has one.
+    std::optional<cache::TrackKey> crateTrackOnAir() const;
     void showRadio();
     void updateRadioRows();
     /// Follows the selection of the library's track table while it shows a
@@ -348,6 +358,7 @@ class CrateServerFeature : public LibraryFeature {
     std::unique_ptr<widgets::CamelotWheelModel> m_pWheelModel;
     std::unique_ptr<recs::AutoDjRecommendationQueue> m_pRecommendations;
     std::unique_ptr<recs::CrateRadioSource> m_pRadio;
+    std::unique_ptr<recs::CratePathSource> m_pPaths;
     QPointer<recs::CompatiblesView> m_pCompatiblesView;
     QMetaObject::Connection m_selectionConnection;
     QThreadPool m_pool;

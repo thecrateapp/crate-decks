@@ -1176,6 +1176,36 @@ TEST_F(CrateServerFeatureTest, RadioFromATrackFillsAutoDj) {
             [&] { return sentTo(QStringLiteral("/api/radio/feedback")) == 1; }, 5000));
 }
 
+// The track menu offers a Music Path between the two tracks selected, or
+// from the track on air to the one selected (plan F5.C-PR3)
+TEST_F(CrateServerFeatureTest, MusicPathNeedsTwoEnds) {
+    storeTree();
+    storeContainerTracks(containerId(QStringLiteral("playlist"), QStringLiteral("7")),
+            {remoteTrack(QStringLiteral("e1"), QStringLiteral("Lattice"), 0.7, QString()),
+                    remoteTrack(QStringLiteral("e2"), QStringLiteral("Glass"), 0.5, QString())});
+    PlayerInfo* pPlayerInfo = createPlayerInfo();
+    CrateServerFeature* pFeature = makeFeature(pPlayerInfo);
+    CrateServerTrackModel* pModel = showWarmUp(pFeature);
+    ASSERT_NE(nullptr, pModel);
+    ASSERT_TRUE(QTest::qWaitFor([&] { return pModel->rowCount() == 2; }, 5000));
+    QObject parent;
+    const auto pathAction = [&](const QModelIndexList& rows) -> QAction* {
+        const QList<QAction*> actions = pModel->trackMenuActions(rows, &parent);
+        const auto it = std::find_if(actions.cbegin(), actions.cend(), [](const QAction* pAction) {
+            return pAction->text() == QStringLiteral("Music Path...");
+        });
+        return it == actions.cend() ? nullptr : *it;
+    };
+    // Two tracks: from the first to the second
+    QAction* pBoth = pathAction({pModel->index(0, 0), pModel->index(1, 0)});
+    ASSERT_NE(nullptr, pBoth);
+    EXPECT_TRUE(pBoth->isEnabled());
+    // One track and nothing of Crate on air: no path
+    QAction* pOne = pathAction({pModel->index(0, 0)});
+    ASSERT_NE(nullptr, pOne);
+    EXPECT_FALSE(pOne->isEnabled());
+}
+
 TEST_F(CrateServerFeatureTest, CacheItemShowsTheCacheView) {
     storeTree();
     storeContainerTracks(containerId(QStringLiteral("likes"), QStringLiteral("me")),

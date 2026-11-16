@@ -34,6 +34,7 @@
 #include "crate/library/cratetrackpreparer.h"
 #include "crate/recs/compatiblesmodel.h"
 #include "crate/recs/compatiblesview.h"
+#include "crate/recs/cratepathsource.h"
 #include "crate/recs/crateradiosource.h"
 #include "crate/recs/recommendationqueue.h"
 #include "crate/smartmix/assistpanel.h"
@@ -665,10 +666,21 @@ void CrateServerFeature::startLoading() {
         return pCoordinator->trackIdsForAutoDj(tracks);
     };
     recommendations.trackOfFile = trackOfFile;
+    m_pPaths.reset();
     m_pRadio.reset();
     m_pRecommendations =
             std::make_unique<recs::AutoDjRecommendationQueue>(std::move(recommendations));
     m_pRadio = std::make_unique<recs::CrateRadioSource>(m_pRecommendations.get());
+    m_pPaths = std::make_unique<recs::CratePathSource>(m_pRecommendations.get());
+    connect(m_pPaths.get(), &recs::CratePathSource::failed, this, [](const Error& error) {
+        // TEST_GAP: a message box needs a running event loop
+        QMessageBox::warning(nullptr,
+                tr("Music Path"),
+                error.kind == Error::Kind::Http && error.httpStatus == 422
+                        ? tr("Crate could not find a path between these tracks. They may "
+                             "not be analyzed yet.")
+                        : tr("Crate could not make the path: %1").arg(error.message));
+    });
     connect(m_pRadio.get(),
             &recs::CrateRadioSource::changed,
             this,
@@ -782,6 +794,7 @@ void CrateServerFeature::onPrefetchAutoDjChanged(bool enabled) {
 }
 
 void CrateServerFeature::stopLoading() {
+    m_pPaths.reset();
     m_pRadio.reset();
     m_pRecommendations.reset();
     for (CrateServerTrackModel* pModel : trackModels()) {
@@ -925,6 +938,35 @@ QList<QAction*> CrateServerFeature::trackActions(
     });
     actions.append(pRadio);
 
+    // A Music Path between two tracks of a server: the two selected, or the
+    // one on air and the one selected
+    std::optional<std::pair<CrateTrackRef, CrateTrackRef>> ends;
+    QStringList endLabels;
+    if (tracks.size() == 2 && tracks[0].serverId == tracks[1].serverId &&
+            tracks[0].entityUid.compare(tracks[1].entityUid, Qt::CaseInsensitive) != 0) {
+        ends = std::pair(tracks[0], tracks[1]);
+        endLabels = labels;
+    } else if (tracks.size() == 1) {
+        if (const auto onAir = crateTrackOnAir(); onAir && onAir->serverId == first.serverId &&
+                onAir->entityUid.compare(first.entityUid, Qt::CaseInsensitive) != 0) {
+            CrateTrackRef from;
+            from.serverId = onAir->serverId;
+            from.entityUid = onAir->entityUid;
+            ends = std::pair(from, first);
+            //: The track of the deck on air, as one end of a Music Path
+            endLabels = QStringList{tr("the track on air"), labels.value(0)};
+        }
+    }
+    //: Asks Crate for a path of tracks between two tracks, into Auto DJ or a playlist
+    auto* pPath = new QAction(tr("Music Path..."), pParent);
+    pPath->setEnabled(ends.has_value() && m_pPaths);
+    if (ends) {
+        connect(pPath, &QAction::triggered, this, [this, ends, endLabels] {
+            askForPath(ends->first, endLabels.value(0), ends->second, endLabels.value(1));
+        });
+    }
+    actions.append(pPath);
+
     // The DJ's say on the radio's own tracks
     const bool radioTracks = std::all_of(tracks.cbegin(), tracks.cend(), [this](const auto& track) {
         return m_pRadio->hasTrack(track.serverId, track.entityUid);
@@ -959,6 +1001,39 @@ void CrateServerFeature::startRadio(const QString& serverId, const recs::RadioSe
         return;
     }
     m_pRadio->start(pClient, serverId, seed);
+}
+
+std::optional<cache::TrackKey> CrateServerFeature::crateTrackOnAir() const {
+    PlayerInfo* pPlayerInfo = m_dependencies.pPlayerInfo;
+    const cache::AudioCache* pCache = m_pServers ? m_pServers->existingAudioCache() : nullptr;
+    if (!pPlayerInfo || !pCache) {
+        return std::nullopt;
+    }
+    const TrackPointer pTrack = pPlayerInfo->getCurrentPlayingTrack();
+    return pTrack ? pCache->trackOfFile(pTrack->getLocation()) : std::nullopt;
+}
+
+void CrateServerFeature::askForPath(const CrateTrackRef& from,
+        const QString& fromLabel,
+        const CrateTrackRef& to,
+        const QString& toLabel) {
+    // TEST_GAP: the dialog needs a running event loop; CratePathSourceTest
+    // covers what it asks for
+    Client* pClient = m_pServers ? m_pServers->client(from.serverId) : nullptr;
+    if (!m_pPaths || !pClient) {
+        return;
+    }
+    recs::CratePathDialog dialog(fromLabel, toLabel);
+    if (dialog.exec() != QDialog::Accepted || !m_pPaths) {
+        return;
+    }
+    recs::PathRequest request;
+    request.serverId = from.serverId;
+    request.fromEntityUid = from.entityUid;
+    request.toEntityUid = to.entityUid;
+    request.steps = dialog.steps();
+    request.destination = dialog.destination();
+    m_pPaths->request(pClient, request);
 }
 
 void CrateServerFeature::showRadio() {
