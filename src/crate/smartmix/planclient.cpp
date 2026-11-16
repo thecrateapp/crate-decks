@@ -40,6 +40,9 @@ bool isRetryable(const Error& error) {
 }
 
 QString cacheKey(const PlanEdge& edge, const PlanContext& context) {
+    // No planner reads the set history: it does not split the cache.
+    QJsonObject contextJson = context.toJson();
+    contextJson.remove(QStringLiteral("setHistory"));
     return QStringList{
             uidOf(edge.outgoingTrackEntityUid),
             edge.outgoingProfileRevision,
@@ -47,7 +50,7 @@ QString cacheKey(const PlanEdge& edge, const PlanContext& context) {
             edge.incomingProfileRevision,
             context.plannerVersion,
             // QJsonObject keeps its keys sorted, so the text is canonical.
-            QString::fromUtf8(QJsonDocument(context.toJson()).toJson(QJsonDocument::Compact)),
+            QString::fromUtf8(QJsonDocument(contextJson).toJson(QJsonDocument::Compact)),
     }
             .join(QLatin1Char('\n'));
 }
@@ -76,6 +79,28 @@ QJsonObject PlanContext::toJson() const {
     if (localRefinement) {
         context.insert(QStringLiteral("localRefinement"), true);
     }
+    if (!setHistory.isEmpty() && plannerVersion == kSmartMixV3) {
+        QJsonArray history;
+        for (const SetHistoryEntry& entry : setHistory.mid(
+                     std::max<qsizetype>(0, setHistory.size() - SetHistory::kSize))) {
+            history.append(entry.toJson());
+        }
+        context.insert(QStringLiteral("setHistory"), history);
+    }
+    return context;
+}
+
+PlanContext PlanContext::forServer(const std::optional<Capabilities>& capabilities) {
+    PlanContext context;
+    const auto has = [&capabilities](DecksFeature feature) {
+        return capabilities && capabilities->has(feature);
+    };
+    const bool v3 = capabilities && capabilities->offersPlanner(kSmartMixV3);
+    context.plannerVersion = v3 ? kSmartMixV3 : kSmartMixV2;
+    context.localRefinement = v3 && has(DecksFeature::LocalRefinement);
+    context.allowBeatmatch = has(DecksFeature::Beatmatch);
+    context.allowBassHandoff = has(DecksFeature::BassHandoff);
+    context.allowLongBeatmatch = has(DecksFeature::LongBeatmatch);
     return context;
 }
 
