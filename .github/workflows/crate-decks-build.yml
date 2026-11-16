@@ -239,7 +239,7 @@ jobs:
       - name: "Smoke test the AppImage"
         # Run the packaged AppImage once. This catches loader-level failures
         # (missing bundled libraries, a broken linker) that the build cannot
-        # see, and checks that it starts as Crate Decks: --version prints the
+        # see, and checks that it starts as Decks: --version prints the
         # application name and version and exits before touching any
         # settings.
         if: matrix.cpack_generator == 'AppImage'
@@ -258,8 +258,8 @@ jobs:
             echo "FAIL: AppImage failed at loader level (rc=${rc})"
             exit 1
           fi
-          if ! grep -qE "^Crate Decks [0-9]+\.[0-9]+\.[0-9]+" /tmp/smoke.log; then
-            echo "FAIL: AppImage did not print the Crate Decks version (rc=${rc})"
+          if ! grep -qE "^Decks [0-9]+\.[0-9]+\.[0-9]+" /tmp/smoke.log; then
+            echo "FAIL: AppImage did not print the Decks version (rc=${rc})"
             exit 1
           fi
           echo "SMOKE OK"
@@ -276,7 +276,7 @@ jobs:
         # the version of Mixxx.
         if: matrix.cpack_generator == 'AppImage'
         run: |
-          VERSION=$(sed -n 's/^Crate Decks //p' /tmp/smoke.log | head -1)
+          VERSION=$(sed -n 's/^Decks //p' /tmp/smoke.log | head -1)
           APPIMAGE=$(basename "$(ls build/*.AppImage | head -1)")
           echo "--version: ${VERSION}"
           echo "AppImage: ${APPIMAGE}"

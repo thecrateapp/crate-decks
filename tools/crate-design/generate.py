@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the Crate Decks theme files from res/crate-design/tokens.json.
+"""Generate the Decks theme files from res/crate-design/tokens.json.
 
 Standard library only. Reads the tokens and writes, under
 res/skins/CrateDecks/generated/ (the skin's generated files):

@@ -2055,12 +2055,14 @@ target_include_directories(
   mixxx-lib
   PUBLIC src "${CMAKE_CURRENT_BINARY_DIR}/src"
 )
-# Crate Decks: application identity (src/crate/appidentity.cpp) and the brand
+# Crate Decks: application identity (src/crate/appidentity.cpp and the X11
+# window class, src/crate/windowclass.cpp) and the brand
 # layer that keeps Mixxx's name out of the interface (src/crate/brand/)
 target_sources(
   mixxx-lib
   PRIVATE
     src/crate/appidentity.cpp
+    src/crate/windowclass.cpp
     src/crate/brand/brandtext.cpp
     src/crate/brand/brandtranslator.cpp
     src/crate/brand/helpurl.cpp
@@ -2674,34 +2676,55 @@ install(
   DESTINATION "${MIXXX_INSTALL_DOCDIR}"
 )
 
+# Crate Decks: the desktop identity, in one place. CRATE_APP_ID is the app
+# id: the Wayland app_id and the X11 WM_CLASS (crate::kDesktopFileName,
+# which CrateBrandingTest checks against these files), and the name of the
+# desktop entry, the metainfo and the icons. The icons are the files
+# res/images/icons/<size>x<size>/apps/<app id>.png (and scalable/apps/
+# <app id>.svg if there is one): the window icon (res/crate.qrc), the
+# installed hicolor icons, the AppImage's and `make install-desktop` all
+# read them there, so new icon files replace them everywhere.
+set(CRATE_APP_ID "app.cratemusic.decks")
+set(CRATE_APP_ICON_DIR "${CMAKE_CURRENT_SOURCE_DIR}/res/images/icons")
+set(
+  CRATE_APP_DESKTOP_FILE
+  "${CMAKE_CURRENT_SOURCE_DIR}/res/linux/${CRATE_APP_ID}.desktop"
+)
+set(
+  CRATE_APP_METAINFO_FILE
+  "${CMAKE_CURRENT_SOURCE_DIR}/res/linux/${CRATE_APP_ID}.metainfo.xml"
+)
+# For packaging/CPackConfig.cmake
+set(CPACK_CRATE_APP_ID "${CRATE_APP_ID}")
+
 # Additional Linux-only files
 if(UNIX AND NOT APPLE)
   # .desktop file for KDE/GNOME menu
-  # Crate Decks: own desktop entry and metainfo (app.cratemusic.decks)
-  install(
-    FILES "${CMAKE_CURRENT_SOURCE_DIR}/res/linux/app.cratemusic.decks.desktop"
-    DESTINATION "${CMAKE_INSTALL_DATADIR}/applications"
-  )
-
-  # AppImage-specific install rules (desktop file, shared libraries).
+  # Crate Decks: own desktop entry and metainfo (app.cratemusic.decks). The
+  # AppImage installs its own copy of the desktop entry under the same name.
   if(MIXXX_APPIMAGE)
+    # AppImage-specific install rules (desktop file, shared libraries).
     include("${CMAKE_CURRENT_SOURCE_DIR}/packaging/appimage/appimage.cmake")
+  else()
+    install(
+      FILES "${CRATE_APP_DESKTOP_FILE}"
+      DESTINATION "${CMAKE_INSTALL_DATADIR}/applications"
+    )
   endif()
 
   # Icon files for menu entry
+  # Crate Decks: only the application's icons, not Mixxx's
   install(
-    DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/res/images/icons/"
+    DIRECTORY "${CRATE_APP_ICON_DIR}/"
     DESTINATION "${CMAKE_INSTALL_DATADIR}/icons/hicolor"
-    # This file is for Windows.
-    PATTERN ic_mixxx.ico EXCLUDE
-    # Crate Decks: install the Crate Decks icon, not Mixxx's
-    PATTERN "mixxx*" EXCLUDE
+    FILES_MATCHING
+    PATTERN "${CRATE_APP_ID}.png"
+    PATTERN "${CRATE_APP_ID}.svg"
   )
 
   # .metainfo.xml file for KDE/GNOME AppStream initiative
   install(
-    FILES
-      "${CMAKE_CURRENT_SOURCE_DIR}/res/linux/app.cratemusic.decks.metainfo.xml"
+    FILES "${CRATE_APP_METAINFO_FILE}"
     DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/metainfo"
   )
 
@@ -5379,6 +5402,16 @@ if(CRATE)
       src/crate/session/crateloopbackserver.cpp
       src/crate/session/cratesecretstore.cpp
       src/crate/session/cratesession.cpp
+      src/crate/smartmix/assistpanel.cpp
+      src/crate/smartmix/autodjsmartmixadapter.cpp
+      src/crate/smartmix/autodjsmartmixmode.cpp
+      src/crate/smartmix/controlautomation.cpp
+      src/crate/smartmix/curves.cpp
+      src/crate/smartmix/eqmap.cpp
+      src/crate/smartmix/planclient.cpp
+      src/crate/smartmix/smartmixassist.cpp
+      src/crate/smartmix/smartmixdirector.cpp
+      src/crate/smartmix/transitionplan.cpp
       src/crate/stems/resampler.cpp
       src/crate/stems/nistemexport.cpp
       src/crate/stems/stemanalyzer.cpp
@@ -5423,6 +5456,8 @@ if(CRATE)
       src/crate/ui/widgets/camelotwheelmodel.cpp
       src/crate/ui/widgets/instrumentpainter.cpp
       src/crate/ui/widgets/levelring.cpp
+      src/crate/ui/widgets/transitionplanview.cpp
+      src/crate/ui/widgets/transitionplanviewmodel.cpp
       src/library/crateserver/crateserverfeature.cpp
       src/library/crateserver/crateservertrackmodel.cpp
   )
@@ -5433,8 +5468,11 @@ if(CRATE)
       mixxx-test
       PRIVATE
         src/test/crate/analysisimporter_test.cpp
+        src/test/crate/assistpanel_test.cpp
         src/test/crate/audiocache_test.cpp
         src/test/crate/autodjcratepending_test.cpp
+        src/test/crate/autodjsmartmix_test.cpp
+        src/test/crate/autodjsmartmixlive_test.cpp
         src/test/crate/cachestatusview_test.cpp
         src/test/crate/profilestore_test.cpp
         src/test/crate/cratecapabilities_test.cpp
@@ -5457,6 +5495,8 @@ if(CRATE)
         src/test/crate/dlgprefcrate_test.cpp
         src/test/crate/cratesession_test.cpp
         src/test/crate/modelstore_test.cpp
+        src/test/crate/planclient_test.cpp
+        src/test/crate/smartmixdirector_test.cpp
         src/test/crate/stemanalyzer_test.cpp
         src/test/crate/stemdsp_test.cpp
         src/test/crate/stemjobs_test.cpp
@@ -5464,6 +5504,11 @@ if(CRATE)
         src/test/crate/stemsync_test.cpp
         src/test/crate/systemcheck_test.cpp
         src/test/crate/systemgpus_test.cpp
+        src/test/crate/transitionplan_test.cpp
+        src/test/crate/controlautomation_test.cpp
+        src/test/crate/curves_test.cpp
+        src/test/crate/eqmap_test.cpp
+        src/test/crate/waveformoverviewcolors_test.cpp
         src/test/crate/skinloadtest.cpp
         src/test/crate/mixerstyletest.cpp
         src/test/crate/delegatestest.cpp
@@ -5475,6 +5520,8 @@ if(CRATE)
         src/test/crate/camelotwheelmodel_test.cpp
         src/test/crate/camelotwheel_test.cpp
         src/test/crate/levelring_test.cpp
+        src/test/crate/transitionplanview_test.cpp
+        src/test/crate/transitionplanviewmodel_test.cpp
     )
   endif()
   # Hybrid laptops (plan HL): the power limit helper is a Linux system
@@ -5760,8 +5807,8 @@ configure_file(
 )
 
 # Packaging
-# Crate Decks: package name, vendor and homepage of Crate Decks
-set(CPACK_PACKAGE_NAME "Crate Decks")
+# Crate Decks: display name (Decks), package name, vendor and homepage
+set(CPACK_PACKAGE_NAME "Decks")
 set(CPACK_DEBIAN_PACKAGE_NAME "crate-decks")
 set(CPACK_PACKAGE_VENDOR "Crate")
 # TODO: Split this into Maintainer field: core-team@mixxx.org for package issues

@@ -1,4 +1,4 @@
-// Crate Decks design tokens for QML (stage 2, design section 14.4).
+// Decks design tokens for QML (stage 2, design section 14.4).
 // Template for tools/crate-design/generate.py: every token in
 // res/crate-design/tokens.json has a property here. Lengths are in pixels,
 // tracking in em, durations in milliseconds and sweeps in degrees.
@@ -382,6 +382,50 @@ QtObject {
     readonly property real trackingWheelLabel: {{trackingWheelLabel}}
     readonly property real trackingWheelFigure: {{trackingWheelFigure}}
     readonly property real levelRingInset: {{levelRingInset}}
+    readonly property real planGutter: {{planGutter}}
+    readonly property real planPaddingRight: {{planPaddingRight}}
+    readonly property real planRulerInset: {{planRulerInset}}
+    readonly property real planLaneInset: {{planLaneInset}}
+    readonly property real planLaneMinGap: {{planLaneMinGap}}
+    readonly property real planWindowRise: {{planWindowRise}}
+    readonly property real planWindowDrop: {{planWindowDrop}}
+    readonly property real planWindowLabelRise: {{planWindowLabelRise}}
+    readonly property real planCueLabelRise: {{planCueLabelRise}}
+    readonly property real planCueLabelDrop: {{planCueLabelDrop}}
+    readonly property real planBarLabelRise: {{planBarLabelRise}}
+    readonly property real planBarLabelDrop: {{planBarLabelDrop}}
+    readonly property real planBarLabelGap: {{planBarLabelGap}}
+    readonly property real planDeckLabelRise: {{planDeckLabelRise}}
+    readonly property real planDeckRoleDrop: {{planDeckRoleDrop}}
+    readonly property real planLaneLabelDrop: {{planLaneLabelDrop}}
+    readonly property real planTempoSwing: {{planTempoSwing}}
+    readonly property real planGainSwing: {{planGainSwing}}
+    readonly property real planValueGap: {{planValueGap}}
+    readonly property real planTempoLabelRise: {{planTempoLabelRise}}
+    readonly property real planTempoLabelDrop: {{planTempoLabelDrop}}
+    readonly property real planGainLabelDrop: {{planGainLabelDrop}}
+    readonly property real planBassLabelGap: {{planBassLabelGap}}
+    readonly property real planEntryBow: {{planEntryBow}}
+    readonly property real planArrowRise: {{planArrowRise}}
+    readonly property real planArrowGap: {{planArrowGap}}
+    readonly property real planPlayheadOvershoot: {{planPlayheadOvershoot}}
+    readonly property real planPlayheadOpacity: {{planPlayheadOpacity}}
+    readonly property real planPulseRadius: {{planPulseRadius}}
+    readonly property real planNowLabelGap: {{planNowLabelGap}}
+    readonly property real planActiveOpacity: {{planActiveOpacity}}
+    readonly property real planDimOpacity: {{planDimOpacity}}
+    readonly property real planPhraseBars: {{planPhraseBars}}
+    readonly property real fontSizePlanCue: {{fontSizePlanCue}}
+    readonly property real fontSizePlanValue: {{fontSizePlanValue}}
+    readonly property real fontSizePlanDeck: {{fontSizePlanDeck}}
+    readonly property real fontSizePlanBar: {{fontSizePlanBar}}
+    readonly property real trackingPlanCue: {{trackingPlanCue}}
+    readonly property real planLegendSample: {{planLegendSample}}
+    readonly property real planLegendGap: {{planLegendGap}}
+    readonly property real planLegendRowGap: {{planLegendRowGap}}
+    readonly property real planLegendItemGap: {{planLegendItemGap}}
+    readonly property real planLegendPaddingY: {{planLegendPaddingY}}
+    readonly property real planLegendNode: {{planLegendNode}}
 
     // knob
     readonly property real knobSize: {{knobSize}}
@@ -542,4 +586,33 @@ QtObject {
     readonly property real aboutWidth: {{aboutWidth}}
     readonly property real aboutMetaGap: {{aboutMetaGap}}
     readonly property real aboutTextHeight: {{aboutTextHeight}}
+    readonly property real viewHeadHeight: {{viewHeadHeight}}
+    readonly property real viewHeadGap: {{viewHeadGap}}
+    readonly property real assistPaddingTop: {{assistPaddingTop}}
+    readonly property real assistColumnGap: {{assistColumnGap}}
+    readonly property real assistInspectorWidth: {{assistInspectorWidth}}
+    readonly property real assistInspectorPaddingLeft: {{assistInspectorPaddingLeft}}
+    readonly property real assistHostGap: {{assistHostGap}}
+    readonly property real assistHostPaddingBottom: {{assistHostPaddingBottom}}
+    readonly property real assistHostNameTop: {{assistHostNameTop}}
+    readonly property real assistHostNameBottom: {{assistHostNameBottom}}
+    readonly property real assistHostReadingGap: {{assistHostReadingGap}}
+    readonly property real fontSizeAssistHostReading: {{fontSizeAssistHostReading}}
+    readonly property real assistModeTop: {{assistModeTop}}
+    readonly property real assistModeBottom: {{assistModeBottom}}
+    readonly property real fontWeightAssistMode: {{fontWeightAssistMode}}
+    readonly property real assistDescriptionBottom: {{assistDescriptionBottom}}
+    readonly property real assistStateGap: {{assistStateGap}}
+    readonly property real fontSizeAssistCaption: {{fontSizeAssistCaption}}
+    readonly property real assistReadingRowPaddingY: {{assistReadingRowPaddingY}}
+    readonly property real assistReadingRowGap: {{assistReadingRowGap}}
+    readonly property real assistReadingValueTop: {{assistReadingValueTop}}
+    readonly property real fontSizeAssistReading: {{fontSizeAssistReading}}
+    readonly property real assistMetaPaddingY: {{assistMetaPaddingY}}
+    readonly property real assistMetaKeyWidth: {{assistMetaKeyWidth}}
+    readonly property real assistMetaGap: {{assistMetaGap}}
+    readonly property real assistMetaRowPaddingY: {{assistMetaRowPaddingY}}
+    readonly property real assistActionsGap: {{assistActionsGap}}
+    readonly property real assistActionsPaddingY: {{assistActionsPaddingY}}
+    readonly property real assistQuietTop: {{assistQuietTop}}
 }

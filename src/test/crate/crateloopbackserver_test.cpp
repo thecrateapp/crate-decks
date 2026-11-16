@@ -33,7 +33,7 @@ TEST(CrateLoopbackServerTest, AnswersOneCallbackAndStops) {
             "Host: 127.0.0.1\r\n\r\n");
 
     EXPECT_TRUE(answer.startsWith("HTTP/1.1 200"));
-    EXPECT_TRUE(answer.contains("Crate Decks"));
+    EXPECT_TRUE(answer.contains("<h1>Decks</h1>"));
     ASSERT_EQ(1, received.count());
     const auto query = received.first().first().value<QUrlQuery>();
     EXPECT_EQ(QStringLiteral("one-time-code"), query.queryItemValue(QStringLiteral("code")));

@@ -1,5 +1,5 @@
 /*
-  Crate Decks: the default style of the application (plan V2.PR5), with the
+  Decks: the default style of the application (plan V2.PR5), with the
   language of the Crate admin (design 14.1).
 
   Template for tools/crate-design/generate.py: the placeholders in double

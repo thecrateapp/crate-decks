@@ -1,0 +1,19 @@
+{
+ "plannerVersion": 2,
+ "outgoingTrackEntityUid": "34137088-fcab-5f93-8866-31f1bf6d0871",
+ "incomingTrackEntityUid": "a89833d1-75e5-52ce-8766-6df5b057d027",
+ "mode": "adaptive",
+ "durationMs": 8000,
+ "outgoingCueMs": 140032,
+ "incomingCueMs": 40,
+ "incomingTempoRatio": 1.0,
+ "beatPhaseOffsetMs": 0,
+ "handoffProgress": 0.5,
+ "outgoingGainDb": -3.7616,
+ "incomingGainDb": -3.9808,
+ "curve": "equal-power",
+ "bassHandoff": "none",
+ "confidence": 0.872019,
+ "fallbackReason": "incompatible_tempo",
+ "structureUsed": false
+}

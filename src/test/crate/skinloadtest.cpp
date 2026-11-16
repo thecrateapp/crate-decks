@@ -17,6 +17,9 @@
 #include <QFontMetricsF>
 #include <QHeaderView>
 #include <QImage>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMap>
@@ -42,6 +45,7 @@
 #include <algorithm>
 #include <functional>
 #include <memory>
+#include <tuple>
 #include <vector>
 
 #include "config.h"
@@ -56,6 +60,9 @@
 #include "crate/db/crateserverschema.h"
 #include "crate/library/cratelibraryjson.h"
 #include "crate/library/cratelibrarystore.h"
+#include "crate/smartmix/assistpanel.h"
+#include "crate/smartmix/planclient.h"
+#include "crate/smartmix/smartmixassist.h"
 #include "crate/system/systemcheck.h"
 #include "crate/ui/crateaddserverwidget.h"
 #include "crate/ui/cratefirstrun.h"
@@ -68,6 +75,7 @@
 #include "crate/ui/skin/crateskin.h"
 #include "crate/ui/skin/mixerstyle.h"
 #include "crate/ui/skin/preferencescontrol.h"
+#include "crate/ui/widgets/transitionplanview.h"
 #include "database/mixxxdb.h"
 #include "dialog/dlgabout.h"
 #include "library/crateserver/crateserverfeature.h"
@@ -84,6 +92,7 @@
 #include "skin/legacy/launchimage.h"
 #include "skin/skinloader.h"
 #include "sources/soundsourceproxy.h"
+#include "test/crate/fakecratenetwork.h"
 #include "test/crate/offscreendecks.h"
 #include "test/mixxxtest.h"
 #include "track/cue.h"
@@ -519,8 +528,8 @@ TEST_F(CrateSkinLoadTest, FirstStartAsksNoMixxxQuestions) {
 }
 
 // Plan BR2: no file or folder of a new profile carries upstream's name (the
-// settings, the library database and the log are named after Crate Decks),
-// and the log says Crate Decks where a message of the inherited code says
+// settings, the library database and the log are named after Decks),
+// and the log says Decks where a message of the inherited code says
 // upstream's name.
 TEST_F(CrateSkinLoadTest, SettingsFolderNamesNoMixxx) {
     QTemporaryDir profile;
@@ -554,7 +563,10 @@ TEST_F(CrateSkinLoadTest, SettingsFolderNamesNoMixxx) {
         GTEST_SKIP() << "Another test of this process opened the log file";
     }
     const QString text = QString::fromUtf8(log.readAll());
-    EXPECT_TRUE(text.contains(QLatin1String("Crate Decks shutdown complete with code")));
+    EXPECT_TRUE(text.contains(QLatin1String("Decks shutdown complete with code")));
+    // Not the name it had before it was called Decks (crate::kDataFolderName)
+    EXPECT_FALSE(text.contains(
+            QString::fromUtf8(crate::kDataFolderName) + QStringLiteral(" shutdown")));
     QStringList lines;
     const QStringList logLines = text.split(QLatin1Char('\n'));
     for (const QString& line : logLines) {
@@ -664,7 +676,7 @@ TEST_F(CrateSkinLoadTest, PreferencesHaveTheMockupsDialog) {
     EXPECT_TRUE(pPreferences->windowFlags().testFlag(Qt::FramelessWindowHint));
     auto* pTitle = pPreferences->findChild<QLabel*>(QStringLiteral("MonoDialogTitle"));
     ASSERT_NE(nullptr, pTitle);
-    EXPECT_QSTRING_EQ(QStringLiteral("Crate Decks · Preferences"), pTitle->text());
+    EXPECT_QSTRING_EQ(QStringLiteral("Decks · Preferences"), pTitle->text());
 
     // The Crate page last, with the Crate logo
     auto* pTree = pPreferences->findChild<QTreeWidget*>(QStringLiteral("contentsTreeWidget"));
@@ -2254,6 +2266,406 @@ TEST_F(CrateSkinScreenshots, Capture) {
         pPreferences->hide();
     }
     decks.answerModalDialogs(true);
+}
+
+/// The decks' positions from their `playposition`: without an audio device
+/// the engine reports none.
+class ControlPositions : public crate::SmartMixEnvironment {
+  public:
+    double nowMs() const override {
+        return static_cast<double>(m_clock.elapsed());
+    }
+    double enginePlayPosition(const QString& group) const override {
+        return ControlObject::get(ConfigKey(group, QStringLiteral("playposition")));
+    }
+    QString trackKey(const QString& group) const override {
+        const TrackPointer pTrack = PlayerInfo::instance().getTrackInfo(group);
+        return pTrack ? pTrack->getLocation() : QString();
+    }
+
+  private:
+    QElapsedTimer m_clock{[] {
+        QElapsedTimer clock;
+        clock.start();
+        return clock;
+    }()};
+};
+
+/// A Smart Mix assistant whose plans come from a fake server that answers
+/// with the assist fixture (a 96 s long blend with bass handoff), for the
+/// tracks of `outgoingFile` and `incomingFile`, deck A → deck B. Not
+/// mappable: the app's assistant has the controls.
+class FakeServerAssist {
+  public:
+    FakeServerAssist(const QString& outgoingFile, const QString& incomingFile)
+            : m_client(QUrl(QStringLiteral("https://dev.crate.local")),
+                      &m_network,
+                      [] {
+                          crate::ClientOptions options;
+                          options.deviceFingerprint = QStringLiteral("install-1");
+                          return options;
+                      }()),
+              m_plans(&m_client) {
+        m_client.setTokenSource(&m_tokens);
+        crate::SmartMixAssist::Options options;
+        options.trackOfFile = [outgoingFile, incomingFile](const QString& location)
+                -> std::optional<crate::cache::TrackKey> {
+            if (location == outgoingFile) {
+                return crate::cache::TrackKey{QStringLiteral("srv"),
+                        QStringLiteral("637bd7c0-380e-5bc7-b841-dc2234cdfaf7")};
+            }
+            if (location == incomingFile) {
+                return crate::cache::TrackKey{QStringLiteral("srv"),
+                        QStringLiteral("34137088-fcab-5f93-8866-31f1bf6d0871")};
+            }
+            return std::nullopt;
+        };
+        options.planClientFor = [this](const QString&) {
+            return &m_plans;
+        };
+        options.capabilitiesOf = [](const QString&) -> std::optional<crate::Capabilities> {
+            return crate::Capabilities::fromJson(QJsonDocument::fromJson(
+                                                         R"({"decks": {"available": true,
+                    "min_client_version": "0.1.0", "contract_version": 1,
+                    "features": ["beatmatch", "bass_handoff", "long_beatmatch"]}})"))
+                    .value();
+        };
+        options.defaultEqOn = [](const QStringList&) {
+            return true;
+        };
+        options.masterDeck = [] {
+            return QStringLiteral("[Channel1]");
+        };
+        options.pEnvironment = std::make_unique<ControlPositions>();
+        options.pDirector =
+                std::make_unique<crate::SmartMixDirector>(std::make_unique<ControlPositions>());
+        options.mappable = false;
+        m_pAssist = std::make_unique<crate::SmartMixAssist>(std::move(options));
+    }
+
+    crate::SmartMixAssist* assist() const {
+        return m_pAssist.get();
+    }
+
+    /// Answers the plan request with the assist fixture of `testDir`; true
+    /// once the plan is ready.
+    bool answerWithThePlan(const QDir& testDir) {
+        QFile fixture(testDir.filePath(
+                QStringLiteral("crate/data/transition-plans/synthetic-assist-long-blend.json")));
+        if (!fixture.open(QIODevice::ReadOnly) ||
+                !waitFor([this] { return !m_network.openReplies().isEmpty(); }, 5000)) {
+            return false;
+        }
+        waitFor([] { return false; }, 400);
+        const QJsonObject plan = QJsonDocument::fromJson(fixture.readAll()).object();
+        const QList<crate::test::FakeReply*> replies = m_network.openReplies();
+        for (crate::test::FakeReply* pReply : replies) {
+            pReply->respond(200,
+                    QJsonDocument(QJsonObject{
+                                          {QStringLiteral("plannerVersion"),
+                                                  QStringLiteral("smart-mix-v3")},
+                                          {QStringLiteral("plans"), QJsonArray{plan}},
+                                  })
+                            .toJson());
+        }
+        return waitFor(
+                [this] {
+                    return m_pAssist->status() == crate::SmartMixAssist::Status::Ready;
+                },
+                5000);
+    }
+
+  private:
+    crate::test::FakeNetworkAccessManager m_network;
+    crate::test::FakeTokenSource m_tokens;
+    crate::Client m_client;
+    crate::PlanClient m_plans;
+    std::unique_ptr<crate::SmartMixAssist> m_pAssist;
+};
+
+/// Dev-only harness, like Capture: the toolbar's Smart Mix button off and on,
+/// and the Smart Mix assistant (plan F6.C-PR4) in the library pane with the
+/// assist fixture's plan (a 96 s long blend with bass handoff) for deck A →
+/// deck B, ready and prepared, at 1920 x 1080 and 1366 x 768. Needs
+/// CRATE_SKIN_SCREENSHOTS=<output dir> and CRATE_SKIN_TRACKS=<dir> with two
+/// tracks that last as the fixture's (427.3 s and 148.1 s); the plan comes
+/// from a fake server.
+TEST_F(CrateSkinScreenshots, SmartMix) {
+    const QString outDir = qEnvironmentVariable("CRATE_SKIN_SCREENSHOTS");
+    const QString tracksDir = qEnvironmentVariable("CRATE_SKIN_TRACKS");
+    if (outDir.isEmpty() || tracksDir.isEmpty()) {
+        GTEST_SKIP() << "Set CRATE_SKIN_SCREENSHOTS=<dir> and CRATE_SKIN_TRACKS=<dir> to "
+                        "render the Smart Mix assistant";
+    }
+    QDir().mkpath(outDir);
+    const QFileInfoList files = QDir(tracksDir).entryInfoList(
+            {QStringLiteral("*.mp3"), QStringLiteral("*.flac"), QStringLiteral("*.wav")},
+            QDir::Files,
+            QDir::Name);
+    ASSERT_GE(files.size(), 2) << tracksDir.toStdString();
+    const QString outgoingFile = files[0].absoluteFilePath();
+    const QString incomingFile = files[1].absoluteFilePath();
+
+    QTemporaryDir profile;
+    ASSERT_TRUE(profile.isValid());
+    OffscreenDecks decks(profile.path() + QLatin1Char('/'));
+    SoundSourceProxy::registerProviders();
+    decks.writeProfile(kCrateDecks,
+            {
+                    {ConfigKey("[Library]", "SupportedFileExtensions"),
+                            SoundSourceProxy::getSupportedFileSuffixes().join(u',')},
+                    {ConfigKey("[Controls]", "PositionDisplay"), QStringLiteral("1")},
+                    {ConfigKey("[Key]", "KeyNotation"), QStringLiteral("Lancelot")},
+                    {ConfigKey("[Config]", "hide_menubar"), QStringLiteral("1")},
+            });
+    // A Crate server in the sidebar, for its Smart Mix item
+    const QString rows = profile.filePath(QStringLiteral("crate-rows.tsv"));
+    {
+        QFile file(rows);
+        ASSERT_TRUE(file.open(QIODevice::WriteOnly | QIODevice::Text));
+        file.write(
+                "Lattice\tOndine Varga\tGlass\tMelodic Techno\t124\t8A\t427\t6\tfull\n"
+                "Northbound Static\tKessler & Moor\tNorth\tProgressive House\t121.17\t9A"
+                "\t148\t5\tfull\n");
+    }
+    ASSERT_TRUE(insertCrateLibrary(profile.path() + QLatin1Char('/'), rows));
+    decks.start(application());
+    ASSERT_NE(nullptr, decks.skin());
+    decks.mainWindow()->menuBar()->hide();
+    if (auto* pStatus = decks.skin()->findChild<crate::ServerStatus*>()) {
+        pStatus->showStatus(QStringLiteral("dev.crate.local"),
+                crate::ServerStatus::State::Connected);
+    }
+
+    // Deck A plays the outgoing track 7.7 s before the plan's entry; deck B
+    // holds the incoming one, as the mockup
+    auto pPlayerManager = decks.coreServices()->getPlayerManager();
+    const QList<std::tuple<QString, QString, double, QString>> loads = {
+            {QStringLiteral("[Channel1]"), outgoingFile, 124.0, QStringLiteral("8A")},
+            {QStringLiteral("[Channel2]"), incomingFile, 121.17, QStringLiteral("9A")},
+    };
+    for (const auto& [group, file, bpm, key] : loads) {
+        pPlayerManager->slotLoadLocationToPlayer(file, group, false);
+    }
+    for (const auto& [group, file, bpm, key] : loads) {
+        const QString deck = group;
+        ASSERT_TRUE(waitFor(
+                [&deck] {
+                    return ControlObject::get(ConfigKey(deck, "track_loaded")) > 0 &&
+                            ControlObject::get(ConfigKey(deck, "duration")) > 0;
+                },
+                30000));
+        if (TrackPointer pTrack = pPlayerManager->getPlayer(group)->getLoadedTrack()) {
+            pTrack->trySetBpm(bpm);
+            pTrack->setKeyText(key);
+        }
+    }
+    const double outgoingMs = ControlObject::get(ConfigKey("[Channel1]", "duration")) * 1000.0;
+    ASSERT_GT(outgoingMs, 340000.0) << "the outgoing track is shorter than the plan";
+    // A hotcue on each track, as a DJ sets them, for the plan's timeline to
+    // name: hotcue 3 on deck A where the plan swaps the basses, as the
+    // mockup, and hotcue 2 on deck B 32 bars after its entry
+    for (const auto& [group, hotcue, ms] : {std::tuple{QStringLiteral("[Channel1]"), 2, 378298.0},
+                 std::tuple{QStringLiteral("[Channel2]"), 1, 503.0 + 32 * 4 * 60000.0 / 121.17}}) {
+        if (TrackPointer pTrack = pPlayerManager->getPlayer(group)->getLoadedTrack()) {
+            pTrack->createAndAddCue(mixxx::CueType::HotCue,
+                    hotcue,
+                    mixxx::audio::FramePos(ms * pTrack->getSampleRate().toDouble() / 1000.0),
+                    mixxx::audio::kInvalidFramePos);
+        }
+    }
+    ControlObject::set(ConfigKey("[Channel1]", "playposition"), (330298.0 - 7700.0) / outgoingMs);
+    ControlObject::set(ConfigKey("[Channel1]", "play"), 1);
+    ControlObject::set(ConfigKey("[Channel1]", "volume"), 1);
+    ControlObject::set(ConfigKey("[Channel2]", "volume"), 0.2);
+
+    // The assistant with a fake server that answers with the assist fixture
+    FakeServerAssist server(outgoingFile, incomingFile);
+    crate::SmartMixAssist& assist = *server.assist();
+    auto* pPanel = decks.skin()->findChild<crate::AssistPanel*>();
+    ASSERT_NE(nullptr, pPanel);
+    pPanel->setAssist(&assist);
+    ASSERT_TRUE(server.answerWithThePlan(getTestDir()));
+
+    const auto capture = [&](const QString& name, const QSize& size) {
+        // The analysis of the tones replaces the tempo and key of the mockup,
+        // and may finish while the window settles: again before the capture,
+        // with time for the plan's timeline to follow the grids
+        const auto mockupTempo = [&] {
+            for (const auto& [group, file, bpm, key] : loads) {
+                if (TrackPointer pTrack = pPlayerManager->getPlayer(group)->getLoadedTrack()) {
+                    pTrack->trySetBpm(bpm);
+                    pTrack->setKeyText(key);
+                }
+            }
+        };
+        mockupTempo();
+        decks.mainWindow()->resize(size);
+        waitFor([] { return false; }, 1500);
+        mockupTempo();
+        waitFor([] { return false; }, 400);
+        const QImage image = decks.skin()->grab().toImage();
+        const QString file = QDir(outDir).filePath(name + QStringLiteral(".png"));
+        EXPECT_TRUE(image.save(file)) << file.toStdString();
+        // The toolbar's middle, where the Smart Mix button is
+        const QImage toolbar = image.copy(QRect(0, 0, image.width() * 2 / 3, 64));
+        EXPECT_TRUE(toolbar.save(QDir(outDir).filePath(name + QStringLiteral("-toolbar.png"))));
+    };
+    const ConfigKey showSmartMix = crate::library::CrateServerFeature::showSmartMixKey();
+    ControlObject::set(showSmartMix, 0);
+    capture(QStringLiteral("smartmix-off-1920"), QSize(1920, 1080));
+    ControlObject::set(showSmartMix, 1);
+    EXPECT_EQ(pPanel, decks.skin()->findChild<WLibrary*>()->currentWidget());
+    capture(QStringLiteral("smartmix-on-1920"), QSize(1920, 1080));
+    capture(QStringLiteral("smartmix-on-1366"), QSize(1366, 768));
+    EXPECT_TRUE(assist.prepare());
+    capture(QStringLiteral("smartmix-prepared-1920"), QSize(1920, 1080));
+    capture(QStringLiteral("smartmix-prepared-1366"), QSize(1366, 768));
+    assist.cancel();
+    ControlObject::set(showSmartMix, 0);
+    capture(QStringLiteral("smartmix-closed-1920"), QSize(1920, 1080));
+}
+
+/// Where `pWidget` is in `pAncestor`.
+QRect rectIn(const QWidget* pWidget, const QWidget* pAncestor) {
+    return QRect(pWidget->mapTo(pAncestor, QPoint(0, 0)), pWidget->size());
+}
+
+/// The Smart Mix assistant at 1920 x 1080 and 1366 x 768 with the library
+/// pane at its default height (the height it has with the track table): the
+/// window keeps its size, the actions stay whole at the foot of the
+/// inspector with nothing under them, every detail of the plan can be seen
+/// whole in the details above them, none behind the actions, and the plan's
+/// timeline fits beside the inspector.
+TEST_F(CrateSkinLoadTest, SmartMixDetailsStayAboveTheActions) {
+    QTemporaryDir profile;
+    ASSERT_TRUE(profile.isValid());
+    OffscreenDecks decks(profile.path() + QLatin1Char('/'));
+    decks.writeProfile(kCrateDecks, {{ConfigKey("[Config]", "hide_menubar"), QStringLiteral("1")}});
+    // A Crate server in the sidebar, for its Smart Mix item
+    const QString rows = profile.filePath(QStringLiteral("crate-rows.tsv"));
+    {
+        QFile file(rows);
+        ASSERT_TRUE(file.open(QIODevice::WriteOnly | QIODevice::Text));
+        file.write("Lattice\tOndine Varga\tGlass\tMelodic Techno\t124\t8A\t427\t6\tfull\n");
+    }
+    ASSERT_TRUE(insertCrateLibrary(profile.path() + QLatin1Char('/'), rows));
+    decks.start(application());
+    ASSERT_NE(nullptr, decks.skin());
+    decks.mainWindow()->menuBar()->hide();
+
+    // The decks as the assistant sees them: deck A on air 30 s before the
+    // plan's entry, deck B holding the next track
+    const QString outgoingFile = profile.filePath(QStringLiteral("01-outgoing.mp3"));
+    const QString incomingFile = profile.filePath(QStringLiteral("02-incoming.mp3"));
+    const QList<std::tuple<QString, QString, QString, QString, double>> tracks = {
+            {QStringLiteral("[Channel1]"),
+                    outgoingFile,
+                    QStringLiteral("Lattice"),
+                    QStringLiteral("Ondine Varga"),
+                    427.298},
+            {QStringLiteral("[Channel2]"),
+                    incomingFile,
+                    QStringLiteral("Northbound Static"),
+                    QStringLiteral("Kessler & Moor"),
+                    148.052},
+    };
+    for (const auto& [group, file, title, artist, seconds] : tracks) {
+        const TrackPointer pTrack = Track::newTemporary(file);
+        pTrack->setTitle(title);
+        pTrack->setArtist(artist);
+        ControlObject::set(ConfigKey(group, "duration"), seconds);
+        PlayerInfo::instance().setTrackInfo(group, pTrack);
+    }
+    ControlObject::set(ConfigKey("[Channel1]", "playposition"), (330298.0 - 30000.0) / 427298.0);
+    FakeServerAssist server(outgoingFile, incomingFile);
+    auto* pPanel = decks.skin()->findChild<crate::AssistPanel*>();
+    ASSERT_NE(nullptr, pPanel);
+    pPanel->setAssist(server.assist());
+    ASSERT_TRUE(server.answerWithThePlan(getTestDir()));
+
+    auto* pLibrary = decks.skin()->findChild<WLibrary*>();
+    ASSERT_NE(nullptr, pLibrary);
+    const ConfigKey showSmartMix = crate::library::CrateServerFeature::showSmartMixKey();
+    for (const QSize size : {QSize(1920, 1080), QSize(1366, 768)}) {
+        const std::string at = std::to_string(size.width()) + " px";
+        ControlObject::set(showSmartMix, 0);
+        decks.mainWindow()->resize(size);
+        waitFor([] { return false; }, 300);
+        const QSize pane = pLibrary->size();
+        ControlObject::set(showSmartMix, 1);
+        waitFor([] { return false; }, 300);
+        ASSERT_EQ(pPanel, pLibrary->currentWidget()) << at;
+
+        // The window and the library pane keep their sizes
+        EXPECT_EQ(size, decks.mainWindow()->size()) << at;
+        EXPECT_EQ(pane, pLibrary->size()) << at;
+        EXPECT_EQ(pane, pPanel->size()) << at;
+
+        // The actions: whole, at the foot, nothing under them
+        QWidget* const pActions = pPanel->actions();
+        const QRect actions = rectIn(pActions, pPanel);
+        EXPECT_TRUE(pPanel->rect().contains(actions)) << at;
+        EXPECT_GE(actions.bottom(), pPanel->rect().bottom() - 1) << at;
+        for (QPushButton* pButton : {pPanel->prepareButton(),
+                     pPanel->executeButton(),
+                     pPanel->cancelButton()}) {
+            EXPECT_TRUE(pButton->isVisible()) << at;
+            EXPECT_TRUE(actions.contains(rectIn(pButton, pPanel)))
+                    << pButton->text().toStdString() << " at " << at;
+        }
+
+        // The details: above the actions, each one seen whole when scrolled
+        // to
+        QScrollArea* const pDetails = pPanel->details();
+        QWidget* const pViewport = pDetails->viewport();
+        const QRect viewport = rectIn(pViewport, pPanel);
+        EXPECT_LE(viewport.bottom(), actions.top()) << at;
+        EXPECT_GT(viewport.height(), 0) << at;
+        int details = 0;
+        const QList<QWidget*> widgets = pDetails->widget()->findChildren<QWidget*>();
+        for (QWidget* pDetail : widgets) {
+            if (!pDetail->isVisibleTo(pDetails->widget()) ||
+                    !(qobject_cast<QLabel*>(pDetail) ||
+                            pDetail->inherits("crate::widgets::LevelRing"))) {
+                continue;
+            }
+            ++details;
+            pDetails->ensureWidgetVisible(pDetail, 0, 0);
+            QCoreApplication::processEvents();
+            const QRect detail = rectIn(pDetail, pViewport);
+            const std::string what = pDetail->objectName().toStdString() + " \"" +
+                    (qobject_cast<QLabel*>(pDetail)
+                                    ? qobject_cast<QLabel*>(pDetail)->text().toStdString()
+                                    : std::string()) +
+                    "\" at " + at;
+            EXPECT_TRUE(pViewport->rect().contains(detail)) << what;
+            EXPECT_FALSE(rectIn(pDetail, pPanel).intersects(actions)) << what;
+        }
+        // Eyebrow, mode, description, state, the readings and the rows
+        EXPECT_GE(details, 25) << at;
+        pDetails->verticalScrollBar()->setValue(0);
+
+        // The plan's timeline (plan V3.PR1b): whole in the panel, left of
+        // the inspector and under the host, at least compact. Where the
+        // column has no room for both, it takes the host's place. At
+        // 1920 x 1080 it has its lanes
+        auto* const pTimeline = pPanel->planView();
+        ASSERT_TRUE(pTimeline->isVisible()) << at;
+        EXPECT_TRUE(pTimeline->showsTimeline()) << at;
+        const QRect timeline = rectIn(pTimeline, pPanel);
+        EXPECT_TRUE(pPanel->rect().contains(timeline)) << at;
+        EXPECT_GE(timeline.height(), pTimeline->minimumSizeHint().height()) << at;
+        EXPECT_FALSE(timeline.intersects(rectIn(pDetails->parentWidget(), pPanel))) << at;
+        EXPECT_FALSE(timeline.intersects(actions)) << at;
+        if (pPanel->host()->isVisible()) {
+            EXPECT_GE(timeline.top(), rectIn(pPanel->host(), pPanel).bottom()) << at;
+        }
+        if (size.width() == 1920) {
+            EXPECT_TRUE(pPanel->host()->isVisible()) << at;
+            EXPECT_TRUE(pTimeline->showsLanes()) << at;
+        }
+    }
 }
 
 /// Dev-only harness, like Capture: the window at 1920 x 1080 with the FX,

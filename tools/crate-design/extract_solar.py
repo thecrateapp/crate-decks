@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Extract the Solar icon subset used by Crate Decks.
+"""Extract the Solar icon subset used by Decks.
 
 Reads the icon modules of an unpacked ``@solar-icons/react`` npm package
 (``package/dist/icons/<style>/<name>.mjs``) and writes one plain SVG per

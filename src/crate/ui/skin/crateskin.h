@@ -12,7 +12,7 @@ class QWidget;
 
 namespace crate {
 
-/// The skin of Crate Decks (res/skins/CrateDecks), which is the default
+/// The skin of Decks (res/skins/CrateDecks), which is the default
 /// skin (design 5.2, plan V2.PR1).
 inline constexpr char kSkinName[] = "CrateDecks";
 

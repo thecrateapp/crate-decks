@@ -120,7 +120,10 @@ if ((${#units[@]} > 0 && (tidy || clazy))); then
         --extra-arg=-Wno-unused-command-line-argument
         --extra-arg=-Wno-ignored-optimization-argument
         # As the CI's clang-tidy job: a local build may use -ffast-math
-        --extra-arg=-Wno-nan-infinity-disabled)
+        --extra-arg=-Wno-nan-infinity-disabled
+        # A newer local Qt deprecates macros (Q_FLAGS) that the CI's Qt does
+        # not, in headers this change only includes
+        --extra-arg=-Wno-deprecated-pragma)
     jobs=$(nproc)
     # A copy of the compile commands without GCC's own options, which the
     # clang front end refuses ("unknown argument")

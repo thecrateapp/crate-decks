@@ -19,6 +19,10 @@ namespace crate {
 /// - the cache limit: the audio cache evicts at once what it leaves out;
 /// - Auto DJ prefetch: CratePrefetcher keeps the next tracks of the queue
 ///   downloaded, or not;
+/// - keylock during Crate Smart Mix: the Auto DJ adapter's director turns it
+///   on for the incoming deck, or leaves it;
+/// - the Smart Mix assistant's transition: the length SmartMixAssist asks
+///   the planner for, which asks again for the plan when it changes;
 /// - the key from Crate and the gain from loudness: the AnalysisImporter
 ///   policy of the tracks taken from then on.
 /// Without settings it keeps the defaults in memory.
@@ -53,6 +57,25 @@ class CratePreferences : public QObject {
     bool gainFromLufs() const;
     void setGainFromLufs(bool enabled);
 
+    /// Keylock on the incoming deck of a Crate Smart Mix transition, so a
+    /// beatmatch changes its tempo and not its key. On by default (Diego,
+    /// 2026-11-15); off leaves each deck's own keylock as it is.
+    bool smartMixKeylock() const;
+    void setSmartMixKeylock(bool enabled);
+
+    /// The transition length the Smart Mix assistant prefers, in seconds:
+    /// its plans' `preferredDurationMs`. 8 s by default (the planner
+    /// context's), from 1 s, the planner's shortest transition, to 12 s, the
+    /// most the plan request takes. Longer blends, up to the plan's
+    /// `policyLimits.maximumLongBeatmatchMs`, are the planner's choice, not
+    /// this one.
+    static constexpr int kDefaultAssistTransitionSeconds = 8;
+    static constexpr int kMinimumAssistTransitionSeconds = 1;
+    static constexpr int kMaximumAssistTransitionSeconds = 12;
+    int smartMixAssistTransitionSeconds() const;
+    /// Kept within the bounds above.
+    void setSmartMixAssistTransitionSeconds(int seconds);
+
     /// Smart Mix Stems (STEM-D7): separate on the GPU when there is one
     /// that can, else on the CPU. On by default.
     bool stemsOnGpu() const;
@@ -81,6 +104,8 @@ class CratePreferences : public QObject {
     void cacheDirectoryChanged(const QString& directory);
     void cacheLimitChanged(qint64 limitBytes);
     void prefetchAutoDjChanged(bool enabled);
+    void smartMixKeylockChanged(bool enabled);
+    void smartMixAssistTransitionChanged(int seconds);
     void analysisPolicyChanged();
     void stemsChanged();
     void discreteGpuChanged(bool enabled);
@@ -94,6 +119,7 @@ class CratePreferences : public QObject {
     // Without settings
     QString m_cacheDirectory;
     qint64 m_cacheLimitBytes = kDefaultCacheLimitBytes;
+    int m_assistTransitionSeconds = kDefaultAssistTransitionSeconds;
     QHash<QString, bool> m_flags;
 };
 

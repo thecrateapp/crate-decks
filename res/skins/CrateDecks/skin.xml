@@ -1,6 +1,6 @@
   <!--
-  CrateDecks, the skin of Crate Decks, with the language of the Crate admin
-  (design 14 of the Crate Decks plans) and the approved GU1 mockups.
+  CrateDecks, the skin of Decks, with the language of the Crate admin
+  (design 14 of the Decks plans) and the approved GU1 mockups.
 
   It is derived from LateNight, Resizable skin for Mixxx 2.3.x
   www.mixxx.org
@@ -25,7 +25,7 @@
     <title>CrateDecks</title>
     <author>Crate, after LateNight by owilliams, ronso0</author>
     <version>0.1.0</version>
-    <description>The skin of Crate Decks: waveforms, two or four decks, mixer and library, with the language of the Crate admin.</description>
+    <description>The skin of Decks: waveforms, two or four decks, mixer and library, with the language of the Crate admin.</description>
     <language>en</language>
     <license>Creative Commons Attribution, Share-Alike 3.0 Unported</license>
     <attributes>
@@ -35,13 +35,17 @@
       <attribute persist="true" config_key="[Skin],show_waveforms">1</attribute>
       <attribute persist="true" config_key="[Skin],timing_shift_buttons">0</attribute>
 
-    <!-- Crate Decks layout classes: C++ sets them from the size of the skin
+    <!-- Decks layout classes: C++ sets them from the size of the skin
          and the breakpoints of generated/vars.xml (crate/ui/skin/) -->
       <attribute persist="false" config_key="[CrateDecks],layout_narrow">0</attribute>
       <attribute persist="false" config_key="[CrateDecks],layout_short">0</attribute>
     <!-- The toolbar's Preferences button: C++ opens Preferences when it
          goes to 1 (crate/ui/skin/preferencescontrol.h) -->
       <attribute persist="false" config_key="[CrateDecks],show_preferences">0</attribute>
+    <!-- The toolbar's Smart Mix button: on while the library pane shows the
+         Smart Mix assistant, which C++ shows and hides with it
+         (library/crateserver/crateserverfeature.cpp) -->
+      <attribute persist="false" config_key="[CrateDecks],show_smart_mix">0</attribute>
     <!-- Deck menus (vinyl, slip and the loop extras), closed at start -->
       <attribute persist="false" config_key="[CrateDecks],deck1_menu">0</attribute>
       <attribute persist="false" config_key="[CrateDecks],deck2_menu">0</attribute>

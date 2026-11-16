@@ -281,6 +281,9 @@ int main(int argc, char * argv[]) {
     // first tr() lookup (--help) on and over the translations that
     // CoreServices installs later.
     crate::installBrandTranslator(&app);
+    // Crate Decks: on X11 and XWayland, every window's WM_CLASS is the
+    // desktop file name, as the Wayland app_id is.
+    crate::applyWindowClass(&app);
 
 #if defined(Q_OS_WIN)
     // The Mixxx style is based on Qt's WindowsVista style

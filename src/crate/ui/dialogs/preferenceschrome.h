@@ -12,7 +12,7 @@ inline constexpr int kPreferencesLogoRole = Qt::UserRole + 0x4c4f;
 
 /// Gives upstream's Preferences (DlgPreferences, by the object names of its
 /// .ui) the dialog of the GU1 mockups (plan V2.PR5):
-/// - DialogChrome with the title "Crate Decks · Preferences";
+/// - DialogChrome with the title "Decks · Preferences";
 /// - the navigation as the admin's, with MonoLabel items, the active one
 ///   with a 2 px bar in accentHi, and the Crate logo on the Crate page;
 /// - a header over the pages: the "Preferences" MonoLabel and the page's

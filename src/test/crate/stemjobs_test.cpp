@@ -1,4 +1,4 @@
-// The stems of Smart Mix playlists in Crate Decks (plan ST5.PR2; STEM-D2,
+// The stems of Smart Mix playlists in Decks (plan ST5.PR2; STEM-D2,
 // D7, D8): the playlists are offline sets, their tracks' stems come first,
 // nothing separates while a deck plays, and the stems count in the cache.
 

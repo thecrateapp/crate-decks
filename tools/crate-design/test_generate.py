@@ -557,7 +557,8 @@ def test_application_style_is_generated():
 
 def test_instrument_tokens_reach_the_skin_variables():
     # crate/ui/widgets/ reads the geometry of the instrument widgets from
-    # vars.xml as CrateInst<Token> (plan V3.PR1): each must be there with
+    # vars.xml as CrateInst<Token> (plans V3.PR1 and V3.PR1b, the Smart Mix
+    # plan's timeline): each must be there with
     # its token's value, dash patterns as written in tokens.json
     tokens = generate.load_tokens(generate.TOKENS)
     xml = (generate.OUT / "vars.xml").read_text(encoding="utf-8")
@@ -579,6 +580,16 @@ def test_instrument_tokens_reach_the_skin_variables():
         "wheelCanvas",
         "arrowMarkerSize",
         "levelRingInset",
+        "nodeSibling",
+        "glowPulseRadius",
+        "tickPhrase",
+        "planGutter",
+        "planRulerInset",
+        "planLaneMinGap",
+        "planPhraseBars",
+        "fontSizePlanCue",
+        "trackingPlanCue",
+        "planLegendSample",
     ):
         variable = name[0].upper() + name[1:]
         assert variable in variables, name

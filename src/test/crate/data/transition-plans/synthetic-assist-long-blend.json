@@ -1,0 +1,42 @@
+{
+ "plannerVersion": 2,
+ "outgoingTrackEntityUid": "637bd7c0-380e-5bc7-b841-dc2234cdfaf7",
+ "incomingTrackEntityUid": "34137088-fcab-5f93-8866-31f1bf6d0871",
+ "mode": "beatmatch",
+ "durationMs": 96000,
+ "outgoingCueMs": 330298,
+ "incomingCueMs": 198,
+ "incomingTempoRatio": 1.023355,
+ "beatPhaseOffsetMs": 298,
+ "handoffProgress": 0.5,
+ "outgoingGainDb": -4.2867,
+ "incomingGainDb": -3.7616,
+ "curve": "dj-blend",
+ "bassHandoff": "balanced",
+ "confidence": 0.6761,
+ "structureUsed": true,
+ "policyLimits": {
+  "rulesRevision": 6,
+  "beatmatchAllowed": true,
+  "tempoAdjustmentAllowed": true,
+  "bassHandoffAllowed": true,
+  "longBeatmatchAllowed": true,
+  "longBeatmatchEligible": true,
+  "maximumTempoAdjustment": 0.04,
+  "minimumTransitionMs": 1000,
+  "maximumTransitionMs": 12000,
+  "maximumLongBeatmatchMs": 96000,
+  "maximumBoostDb": 6.0,
+  "maximumCutDb": 6.0,
+  "outgoingPeakLimitedGainDb": -4.2867,
+  "incomingPeakLimitedGainDb": -3.7616,
+  "outgoingEarliestCueMs": 30000,
+  "outgoingLatestEndMs": 427299,
+  "incomingLatestEndMs": 138053,
+  "phraseLengths": [
+   8,
+   16,
+   32
+  ]
+ }
+}

@@ -183,7 +183,7 @@ QWidget* serverPage(CrateServers* pServers, QWidget* pParent, AddServerWidget** 
     addTitle(pLayout,
             pPage,
             translate("Connect your Crate"),
-            translate("Crate Decks uses your Crate server as its library: your tracks, "
+            translate("Decks uses your Crate server as its library: your tracks, "
                       "Crate's analysis, recommendations and Smart Mix, right in the decks."));
 
     // The three steps as lanes, the current and the done ones in accentHi
@@ -306,7 +306,7 @@ QWidget* soundPage(const FirstRunServices& services,
         pHelper->setText(none
                         ? translate("The decks play nothing until there is one. Connect a "
                                     "sound card and search again, or continue without sound.")
-                        : translate("Crate Decks opens it now. You can change it at any time."));
+                        : translate("Decks opens it now. You can change it at any time."));
         pContinue->setText(none ? translate("Continue without sound") : translate("Continue"));
     };
     refresh();
@@ -334,7 +334,7 @@ QWidget* soundPage(const FirstRunServices& services,
                         services.setMainOutput &&
                         !services.setMainOutput(chosen)) {
                     pNoOutput->setText(
-                            translate("Crate Decks cannot open this device. "
+                            translate("Decks cannot open this device. "
                                       "Choose another one."));
                     pNoOutput->setVisible(true);
                     return;
@@ -359,7 +359,7 @@ QWidget* systemPage(const FirstRunServices& services,
     addTitle(pLayout,
             pPage,
             translate("Check this computer"),
-            translate("Crate Decks measures the graphics, the power limit and the sound "
+            translate("Decks measures the graphics, the power limit and the sound "
                       "for a few seconds, and says what would keep the waveforms smooth."));
 
     CratePreferences* pPreferences = pServers ? pServers->preferences() : nullptr;
@@ -398,7 +398,7 @@ QWidget* musicPage(const FirstRunServices& services,
             pPage,
             translate("Music on this computer"),
             translate("Your Crate is the library. If you also play files from this "
-                      "computer, add their folders and Crate Decks scans them."));
+                      "computer, add their folders and Decks scans them."));
 
     auto* pField = new QVBoxLayout();
     pField->setSpacing(DialogMetrics::installed().px("stepGap"));
@@ -436,9 +436,9 @@ QWidget* musicPage(const FirstRunServices& services,
             shown.append(QDir::toNativeSeparators(folder));
             pFolders->setText(shown.join(QLatin1Char('\n')));
             pFolders->setVisible(true);
-            pHelper->setText(translate("Crate Decks scans them in the background."));
+            pHelper->setText(translate("Decks scans them in the background."));
         } else {
-            pHelper->setText(translate("Crate Decks cannot add this folder."));
+            pHelper->setText(translate("Decks cannot add this folder."));
         }
     });
     QObject::connect(pFinish, &QPushButton::clicked, pPage, done);

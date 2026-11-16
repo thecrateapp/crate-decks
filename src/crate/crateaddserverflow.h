@@ -17,7 +17,7 @@ class Session;
 /// 1. setAddress() checks the address (parseServerAddress()). HTTP on the
 ///    local network waits for confirmLocalNetwork().
 /// 2. It asks the server for `GET /api/capabilities` and checks that it
-///    accepts this Crate Decks (available, `min_client_version`, contract).
+///    accepts this Decks (available, `min_client_version`, contract).
 /// 3. loginWithPassword() or loginWithBrowser() signs in; the server is then
 ///    kept by CrateServers and serverAdded() is emitted.
 ///

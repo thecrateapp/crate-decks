@@ -174,7 +174,7 @@ def make_own_repo(tmp_path):
     (repo / "src" / "crate" / "brand").mkdir(parents=True)
     (repo / "src" / "crate" / "x.cpp").write_text(OWN_SOURCE, encoding="utf-8")
     (repo / "src" / "crate" / "brand" / "rule.cpp").write_text(
-        "// Mixxx -> Crate Decks", encoding="utf-8"
+        "// Mixxx -> Decks", encoding="utf-8"
     )
     (repo / "src" / "crate" / "logo.png").write_bytes(b"\x89PNG Mixxx")
     return repo
@@ -209,6 +209,82 @@ def test_check_fails_on_our_code_naming_mixxx(tmp_path, capsys):
     for entry in data["own"]:
         entry["why"] = "test"
     path.write_text(inventory.dump(data), encoding="utf-8")
+    assert inventory.main(["--repo", str(repo), "--check"]) == 0
+
+
+def make_old_name_repo(tmp_path):
+    repo = make_own_repo(tmp_path)
+    (repo / "src" / "dlgold.cpp").write_text(
+        "void f() {\n"
+        '    tr("Restart Crate Decks");\n'
+        "    // A comment about Crate Decks is not shown\n"
+        '    load(QStringLiteral("~/.cache/Crate/Crate Decks"));\n'
+        "}\n",
+        encoding="utf-8",
+    )
+    (repo / "src" / "crate" / "own.cpp").write_text(
+        "// Decks shows its name\n"
+        "// Crate Decks' old comment\n"
+        'inline constexpr char kDataFolderName[] = "Crate Decks";\n'
+        "/// ~/.cache/Crate/Crate Decks on Linux\n",
+        encoding="utf-8",
+    )
+    (repo / "res" / "translations").mkdir(parents=True)
+    (repo / "res" / "translations" / "mixxx_es.ts").write_text(
+        "<TS><context><message><source>About Decks</source>"
+        "<translation>Acerca de Crate Decks</translation>"
+        "</message></context></TS>",
+        encoding="utf-8",
+    )
+    return repo
+
+
+def test_old_name_is_found_where_the_user_reads_it(tmp_path):
+    # Diego, 2026-11-15: the application is called Decks; "Crate Decks"
+    # stays only as the name of the folders it created
+    repo = make_old_name_repo(tmp_path)
+    inventory_data = {
+        "strings": [{"source": "Exit Mixxx?", "text": "Exit Crate Decks?"}],
+        "literals": [],
+    }
+    assert inventory.scan_old_name(repo, inventory_data) == [
+        (inventory.INVENTORY, "Exit Crate Decks?"),
+        ("res/translations/mixxx_es.ts", "Acerca de Crate Decks"),
+        ("src/crate/own.cpp", "// Crate Decks' old comment"),
+        ("src/dlgold.cpp", "Restart Crate Decks"),
+    ]
+
+
+def test_check_fails_on_the_old_name(tmp_path, capsys):
+    repo = make_old_name_repo(tmp_path)
+    assert inventory.main(["--repo", str(repo)]) == 0
+    path = repo / inventory.INVENTORY
+    data = json.loads(path.read_text(encoding="utf-8"))
+    for key in ("literals", "own"):
+        for entry in data[key]:
+            entry["why"] = "test"
+    path.write_text(inventory.dump(data), encoding="utf-8")
+    capsys.readouterr()
+    assert inventory.main(["--repo", str(repo), "--check"]) == 1
+    out = capsys.readouterr().out
+    assert (
+        "says Crate Decks, not Decks, src/dlgold.cpp: 'Restart Crate Decks'"
+        in out
+    )
+
+    (repo / "src" / "dlgold.cpp").write_text(
+        'void f() { tr("Restart Decks"); }', encoding="utf-8"
+    )
+    (repo / "src" / "crate" / "own.cpp").write_text(
+        "// Decks' comment\n", encoding="utf-8"
+    )
+    (repo / "res" / "translations" / "mixxx_es.ts").write_text(
+        "<TS><context><message><source>About Decks</source>"
+        "<translation>Acerca de Decks</translation>"
+        "</message></context></TS>",
+        encoding="utf-8",
+    )
+    assert inventory.main(["--repo", str(repo)]) == 0
     assert inventory.main(["--repo", str(repo), "--check"]) == 0
 
 

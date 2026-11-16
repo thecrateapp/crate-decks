@@ -1,27 +1,33 @@
 #!/usr/bin/env python3
-"""Inventory of the source strings that name Mixxx, for Crate Decks' brand.
+"""Inventory of the source strings that name Mixxx, for Decks' brand.
 
-Crate Decks shows nothing of Mixxx (design D2). The brand layer
+Decks shows nothing of Mixxx (design D2). The brand layer
 (src/crate/brand/) rewrites at run time every translatable string that names
 Mixxx, so Mixxx's sources stay as they are. res/crate-brand/mixxx-strings.json
 lists those strings and how each one is branded:
 
-- "rule": the generic rule of crate::brandText() (Mixxx -> Crate Decks);
+- "rule": the generic rule of crate::brandText() (Mixxx -> Decks);
 - "text": a curated English text ("es": its Spanish), where the rule would
-  say something false, such as "Crate Decks versions before 1.11";
+  say something false, such as "Decks versions before 1.11";
 - "keep": left as it is, with the reason ("why"): the credits in About (D2).
 
 It also lists the hard-coded literals that name Mixxx and are allowed to stay
 ("why": an identifier, a log line that the log handler brands...). Anything
-visible must be translatable or patched instead; a literal that Crate Decks
+visible must be translatable or patched instead; a literal that Decks
 shows through crate::brandText() can carry the text to show instead
 ("shown", and its Spanish "es").
 
 Our own code says nothing of Mixxx either (plan BR2): "own" lists each line of
-Crate Decks' own files (OWN_PATHS) that still names Mixxx or one of its
+Decks' own files (OWN_PATHS) that still names Mixxx or one of its
 files, with the reason it must ("why"), such as an object name that the
 inherited code selects. The brand layer and its tests name Mixxx on purpose
 and are left out (OWN_EXEMPT).
+
+The application was called "Crate Decks" until Diego named it Decks
+(2026-11-15). Nothing the user reads says the old name any more: --check also
+fails on a string of the sources, a .ts translation, a curated text or a line
+of our own files that says it. It only stays as the name of the folders the
+application created ("~/.cache/Crate/Crate Decks", crate::kDataFolderName).
 
 This tool rescans the sources and rewrites the inventory, keeping the
 decisions already made. With --check it changes nothing and fails when the
@@ -61,7 +67,7 @@ TRANSLATE_CALL = re.compile(
     r"(?<![\w])(?:translate|QT_TRANSLATE_NOOP|QT_TRANSLATE_NOOP3"
     r"|QT_TRANSLATE_N_NOOP)\(\s*$"
 )
-# Crate Decks' own code, resources and tools (AGENTS.md 5.2)
+# Decks' own code, resources and tools (AGENTS.md 5.2)
 OWN_PATHS = (
     "src/crate",
     "src/library/crateserver",
@@ -140,6 +146,13 @@ MIXXX_FILES = re.compile(
     r"|~/\.mixxx(?![\w.-]))",
     re.IGNORECASE,
 )
+
+# The application's name before it was called Decks, but as a folder of a
+# path ("~/.cache/Crate/Crate Decks"); a line that names kDataFolderName
+# defines or explains that folder.
+OLD_NAME = re.compile(r"(?<![/\w])Crate Decks")
+OLD_NAME_KEPT = re.compile(r"kDataFolderName")
+TRANSLATIONS = os.path.join("res", "translations")
 
 SOURCE_SUFFIXES = (".cpp", ".h", ".mm")
 QML_SUFFIXES = (".qml", ".js")
@@ -378,6 +391,64 @@ def scan_own(repo):
     return sorted(found)
 
 
+def scan_old_name(repo, inventory):
+    """[(where, text)] that still name the application "Crate Decks"."""
+    found = set()
+    # The strings of the inherited sources; our own files go line by line
+    # below, comments included
+    own = tuple(f"{top}/" for top in OWN_PATHS) + ("src/test/",)
+    for path, rel in walk(repo, "src", SOURCE_SUFFIXES + (".ui",)):
+        if rel.startswith(own):
+            continue
+        if rel.endswith(".ui"):
+            texts = scan_ui(path)
+        else:
+            with open(path, encoding="utf-8", errors="replace") as handle:
+                translatable, others = scan_code(handle.read())
+            texts = translatable + others
+        for text in texts:
+            if OLD_NAME.search(text):
+                found.add((rel, text))
+    for path, rel in walk(repo, os.path.join("res", "qml"), QML_SUFFIXES):
+        with open(path, encoding="utf-8", errors="replace") as handle:
+            translatable, _ = scan_code(handle.read())
+        for text in translatable:
+            if OLD_NAME.search(text):
+                found.add((rel, text))
+    # The translations of the renamed strings
+    for path, rel in walk(repo, TRANSLATIONS, (".ts",)):
+        try:
+            root = ET.parse(path).getroot()
+        except ET.ParseError:
+            continue
+        for element in root.iter("translation"):
+            if element.text and OLD_NAME.search(element.text):
+                found.add((rel, element.text))
+    # Our own files, but the tests of the brand, which may quote it
+    for top in OWN_PATHS:
+        full = os.path.join(repo, top)
+        files = (
+            [(full, top)] if os.path.isfile(full) else walk(repo, top, ("",))
+        )
+        for path, rel in files:
+            if rel.endswith(OWN_BINARY_SUFFIXES) or rel.startswith(OWN_EXEMPT):
+                continue
+            try:
+                with open(path, encoding="utf-8") as handle:
+                    lines = handle.read().splitlines()
+            except (UnicodeDecodeError, FileNotFoundError):
+                continue
+            for line in lines:
+                if OLD_NAME.search(line) and not OLD_NAME_KEPT.search(line):
+                    found.add((rel, line.strip()))
+    # The inventory's curated texts
+    for entry in inventory.get("strings", []) + inventory.get("literals", []):
+        for key in ("text", "shown", "es"):
+            if entry.get(key) and OLD_NAME.search(entry[key]):
+                found.add((INVENTORY, entry[key]))
+    return sorted(found)
+
+
 def load(path):
     if not os.path.exists(path):
         return {"strings": [], "literals": []}
@@ -474,9 +545,13 @@ def main(argv=None):
     current = load(path)
     strings, literals = scan(args.repo)
     fresh = updated(current, strings, literals, scan_own(args.repo))
+    old_name = [
+        f"says Crate Decks, not Decks, {rel}: {text!r}"
+        for rel, text in scan_old_name(args.repo, fresh)
+    ]
     if args.check:
         stale = dump(fresh) != dump(current)
-        issues = problems(fresh)
+        issues = problems(fresh) + old_name
         if stale:
             old = {e["source"] for e in current.get("strings", [])}
             new = {e["source"] for e in fresh["strings"]}
@@ -508,7 +583,7 @@ def main(argv=None):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8") as handle:
         handle.write(dump(fresh))
-    for issue in problems(fresh):
+    for issue in problems(fresh) + old_name:
         print(issue)
     print(
         f"{len(fresh['strings'])} strings, {len(fresh['literals'])} literals,"

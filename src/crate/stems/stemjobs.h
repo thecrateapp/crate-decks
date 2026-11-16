@@ -41,7 +41,7 @@ class LocalStemSeparator {
     virtual void cancel() = 0;
 };
 
-/// The stems of Smart Mix playlists and of tracks on demand in Crate Decks
+/// The stems of Smart Mix playlists and of tracks on demand in Decks
 /// (plan ST5.PR2; STEM-D2, D7, D8, D9).
 ///
 /// **Smart Mix playlists** are playlists their owner marks on the server;

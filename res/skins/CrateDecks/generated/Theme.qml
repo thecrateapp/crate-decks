@@ -1,4 +1,4 @@
-// Crate Decks design tokens for QML (stage 2, design section 14.4).
+// Decks design tokens for QML (stage 2, design section 14.4).
 // Template for tools/crate-design/generate.py: every token in
 // res/crate-design/tokens.json has a property here. Lengths are in pixels,
 // tracking in em, durations in milliseconds and sweeps in degrees.
@@ -382,6 +382,50 @@ QtObject {
     readonly property real trackingWheelLabel: 0.04
     readonly property real trackingWheelFigure: -0.04
     readonly property real levelRingInset: 2
+    readonly property real planGutter: 120
+    readonly property real planPaddingRight: 24
+    readonly property real planRulerInset: 58
+    readonly property real planLaneInset: 26
+    readonly property real planLaneMinGap: 24
+    readonly property real planWindowRise: 40
+    readonly property real planWindowDrop: 26
+    readonly property real planWindowLabelRise: 46
+    readonly property real planCueLabelRise: 30
+    readonly property real planCueLabelDrop: 40
+    readonly property real planBarLabelRise: 14
+    readonly property real planBarLabelDrop: 20
+    readonly property real planBarLabelGap: 4
+    readonly property real planDeckLabelRise: 6
+    readonly property real planDeckRoleDrop: 10
+    readonly property real planLaneLabelDrop: 3
+    readonly property real planTempoSwing: 6
+    readonly property real planGainSwing: 8
+    readonly property real planValueGap: 4
+    readonly property real planTempoLabelRise: 11
+    readonly property real planTempoLabelDrop: 17
+    readonly property real planGainLabelDrop: 20
+    readonly property real planBassLabelGap: 6
+    readonly property real planEntryBow: 30
+    readonly property real planArrowRise: 8
+    readonly property real planArrowGap: 10
+    readonly property real planPlayheadOvershoot: 26
+    readonly property real planPlayheadOpacity: 0.5
+    readonly property real planPulseRadius: 3
+    readonly property real planNowLabelGap: 6
+    readonly property real planActiveOpacity: 0.9
+    readonly property real planDimOpacity: 0.6
+    readonly property real planPhraseBars: 8
+    readonly property real fontSizePlanCue: 9.5
+    readonly property real fontSizePlanValue: 10
+    readonly property real fontSizePlanDeck: 10.5
+    readonly property real fontSizePlanBar: 9
+    readonly property real trackingPlanCue: 0.12
+    readonly property real planLegendSample: 24
+    readonly property real planLegendGap: 18
+    readonly property real planLegendRowGap: 10
+    readonly property real planLegendItemGap: 8
+    readonly property real planLegendPaddingY: 16
+    readonly property real planLegendNode: 9
 
     // knob
     readonly property real knobSize: 36
@@ -542,4 +586,33 @@ QtObject {
     readonly property real aboutWidth: 560
     readonly property real aboutMetaGap: 6
     readonly property real aboutTextHeight: 160
+    readonly property real viewHeadHeight: 56
+    readonly property real viewHeadGap: 18
+    readonly property real assistPaddingTop: 16
+    readonly property real assistColumnGap: 32
+    readonly property real assistInspectorWidth: 300
+    readonly property real assistInspectorPaddingLeft: 26
+    readonly property real assistHostGap: 32
+    readonly property real assistHostPaddingBottom: 14
+    readonly property real assistHostNameTop: 6
+    readonly property real assistHostNameBottom: 4
+    readonly property real assistHostReadingGap: 12
+    readonly property real fontSizeAssistHostReading: 26
+    readonly property real assistModeTop: 8
+    readonly property real assistModeBottom: 6
+    readonly property real fontWeightAssistMode: 600
+    readonly property real assistDescriptionBottom: 16
+    readonly property real assistStateGap: 10
+    readonly property real fontSizeAssistCaption: 10
+    readonly property real assistReadingRowPaddingY: 16
+    readonly property real assistReadingRowGap: 12
+    readonly property real assistReadingValueTop: 6
+    readonly property real fontSizeAssistReading: 22
+    readonly property real assistMetaPaddingY: 16
+    readonly property real assistMetaKeyWidth: 78
+    readonly property real assistMetaGap: 12
+    readonly property real assistMetaRowPaddingY: 5
+    readonly property real assistActionsGap: 8
+    readonly property real assistActionsPaddingY: 14
+    readonly property real assistQuietTop: 8
 }

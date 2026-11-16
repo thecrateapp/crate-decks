@@ -8,7 +8,7 @@
 
 namespace crate {
 
-/// Where Crate Decks keeps the refresh tokens of its sessions. Secrets live
+/// Where Decks keeps the refresh tokens of its sessions. Secrets live
 /// only here (AGENTS.md §5.2), never in the settings file, logs or the database.
 ///
 /// Operations are asynchronous: `done` is called exactly once, possibly

@@ -72,6 +72,7 @@ class CrateBrandingTest : public testing::Test {
         m_organizationDomain = QCoreApplication::organizationDomain();
         m_desktopFileName = QGuiApplication::desktopFileName();
         m_applicationVersion = QCoreApplication::applicationVersion();
+        m_applicationName = QCoreApplication::applicationName();
     }
 
     void TearDown() override {
@@ -80,6 +81,7 @@ class CrateBrandingTest : public testing::Test {
         QCoreApplication::setOrganizationDomain(m_organizationDomain);
         QGuiApplication::setDesktopFileName(m_desktopFileName);
         QCoreApplication::setApplicationVersion(m_applicationVersion);
+        QCoreApplication::setApplicationName(m_applicationName);
     }
 
   private:
@@ -87,10 +89,12 @@ class CrateBrandingTest : public testing::Test {
     QString m_organizationDomain;
     QString m_desktopFileName;
     QString m_applicationVersion;
+    QString m_applicationName;
 };
 
-TEST_F(CrateBrandingTest, ApplicationNameIsCrateDecks) {
-    EXPECT_QSTRING_EQ(QStringLiteral("Crate Decks"), VersionStore::applicationName());
+// Diego, 2026-11-15: the product is called Decks, no longer Crate Decks.
+TEST_F(CrateBrandingTest, ApplicationNameIsDecks) {
+    EXPECT_QSTRING_EQ(QStringLiteral("Decks"), VersionStore::applicationName());
 }
 
 TEST_F(CrateBrandingTest, ApplyApplicationIdentitySetsCrateIdentity) {
@@ -178,8 +182,9 @@ TEST_F(CrateBrandingTest, DefaultSettingsPathIsNotMixxxs) {
     EXPECT_FALSE(args.getSettingsPath().contains(kMixxxSettingsDir));
 #else
     // TEST_GAP: on macOS and Windows the default comes from
-    // QStandardPaths::AppLocalDataLocation, which follows the application
-    // name that main() sets; mixxx-test runs with its own name.
+    // QStandardPaths::AppLocalDataLocation in the folder that
+    // crate::dataLocation() keeps (DataFoldersKeepTheirNameWhenThe
+    // ApplicationIsRenamed); this build only runs the Linux branch.
     GTEST_SKIP() << "The default settings path is only fixed at compile time on Linux";
 #endif
 }
@@ -250,17 +255,69 @@ TEST_F(CrateBrandingTest, SettingsPathOptionOverridesDefault) {
 #endif
 }
 
+// Diego, 2026-11-15: the application is called Decks, but the folders that
+// Qt names after it (the audio cache, the settings folder on Windows and
+// macOS) keep the name they were created with, so no user data moves.
+TEST_F(CrateBrandingTest, DataFoldersKeepTheirNameWhenTheApplicationIsRenamed) {
+    const QString crate = QStringLiteral("Crate");
+    const QString decks = QStringLiteral("Decks");
+    const struct {
+        QString path;
+        QString expected;
+    } cases[] = {
+            // Linux, the cache
+            {QStringLiteral("/home/dj/.cache/Crate/Decks"),
+                    QStringLiteral("/home/dj/.cache/Crate/Crate Decks")},
+            // Windows, the settings folder and the cache inside it
+            {QStringLiteral("C:/Users/dj/AppData/Local/Crate/Decks"),
+                    QStringLiteral("C:/Users/dj/AppData/Local/Crate/Crate Decks")},
+            {QStringLiteral("C:/Users/dj/AppData/Local/Crate/Decks/cache"),
+                    QStringLiteral("C:/Users/dj/AppData/Local/Crate/Crate Decks/cache")},
+            // macOS
+            {QStringLiteral("/Users/dj/Library/Application Support/Crate/Decks"),
+                    QStringLiteral("/Users/dj/Library/Application Support/Crate/Crate Decks")},
+            // Only the application's folder, not one in the home folder
+            {QStringLiteral("/home/Crate/Decks/.cache/Crate/Decks"),
+                    QStringLiteral("/home/Crate/Decks/.cache/Crate/Crate Decks")},
+            // Qt added no application folder
+            {QStringLiteral("/home/dj/.cache"), QStringLiteral("/home/dj/.cache")},
+            {QStringLiteral("/home/dj/.cache/Crate/Decksy"),
+                    QStringLiteral("/home/dj/.cache/Crate/Decksy")},
+    };
+    for (const auto& testCase : cases) {
+        SCOPED_TRACE(qPrintable(testCase.path));
+        EXPECT_QSTRING_EQ(testCase.expected, crate::inDataFolder(testCase.path, crate, decks));
+    }
+    EXPECT_QSTRING_EQ(QStringLiteral("/home/dj/.cache/Decks"),
+            crate::inDataFolder(QStringLiteral("/home/dj/.cache/Decks"), crate, QString()));
+    EXPECT_QSTRING_EQ(QStringLiteral("/home/dj/.cache/Crate Decks"),
+            crate::inDataFolder(QStringLiteral("/home/dj/.cache/Decks"), QString(), decks));
+    // The name before the rename is already the folder's
+    EXPECT_QSTRING_EQ(QStringLiteral("/home/dj/.cache/Crate/Crate Decks"),
+            crate::inDataFolder(QStringLiteral("/home/dj/.cache/Crate/Crate Decks"),
+                    crate,
+                    QStringLiteral("Crate Decks")));
+
+    crate::applyApplicationIdentity();
+    QCoreApplication::setApplicationName(QString::fromUtf8(crate::kApplicationName));
+    for (const auto type : {QStandardPaths::CacheLocation, QStandardPaths::AppLocalDataLocation}) {
+        const QString location = crate::dataLocation(type);
+        SCOPED_TRACE(qPrintable(location));
+        EXPECT_TRUE(location.contains(QStringLiteral("/Crate/Crate Decks")));
+    }
+}
+
 TEST_F(CrateBrandingTest, BroadcastKeychainPrefixIsNotMixxxs) {
     EXPECT_STREQ("Crate - ", crate::kBroadcastKeychainPrefix);
 }
 
-// Plan "Own brand", BR.PR2: what leaves the window names Crate Decks. A new
+// Plan "Own brand", BR.PR2: what leaves the window names Decks. A new
 // broadcast profile streams as the application, with Crate's website, which
 // listeners and Preferences see.
 TEST_F(CrateBrandingTest, DefaultStreamNameIsTheApplication) {
 #ifdef __BROADCAST__
     const BroadcastProfile profile(QStringLiteral("Test"));
-    EXPECT_QSTRING_EQ(QStringLiteral("Crate Decks"), profile.getStreamName());
+    EXPECT_QSTRING_EQ(QStringLiteral("Decks"), profile.getStreamName());
     EXPECT_QSTRING_EQ(QStringLiteral("https://cratemusic.app"), profile.getStreamWebsite());
 #else
     GTEST_SKIP() << "Built without broadcasting";
@@ -276,7 +333,7 @@ TEST_F(CrateBrandingTest, RecordingsFolderIsNamedAfterTheApplication) {
             new UserSettings(settings.filePath(QStringLiteral("mixxx.cfg"))));
     const DlgPrefRecord page(nullptr, pConfig);
     const QString folder = pConfig->getValueString(ConfigKey(RECORDING_PREF_KEY, "Directory"));
-    EXPECT_TRUE(folder.endsWith(QStringLiteral("/Crate Decks/Recordings"))) << qPrintable(folder);
+    EXPECT_TRUE(folder.endsWith(QStringLiteral("/Decks/Recordings"))) << qPrintable(folder);
     EXPECT_FALSE(folder.contains(QLatin1String("Mixxx"))) << qPrintable(folder);
 }
 
@@ -325,11 +382,28 @@ TEST_F(CrateBrandingTest, DesktopEntryMatchesDesktopFileName) {
     ASSERT_FALSE(entry.isEmpty()) << qPrintable(path);
 
     EXPECT_QSTRING_EQ(QStringLiteral("Application"), entry.value(QStringLiteral("Type")));
-    EXPECT_QSTRING_EQ(QStringLiteral("Crate Decks"), entry.value(QStringLiteral("Name")));
+    EXPECT_QSTRING_EQ(QStringLiteral("Decks"), entry.value(QStringLiteral("Name")));
     EXPECT_QSTRING_EQ(desktopFileName, entry.value(QStringLiteral("Icon")));
+    // Docks and window managers match it with the windows' WM_CLASS on X11
+    // and XWayland (crate::applyWindowClass()); "crate-decks" matched none
+    EXPECT_QSTRING_EQ(desktopFileName, entry.value(QStringLiteral("StartupWMClass")));
     const QString exec = entry.value(QStringLiteral("Exec"));
     EXPECT_TRUE(exec.contains(QStringLiteral("crate-decks"))) << qPrintable(exec);
     EXPECT_FALSE(exec.contains(QStringLiteral("mixxx"))) << qPrintable(exec);
+}
+
+// The window class of X11 and XWayland is the desktop file name, both as
+// the instance and as the class, like the Wayland app_id.
+// TEST_GAP: writing it on the windows needs an X server (the tests run
+// offscreen); checked by hand with xprop under QT_QPA_PLATFORM=xcb.
+TEST_F(CrateBrandingTest, WindowClassIsTheDesktopFileName) {
+    const QByteArray name(crate::kDesktopFileName);
+    EXPECT_EQ(name + '\0' + name + '\0', crate::windowClassProperty());
+    if (QGuiApplication::platformName() != QLatin1String("xcb")) {
+        EXPECT_FALSE(crate::applyWindowClass(qobject_cast<QGuiApplication*>(
+                QCoreApplication::instance())));
+    }
+    EXPECT_FALSE(crate::applyWindowClass(nullptr));
 }
 
 TEST_F(CrateBrandingTest, MetainfoMatchesDesktopFileName) {
@@ -346,7 +420,7 @@ TEST_F(CrateBrandingTest, MetainfoMatchesDesktopFileName) {
             component.firstChildElement(QStringLiteral("id")).text());
     EXPECT_QSTRING_EQ(desktopFileName + QStringLiteral(".desktop"),
             component.firstChildElement(QStringLiteral("launchable")).text());
-    EXPECT_QSTRING_EQ(QStringLiteral("Crate Decks"),
+    EXPECT_QSTRING_EQ(QStringLiteral("Decks"),
             component.firstChildElement(QStringLiteral("name")).text());
     EXPECT_QSTRING_EQ(QStringLiteral("hello@cratemusic.app"),
             component.firstChildElement(QStringLiteral("update_contact")).text());
@@ -381,10 +455,10 @@ TEST_F(CrateBrandingTest, SourceCodeUrlPointsAtTheBuiltSource) {
 TEST_F(CrateBrandingTest, AboutCreditsMixxxAndLinksTheSourceCode) {
     const DlgAbout about;
 
-    EXPECT_QSTRING_EQ(QStringLiteral("About Crate Decks"), about.windowTitle());
+    EXPECT_QSTRING_EQ(QStringLiteral("About Decks"), about.windowTitle());
     const auto* pVersion = about.findChild<QLabel*>(QStringLiteral("version_label"));
     ASSERT_NE(nullptr, pVersion);
-    EXPECT_QSTRING_EQ(QStringLiteral("Crate Decks ") +
+    EXPECT_QSTRING_EQ(QStringLiteral("Decks ") +
                     crate::buildVersion(VersionStore::gitDescribe()),
             pVersion->text());
     const auto* pBasedOn = about.findChild<QLabel*>(QStringLiteral("crate_based_on"));
@@ -414,7 +488,7 @@ TEST_F(CrateBrandingTest, AboutOffersNoDonation) {
     const DlgAbout about;
 
     // Of Mixxx, About keeps only the legal line, the credits and the
-    // licence (design D2); Crate Decks asks for no donations to Mixxx
+    // licence (design D2); Decks asks for no donations to Mixxx
     const auto* pDonate = about.findChild<QPushButton*>(QStringLiteral("btnDonate"));
     if (pDonate) {
         EXPECT_TRUE(pDonate->isHidden());
@@ -455,7 +529,7 @@ TEST_F(CrateBrandingTest, AboutHasTheFirstStartLook) {
     EXPECT_NE(nullptr, about.findChild<QWidget*>(QStringLiteral("CrateDialogFrame")));
     const auto* pTitle = about.findChild<QLabel*>(QStringLiteral("CrateAboutTitle"));
     ASSERT_NE(nullptr, pTitle);
-    EXPECT_QSTRING_EQ(QStringLiteral("Crate Decks"), pTitle->text());
+    EXPECT_QSTRING_EQ(QStringLiteral("Decks"), pTitle->text());
     EXPECT_NE(nullptr, about.findChild<QLabel*>(QStringLiteral("MonoAboutKicker")));
 }
 #endif

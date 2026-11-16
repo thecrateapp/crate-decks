@@ -1,4 +1,4 @@
-"""The shared stem-analysis/1 fixture of Crate Decks and the server.
+"""The shared stem-analysis/1 fixture of Decks and the server.
 
 Plan ST5.PR2. Both producers must encode the same level bytes for the
 same stems (STEM-D1). This script makes four stereo stems at 44.1 kHz

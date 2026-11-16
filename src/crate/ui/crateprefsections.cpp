@@ -12,6 +12,7 @@
 #include <QVBoxLayout>
 #include <algorithm>
 #include <cmath>
+#include <utility>
 
 #include "crate/cratepreferences.h"
 #include "crate/system/systemcheck.h"
@@ -229,7 +230,7 @@ CacheSection::CacheSection(QWidget* pParent)
     m_pChoose->setObjectName(QStringLiteral("crateChooseCache"));
     setButtonVariant(m_pChoose, "ghost");
     pLocation->addWidget(m_pChoose);
-    m_pLocationHint->setText(tr("takes effect the next time Crate Decks starts"));
+    m_pLocationHint->setText(tr("takes effect the next time Decks starts"));
     m_pLocationHint->setContentsMargins(
             metrics.px("prefsRowLabelWidthColumn") + metrics.px("prefsRowGap"), 0, 0, 0);
     m_pLocationHint->hide();
@@ -274,7 +275,7 @@ void CacheSection::setMinimumLimit(qint64 bytes) {
 AnalysisSection::AnalysisSection(QWidget* pParent)
         : PrefsSection(tr("Crate analysis"), pParent),
           m_pKey(addToggle(tr("Key from Crate"),
-                  tr("instead of the key detection of Crate Decks"))),
+                  tr("instead of the key detection of Decks"))),
           m_pGain(addToggle(tr("Gain from loudness"),
                   tr("ReplayGain from Crate's LUFS for tracks without one"))) {
 }
@@ -343,50 +344,108 @@ void SystemSection::setDiscreteGpuOffered(bool offered) {
     m_pDiscreteGpu->parentWidget()->setVisible(offered || m_pDiscreteGpu->isChecked());
 }
 
-SmartMixSection::SmartMixSection(QWidget* pParent)
-        : PrefsSection(tr("Auto DJ and Smart Mix"), pParent),
-          m_pSmartMix(nullptr) {
-    const DialogMetrics& metrics = DialogMetrics::installed();
-    rows()->addSpacing(metrics.px("segmentLabelTop") - metrics.px("prefsSectionLabelGap"));
-    rows()->addWidget(monoLabel(tr("Auto DJ transition"), QStringLiteral("MonoPrefsLabel"), this));
-    rows()->addSpacing(metrics.px("segmentLabelBottom"));
+namespace {
 
-    // The admin's SegmentedControl: one active chip, filled in accentHi
-    auto* pChipsBox = new QWidget(this);
+/// A labelled SegmentedControl of the admin (one active chip, filled in
+/// accentHi) under `label`, as the mockups' "Auto DJ transition", in a box
+/// of its own at the end of `pRows`; the chips are `texts`, in `pGroup`.
+QWidget* addSegment(QVBoxLayout* pRows,
+        const QString& label,
+        const QStringList& texts,
+        QButtonGroup* pGroup,
+        QWidget* pOwner) {
+    const DialogMetrics& metrics = DialogMetrics::installed();
+    auto* pBox = new QWidget(pOwner);
+    auto* pSegment = new QVBoxLayout(pBox);
+    pSegment->setContentsMargins(0, 0, 0, 0);
+    pSegment->setSpacing(0);
+    // The label's top margin collapses into the section label's gap, or the
+    // chips' bottom one, as in CSS: a negative spacing would clip the label
+    pSegment->addSpacing(
+            std::max(0, metrics.px("segmentLabelTop") - metrics.px("prefsSectionLabelGap")));
+    pSegment->addWidget(monoLabel(label, QStringLiteral("MonoPrefsLabel"), pBox));
+    pSegment->addSpacing(metrics.px("segmentLabelBottom"));
+    auto* pChipsBox = new QWidget(pBox);
     auto* pChips = new FlowLayout(metrics.px("chipGap"), pChipsBox);
-    auto* pGroup = new QButtonGroup(this);
-    const QString icons = designPath() + QStringLiteral("icons/");
-    for (const QString& text :
-            {tr("Crate Smart Mix"), tr("Full intro + outro"), tr("Fade at outro")}) {
+    for (const QString& text : texts) {
         auto* pChip = new QPushButton(text, pChipsBox);
         pChip->setObjectName(QStringLiteral("CrateChip"));
         pChip->setCheckable(true);
         pChip->setAutoDefault(false);
         pGroup->addButton(pChip);
         pChips->addWidget(pChip);
-        if (!m_pSmartMix) {
-            m_pSmartMix = pChip;
-            QIcon icon;
-            icon.addFile(icons + QStringLiteral("stars_idle.svg"),
-                    QSize(),
-                    QIcon::Normal,
-                    QIcon::Off);
-            icon.addFile(icons + QStringLiteral("stars_onaccent.svg"),
-                    QSize(),
-                    QIcon::Normal,
-                    QIcon::On);
-            pChip->setIcon(icon);
-            pChip->setChecked(true);
-        }
     }
-    rows()->addWidget(pChipsBox);
-    rows()->addSpacing(metrics.px("segmentBottom"));
+    pSegment->addWidget(pChipsBox);
+    pSegment->addSpacing(metrics.px("segmentBottom"));
+    pRows->addWidget(pBox);
+    return pBox;
+}
 
-    addToggle(tr("Assistant follows the master deck"), tr("plans master deck → the other deck"))
-            ->setChecked(true);
-    addToggle(tr("Bass swap"), tr("on servers that announce bass handoff"))->setChecked(true);
-    addToggle(tr("Long beatmatch"), tr("blends up to 64 bars"))->setChecked(true);
-    addToggle(tr("AI assisted mixing"), tr("needs a server with Smart Mix 3"));
+} // namespace
+
+SmartMixSection::SmartMixSection(QWidget* pParent)
+        : PrefsSection(tr("Auto DJ and Smart Mix"), pParent),
+          m_pSmartMix(nullptr),
+          m_pKeylock(nullptr),
+          m_pAssistTransition(new QButtonGroup(this)) {
+    // The transition chips, hidden until they choose Auto DJ's mode
+    auto* pGroup = new QButtonGroup(this);
+    QWidget* pTransitionBox = addSegment(rows(),
+            tr("Auto DJ transition"),
+            {tr("Crate Smart Mix"), tr("Full intro + outro"), tr("Fade at outro")},
+            pGroup,
+            this);
+    m_pSmartMix = qobject_cast<QPushButton*>(pGroup->buttons().constFirst());
+    const QString icons = designPath() + QStringLiteral("icons/");
+    QIcon icon;
+    icon.addFile(icons + QStringLiteral("stars_idle.svg"), QSize(), QIcon::Normal, QIcon::Off);
+    icon.addFile(icons + QStringLiteral("stars_onaccent.svg"), QSize(), QIcon::Normal, QIcon::On);
+    m_pSmartMix->setIcon(icon);
+    m_pSmartMix->setChecked(true);
+    pTransitionBox->hide();
+
+    // The length the assistant asks for, beside Auto DJ's
+    QStringList lengths;
+    for (const int seconds : kAssistTransitionChoices) {
+        lengths.append(tr("%1 s").arg(seconds));
+    }
+    addSegment(rows(), tr("Assistant transition"), lengths, m_pAssistTransition, this);
+    const QList<QAbstractButton*> chips = m_pAssistTransition->buttons();
+    for (int index = 0; index < chips.size(); ++index) {
+        m_pAssistTransition->setId(chips[index], kAssistTransitionChoices[index]);
+    }
+    connect(m_pAssistTransition,
+            &QButtonGroup::idClicked,
+            this,
+            &SmartMixSection::assistTransitionChosen);
+
+    m_pKeylock = addToggle(tr("Keylock during Smart Mix"),
+            tr("keeps the key when a beatmatch changes the tempo"));
+    // Plans F6.C-PR4 and F6b
+    const std::pair<QString, QString> later[] = {
+            {tr("Assistant follows the master deck"), tr("plans master deck → the other deck")},
+            {tr("Bass swap"), tr("on servers that announce bass handoff")},
+            {tr("Long beatmatch"), tr("blends up to 64 bars")},
+            {tr("AI assisted mixing"), tr("needs a server with Smart Mix 3")},
+    };
+    for (const auto& [title, hint] : later) {
+        addToggle(title, hint)->parentWidget()->hide();
+    }
+}
+
+void SmartMixSection::showAssistTransition(int seconds) {
+    QAbstractButton* pChip = m_pAssistTransition->button(seconds);
+    if (pChip) {
+        pChip->setChecked(true);
+        return;
+    }
+    // A length of the settings file that no chip offers: none is checked
+    m_pAssistTransition->setExclusive(false);
+    const QList<QAbstractButton*> chips = m_pAssistTransition->buttons();
+    for (QAbstractButton* pOther : chips) {
+        pOther->setChecked(false);
+    }
+    m_pAssistTransition->setExclusive(true);
 }
 
 QString cacheUsageNumber(qint64 usedBytes) {

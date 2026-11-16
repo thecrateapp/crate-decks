@@ -1,8 +1,8 @@
-# Crate Decks
+# Decks
 
 [![Build](https://github.com/thecrateapp/crate-decks/actions/workflows/develop.yml/badge.svg?branch=main)](https://github.com/thecrateapp/crate-decks/actions/workflows/develop.yml?query=branch%3Amain)
 
-Crate Decks es un programa de DJ de escritorio que usa un servidor Crate como biblioteca y cerebro: biblioteca remota, análisis de Crate, recomendaciones y Smart Mix en los decks.
+Decks es un programa de DJ de escritorio que usa un servidor Crate como biblioteca y cerebro: biblioteca remota, análisis de Crate, recomendaciones y Smart Mix en los decks.
 
 Es un repositorio independiente basado en el código de [Mixxx](https://mixxx.org).
 
@@ -15,7 +15,7 @@ Es un repositorio independiente basado en el código de [Mixxx](https://mixxx.or
 - **Origen:** Mixxx `main` en `bc49961` (2.7-alpha). La rama `upstream` apunta a esa base y solo sirve para traer cambios de Mixxx cuando se decide. Cómo hacerlo: [docs/mixxx-merges.md](docs/mixxx-merges.md).
 - **Una sola dirección:** no se envía nada a Mixxx (ni PRs, ni issues, ni comentarios). Los fallos de Mixxx que encontremos se arreglan aquí.
 - **Ficheros de Mixxx que cambiamos:** [CRATE_PATCHES.md](CRATE_PATCHES.md).
-- **Licencia:** GPL-2.0-or-later, como Mixxx ([LICENSE](LICENSE)). Crate Decks se distribuye con su código fuente, y el código de Crate que se compila en Decks también es GPL. El servidor Crate no queda afectado: habla con Decks por HTTP.
+- **Licencia:** GPL-2.0-or-later, como Mixxx ([LICENSE](LICENSE)). Decks se distribuye con su código fuente, y el código de Crate que se compila en Decks también es GPL. El servidor Crate no queda afectado: habla con Decks por HTTP.
 - **Créditos:** Mixxx es obra de sus contribuidores. Se conservan los avisos de copyright y los créditos de Mixxx en *About*. El nombre y los logos de Mixxx no se usan en el producto, salvo en los créditos.
 - **Fuentes:** Roboto, Bricolage Grotesque y JetBrains Mono, las del admin de Crate, bajo SIL OFL 1.1 (`res/fonts/*.OFL.txt`).
 - **Iconos:** Solar Icons Set de 480 Design, bajo CC BY 4.0, extraídos del paquete `@solar-icons/react` (MIT). Licencias y atribución en `tools/crate-design/svg/solar/`.
@@ -30,9 +30,11 @@ Dependencias, compilación y tests: [AGENTS.md §7](AGENTS.md). Estilo de códig
 
 El ejecutable es `crate-decks`. En Linux guarda los ajustes en `~/.cratedecks/` (o en la carpeta que se le pase con `--settingsPath`): `crate-decks.cfg`, la biblioteca `crate-decks.sqlite` y el log `crate-decks.log`. Nunca lee ni migra los ajustes de un Mixxx instalado. Un perfil de un build anterior al 2026-11-12 conserva sus datos si se renombran `mixxx.cfg`, `mixxxdb.sqlite` y `mixxx.log` a esos nombres.
 
+La aplicación se llamaba Crate Decks hasta el 2026-11-15 (decisión de Diego). Los nombres técnicos no cambian: el ejecutable `crate-decks`, el app id y el `.desktop` `app.cratemusic.decks`, la carpeta `~/.cratedecks/`, la organización `Crate` y el dominio `cratemusic.app`, el repositorio y el paquete `crate-decks`. Las carpetas que Qt nombra con la aplicación conservan también el nombre antiguo (`crate::kDataFolderName`): la caché de audio en `~/.cache/Crate/Crate Decks/` y, en Windows y macOS, la carpeta de ajustes en `<datos>/Crate/Crate Decks/`. Así nadie pierde datos con el cambio de nombre.
+
 ## Versión
 
-- **Tags:** los de Crate Decks son `decks-vX.Y.Z`, y los crea Diego (AGENTS.md §2). El build solo mira esos (`git describe --match 'decks-v*'`); los tags de Mixxx que trae la historia no cuentan.
+- **Tags:** los de Decks son `decks-vX.Y.Z`, y los crea Diego (AGENTS.md §2). El build solo mira esos (`git describe --match 'decks-v*'`); los tags de Mixxx que trae la historia no cuentan.
 - **Versión del build:** desde un tag, la del tag (`0.1.0`, o `0.1.0-5-g<commit>` cinco commits después). Sin ningún tag, la versión de producto (`crate::kApplicationVersion`) más el commit: `0.1.0-dev+g<commit>`. Con cambios sin commit se añade `-modified`.
 - **Dónde se ve:** en el nombre de la AppImage y de los paquetes, en `--version` y en *About*. La versión de Mixxx de la base solo sale en *About* ("based on Mixxx 2.7.0-alpha"), y `crate-decks.cfg` guarda la de la base como versión de los ajustes.
 
@@ -66,5 +68,6 @@ En la máquina de desarrollo (CachyOS, Qt 6.12), `build/mixxx-test` falla en tes
 | `ControllerScriptEngineLegacyTimerTest.beginTimer_singleShot{BindFunction,ArrowFunction,BindFunctionInClass,ArrowFunctionInClass}` | Qt 6.12; el CI usa la Qt 6.4 de Ubuntu 24.04 |
 | `TrackMetadataExportTest.keepWithespaceKey` | Solo cuando todos los tests van en un proceso; con `ctest` pasa |
 | `QmlSkins/QmlStartupSmokeTest.Starts/NewUi` | Violación de segmento solo con todos los tests en un proceso; tumba el resto de la batería. Para pasarla entera: `build/mixxx-test --gtest_filter='-QmlSkins/QmlStartupSmokeTest.Starts/NewUi'` |
+| `CrateSkinLoadTest.*` (20), `CrateBrandVisibleTest.NoMixxxAnywhere` y `CrateBrandTest.NoLinkLeadsToMixxx`, solo en `build-asserts/` (`make test-asserts`) | `DEBUG_ASSERT(!m_path.isEmpty())` en `PixmapSource::getPath()`: el `qDebug()` de `WSliderComposed::setHandlePixmap()` (Mixxx) lee la ruta de un `SliderComposed` sin `<Handle>`, como los carriles de medidores de `toolbar.xml` y `mixer_vu.xml`. En el job de cobertura del CI (Debug, Qt 6.4) pasan; no está claro por qué. Pendiente de decidir el arreglo |
 
 Cualquier otro fallo es nuevo.

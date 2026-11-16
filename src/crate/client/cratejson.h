@@ -40,6 +40,7 @@ class ObjectReader {
     qint64 requiredInteger(QStringView key);
     std::optional<qint64> optionalInteger(QStringView key);
     /// Any JSON number, such as a BPM.
+    double requiredDouble(QStringView key);
     std::optional<double> optionalDouble(QStringView key);
     /// An identifier the server may send as a string or as a JSON integer,
     /// as text.

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Checks that an installed Crate Decks names no Mixxx in its paths.
+"""Checks that an installed Decks names no Mixxx in its paths.
 
-Crate Decks installs under its own names (plan BR2, BR2.PR3): its data in
+Decks installs under its own names (plan BR2, BR2.PR3): its data in
 share/crate-decks, its documentation in share/doc/crate-decks, only its own
 skin, no Mixxx manuals. Run it on a tree made by `cmake --install build
 --prefix <dir>`; it fails on any installed file or folder whose path names
@@ -16,7 +16,7 @@ import re
 import sys
 
 MIXXX = re.compile(r"mixxx", re.IGNORECASE)
-# Mixxx's skins carry its logo: only Crate Decks' own skin is installed
+# Mixxx's skins carry its logo: only Decks' own skin is installed
 SKIN = re.compile(r"(^|/)skins/([^/]+)$")
 OWN_SKIN = "CrateDecks"
 

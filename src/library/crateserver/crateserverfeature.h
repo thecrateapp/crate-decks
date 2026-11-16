@@ -2,6 +2,7 @@
 
 #include <QHash>
 #include <QList>
+#include <QPersistentModelIndex>
 #include <QPointer>
 #include <QSet>
 #include <QString>
@@ -18,6 +19,7 @@
 #include "util/db/dbconnectionpool.h"
 #include "util/parented_ptr.h"
 
+class ControlProxy;
 class KeyboardEventFilter;
 class QNetworkAccessManager;
 class PlayerInfo;
@@ -27,9 +29,13 @@ class WLibrary;
 class WLibrarySidebar;
 
 namespace crate {
+class AssistPanel;
+class AutoDJSmartMixAdapter;
 class CrateServers;
 class LocalStemSeparator;
+class PlanClient;
 class ModelStore;
+class SmartMixAssist;
 class StemJobs;
 class StemSync;
 } // namespace crate
@@ -71,7 +77,10 @@ class CrateServerFeature : public LibraryFeature {
         /// one: CoreServices creates it after the library.
         CrateServers* pServers = nullptr;
         /// The players' tracks, so that a Crate track loaded some other way
-        /// (Auto DJ) takes Crate's analysis. Optional; not owned.
+        /// (Auto DJ) takes Crate's analysis, and the decks Smart Mix plays.
+        /// Optional, never PlayerInfo::instance() in its place: without one
+        /// there is no Smart Mix (Auto DJ's mode and the assistant). Not
+        /// owned.
         PlayerInfo* pPlayerInfo = nullptr;
     };
 
@@ -92,6 +101,16 @@ class CrateServerFeature : public LibraryFeature {
 
     /// The name of the cache's view in the library pane.
     static const QString kCacheViewName;
+    /// The name of the Smart Mix assistant's view (AssistPanel).
+    static const QString kSmartMixViewName;
+    /// `[CrateDecks],show_smart_mix`: the CrateDecks skin's toolbar button,
+    /// on while the assistant shows. Declared by the skin's manifest.
+    static const ConfigKey& showSmartMixKey();
+    /// The Smart Mix assist mode; nullptr until there is a server, and
+    /// without the decks' PlayerInfo.
+    SmartMixAssist* smartMixAssist() const {
+        return m_pAssist.get();
+    }
     /// What the cache's view shows.
     CacheStatusModel* cacheStatus() const {
         return m_pCacheStatus;
@@ -159,6 +178,7 @@ class CrateServerFeature : public LibraryFeature {
             Library,
             Section,
             Container,
+            SmartMix,
             Cache,
         };
         Kind kind = Kind::None;
@@ -229,6 +249,12 @@ class CrateServerFeature : public LibraryFeature {
     void onSearchResults(const QString& serverId, qint64 containerId, const QString& query);
     /// Drops the search: the user went to another node.
     void endSearch();
+    /// Shows the assistant; from the toolbar, it remembers the sidebar item
+    /// to go back to.
+    void showSmartMix(bool fromToolbar);
+    void onShowSmartMix(double value);
+    void onLibraryViewChanged();
+    TreeItem* smartMixItem() const;
 
     const Dependencies m_dependencies;
     QPointer<CrateServers> m_pServers;
@@ -245,6 +271,12 @@ class CrateServerFeature : public LibraryFeature {
     bool m_searching = false;
     bool m_resultsShown = false;
     QPointer<WLibrarySidebar> m_pSidebarWidget;
+    QPointer<WLibrary> m_pLibraryWidget;
+    QPointer<AssistPanel> m_pAssistPanel;
+    /// [CrateDecks],show_smart_mix, while the skin has it.
+    ControlProxy* m_pShowSmartMix = nullptr;
+    /// The sidebar item the toolbar's Smart Mix button goes back to.
+    QPersistentModelIndex m_beforeSmartMix;
     /// Saved servers, in the order CrateServers keeps them.
     QStringList m_serverIds;
     std::map<QString, std::unique_ptr<Server>> m_servers;
@@ -252,6 +284,11 @@ class CrateServerFeature : public LibraryFeature {
     QHash<qint64, StoredContainer> m_containers;
     std::unique_ptr<CrateLoadCoordinator> m_pLoadCoordinator;
     std::unique_ptr<CratePrefetcher> m_pPrefetcher;
+    /// The Smart Mix plans of each server, and Auto DJ's Crate Smart Mix,
+    /// which asks them (plan F6.C-PR3).
+    std::map<QString, std::unique_ptr<PlanClient>> m_planClients;
+    std::unique_ptr<AutoDJSmartMixAdapter> m_pSmartMix;
+    std::unique_ptr<SmartMixAssist> m_pAssist;
     std::unique_ptr<CrateSessionPins> m_pSessionPins;
     /// Local separation (STEM-D7), with ONNX Runtime only.
     std::unique_ptr<QNetworkAccessManager> m_pModelNetwork;

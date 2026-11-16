@@ -1,5 +1,5 @@
 // The optional NI STEM export of plan ST5.PR2 (STEM-D9): a .stem.mp4 for
-// other software, from a track and its sidecar, with Crate Decks' colours.
+// other software, from a track and its sidecar, with Decks' colours.
 
 #include "crate/stems/nistemexport.h"
 
@@ -74,7 +74,7 @@ TEST_F(NiStemExportTest, TheExportedFileOpensAsAStemFileWithFourStemsAndOurColou
             << error.toStdString();
     EXPECT_FALSE(QFile::exists(exported + QStringLiteral(".part")));
 
-    // The manifest: four stems, named, in Crate Decks' colours
+    // The manifest: four stems, named, in Decks' colours
     EXPECT_TRUE(mixxx::StemInfoImporter::hasStemAtom(exported));
     const QList<StemInfo> stems = mixxx::StemInfoImporter::importStemInfos(exported);
     ASSERT_EQ(4, stems.size());

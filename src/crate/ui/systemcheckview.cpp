@@ -204,7 +204,7 @@ void SystemCheckView::askToInstallHelper(QWidget* pRow) {
     pLayout->setContentsMargins(0, metrics.px("stepGap"), 0, 0);
     pLayout->setSpacing(metrics.px("stepGap"));
     QLabel* pMessage = textLabel(
-            translate("Crate Decks installs a system service, crate-power-limit, that "
+            translate("Decks installs a system service, crate-power-limit, that "
                       "raises the power limit on AC and restores it on battery. Your "
                       "administrator password is asked next. The values are in "
                       "/etc/default/crate-power-limit."),

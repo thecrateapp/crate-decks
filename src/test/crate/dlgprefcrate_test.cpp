@@ -2,6 +2,7 @@
 
 #include <gtest/gtest.h>
 
+#include <QButtonGroup>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDialog>
@@ -890,6 +891,128 @@ TEST_F(CrateAddServerFlowTest, PrefetchAndAnalysisSwitchesSetThePreferences) {
     EXPECT_FALSE(pPreferences->gainFromLufs());
     EXPECT_TRUE(pPrefetch->isChecked());
     EXPECT_FALSE(pKey->isChecked());
+}
+
+// Keylock during Crate Smart Mix (F6.C-PR3, Diego, 2026-11-15): on by
+// default, a switch of the Smart Mix section turns it off, and the rows of
+// later plans stay hidden.
+TEST_F(CrateAddServerFlowTest, SmartMixKeylockSwitchSetsThePreference) {
+    crate::DlgPrefCrate page(nullptr, m_pServers.get());
+    crate::CratePreferences* pPreferences = m_pServers->preferences();
+    crate::SmartMixSection* pSmartMix = page.smartMixSection();
+    EXPECT_FALSE(pSmartMix->isHidden());
+    QCheckBox* pKeylock = pSmartMix->keylock();
+    EXPECT_FALSE(pKeylock->parentWidget()->isHidden());
+    EXPECT_TRUE(pSmartMix->smartMix()->parentWidget()->parentWidget()->isHidden());
+    int shownSwitches = 0;
+    const QList<QCheckBox*> switches = pSmartMix->findChildren<QCheckBox*>();
+    for (const QCheckBox* pSwitch : switches) {
+        shownSwitches += pSwitch->parentWidget()->isHidden() ? 0 : 1;
+    }
+    EXPECT_EQ(1, shownSwitches);
+    EXPECT_TRUE(pPreferences->smartMixKeylock());
+    EXPECT_TRUE(pKeylock->isChecked());
+
+    QSignalSpy changed(pPreferences, &crate::CratePreferences::smartMixKeylockChanged);
+    pKeylock->click();
+    ASSERT_EQ(1, changed.size());
+    EXPECT_FALSE(changed.first().first().toBool());
+    EXPECT_FALSE(pPreferences->smartMixKeylock());
+    EXPECT_FALSE(crate::CratePreferences(config()).smartMixKeylock());
+    crate::DlgPrefCrate again(nullptr, m_pServers.get());
+    EXPECT_FALSE(again.smartMixSection()->keylock()->isChecked());
+
+    page.slotResetToDefaults();
+    EXPECT_TRUE(pPreferences->smartMixKeylock());
+    EXPECT_TRUE(pKeylock->isChecked());
+}
+
+// The assistant's transition length is a Crate preference: 8 s by default,
+// within what the plan request takes (1 s to 12 s) whatever is asked or
+// written in the settings file.
+TEST_F(CrateAddServerFlowTest, AssistTransitionStaysWithinTheServersLimits) {
+    using crate::CratePreferences;
+    EXPECT_EQ(8, CratePreferences(nullptr).smartMixAssistTransitionSeconds());
+    CratePreferences preferences(config());
+    EXPECT_EQ(8, preferences.smartMixAssistTransitionSeconds());
+    QSignalSpy changed(&preferences, &CratePreferences::smartMixAssistTransitionChanged);
+
+    preferences.setSmartMixAssistTransitionSeconds(30);
+    EXPECT_EQ(12, preferences.smartMixAssistTransitionSeconds());
+    preferences.setSmartMixAssistTransitionSeconds(0);
+    EXPECT_EQ(1, preferences.smartMixAssistTransitionSeconds());
+    preferences.setSmartMixAssistTransitionSeconds(-5);
+    ASSERT_EQ(2, changed.size());
+    EXPECT_EQ(12, changed.at(0).first().toInt());
+    EXPECT_EQ(1, changed.at(1).first().toInt());
+    preferences.setSmartMixAssistTransitionSeconds(10);
+    EXPECT_EQ(QStringLiteral("10"),
+            config()->getValueString(ConfigKey("[Crate]", "SmartMixAssistTransition")));
+    EXPECT_EQ(10, CratePreferences(config()).smartMixAssistTransitionSeconds());
+
+    // Edited by hand
+    config()->setValue(ConfigKey("[Crate]", "SmartMixAssistTransition"), QStringLiteral("40"));
+    EXPECT_EQ(12, preferences.smartMixAssistTransitionSeconds());
+    config()->setValue(ConfigKey("[Crate]", "SmartMixAssistTransition"), QStringLiteral("long"));
+    EXPECT_EQ(8, preferences.smartMixAssistTransitionSeconds());
+
+    CratePreferences withoutSettings(nullptr);
+    withoutSettings.setSmartMixAssistTransitionSeconds(99);
+    EXPECT_EQ(12, withoutSettings.smartMixAssistTransitionSeconds());
+}
+
+// Preferences · Crate shows the assistant's transition under the (hidden)
+// Auto DJ transition, in the same chips: picking one sets the preference,
+// and Restore Defaults puts back 8 s.
+TEST_F(CrateAddServerFlowTest, AssistTransitionChipsSetThePreference) {
+    crate::DlgPrefCrate page(nullptr, m_pServers.get());
+    crate::CratePreferences* pPreferences = m_pServers->preferences();
+    crate::SmartMixSection* pSmartMix = page.smartMixSection();
+    QButtonGroup* pChips = pSmartMix->assistTransition();
+    ASSERT_EQ(5, pChips->buttons().size());
+    QStringList texts;
+    const QList<QAbstractButton*> chips = pChips->buttons();
+    for (QAbstractButton* pChip : chips) {
+        EXPECT_FALSE(pChip->isHidden());
+        EXPECT_FALSE(pChip->parentWidget()->parentWidget()->isHidden());
+        EXPECT_EQ(QStringLiteral("CrateChip"), pChip->objectName());
+        texts.append(pChip->text());
+    }
+    EXPECT_EQ(QStringList({QStringLiteral("4 s"),
+                      QStringLiteral("6 s"),
+                      QStringLiteral("8 s"),
+                      QStringLiteral("10 s"),
+                      QStringLiteral("12 s")}),
+            texts);
+    // Labelled as the Auto DJ transition it sits under
+    QStringList labels;
+    const QList<QLabel*> monoLabels = pSmartMix->findChildren<QLabel*>();
+    for (const QLabel* pLabel : monoLabels) {
+        if (pLabel->objectName() == QLatin1String("MonoPrefsLabel")) {
+            labels.append(pLabel->text());
+        }
+    }
+    EXPECT_TRUE(labels.contains(QStringLiteral("Assistant transition")))
+            << labels.join(u',').toStdString();
+    EXPECT_EQ(8, pChips->checkedId());
+
+    QSignalSpy changed(pPreferences, &crate::CratePreferences::smartMixAssistTransitionChanged);
+    pChips->button(12)->click();
+    ASSERT_EQ(1, changed.size());
+    EXPECT_EQ(12, changed.first().first().toInt());
+    EXPECT_EQ(12, pPreferences->smartMixAssistTransitionSeconds());
+    EXPECT_EQ(12, crate::CratePreferences(config()).smartMixAssistTransitionSeconds());
+    crate::DlgPrefCrate again(nullptr, m_pServers.get());
+    EXPECT_EQ(12, again.smartMixSection()->assistTransition()->checkedId());
+
+    // A length no chip offers checks none
+    pPreferences->setSmartMixAssistTransitionSeconds(5);
+    crate::DlgPrefCrate edited(nullptr, m_pServers.get());
+    EXPECT_EQ(-1, edited.smartMixSection()->assistTransition()->checkedId());
+
+    page.slotResetToDefaults();
+    EXPECT_EQ(8, pPreferences->smartMixAssistTransitionSeconds());
+    EXPECT_EQ(8, pChips->checkedId());
 }
 
 TEST_F(CrateAddServerFlowTest, CacheSectionShowsTheCacheUse) {

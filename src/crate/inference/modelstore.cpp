@@ -159,7 +159,7 @@ struct ModelStore::Download {
 };
 
 QList<ModelManifestEntry> ModelStore::builtInManifest() {
-    // The htdemucs ONNX export of ST4.PR2, a release asset of Crate Decks
+    // The htdemucs ONNX export of ST4.PR2, a release asset of Decks
     // with its attribution and the note on its training data
     // (htdemucs-onnx-1.NOTICE beside it)
     ModelManifestEntry htdemucs;

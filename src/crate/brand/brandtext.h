@@ -8,7 +8,7 @@ class QByteArray;
 
 namespace crate {
 
-// Crate Decks shows nothing of Mixxx (design D2, plan "Own brand"). These
+// Decks shows nothing of Mixxx (design D2, plan "Own brand"). These
 // functions brand the text that Mixxx's code shows, so that Mixxx's sources
 // stay as they are: BrandTranslator applies them to every tr() lookup, and
 // the few places that show data (controller mappings, effect authors) call
@@ -26,11 +26,11 @@ bool namesMixxx(const QString& text);
 /// of what the interface shows.
 bool showsMixxx(const QString& text);
 
-/// `text` with Crate Decks where it names Mixxx: the curated text of the
-/// inventory for a known literal or source string, else the generic rule:
-/// "Mixxx" -> "Crate Decks", "Mixxx's" -> "Crate Decks'", "MIXXX" -> "CRATE
-/// DECKS", and a version after the name ("Mixxx 2.1") is dropped. Mixxx's
-/// file names become Crate Decks' (plan BR2): mixxx.cfg -> crate-decks.cfg,
+/// `text` with Decks (kApplicationName) where it names Mixxx: the curated
+/// text of the inventory for a known literal or source string, else the
+/// generic rule: "Mixxx" -> "Decks", "Mixxx's" -> "Decks'", "MIXXX" ->
+/// "DECKS", and a version after the name ("Mixxx 2.1") is dropped. Mixxx's
+/// file names become Decks' (plan BR2): mixxx.cfg -> crate-decks.cfg,
 /// mixxx.log -> crate-decks.log, mixxxdb.sqlite -> crate-decks.sqlite and
 /// ~/.mixxx -> ~/.cratedecks.
 QString brandText(const QString& text);
@@ -40,7 +40,7 @@ QString brandText(const QString& text);
 /// handler can afford it for every message.
 QString brandRule(const QString& text);
 
-/// What Crate Decks shows for the source string `source` of a tr() lookup
+/// What Decks shows for the source string `source` of a tr() lookup
 /// whose translation is `translation` (null without one): the curated text
 /// (its Spanish when `spanish`), or the translation (or the source) through
 /// the rule. Null when it shows the same as Mixxx: nothing names Mixxx, or the

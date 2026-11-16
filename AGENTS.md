@@ -1,6 +1,6 @@
-# AGENTS.md — Crate Decks
+# AGENTS.md — Decks
 
-Crate Decks es un producto independiente basado en el código de [Mixxx](https://github.com/mixxxdj/mixxx) (GPL-2.0-or-later) que usa un servidor Crate como biblioteca y cerebro: biblioteca remota, análisis de Crate, recomendaciones y Smart Mix en los decks.
+Decks (hasta el 2026-11-15, Crate Decks) es un producto independiente basado en el código de [Mixxx](https://github.com/mixxxdj/mixxx) (GPL-2.0-or-later) que usa un servidor Crate como biblioteca y cerebro: biblioteca remota, análisis de Crate, recomendaciones y Smart Mix en los decks.
 
 - **Qué y por qué:** [diseño de Crate Decks](docs/plans/2026-11-02-crate-decks-design.md).
 - **Cómo y en qué orden:** [plan de implementación de Crate Decks](docs/plans/2026-11-02-crate-decks-implementation-plan.md).
@@ -63,7 +63,7 @@ Ningún cambio de servidor se hace desde este repositorio.
 - **Hilo del motor:** audio en tiempo real, sin reservas de memoria ni locks. Puede emitir señales de Qt, pero no recibirlas.
 - **`parented_ptr`/`make_parented`:** propiedad en el árbol de objetos de Qt. El objeto debe tener padre antes de que se destruya el `parented_ptr`.
 
-### 5.2. Reglas de Crate Decks
+### 5.2. Reglas de Decks
 
 - **Código propio aislado** en `src/crate/`, `src/library/crateserver/`, `src/test/crate/`, `res/skins/CrateDecks/`, `res/crate-design/` y `tools/crate-design/`, detrás de la opción de CMake `CRATE`. La excepción es la identidad de la aplicación (`src/crate/appidentity.*` y sus tests): se compila siempre, también con `CRATE=OFF`, para que ningún build escriba en `~/.mixxx`.
 - **Parches a ficheros de Mixxx:** la lista cerrada está en §5.2 del diseño. Cualquier otro necesita justificación en el PR. Desde F1, todo PR que toque un fichero de Mixxx actualiza `CRATE_PATCHES.md`. Se prefieren señales, slots y hooks a reescribir lógica de upstream.
@@ -81,7 +81,7 @@ Ningún cambio de servidor se hace desde este repositorio.
 ## 6. Estilo, tests y commits
 
 - **Estilo:** el de Mixxx ([CONTRIBUTING.md](CONTRIBUTING.md)): C++20, Qt6, clang-format con pre-commit y `kLogger` por fichero.
-- **Antes de cada push:** `make checks` (`tools/crate-checks.sh`) pasa en segundos a los ficheros cambiados respecto a `origin/main` lo que miran los jobs `pre-commit`, `checks / clang-tidy` y `checks / clazy` del CI, con los mismos `CLAZY_CHECKS`. Usa el `build/` normal (hace falta un build) y necesita `clang`, `clazy` y `pre-commit` (Arch: `pacman -S --needed clang clazy pre-commit`). `pre-commit install` hace que clang-format y markdownlint salten ya en cada commit. Los tests (job `checks / coverage`) siguen siendo `ctest` en `build/`.
+- **Antes de cada push:** `make checks` (`tools/crate-checks.sh`) pasa en segundos a los ficheros cambiados respecto a `origin/main` lo que miran los jobs `pre-commit`, `checks / clang-tidy` y `checks / clazy` del CI, con los mismos `CLAZY_CHECKS`. Usa el `build/` normal (hace falta un build) y necesita `clang`, `clazy` y `pre-commit` (Arch: `pacman -S --needed clang clazy pre-commit`). `pre-commit install` hace que clang-format y markdownlint salten ya en cada commit. Los tests (job `checks / coverage`) siguen siendo `ctest` en `build/`. Ese job compila en Debug, con `DEBUG_ASSERT` activo, y el `build/` normal (RelWithDebInfo) no lo tiene: un test que pasa en `build/` puede abortar en el CI. `make test-asserts` compila `mixxx-test` en `build-asserts/` con `-DDEBUG_ASSERTIONS_FATAL=ON` (aserciones activas y fatales) y pasa la suite con `ctest` (`TESTS='^Crate'` la limita); hay que pasarlo antes de un push que toque código C++. Una aserción que salta se arregla en su causa (una dependencia inyectada en vez de un singleton global, el flag de control que corresponde, o el test que crea los controles que el código usa), nunca debilitándola.
 - **Idioma:** código, comentarios y mensajes de commit en inglés, como el código de Mixxx. Planes y documentación de Crate en español.
 - **Tests:**
   - GoogleTest en `src/test/crate/`, añadidos a mano a la lista de fuentes de `mixxx-test` en `CMakeLists.txt` (no hay glob).
@@ -91,7 +91,7 @@ Ningún cambio de servidor se hace desde este repositorio.
 
 ## 7. Compilar y ejecutar
 
-El `Makefile` de la raíz reúne los comandos de cada día; `make` los lista. Los más usados: `make build`, `make run` (siempre con una carpeta de ajustes desechable; `make run-last` reutiliza la última), `make test-unit FILTER='Crate*'`, `make test` (la suite entera, como el CI), `make checks` y `make ci` antes de un push. Por debajo son estos comandos:
+El `Makefile` de la raíz reúne los comandos de cada día; `make` los lista. Los más usados: `make build`, `make run` (siempre con una carpeta de ajustes desechable; `make run-last` reutiliza la última), `make test-unit FILTER='Crate*'`, `make test` (la suite entera, como el CI), `make checks`, `make test-asserts` (la suite con las aserciones de Debug activas) y `make ci` (todo lo anterior) antes de un push. `make install-desktop` instala para el usuario un `.desktop` que arranca este build con la carpeta de ajustes desechable `build/desktop-profile`, y los iconos, para que el dock lo reconozca como Decks; `make uninstall-desktop` lo quita. Lo ejecuta Diego, no un agente. Por debajo son estos comandos:
 
 ```shell
 # Dependencias: instalan paquetes con sudo, así que se pide confirmación antes
@@ -124,7 +124,7 @@ Desde F1.PR2 el ejecutable se llama `crate-decks` y, en Linux, su carpeta de aju
 - **Disciplina de aislamiento:** por eso sigue vigente la de §5.2. Cuanto menos se toque de Mixxx, más baratos son esos merges.
 - **Licencia:** GPL-2.0-or-later.
   - Se conservan `LICENSE`, los avisos de copyright y los créditos de Mixxx en *About*.
-  - Crate Decks se distribuye bajo GPL con su código fuente, y el código de Crate que se compila en Decks también.
+  - Decks se distribuye bajo GPL con su código fuente, y el código de Crate que se compila en Decks también.
   - El servidor Crate no queda afectado, porque habla con Decks por HTTP.
   - No se usan el nombre ni los logos de Mixxx en el producto, salvo en los créditos.
 - **CI:** los workflows de `.github/workflows/` que vienen de Mixxx se recortan antes del primer push al repositorio independiente (F1.PR1).
@@ -141,7 +141,7 @@ res/                      Recursos de Mixxx (controllers/, skins/, qml/)
 res/skins/CrateDecks/     Skin propia (desde V2)
 res/crate-design/         tokens.json (desde V1)
 tools/                    Scripts de Mixxx; tools/crate-design/ es el generador de tokens (desde V1)
-docs/plans/               Diseños, planes e informes de Crate Decks
+docs/plans/               Diseños, planes e informes de Decks
 cmake/                    Módulos de CMake
 ```
 

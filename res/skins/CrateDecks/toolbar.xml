@@ -31,7 +31,7 @@
               </Label>
               <Label>
                 <ObjectName>CrateToolbarBrandName</ObjectName>
-                <Text>Crate Decks</Text>
+                <Text>Decks</Text>
               </Label>
             </Children>
           </WidgetGroup>
@@ -134,20 +134,30 @@
             <Layout>horizontal</Layout>
             <SizePolicy>min,min</SizePolicy>
             <Children>
-              <!-- Smart Mix: laid out; its control arrives with the Smart Mix
-                   director (plan F6), so the button does nothing yet -->
+              <!-- Smart Mix: shows and hides the Smart Mix assistant in the
+                   library pane (plan F6.C-PR4); tb_button.xml with a tooltip
+                   of its own -->
               <WidgetGroup>
                 <ObjectName>TbButton</ObjectName>
                 <Layout>stacked</Layout>
-                <SizePolicy>min,min</SizePolicy>
+                <SizePolicy>max,max</SizePolicy>
                 <Children>
                   <Label>
                     <ObjectName>MonoTbButtonText</ObjectName>
                     <Text>Smart Mix</Text>
+                    <Connection>
+                      <ConfigKey>[CrateDecks],show_smart_mix</ConfigKey>
+                      <BindProperty>highlight</BindProperty>
+                    </Connection>
                   </Label>
                   <PushButton>
+                    <Tooltip>Smart Mix assistant</Tooltip>
                     <ObjectName>TbIconSmartMix</ObjectName>
-                    <NumberStates>1</NumberStates>
+                    <NumberStates>2</NumberStates>
+                    <Connection>
+                      <ConfigKey>[CrateDecks],show_smart_mix</ConfigKey>
+                      <ButtonState>LeftButton</ButtonState>
+                    </Connection>
                   </PushButton>
                 </Children>
               </WidgetGroup>

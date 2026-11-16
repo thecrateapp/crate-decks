@@ -4,15 +4,15 @@
 # AppImage desktop file (simplified Exec=crate-decks).
 # The Exec= key must refer to the binary by basename only, as CPack matches it
 # against an installed file.
+# Crate Decks: named after the app id, like the installed desktop entry, so
+# that the AppImage's desktop entry, its metainfo (whose launchable names
+# it) and the windows' app_id agree. It replaces the generic install rule's
+# entry, whose Exec= runs pasuspender (AppRun does that instead).
 set(
   MIXXX_APPIMAGE_DESKTOP_FILE
-  "${CMAKE_CURRENT_BINARY_DIR}/crate-decks-appimage.desktop"
+  "${CMAKE_CURRENT_BINARY_DIR}/appimage/${CRATE_APP_ID}.desktop"
 )
-file(
-  READ
-  "${CMAKE_CURRENT_SOURCE_DIR}/res/linux/app.cratemusic.decks.desktop"
-  MIXXX_APPIMAGE_DESKTOP_CONTENT
-)
+file(READ "${CRATE_APP_DESKTOP_FILE}" MIXXX_APPIMAGE_DESKTOP_CONTENT)
 string(
   REGEX REPLACE
   "\nExec=[^\n]*"
@@ -24,7 +24,6 @@ file(WRITE "${MIXXX_APPIMAGE_DESKTOP_FILE}" "${MIXXX_APPIMAGE_DESKTOP_CONTENT}")
 install(
   FILES "${MIXXX_APPIMAGE_DESKTOP_FILE}"
   DESTINATION "${CMAKE_INSTALL_DATADIR}/applications"
-  RENAME "crate-decks-appimage.desktop"
 )
 
 # Custom AppRun: the CPack AppImage generator uses an AppRun installed in

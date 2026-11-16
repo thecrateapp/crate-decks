@@ -97,6 +97,18 @@ std::optional<qint64> ObjectReader::optionalInteger(QStringView key) {
     return static_cast<qint64>(number);
 }
 
+double ObjectReader::requiredDouble(QStringView key) {
+    const QJsonValue value = field(key, true);
+    if (isAbsent(value)) {
+        return 0.0;
+    }
+    if (!value.isDouble()) {
+        fail(key, QStringLiteral("is not a number"));
+        return 0.0;
+    }
+    return value.toDouble();
+}
+
 std::optional<double> ObjectReader::optionalDouble(QStringView key) {
     const QJsonValue value = field(key, false);
     if (isAbsent(value)) {

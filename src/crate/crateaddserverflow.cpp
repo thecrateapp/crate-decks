@@ -84,7 +84,7 @@ void AddServerFlow::checkServer() {
     }
     Session* const pSession = m_pServers->addServer(m_origin, m_origin.host());
     if (!pSession) {
-        setStep(Step::EnterAddress, tr("Crate Decks cannot use this address."));
+        setStep(Step::EnterAddress, tr("Decks cannot use this address."));
         return;
     }
     m_pSession = pSession;
@@ -98,7 +98,7 @@ void AddServerFlow::checkServer() {
         if (!m_pServers->isSaved(serverId)) {
             // Signed in but not stored: it would be lost at the next start.
             forgetPendingServer();
-            setStep(Step::EnterAddress, tr("Crate Decks could not save this server. Try again."));
+            setStep(Step::EnterAddress, tr("Decks could not save this server. Try again."));
             return;
         }
         m_pServers->rememberCapabilities(serverId, m_capabilitiesJson);
@@ -146,16 +146,16 @@ void AddServerFlow::checkServer() {
             setStep(Step::SignIn);
             return;
         case Capabilities::Compatibility::DecksUnavailable:
-            problem = tr("This Crate server does not accept Crate Decks.");
+            problem = tr("This Crate server does not accept Decks.");
             break;
         case Capabilities::Compatibility::ClientTooOld:
             problem = tr(
-                    "This Crate server needs a newer Crate Decks. Update Crate Decks "
+                    "This Crate server needs a newer Decks. Update Decks "
                     "and try again.");
             break;
         case Capabilities::Compatibility::UnsupportedContract:
             problem = tr(
-                    "This Crate server and this Crate Decks do not speak the same "
+                    "This Crate server and Decks do not speak the same "
                     "version. Update the one that is older.");
             break;
         }

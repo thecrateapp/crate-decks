@@ -31,8 +31,9 @@ QString keyOf(const cache::TrackKey& track) {
     return track.serverId + QLatin1Char('/') + track.entityUid;
 }
 
-/// The locations of the first `count` tracks of the Auto DJ queue.
-QStringList readQueue(const QSqlDatabase& database, int count) {
+} // namespace
+
+QStringList readAutoDjQueue(const QSqlDatabase& database, int count) {
     for (int attempt = 1;; ++attempt) {
         QSqlQuery query(database);
         query.setForwardOnly(true);
@@ -59,8 +60,6 @@ QStringList readQueue(const QSqlDatabase& database, int count) {
         return locations;
     }
 }
-
-} // namespace
 
 CratePrefetcher::CratePrefetcher(Options options, QObject* parent)
         : QObject(parent),
@@ -133,7 +132,7 @@ void CratePrefetcher::refresh() {
     pWatcher->setFuture(QtConcurrent::run(&m_pool,
             [pPool = m_pDbConnectionPool, count = m_options.count]() {
                 const mixxx::DbConnectionPooler pooler(pPool);
-                return readQueue(mixxx::DbConnectionPooled(pPool), count);
+                return readAutoDjQueue(mixxx::DbConnectionPooled(pPool), count);
             }));
 }
 

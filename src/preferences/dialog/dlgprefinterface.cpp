@@ -445,14 +445,14 @@ void DlgPrefInterface::notifyRebootNecessary() {
     // make the fact that you have to restart mixxx more obvious
     QMessageBox::information(this,
             tr("Information"),
-            tr("Crate Decks must be restarted before the new locale, scaling or multi-sampling "
+            tr("Decks must be restarted before the new locale, scaling or multi-sampling "
                "settings will take effect."));
 }
 
 void DlgPrefInterface::notifyExperimentalQmlSkinRestartNecessary() {
     QMessageBox::information(this,
             tr("Information"),
-            tr("Crate Decks must be restarted with the --developer command line option "
+            tr("Decks must be restarted with the --developer command line option "
                "to use the experimental LateNight QML skin."));
 }
 

@@ -1,7 +1,7 @@
 <!DOCTYPE RCC>
 <RCC version="1.0">
     <qresource prefix="/">
-      <!-- Crate Decks application icon for windows and dialogs (MIXXX_ICON_PATH) -->
+      <!-- Decks application icon for windows and dialogs (MIXXX_ICON_PATH) -->
         <file>images/icons/256x256/apps/app.cratemusic.decks.png</file>
       <!-- Icon of the Crate library feature (LibraryFeature looks it up by its
            icon name, crateserver); the CrateDecks skin paints its own -->

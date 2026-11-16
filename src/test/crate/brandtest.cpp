@@ -24,7 +24,7 @@
 #include "preferences/configobject.h"
 #include "test/mixxxtest.h"
 
-// Crate Decks shows nothing of Mixxx (plan "Own brand", BR.PR1). These tests
+// Decks shows nothing of Mixxx (plan "Own brand", BR.PR1). These tests
 // check the brand layer: the rule, the inventory's curated texts and the
 // translator that applies them to every tr() lookup, in English and in the
 // languages Mixxx ships.
@@ -36,37 +36,37 @@ QString translationsPath() {
 }
 
 TEST(CrateBrandTextTest, RenamesTheApplication) {
-    EXPECT_QSTRING_EQ(QStringLiteral("A deck is currently playing. Exit Crate Decks?"),
+    EXPECT_QSTRING_EQ(QStringLiteral("A deck is currently playing. Exit Decks?"),
             crate::brandText(QStringLiteral("A deck is currently playing. Exit Mixxx?")));
-    EXPECT_QSTRING_EQ(QStringLiteral("<b>Reconfigure</b> Crate Decks' sound device settings."),
+    EXPECT_QSTRING_EQ(QStringLiteral("<b>Reconfigure</b> Decks' sound device settings."),
             crate::brandText(QStringLiteral("<b>Reconfigure</b> Mixxx's sound device settings.")));
-    EXPECT_QSTRING_EQ(QStringLiteral("CRATE DECKS"), crate::brandText(QStringLiteral("MIXXX")));
-    EXPECT_QSTRING_EQ(QStringLiteral("Sobre el Crate Decks (&A)"),
+    EXPECT_QSTRING_EQ(QStringLiteral("DECKS"), crate::brandText(QStringLiteral("MIXXX")));
+    EXPECT_QSTRING_EQ(QStringLiteral("Sobre el Decks (&A)"),
             crate::brandText(QStringLiteral("Sobre el Mixxx (&A)")));
-    EXPECT_QSTRING_EQ(QStringLiteral("&Crate Decks-yhteisö (englanniksi)"),
+    EXPECT_QSTRING_EQ(QStringLiteral("&Decks-yhteisö (englanniksi)"),
             crate::brandText(QStringLiteral("&Mixxx-yhteisö (englanniksi)")));
-    EXPECT_QSTRING_EQ(QStringLiteral("Evoixmr Crate Decks version"),
+    EXPECT_QSTRING_EQ(QStringLiteral("Evoixmr Decks version"),
             crate::brandText(QStringLiteral("Evoixmr mixxx 2.4 version")));
     // Translations glue the name to other scripts and to prefixes
-    EXPECT_QSTRING_EQ(QStringLiteral("启动Crate Decks时自动开始DJ。"),
+    EXPECT_QSTRING_EQ(QStringLiteral("启动Decks时自动开始DJ。"),
             crate::brandText(QStringLiteral("启动Mixxx时自动开始DJ。")));
-    EXPECT_QSTRING_EQ(QStringLiteral("在CRATE DECKS中"),
+    EXPECT_QSTRING_EQ(QStringLiteral("在DECKS中"),
             crate::brandText(QStringLiteral("在MIXXX中")));
-    EXPECT_QSTRING_EQ(QStringLiteral("Library reCrate Decks"),
+    EXPECT_QSTRING_EQ(QStringLiteral("Library reDecks"),
             crate::brandText(QStringLiteral("Library reMixxx")));
-    EXPECT_QSTRING_EQ(QStringLiteral("uporabniški vmesnik Crate Decks"),
+    EXPECT_QSTRING_EQ(QStringLiteral("uporabniški vmesnik Decks"),
             crate::brandText(QStringLiteral("uporabniški vmesnik MIxxx")));
     // Czech declines it and misspells its capitals
-    EXPECT_QSTRING_EQ(QStringLiteral("vyčištěn z databáze Crate Decks."),
+    EXPECT_QSTRING_EQ(QStringLiteral("vyčištěn z databáze Decks."),
             crate::brandText(QStringLiteral("vyčištěn z databáze Mixxxu.")));
-    EXPECT_QSTRING_EQ(QStringLiteral("kde by měl Crate Decks hledat"),
+    EXPECT_QSTRING_EQ(QStringLiteral("kde by měl Decks hledat"),
             crate::brandText(QStringLiteral("kde by měl MixXX hledat")));
     // Finnish declines it after a colon and builds compounds
-    EXPECT_QSTRING_EQ(QStringLiteral("Käynnistää Crate Decks:in kokoruututilassa"),
+    EXPECT_QSTRING_EQ(QStringLiteral("Käynnistää Decks:in kokoruututilassa"),
             crate::brandText(QStringLiteral("Käynnistää Mixxx:in kokoruututilassa")));
-    EXPECT_QSTRING_EQ(QStringLiteral("Tietoja Crate Decks"),
+    EXPECT_QSTRING_EQ(QStringLiteral("Tietoja Decks"),
             crate::brandText(QStringLiteral("Tietoja mixxxistä")));
-    EXPECT_QSTRING_EQ(QStringLiteral("määritelty Crate Decks-asetuksissa."),
+    EXPECT_QSTRING_EQ(QStringLiteral("määritelty Decks-asetuksissa."),
             crate::brandText(QStringLiteral("määritelty mixxx-asetuksissa.")));
 }
 
@@ -113,16 +113,16 @@ TEST(CrateBrandTextTest, NamesDecksFiles) {
 }
 
 TEST(CrateBrandTextTest, DropsMixxxVersions) {
-    EXPECT_QSTRING_EQ(QStringLiteral("2-deck control/4-deck mixer preset for Crate Decks. Assumes"),
+    EXPECT_QSTRING_EQ(QStringLiteral("2-deck control/4-deck mixer preset for Decks. Assumes"),
             crate::brandText(QStringLiteral(
                     "2-deck control/4-deck mixer preset for Mixxx 2.1. Assumes")));
-    EXPECT_QSTRING_EQ(QStringLiteral("for Vestax Typhoon in Crate Decks and script"),
+    EXPECT_QSTRING_EQ(QStringLiteral("for Vestax Typhoon in Decks and script"),
             crate::brandText(QStringLiteral("for Vestax Typhoon in Mixxx 2.0+ and script")));
-    EXPECT_QSTRING_EQ(QStringLiteral("conversion of the file us428.midi.xml for Crate Decks"),
+    EXPECT_QSTRING_EQ(QStringLiteral("conversion of the file us428.midi.xml for Decks"),
             crate::brandText(QStringLiteral(
                     "conversion of the file us428.midi.xml for Mixxx 1.6.2")));
     // A number without a dot is not a version
-    EXPECT_QSTRING_EQ(QStringLiteral("Crate Decks 4 decks"),
+    EXPECT_QSTRING_EQ(QStringLiteral("Decks 4 decks"),
             crate::brandText(QStringLiteral("Mixxx 4 decks")));
 }
 
@@ -231,7 +231,7 @@ TEST(CrateBrandTextTest, EveryShippedTranslationIsBranded) {
 
 // Plan "Own brand", BR.PR2: Preferences › Controllers shows each mapping's
 // name, author and description through crate::brandText() ("…preset for
-// Mixxx 2.1" reads "…for Crate Decks").
+// Mixxx 2.1" reads "…for Decks").
 TEST(CrateBrandTextTest, ControllerMappingInfoIsBranded) {
     const QDir controllers(ConfigObject<ConfigValue>::computeResourcePath() +
             QStringLiteral("controllers"));
@@ -354,10 +354,10 @@ class CrateBrandTranslatorTest : public MixxxTest {
 };
 
 TEST_F(CrateBrandTranslatorTest, BrandsTrStrings) {
-    EXPECT_QSTRING_EQ(QStringLiteral("A deck is currently playing. Exit Crate Decks?"),
+    EXPECT_QSTRING_EQ(QStringLiteral("A deck is currently playing. Exit Decks?"),
             QCoreApplication::translate(
                     "MixxxMainWindow", "A deck is currently playing. Exit Mixxx?"));
-    EXPECT_QSTRING_EQ(QStringLiteral("Quits Crate Decks"),
+    EXPECT_QSTRING_EQ(QStringLiteral("Quits Decks"),
             QCoreApplication::translate("WMainMenuBar", "Quits Mixxx"));
     EXPECT_QSTRING_EQ(QStringLiteral("Confirm Exit"),
             QCoreApplication::translate("MixxxMainWindow", "Confirm Exit"));
@@ -379,7 +379,7 @@ TEST_F(CrateBrandTranslatorTest, WinsOverTranslatorsInstalledLater) {
     installMixxxTranslation(QStringLiteral("es_ES"));
     const QString exit = QCoreApplication::translate(
             "MixxxMainWindow", "A deck is currently playing. Exit Mixxx?");
-    EXPECT_TRUE(exit.contains(QLatin1String("Crate Decks"))) << qPrintable(exit);
+    EXPECT_TRUE(exit.contains(QLatin1String("Decks"))) << qPrintable(exit);
     EXPECT_FALSE(crate::showsMixxx(exit)) << qPrintable(exit);
     EXPECT_FALSE(exit.startsWith(QLatin1String("A deck"))) << "Not in Spanish";
     EXPECT_QSTRING_EQ(QStringLiteral("Guía de hardware para DJ"),
@@ -390,11 +390,11 @@ TEST_F(CrateBrandTranslatorTest, BrandsTranslationsThatNameMixxx) {
     // Catalan names the application where English does not
     installMixxxTranslation(QStringLiteral("ca_ES"));
     const QString about = QCoreApplication::translate("WMainMenuBar", "&About");
-    EXPECT_QSTRING_EQ(QStringLiteral("Sobre el Crate Decks (&A)"), about);
+    EXPECT_QSTRING_EQ(QStringLiteral("Sobre el Decks (&A)"), about);
 }
 
 TEST_F(CrateBrandTranslatorTest, BrandsTheCommandLineHelp) {
-    EXPECT_QSTRING_EQ(QStringLiteral("Starts Crate Decks in full-screen mode"),
+    EXPECT_QSTRING_EQ(QStringLiteral("Starts Decks in full-screen mode"),
             QCoreApplication::translate("CmdlineArgs", "Starts Mixxx in full-screen mode"));
 }
 

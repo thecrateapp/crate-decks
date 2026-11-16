@@ -1,6 +1,6 @@
 #pragma once
 
-// Crate Decks: the help links of Mixxx's code lead to Crate's documentation
+// Decks: the help links of Mixxx's code lead to Crate's documentation
 // (plan "Own brand", BR.PR7). src/defs_urls.h includes this file after its
 // own definitions, so every use of these macros (Help menu, Preferences,
 // error dialogs, --help) reads crate::helpUrl() without patching the code
@@ -85,7 +85,7 @@
 #define MIXXX_MANUAL_OUTPUT_AND_INPUT_DEVICES \
     crate::helpUrl(crate::HelpLink::OutputAndInputDevices)
 // The Help menu opens a PDF with these names next to the resources when there
-// is one, else the page. Crate Decks ships none, so they are never Mixxx's
+// is one, else the page. Decks ships none, so they are never Mixxx's
 // manual or keyboard shortcuts (res/Mixxx-Keyboard-Shortcuts.pdf)
 #define MIXXX_MANUAL_FILENAME "Crate-Decks-Manual.pdf"
 #define MIXXX_KBD_SHORTCUTS_FILENAME "Crate-Decks-Keyboard-Shortcuts.pdf"

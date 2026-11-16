@@ -7,7 +7,7 @@ class QWidget;
 
 namespace crate {
 
-/// Crate Decks' defaults of the library preferences, for a profile that has
+/// Decks' defaults of the library preferences, for a profile that has
 /// none: the BPM with two decimals, as the decks and the GU1 mockups write it
 /// ("124.00"). Upstream's preferences dialog saves its own defaults when it is
 /// created, before any skin loads, so CoreServices applies these first.

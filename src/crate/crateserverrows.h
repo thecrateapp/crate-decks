@@ -11,7 +11,7 @@ class CrateServers;
 
 /// What the Crate page of Preferences shows of one server (GU1 mockups
 /// preferences-crate, plan V2.PR5), without widgets: its name, address and
-/// notes, the Crate Decks features of the server and its sign-in state.
+/// notes, the Decks features of the server and its sign-in state.
 struct ServerRow {
     enum class State {
         SignedIn,
