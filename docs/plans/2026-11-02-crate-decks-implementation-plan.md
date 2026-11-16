@@ -1399,6 +1399,16 @@ elegido en SG3 de smart-mix-3. Activarlo por defecto en el servidor es decisión
 
 **Gate G5 (Diego):** contrato de cues y correcciones, más la decisión sobre si las correcciones alimentan los perfiles de Smart Mix.
 
+- **G5 aprobado (Diego, 2026-11-16):** el contrato de S7 tal como quedó en `docs/technical/crate-decks.md` del servidor (rama `feat/decks-cues`, sección "Cues and corrections (S7)"): una revisión por usuario, pista y conjunto; un `PUT` con el contenido ya guardado devuelve 200; hotcue, loop y jump comparten los slots 0–35 de Mixxx; tonalidad en Camelot; el servidor no cruza el grid con el BPM; BPM 30–300, etiquetas ≤ 200 caracteres; `contract_version` sigue en 1.
+- **Decisión:** las correcciones **sí** alimentarán Smart Mix, en F8.SM, después de F8.C-PR2.
+
+### F8.SM · Correcciones en Smart Mix
+
+- **Servidor:** el planner (plans y menú v3) usa la corrección del usuario (BPM, grid, tonalidad) por encima del perfil, solo para los planes de ese usuario. Los perfiles compartidos no cambian. Un lote, sin N+1: las correcciones de las pistas del plan en una consulta.
+- **Cliente:** el espejo local de `limit_violations` y el planner local usan la misma prioridad, para que sigan coincidiendo con el servidor.
+- **Tests:** `test_planner_prefers_user_correction`, `test_other_users_keep_profile`; en Decks, que el acuerdo en vivo con el servidor siga al 100 % con correcciones.
+- Contrato y detalles, a revisar con Diego antes de implementar.
+
 ---
 
 ## V · Rediseño visual con el lenguaje del admin
