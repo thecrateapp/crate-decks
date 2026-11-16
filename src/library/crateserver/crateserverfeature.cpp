@@ -34,6 +34,8 @@
 #include "crate/library/cratetrackpreparer.h"
 #include "crate/recs/compatiblesmodel.h"
 #include "crate/recs/compatiblesview.h"
+#include "crate/recs/crateradiosource.h"
+#include "crate/recs/recommendationqueue.h"
 #include "crate/smartmix/assistpanel.h"
 #include "crate/smartmix/autodjsmartmixadapter.h"
 #include "crate/smartmix/eqmap.h"
@@ -202,6 +204,13 @@ QString smartMixData() {
 QString compatiblesData() {
     return QStringLiteral("compatibles\n");
 }
+QString radioData() {
+    return QStringLiteral("radio\n");
+}
+
+QIcon radioIcon() {
+    return namedIcon(QStringLiteral("crate-radio"), QStringLiteral("tracks"));
+}
 
 QIcon compatiblesIcon() {
     return namedIcon(QStringLiteral("crate-compatibles"), QStringLiteral("tracks"));
@@ -293,6 +302,10 @@ CrateServerFeature::CrateServerFeature(Library* pLibrary,
                   dependencies.pTrackCollectionManager->internalCollection()->database(),
                   dependencies.pDbConnectionPool,
                   this)),
+          m_pRadioModel(make_parented<CrateServerTrackModel>(CrateServerTrackModel::Source::Memory,
+                  dependencies.pTrackCollectionManager->internalCollection()->database(),
+                  dependencies.pDbConnectionPool,
+                  this)),
           m_pCacheStatus(make_parented<CacheStatusModel>(
                   CacheStatusModel::Options{nullptr,
                           nullptr,
@@ -309,6 +322,13 @@ CrateServerFeature::CrateServerFeature(Library* pLibrary,
             {m_pContainerModel.get(), m_pLibraryModel.get(), m_pSearchModel.get()}) {
         pModel->setSearchHandler([this, pModel](const QString& text) {
             return onSearch(pModel, text);
+        });
+    }
+    for (CrateServerTrackModel* pModel : trackModels()) {
+        pModel->setMenuActions([this](const QList<CrateTrackRef>& tracks,
+                                       const QStringList& labels,
+                                       QObject* pParent) {
+            return trackActions(tracks, labels, pParent);
         });
     }
     m_pSidebarModel->setRootItem(TreeItem::newRoot(this));
@@ -477,6 +497,7 @@ void CrateServerFeature::updateServers() {
         // Last, as in the GU1 mockups: the compatible tracks, the Smart Mix
         // assistant and one cache for every server
         pRoot->appendChild(tr("Compatibles"), compatiblesData())->setIcon(compatiblesIcon());
+        pRoot->appendChild(tr("Radio"), radioData())->setIcon(radioIcon());
         pRoot->appendChild(tr("Smart Mix"), smartMixData())->setIcon(smartMixIcon());
         pRoot->appendChild(cacheLabel(), cacheData())->setIcon(cacheIcon());
     }
@@ -549,10 +570,7 @@ void CrateServerFeature::startLoading() {
             &CrateLoadCoordinator::loadTrackIntoNextAvailableDeck,
             this,
             &LibraryFeature::loadTrack);
-    for (CrateServerTrackModel* pModel : {m_pContainerModel.get(),
-                 m_pLibraryModel.get(),
-                 m_pSearchModel.get(),
-                 static_cast<CrateServerTrackModel*>(m_pCompatiblesModel.get())}) {
+    for (CrateServerTrackModel* pModel : trackModels()) {
         pModel->setLoadCoordinator(m_pLoadCoordinator.get());
     }
 
@@ -636,6 +654,38 @@ void CrateServerFeature::startLoading() {
     pins.pPlaylistDao = &pCollection->internalCollection()->getPlaylistDAO();
     pins.pPlayerInfo = m_dependencies.pPlayerInfo;
     m_pSessionPins = std::make_unique<CrateSessionPins>(std::move(pins));
+
+    // Radio and Music Paths put their tracks in Auto DJ's queue, uncached
+    // ones too, as "Add to Auto DJ" does (plan F5.C-PR2, F5.C-PR3)
+    recs::AutoDjRecommendationQueue::Options recommendations;
+    recommendations.pPlaylistDao = &pCollection->internalCollection()->getPlaylistDAO();
+    recommendations.pDbConnectionPool = m_dependencies.pDbConnectionPool;
+    recommendations.trackIds = [pCoordinator = m_pLoadCoordinator.get()](
+                                       const QList<CrateQueuedTrack>& tracks) {
+        return pCoordinator->trackIdsForAutoDj(tracks);
+    };
+    recommendations.trackOfFile = trackOfFile;
+    m_pRadio.reset();
+    m_pRecommendations =
+            std::make_unique<recs::AutoDjRecommendationQueue>(std::move(recommendations));
+    m_pRadio = std::make_unique<recs::CrateRadioSource>(m_pRecommendations.get());
+    connect(m_pRadio.get(),
+            &recs::CrateRadioSource::changed,
+            this,
+            &CrateServerFeature::updateRadioRows);
+    connect(m_pRadio.get(),
+            &recs::CrateRadioSource::stopped,
+            this,
+            [this](recs::CrateRadioSource::StopReason reason) {
+                // TEST_GAP: a message box needs a running event loop
+                if (reason == recs::CrateRadioSource::StopReason::Failed && m_pRadio &&
+                        m_pRadio->tracks().isEmpty()) {
+                    QMessageBox::warning(nullptr,
+                            tr("Radio"),
+                            tr("Crate could not start a radio from this. Its tracks may not "
+                               "be analyzed yet."));
+                }
+            });
 
     // The stems of Smart Mix playlists (plan ST5.PR2)
     StemSync::Options stemSync;
@@ -732,10 +782,9 @@ void CrateServerFeature::onPrefetchAutoDjChanged(bool enabled) {
 }
 
 void CrateServerFeature::stopLoading() {
-    for (CrateServerTrackModel* pModel : {m_pContainerModel.get(),
-                 m_pLibraryModel.get(),
-                 m_pSearchModel.get(),
-                 static_cast<CrateServerTrackModel*>(m_pCompatiblesModel.get())}) {
+    m_pRadio.reset();
+    m_pRecommendations.reset();
+    for (CrateServerTrackModel* pModel : trackModels()) {
         pModel->setLoadCoordinator(nullptr);
     }
     m_pStemJobs.reset();
@@ -851,6 +900,98 @@ void CrateServerFeature::showCompatibles() {
     emit switchToView(kCompatiblesViewName);
     emit disableSearch();
     emit enableCoverArtDisplay(false);
+}
+
+QList<CrateServerTrackModel*> CrateServerFeature::trackModels() const {
+    return {m_pContainerModel.get(),
+            m_pLibraryModel.get(),
+            m_pSearchModel.get(),
+            m_pCompatiblesModel.get(),
+            m_pRadioModel.get()};
+}
+
+QList<QAction*> CrateServerFeature::trackActions(
+        const QList<CrateTrackRef>& tracks, const QStringList& labels, QObject* pParent) {
+    QList<QAction*> actions;
+    if (tracks.isEmpty() || !m_pRadio) {
+        return actions;
+    }
+    const CrateTrackRef& first = tracks.first();
+    //: Starts Crate's Radio, which fills Auto DJ's queue, from the selected track
+    auto* pRadio = new QAction(tr("Start radio from this track"), pParent);
+    pRadio->setEnabled(tracks.size() == 1);
+    connect(pRadio, &QAction::triggered, this, [this, first, label = labels.value(0)] {
+        startRadio(first.serverId, recs::RadioSeed::track(first.entityUid, label));
+    });
+    actions.append(pRadio);
+
+    // The DJ's say on the radio's own tracks
+    const bool radioTracks = std::all_of(tracks.cbegin(), tracks.cend(), [this](const auto& track) {
+        return m_pRadio->hasTrack(track.serverId, track.entityUid);
+    });
+    if (radioTracks) {
+        for (const auto feedback :
+                {recs::CrateRadioSource::Feedback::Like,
+                        recs::CrateRadioSource::Feedback::Dislike}) {
+            auto* pFeedback = new QAction(feedback == recs::CrateRadioSource::Feedback::Like
+                            //: Radio feedback: steers the radio towards the selected track
+                            ? tr("More like this")
+                            //: Radio feedback: steers the radio away from the selected track
+                            : tr("Less like this"),
+                    pParent);
+            connect(pFeedback, &QAction::triggered, this, [this, tracks, feedback] {
+                if (!m_pRadio) {
+                    return;
+                }
+                for (const CrateTrackRef& track : tracks) {
+                    m_pRadio->sendFeedback(track.entityUid, feedback);
+                }
+            });
+            actions.append(pFeedback);
+        }
+    }
+    return actions;
+}
+
+void CrateServerFeature::startRadio(const QString& serverId, const recs::RadioSeed& seed) {
+    Client* pClient = m_pServers ? m_pServers->client(serverId) : nullptr;
+    if (!m_pRadio || !pClient) {
+        return;
+    }
+    m_pRadio->start(pClient, serverId, seed);
+}
+
+void CrateServerFeature::showRadio() {
+    endSearch();
+    m_pRadioModel->setBpmPrecision(m_pConfig->getValue(
+            mixxx::library::prefs::kBpmColumnPrecisionConfigKey,
+            BaseTrackTableModel::kBpmColumnPrecisionDefault));
+    updateRadioRows();
+    emit showTrackModel(m_pRadioModel);
+    emit enableCoverArtDisplay(false);
+}
+
+void CrateServerFeature::updateRadioRows() {
+    if (!m_pRadio) {
+        m_pRadioModel->setRows(QString(), QString(), {});
+        return;
+    }
+    QVector<CrateServerTrackModel::Row> rows;
+    const QList<recs::RecommendedTrack>& tracks = m_pRadio->tracks();
+    rows.reserve(tracks.size());
+    for (const recs::RecommendedTrack& track : tracks) {
+        CrateServerTrackModel::Row row;
+        row.position = static_cast<int>(rows.size()) + 1;
+        row.serverId = m_pRadio->serverId();
+        row.entityUid = track.entityUid;
+        row.title = track.title;
+        row.artist = track.artist;
+        row.album = track.album;
+        row.durationMs = track.durationMs;
+        row.format = track.format;
+        rows.append(row);
+    }
+    m_pRadioModel->setRows(m_pRadio->serverId(), m_pRadio->label(), rows);
 }
 
 void CrateServerFeature::watchSelection() {
@@ -1410,6 +1551,7 @@ void CrateServerFeature::applySidebar(const QString& serverId, const SidebarData
         // The server's items are the feature's: the compatibles', the
         // assistant's and the cache's stay last
         items.append({tr("Compatibles"), compatiblesData(), compatiblesIcon(), {}});
+        items.append({tr("Radio"), radioData(), radioIcon(), {}});
         items.append({tr("Smart Mix"), smartMixData(), smartMixIcon(), {}});
         items.append({cacheLabel(), cacheData(), cacheIcon(), {}});
     }
@@ -1507,6 +1649,8 @@ CrateServerFeature::Node CrateServerFeature::nodeOf(const QModelIndex& index) co
         node.kind = Node::Kind::SmartMix;
     } else if (parts[0] == QLatin1String("compatibles")) {
         node.kind = Node::Kind::Compatibles;
+    } else if (parts[0] == QLatin1String("radio")) {
+        node.kind = Node::Kind::Radio;
     }
     return node;
 }
@@ -1623,6 +1767,9 @@ void CrateServerFeature::activateChild(const QModelIndex& index) {
         return;
     case Node::Kind::Compatibles:
         showCompatibles();
+        return;
+    case Node::Kind::Radio:
+        showRadio();
         return;
     case Node::Kind::Cache:
         endSearch();
@@ -1762,6 +1909,16 @@ void CrateServerFeature::syncIfNeeded(const QString& serverId, qint64 containerI
 void CrateServerFeature::onRightClickChild(const QPoint& globalPos, const QModelIndex& index) {
     // TEST_GAP: a context menu needs a running event loop with a menu open
     const Node node = nodeOf(index);
+    if (node.kind == Node::Kind::Radio) {
+        QMenu menu;
+        //: Stops Crate's Radio: no more tracks join Auto DJ's queue
+        QAction* pStop = menu.addAction(tr("Stop radio"));
+        pStop->setEnabled(m_pRadio && m_pRadio->isRunning());
+        if (menu.exec(globalPos) == pStop && m_pRadio) {
+            m_pRadio->stop();
+        }
+        return;
+    }
     Server* pServer = server(node.serverId);
     if (!pServer) {
         return;
@@ -1769,11 +1926,26 @@ void CrateServerFeature::onRightClickChild(const QPoint& globalPos, const QModel
     QMenu menu;
     QAction* pRefresh = menu.addAction(tr("Refresh"));
     QAction* pOffline = nullptr;
+    QAction* pRadio = nullptr;
+    std::optional<recs::RadioSeed> radioSeed;
     if (node.kind == Node::Kind::Container && m_pLoadCoordinator) {
         //: Downloads every track of a playlist or crate for playing without network
         pOffline = menu.addAction(tr("Download for offline use"));
+        const auto container = m_containers.constFind(node.containerId);
+        if (container != m_containers.constEnd() && m_pRadio) {
+            radioSeed = recs::RadioSeed::container(
+                    container->kind, container->remoteId, container->name);
+        }
+        if (radioSeed) {
+            //: Starts Crate's Radio, which fills Auto DJ's queue, from a playlist or crate
+            pRadio = menu.addAction(tr("Start radio"));
+        }
     }
     QAction* const pChosen = menu.exec(globalPos);
+    if (pChosen && pChosen == pRadio) {
+        startRadio(node.serverId, *radioSeed);
+        return;
+    }
     if (pChosen && pChosen == pOffline) {
         const qint64 containerId = node.containerId;
         readOfflineSet(node.serverId, containerId, [this, containerId](const OfflineSet& set) {

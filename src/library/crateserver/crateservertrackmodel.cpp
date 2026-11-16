@@ -839,12 +839,20 @@ QList<QAction*> CrateServerTrackModel::trackMenuActions(
     QList<QAction*> actions{pDownload, pRemove};
     if (m_menuActions) {
         QList<CrateTrackRef> tracks;
+        QStringList labels;
+        QSet<int> rows;
         for (const QModelIndex& index : indices) {
-            if (index.isValid() && index.row() < m_rows.size()) {
-                tracks.append(trackRef(index.row()));
+            if (!index.isValid() || index.row() >= m_rows.size() || rows.contains(index.row())) {
+                continue;
             }
+            rows.insert(index.row());
+            const Row& row = m_rows[index.row()];
+            tracks.append(trackRef(index.row()));
+            labels.append(row.artist.isEmpty() || row.title.isEmpty()
+                            ? row.title + row.artist
+                            : QStringLiteral("%1 - %2").arg(row.artist, row.title));
         }
-        actions += m_menuActions(tracks, pParent);
+        actions += m_menuActions(tracks, labels, pParent);
     }
     return actions;
 }

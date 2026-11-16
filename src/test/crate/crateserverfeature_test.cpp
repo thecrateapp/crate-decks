@@ -32,11 +32,14 @@
 #include "crate/library/crateprefetcher.h"
 #include "crate/recs/compatiblesmodel.h"
 #include "crate/recs/compatiblesview.h"
+#include "crate/recs/crateradiosource.h"
 #include "crate/smartmix/assistpanel.h"
 #include "crate/smartmix/smartmixassist.h"
 #include "crate/ui/cachestatusmodel.h"
 #include "crate/ui/delegates/delegateroles.h"
 #include "library/crateserver/crateservertrackmodel.h"
+#include "library/dao/playlistdao.h"
+#include "library/dao/trackschema.h"
 #include "library/trackcollection.h"
 #include "library/trackset/crate/crate.h"
 #include "library/treeitem.h"
@@ -331,6 +334,7 @@ TEST_F(CrateServerFeatureTest, SidebarShowsServerAndSections) {
                       QStringLiteral("Genres"),
                       QStringLiteral("Likes (2)"),
                       QStringLiteral("Compatibles"),
+                      QStringLiteral("Radio"),
                       QStringLiteral("Smart Mix"),
                       QStringLiteral("Cache")}),
             labels(root()));
@@ -338,8 +342,9 @@ TEST_F(CrateServerFeatureTest, SidebarShowsServerAndSections) {
     EXPECT_EQ(QStringLiteral("crate-library"), root()->child(0)->getIcon().name());
     EXPECT_EQ(QStringLiteral("crate-likes"), root()->child(4)->getIcon().name());
     EXPECT_EQ(QStringLiteral("crate-compatibles"), root()->child(5)->getIcon().name());
-    EXPECT_EQ(QStringLiteral("crate-smartmix"), root()->child(6)->getIcon().name());
-    EXPECT_EQ(QStringLiteral("crate-cache"), root()->child(7)->getIcon().name());
+    EXPECT_EQ(QStringLiteral("crate-radio"), root()->child(6)->getIcon().name());
+    EXPECT_EQ(QStringLiteral("crate-smartmix"), root()->child(7)->getIcon().name());
+    EXPECT_EQ(QStringLiteral("crate-cache"), root()->child(8)->getIcon().name());
     // The server's order, and its count when there is one
     EXPECT_EQ(QStringList({QStringLiteral("Peak hour"), QStringLiteral("Warm-up (52)")}),
             labels(root()->child(1)));
@@ -586,7 +591,8 @@ TEST_F(CrateServerFeatureTest, TrackMenuDownloadsAndRemovesFromTheCache) {
     QObject parent;
 
     QList<QAction*> actions = pModel->trackMenuActions({pModel->index(0, 0)}, &parent);
-    ASSERT_EQ(2, actions.size());
+    // Download and Remove from cache first; Radio's and Music Paths' next
+    ASSERT_GE(actions.size(), 2);
     EXPECT_EQ(QStringLiteral("Download"), actions[0]->text());
     EXPECT_TRUE(actions[0]->isEnabled());
     EXPECT_EQ(QStringLiteral("Remove from cache"), actions[1]->text());
@@ -604,7 +610,7 @@ TEST_F(CrateServerFeatureTest, TrackMenuDownloadsAndRemovesFromTheCache) {
             5000));
 
     actions = pModel->trackMenuActions({pModel->index(0, 0)}, &parent);
-    ASSERT_EQ(2, actions.size());
+    ASSERT_GE(actions.size(), 2);
     EXPECT_FALSE(actions[0]->isEnabled());
     EXPECT_TRUE(actions[1]->isEnabled());
     actions[1]->trigger();
@@ -622,7 +628,7 @@ TEST_F(CrateServerFeatureTest, ReadsASmartMixPlaylistByItsIdOnTheServer) {
             {remoteTrack(QStringLiteral("e1"), QStringLiteral("Lattice"), 0.7, QString()),
                     remoteTrack(QStringLiteral("e2"), QStringLiteral("Glass"), 0.5, QString())});
     CrateServerFeature* pFeature = makeFeature();
-    ASSERT_TRUE(QTest::qWaitFor([&] { return labels(root()).size() == 8; }, 5000));
+    ASSERT_TRUE(QTest::qWaitFor([&] { return labels(root()).size() == 9; }, 5000));
     const qsizetype sent = m_network.sent.size();
 
     std::optional<std::optional<QList<crate::library::CrateTrackRef>>> read;
@@ -829,6 +835,7 @@ TEST_F(CrateServerFeatureTest, LazyExpansionFetchesOnce) {
                       QStringLiteral("Playlists"),
                       QStringLiteral("Crates"),
                       QStringLiteral("Compatibles"),
+                      QStringLiteral("Radio"),
                       QStringLiteral("Smart Mix"),
                       QStringLiteral("Cache")}),
             labels(root()));
@@ -841,7 +848,7 @@ TEST_F(CrateServerFeatureTest, LazyExpansionFetchesOnce) {
     const QString tree = QStringLiteral("/api/decks/containers");
     ASSERT_TRUE(QTest::qWaitFor([&] { return sentTo(tree) == 1; }, 5000));
     lastTo(tree)->pReply->respond(200, kTree);
-    ASSERT_TRUE(QTest::qWaitFor([&] { return labels(root()).size() == 8; }, 5000));
+    ASSERT_TRUE(QTest::qWaitFor([&] { return labels(root()).size() == 9; }, 5000));
     EXPECT_EQ(QStringLiteral("Library (136512)"), root()->child(0)->getLabel());
     pPlaylists = childLabelled(root(), QStringLiteral("Playlists"));
     EXPECT_EQ(QStringLiteral("Playlists (2)"), pPlaylists->getLabel());
@@ -961,7 +968,7 @@ TEST_F(CrateServerFeatureTest, SearchInTheCrateSectionAsksTheServer) {
     EXPECT_EQ(QStringLiteral("bpm:120-128 key:8A"), pResults->currentSearch());
     // Not a sidebar node
     EXPECT_EQ(2, labels(childLabelled(root(), QStringLiteral("Playlists"))).size());
-    EXPECT_EQ(8, labels(root()).size());
+    EXPECT_EQ(9, labels(root()).size());
 
     // Clearing the search shows the playlist again, unfiltered
     pResults->search(QString());
@@ -1109,6 +1116,64 @@ TEST_F(CrateServerFeatureTest, CompatiblesFollowTheDeckOnAir) {
                         1;
             },
             5000));
+}
+
+// A radio started from a track's menu fills Auto DJ's queue, uncached tracks
+// too, and the Radio item shows its tracks with the DJ's feedback in their
+// menu (plan F5.C-PR2)
+TEST_F(CrateServerFeatureTest, RadioFromATrackFillsAutoDj) {
+    storeTree();
+    storeContainerTracks(containerId(QStringLiteral("playlist"), QStringLiteral("7")),
+            {remoteTrack(QStringLiteral("afe794ee-23ea-53d3-8280-ff633310da60"),
+                    QStringLiteral("I Feel Loved"),
+                    0.8,
+                    QStringLiteral("full"))});
+    PlaylistDAO& playlists = internalCollection()->getPlaylistDAO();
+    int autoDj = playlists.getPlaylistIdFromName(AUTODJ_TABLE);
+    if (autoDj < 0) {
+        autoDj = playlists.createPlaylist(AUTODJ_TABLE, PlaylistDAO::PLHT_AUTO_DJ);
+    }
+    ASSERT_GE(autoDj, 0);
+    CrateServerFeature* pFeature = makeFeature();
+    CrateServerTrackModel* pModel = showWarmUp(pFeature);
+    ASSERT_NE(nullptr, pModel);
+    QObject parent;
+    const QList<QAction*> actions = pModel->trackMenuActions({pModel->index(0, 0)}, &parent);
+    const auto start = std::find_if(actions.cbegin(), actions.cend(), [](const QAction* pAction) {
+        return pAction->text() == QStringLiteral("Start radio from this track");
+    });
+    ASSERT_NE(actions.cend(), start);
+    (*start)->trigger();
+
+    const QString path = QStringLiteral("/api/radio/start");
+    ASSERT_TRUE(QTest::qWaitFor([&] { return sentTo(path) == 1; }, 5000));
+    QFile answer(getTestDir().filePath(QStringLiteral("crate/data/recs/real-radio-start.json")));
+    ASSERT_TRUE(answer.open(QIODevice::ReadOnly));
+    lastTo(path)->pReply->respond(200, answer.readAll());
+    ASSERT_TRUE(QTest::qWaitFor([&] { return playlists.tracksInPlaylist(autoDj) == 5; }, 5000));
+    ASSERT_NE(nullptr, pFeature->radio());
+    EXPECT_TRUE(pFeature->radio()->isRunning());
+
+    // The Radio item shows its tracks
+    QSignalSpy shown(pFeature, &LibraryFeature::showTrackModel);
+    pFeature->activateChild(indexOf(childLabelled(root(), QStringLiteral("Radio"))));
+    ASSERT_EQ(1, shown.size());
+    CrateServerTrackModel* pRadio = pFeature->radioModel();
+    EXPECT_EQ(pRadio, shown.first().first().value<QAbstractItemModel*>());
+    ASSERT_EQ(5, pRadio->rowCount());
+    const int title = pRadio->fieldIndex(QStringLiteral("title"));
+    EXPECT_EQ(QStringLiteral("Blue Monday (2023 Digital Master)"),
+            pRadio->index(0, title).data().toString());
+    const QList<QAction*> radioActions =
+            pRadio->trackMenuActions({pRadio->index(0, 0)}, &parent);
+    const auto more = std::find_if(
+            radioActions.cbegin(), radioActions.cend(), [](const QAction* pAction) {
+                return pAction->text() == QStringLiteral("More like this");
+            });
+    ASSERT_NE(radioActions.cend(), more);
+    (*more)->trigger();
+    ASSERT_TRUE(QTest::qWaitFor(
+            [&] { return sentTo(QStringLiteral("/api/radio/feedback")) == 1; }, 5000));
 }
 
 TEST_F(CrateServerFeatureTest, CacheItemShowsTheCacheView) {

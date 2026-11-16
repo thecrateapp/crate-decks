@@ -189,9 +189,11 @@ class CrateServerTrackModel : public QAbstractTableModel, public TrackModel {
     void setRows(const QString& serverId, const QString& key, QVector<Row> rows);
 
     /// More entries for the track menu of the selected rows, after Download
-    /// and Remove from cache (such as Radio's "More like this").
-    using MenuActions = std::function<QList<QAction*>(
-            const QList<CrateTrackRef>& tracks, QObject* pParent)>;
+    /// and Remove from cache (such as Radio's "More like this"): the rows'
+    /// tracks and their "Artist - Title", in the same order.
+    using MenuActions = std::function<QList<QAction*>(const QList<CrateTrackRef>& tracks,
+            const QStringList& labels,
+            QObject* pParent)>;
     void setMenuActions(MenuActions actions) {
         m_menuActions = std::move(actions);
     }

@@ -30,9 +30,12 @@ class WLibrarySidebar;
 
 namespace crate {
 namespace recs {
+class AutoDjRecommendationQueue;
 class Compatibles;
 class CompatiblesModel;
 class CompatiblesView;
+class CrateRadioSource;
+struct RadioSeed;
 } // namespace recs
 namespace widgets {
 class CamelotWheelModel;
@@ -130,6 +133,15 @@ class CrateServerFeature : public LibraryFeature {
     recs::Compatibles* compatibles() const {
         return m_pCompatibles.get();
     }
+    /// Crate's Radio as a source of Auto DJ (plan F5.C-PR2); nullptr until
+    /// there is a server.
+    recs::CrateRadioSource* radio() const {
+        return m_pRadio.get();
+    }
+    /// The tracks of the radio, which its sidebar item shows.
+    CrateServerTrackModel* radioModel() const {
+        return m_pRadioModel.get();
+    }
 
     void activate() override;
     void activateChild(const QModelIndex& index) override;
@@ -195,6 +207,7 @@ class CrateServerFeature : public LibraryFeature {
             Container,
             SmartMix,
             Compatibles,
+            Radio,
             Cache,
         };
         Kind kind = Kind::None;
@@ -272,6 +285,14 @@ class CrateServerFeature : public LibraryFeature {
     void onLibraryViewChanged();
     TreeItem* smartMixItem() const;
     void showCompatibles();
+    /// Every track model of the section.
+    QList<CrateServerTrackModel*> trackModels() const;
+    /// The Crate entries of the track menu: Radio's and Music Paths'.
+    QList<QAction*> trackActions(
+            const QList<CrateTrackRef>& tracks, const QStringList& labels, QObject* pParent);
+    void startRadio(const QString& serverId, const recs::RadioSeed& seed);
+    void showRadio();
+    void updateRadioRows();
     /// Follows the selection of the library's track table while it shows a
     /// Crate list, uncached tracks too, for the Compatibles view.
     void watchSelection();
@@ -320,9 +341,13 @@ class CrateServerFeature : public LibraryFeature {
     QSet<QString> m_stemUploads;
     /// The Compatibles view (plan F5.C-PR1).
     parented_ptr<recs::CompatiblesModel> m_pCompatiblesModel;
+    /// Radio (plan F5.C-PR2) and Music Paths (F5.C-PR3) fill Auto DJ's queue
+    parented_ptr<CrateServerTrackModel> m_pRadioModel;
     parented_ptr<CacheStatusModel> m_pCacheStatus;
     std::unique_ptr<recs::Compatibles> m_pCompatibles;
     std::unique_ptr<widgets::CamelotWheelModel> m_pWheelModel;
+    std::unique_ptr<recs::AutoDjRecommendationQueue> m_pRecommendations;
+    std::unique_ptr<recs::CrateRadioSource> m_pRadio;
     QPointer<recs::CompatiblesView> m_pCompatiblesView;
     QMetaObject::Connection m_selectionConnection;
     QThreadPool m_pool;
