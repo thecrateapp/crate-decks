@@ -1342,7 +1342,13 @@ elegido en SG3 de smart-mix-3. Activarlo por defecto en el servidor es decisión
   - Además: `CrateClientTest.SendsDeleteWithJsonBody`, `CrateServerSchemaTest.CreatesTheOutboxTableIdempotently` y `CreatesTheRatingsTableIdempotently`, `CrateServersTest.OutboxSendsOnceTheServerSignsIn`, `CrateAddServerFlowTest.HistoryThresholdDefaultsToThirtySeconds`, `CrateServerFeatureTest.LikeFromTheTrackMenuShowsInTheLikedColumn` y `PlaylistTableEditsThePlaylistOnTheServer`, y `containerSynced` en `CrateLibrarySyncTest.NotModifiedKeepsRows`.
   - `TEST_GAP`: el menú de la sección Playlists, el diálogo de exportar y los avisos necesitan un bucle de eventos con la ventana abierta. La exportación desde una playlist de Decks (`exportPlaylistToCrate`) no tiene test de integración: su lógica está en `RejectsNonCrateTracks`.
 - **Confirmado por Diego (2026-11-16):** sin tecla por defecto para el like (basta el control mapeable); `mix_session_id` por ejecución; un 0 nunca enviado no borra la valoración de Crate.
-- **Pendiente:** probar contra el stack dev cuando lleve S6 (now playing con `deck`, play events de Decks en el historial, likes, valoraciones y edición de playlists). Diego lo deja para cuando se abra el PR del servidor.
+- **Prueba en vivo (2026-11-17):** contra el stack dev con la rama del servidor `feat/decks-cues` (crate#449, Alembic 166), con `src/test/crate/cratewritebacklive_test.cpp` (`CrateWritebackLive`, se salta sin `CRATE_DECKS_LIVE_URL`; con `CRATE_DECKS_LIVE_COMPOSE` lee también, solo en lectura, la base de datos y Redis). Usa las clases reales (el `Outbox` y `CrateLikes` de `CrateServers`, un `HistoryReporter`, `CrateRatings` y `CratePlaylistEdit` conectados como en la aplicación, con `LibrarySync` real) y comprueba cada efecto en la API. Todo pasa, sin fallos de cliente ni de servidor:
+  - Play event: llega al historial con `client_event_id`, `device_type`, `app_platform` y `play_source_type` = `decks` y los 45 s medidos; repetirlo con el mismo id devuelve el mismo `id` y no lo duplica.
+  - Now playing: el estado guarda `deck` 3 y el `mix_session_id`; `{"playing": false}` lo borra. La API no los muestra (solo Redis); la sesión de Decks sale activa en `/api/auth/sessions`.
+  - Likes: `POST` y `DELETE` con cuerpo JSON (`added`/`removed` = `true`), reflejados en `/api/me/likes`.
+  - Valoración: el id numérico sale de `/api/tracks/by-entity/{uid}/info`, `POST /api/track/rate` la guarda y vuelve a la original.
+  - Playlists: exportar, añadir, quitar, mover y reordenar dejan el orden esperado; con un cambio de otro cliente entre medias, la edición relee, compara, resincroniza y reintenta una vez sin aviso.
+  - Lo que queda en el stack dev: los play events (la API no los borra) y las sesiones de cada ejecución, revocadas al terminar.
 
 ---
 
@@ -1451,7 +1457,11 @@ elegido en SG3 de smart-mix-3. Activarlo por defecto en el servidor es decisión
 - **Notas:**
   - Si las preferencias dejan el grid o la tonalidad a upstream, volver al perfil solo desbloquea el grid y devuelve la tonalidad al análisis; el análisis de upstream los rehace cuando se reanaliza la pista.
   - El hook de `WTrackMenu` actúa al abrir el menú (`popup()`), el camino común a todos los menús de pista, porque el menú de los decks (`WTrackWidgetGroup`) no llama a `updateMenus()`.
-- **Pendiente:** probar contra el stack dev cuando lleve S7.
+- **Prueba en vivo (2026-11-17):** con `CrateWritebackLive` (ver F7), con el `CrateCueSync` y el `CrateCorrections` de `CrateServers` y un "segundo equipo" con su propio outbox (que se puede dejar sin red) y sus propias sincronías. Todo pasa, sin fallos de cliente ni de servidor:
+  - Cues: el conjunto (main, intro, outro, hotcue con etiqueta y color, loop y jump) sube tras el debounce con `base_revision` 0 y `client_id` = fingerprint; la consulta devuelve la revisión, `server_time` y exactamente lo que mapea el cliente (15240.517 ms, colores en minúsculas). El segundo equipo lo aplica igual a una pista nueva.
+  - Conflicto: una edición del segundo equipo sin red, sellada antes de otra de este equipo, recibe 409 al volver (con `current` y `server_time`) y gana el servidor en su reloj (`localEditsReplaced`, la edición perdida no se reenvía). El mismo `PUT` repetido con su `base_revision` vieja recibe 200 sin subir de revisión. Vaciar las cues desde Decks deja el conjunto vacío.
+  - Correcciones: BPM 127.95, grid `delta-ms-v1` (512 beats, idéntico al de `beatGridOf`) y tonalidad `8A` se guardan, se leen y el segundo equipo las aplica con el BPM bloqueado; sus beats quedan a menos de 0,01 ms, aunque al pasar a ms enteros 2 de 512 redondean al otro lado (límite del formato, no un fallo). Borrar deja los tres valores en `null` con una revisión más.
+  - Como dice el contrato, el conjunto vacío y la corrección borrada conservan su fila y su revisión en el stack dev.
 
 ### F8.SM · Correcciones en Smart Mix
 
