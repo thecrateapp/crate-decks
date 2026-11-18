@@ -77,8 +77,19 @@ bool CrateCueSync::reconcile(const QString& key,
     if (serverRevision > known.revision) {
         const SyncedCues server = syncedCuesFromJson(serverEntry.value(kCuesKey).toArray());
         if (known.known || withAutomaticCues(local, {}).isEmpty()) {
+            // Edits here not uploaded yet: still waiting for their debounce,
+            // or made while the track was not reconciled
+            const bool editedHere = known.known && cueSetContent(local) != known.baseline;
             // The server's set is the track's whole set
             applyFromServer(key, pTrack, cueSetContent(server), serverRevision);
+            if (editedHere) {
+                kLogger.info() << "The cues of" << entityUidOf(key)
+                               << "changed on another computer before the edits here went up:"
+                               << "the server's win";
+                emit localEditsReplaced(serverIdOf(key),
+                        entityUidOf(key),
+                        pTrack->getTitle().isEmpty() ? entityUidOf(key) : pTrack->getTitle());
+            }
             return true;
         }
         // The first sync of a track with hot cues set here: the server's

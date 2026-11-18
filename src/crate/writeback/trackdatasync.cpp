@@ -271,12 +271,45 @@ void TrackDataSync::query(const QString& serverId) {
                     if (!result.ok()) {
                         kLogger.warning() << "Cannot read the user's" << m_endpoint.kind << "of"
                                           << batch.size() << "tracks:" << result.error().message;
+                        retryQuery(serverId, batch, result.error());
                         return;
                     }
+                    m_queryFailures.remove(serverId);
                     observeServerTime(serverId, result.value().object());
                     onAnswer(batch, result.value().object());
                 });
     }
+}
+
+void TrackDataSync::retryQuery(
+        const QString& serverId, const QStringList& batch, const Error& error) {
+    const bool mayPass = error.kind == Error::Kind::Network || error.kind == Error::Kind::Auth ||
+            (error.kind == Error::Kind::Http &&
+                    (error.httpStatus == 408 || error.httpStatus == 425 ||
+                            error.httpStatus == 429 || error.httpStatus >= 500));
+    if (!mayPass) {
+        // The next load of the tracks asks again
+        return;
+    }
+    QStringList& queued = m_queued[serverId];
+    for (const QString& key : batch) {
+        const auto it = m_attached.constFind(key);
+        if (it != m_attached.cend() && !it->reconciled && !queued.contains(key)) {
+            queued.append(key);
+        }
+    }
+    if (queued.isEmpty() || m_queryScheduled.value(serverId)) {
+        return;
+    }
+    const int failures = m_queryFailures.value(serverId);
+    m_queryFailures.insert(serverId, failures + 1);
+    const auto delay = kQueryRetry[static_cast<size_t>(
+            std::min<int>(failures, static_cast<int>(kQueryRetry.size()) - 1))];
+    m_queryScheduled.insert(serverId, true);
+    m_options.schedule(delay, [this, serverId] {
+        m_queryScheduled.insert(serverId, false);
+        query(serverId);
+    });
 }
 
 void TrackDataSync::onAnswer(const QStringList& keys, const QJsonObject& answer) {

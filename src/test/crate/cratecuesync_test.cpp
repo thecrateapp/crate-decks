@@ -441,6 +441,118 @@ TEST_F(CrateCueSyncTest, ResolvesConflictServerWins) {
     EXPECT_EQ(1, puts().size());
 }
 
+TEST_F(CrateCueSyncTest, TellsWhenANewerServerSetReplacesEditsNotSent) {
+    makeSync();
+    QSignalSpy replaced(m_pSync.get(), &CrateCueSync::localEditsReplaced);
+    const TrackPointer pTrack = dummyTrack();
+    attachAndAnswer(pTrack,
+            kUid,
+            queryAnswer({cueSet(kUid, 3, QJsonArray{cue(cuetype::kHotcue, 0, 1000.0)})}, {}));
+    ASSERT_EQ(3, m_pSync->revision(kServer, kUid));
+    EXPECT_TRUE(replaced.isEmpty());
+
+    // An edit here, still in its debounce when the track loads again and the
+    // server has revision 4 from another computer
+    pTrack->createAndAddCue(mixxx::CueType::HotCue,
+            1,
+            mixxx::audio::FramePos(framesOf(2000.0)),
+            mixxx::audio::kInvalidFramePos);
+    attachAndAnswer(pTrack,
+            kUid,
+            queryAnswer({cueSet(kUid,
+                                4,
+                                QJsonArray{cue(cuetype::kHotcue,
+                                        4,
+                                        4000.0,
+                                        QJsonValue::Null,
+                                        QStringLiteral("Theirs"))})},
+                    {}));
+
+    // The server's set wins, and the user hears of it
+    ASSERT_TRUE(QTest::qWaitFor([&] {
+        return replaced.size() == 1;
+    }));
+    EXPECT_EQ(kServer, replaced.first().at(0).toString());
+    EXPECT_EQ(kUid, replaced.first().at(1).toString());
+    EXPECT_EQ(nullptr, pTrack->findHotcueByIndex(1));
+    ASSERT_NE(nullptr, pTrack->findHotcueByIndex(4));
+    EXPECT_EQ(4, m_pSync->revision(kServer, kUid));
+    m_scheduler.runAll();
+    QCoreApplication::processEvents();
+    EXPECT_TRUE(puts().isEmpty());
+
+    // A newer set without edits here is no news
+    attachAndAnswer(pTrack,
+            kUid,
+            queryAnswer({cueSet(kUid, 5, QJsonArray{cue(cuetype::kHotcue, 2, 3000.0)})}, {}));
+    ASSERT_TRUE(QTest::qWaitFor([&] {
+        return m_pSync->revision(kServer, kUid) == 5;
+    }));
+    EXPECT_EQ(1, replaced.size());
+}
+
+TEST_F(CrateCueSyncTest, AsksAgainWhenTheQueryFails) {
+    makeSync();
+    const TrackPointer pTrack = dummyTrack();
+    m_pSync->attach(pTrack, kServer, kUid);
+    m_scheduler.runAll();
+    ASSERT_TRUE(QTest::qWaitFor([&] {
+        return sentTo(QStringLiteral("POST"), kQueryPath).size() == 1;
+    }));
+    sentTo(QStringLiteral("POST"), kQueryPath).constLast().pReply->respond(503);
+    QCoreApplication::processEvents();
+
+    // Again 5 s later, then 30 s
+    ASSERT_EQ(1, m_scheduler.tasks.size());
+    EXPECT_EQ(5s, m_scheduler.tasks.first().delay);
+    m_scheduler.runAll();
+    ASSERT_TRUE(QTest::qWaitFor([&] {
+        return sentTo(QStringLiteral("POST"), kQueryPath).size() == 2;
+    }));
+    EXPECT_EQ((QJsonArray{kUid}),
+            bodyOf(sentTo(QStringLiteral("POST"), kQueryPath).constLast())
+                    .value(QStringLiteral("entity_uids"))
+                    .toArray());
+    sentTo(QStringLiteral("POST"), kQueryPath).constLast().pReply->failNetwork();
+    QCoreApplication::processEvents();
+    ASSERT_EQ(1, m_scheduler.tasks.size());
+    EXPECT_EQ(30s, m_scheduler.tasks.first().delay);
+    m_scheduler.runAll();
+    ASSERT_TRUE(QTest::qWaitFor([&] {
+        return sentTo(QStringLiteral("POST"), kQueryPath).size() == 3;
+    }));
+    sentTo(QStringLiteral("POST"), kQueryPath)
+            .constLast()
+            .pReply->respond(200,
+                    queryAnswer({cueSet(kUid, 2, QJsonArray{cue(cuetype::kHotcue, 0, 1000.0)})},
+                            {}));
+    ASSERT_TRUE(QTest::qWaitFor([&] {
+        return m_pSync->revision(kServer, kUid) == 2;
+    }));
+    ASSERT_NE(nullptr, pTrack->findHotcueByIndex(0));
+
+    // Reconciled: an edit goes up
+    pTrack->createAndAddCue(mixxx::CueType::HotCue,
+            1,
+            mixxx::audio::FramePos(framesOf(2000.0)),
+            mixxx::audio::kInvalidFramePos);
+    m_scheduler.runAll();
+    waitForPuts(1);
+    EXPECT_EQ(2, bodyOf(puts().constFirst()).value(QStringLiteral("base_revision")).toInt());
+}
+
+TEST_F(CrateCueSyncTest, DoesNotAskAgainWhatTheServerRefuses) {
+    makeSync();
+    m_pSync->attach(dummyTrack(), kServer, kUid);
+    m_scheduler.runAll();
+    ASSERT_TRUE(QTest::qWaitFor([&] {
+        return sentTo(QStringLiteral("POST"), kQueryPath).size() == 1;
+    }));
+    sentTo(QStringLiteral("POST"), kQueryPath).constLast().pReply->respond(422);
+    QCoreApplication::processEvents();
+    EXPECT_TRUE(m_scheduler.tasks.isEmpty());
+}
+
 TEST_F(CrateCueSyncTest, ResendsOnConflictWithAnOlderWrite) {
     makeSync();
     QSignalSpy replaced(m_pSync.get(), &CrateCueSync::localEditsReplaced);

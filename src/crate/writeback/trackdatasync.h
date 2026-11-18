@@ -9,6 +9,7 @@
 #include <QString>
 #include <QStringList>
 #include <QThreadPool>
+#include <array>
 #include <chrono>
 #include <functional>
 
@@ -18,6 +19,7 @@
 namespace crate {
 
 class Client;
+struct Error;
 
 namespace writeback {
 
@@ -86,6 +88,11 @@ class TrackDataSync : public QObject {
     static constexpr std::chrono::milliseconds kBatchWindow{100};
     /// How long a track has to stay unchanged before an edit counts.
     static constexpr std::chrono::milliseconds kDebounce{2000};
+    /// The waits before asking again after a query failed and may pass (no
+    /// network, 408, 425, 429, 5xx); the last one repeats while the tracks
+    /// stay attached.
+    static constexpr std::array<std::chrono::milliseconds, 3> kQueryRetry{
+            std::chrono::seconds(5), std::chrono::seconds(30), std::chrono::minutes(5)};
 
     ~TrackDataSync() override;
 
@@ -217,6 +224,8 @@ class TrackDataSync : public QObject {
     void onLoaded(const QHash<QString, State>& stored);
     void queueQuery(const QString& key);
     void query(const QString& serverId);
+    /// Queries the batch's tracks again later, if the failure may pass.
+    void retryQuery(const QString& serverId, const QStringList& batch, const Error& error);
     void onAnswer(const QStringList& keys, const QJsonObject& answer);
     void onSignal(const QString& key, Change change);
     /// Updates the import flags; returns whether an import just completed.
@@ -244,6 +253,8 @@ class TrackDataSync : public QObject {
     /// Keys to query, by server, and whether its query is scheduled.
     QHash<QString, QStringList> m_queued;
     QHash<QString, bool> m_queryScheduled;
+    /// Failed queries in a row, by server.
+    QHash<QString, int> m_queryFailures;
     QHash<QString, Due> m_due;
     /// The server's clock minus this computer's, in ms, by server.
     QHash<QString, qint64> m_clockOffsets;
