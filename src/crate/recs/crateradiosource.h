@@ -46,7 +46,8 @@ struct RadioSeed {
 struct CrateRadioSourceOptions {
     /// Radio tracks kept in Auto DJ's queue ahead of the one playing.
     int ahead = 5;
-    /// Wait before asking again when the server is busy or has nothing yet.
+    /// Wait before asking again when the server is busy or has nothing yet;
+    /// it doubles with each retry in a row, up to 32 times.
     std::chrono::milliseconds retryDelay{1000};
     /// The session id of a new radio; a random UUID by default. Tests fix it.
     std::function<QString()> newSessionId;
@@ -78,6 +79,10 @@ class CrateRadioSource : public QObject {
         Dislike,
     };
     Q_ENUM(Feedback)
+
+    /// Batches in a row without a new track before the radio stops as
+    /// exhausted: the server keeps giving what is already queued.
+    static constexpr int kMaxEmptyBatches = 5;
 
     enum class StopReason {
         /// stop(), or another radio started.
@@ -157,6 +162,12 @@ class CrateRadioSource : public QObject {
     std::optional<int> m_batchIndex;
     QPointer<Reply> m_pReply;
     bool m_retryPending = false;
+    /// Retries in a row since the last batch with new tracks; each one
+    /// doubles the wait, up to 32 times retryDelay.
+    int m_retries = 0;
+    /// Batches in a row with no new track; kMaxEmptyBatches of them end the
+    /// radio as exhausted.
+    int m_emptyBatches = 0;
     QList<RecommendedTrack> m_tracks;
     /// By lowercase uid: the server's numeric id, for feedback.
     QHash<QString, qint64> m_trackIds;

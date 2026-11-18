@@ -20,6 +20,8 @@
 
 namespace {
 
+using namespace std::chrono_literals;
+
 using crate::Client;
 using crate::ClientOptions;
 using crate::cache::TrackKey;
@@ -328,6 +330,64 @@ TEST_F(CrateRadioSourceTest, StopsWhenTheServerRunsOut) {
             stopped.first().first().value<CrateRadioSource::StopReason>());
     // Its tracks stay queued
     EXPECT_EQ(4, m_queue.queued.size());
+}
+
+TEST_F(CrateRadioSourceTest, StopsWhenTheServerOnlyRepeatsItself) {
+    startRadio();
+    QSignalSpy stopped(m_pRadio.get(), &CrateRadioSource::stopped);
+    m_queue.takeFirst();
+    // The server keeps answering with tracks that are already queued
+    const QByteArray repeated = fixture(QStringLiteral("real-radio-start.json"));
+    const QList<std::chrono::milliseconds> waits = {1s, 2s, 4s, 8s};
+    for (int i = 0; i < waits.size(); ++i) {
+        ASSERT_TRUE(waitForRequests(i + 2));
+        m_network.last().pReply->respond(200, repeated);
+        ASSERT_TRUE(QTest::qWaitFor(
+                [&] {
+                    return !m_scheduler.tasks.isEmpty();
+                },
+                2000))
+                << "after batch " << i + 1;
+        EXPECT_EQ(waits[i], m_scheduler.tasks.last().delay) << "after batch " << i + 1;
+        m_scheduler.runAll();
+    }
+    ASSERT_TRUE(waitForRequests(6));
+    m_network.last().pReply->respond(200, repeated);
+
+    // The fifth empty batch ends it, and it stops asking
+    ASSERT_TRUE(QTest::qWaitFor([&] { return !stopped.isEmpty(); }, 2000));
+    EXPECT_EQ(CrateRadioSource::StopReason::Exhausted,
+            stopped.first().first().value<CrateRadioSource::StopReason>());
+    EXPECT_TRUE(m_scheduler.tasks.isEmpty());
+    EXPECT_EQ(5, m_queue.appendedTracks());
+}
+
+TEST_F(CrateRadioSourceTest, NewTracksResetTheWait) {
+    startRadio();
+    m_queue.takeFirst();
+    ASSERT_TRUE(waitForRequests(2));
+    m_network.last().pReply->respond(200,
+            QByteArrayLiteral(R"({"session_id":")") + kSession.toLatin1() +
+                    QByteArrayLiteral(
+                            R"(","tracks":[],"batch_index":1,"status":"retryable_empty","exhausted":false})"));
+    ASSERT_TRUE(QTest::qWaitFor([&] { return !m_scheduler.tasks.isEmpty(); }, 2000));
+    m_scheduler.runAll();
+    ASSERT_TRUE(waitForRequests(3));
+    m_network.last().pReply->respond(503);
+    ASSERT_TRUE(QTest::qWaitFor([&] { return !m_scheduler.tasks.isEmpty(); }, 2000));
+    EXPECT_EQ(2s, m_scheduler.tasks.last().delay);
+    m_scheduler.runAll();
+    ASSERT_TRUE(waitForRequests(4));
+    m_network.last().pReply->respond(200, nextBatch(2, 1));
+    ASSERT_TRUE(QTest::qWaitFor([&] { return m_queue.appendedTracks() == 6; }, 2000));
+
+    // The next wait starts from a second again
+    m_queue.takeFirst();
+    m_queue.takeFirst();
+    ASSERT_TRUE(waitForRequests(5));
+    m_network.last().pReply->respond(503);
+    ASSERT_TRUE(QTest::qWaitFor([&] { return !m_scheduler.tasks.isEmpty(); }, 2000));
+    EXPECT_EQ(1s, m_scheduler.tasks.last().delay);
 }
 
 TEST_F(CrateRadioSourceTest, SeedsFromPlaylistsAndCrates) {

@@ -97,6 +97,8 @@ void CrateRadioSource::start(Client* pClient, const QString& serverId, const Rad
     m_tracks.clear();
     m_trackIds.clear();
     m_ahead = 0;
+    m_retries = 0;
+    m_emptyBatches = 0;
     emit changed();
     requestBatch(std::max(1, m_options.ahead), {});
 }
@@ -184,7 +186,9 @@ void CrateRadioSource::onBatch(quint64 session, const JsonResult& result, const 
     }
     const auto retry = [this, session] {
         m_retryPending = true;
-        m_options.schedule(m_options.retryDelay, [this, session] {
+        const auto delay = m_options.retryDelay * (1 << std::min(m_retries, 5));
+        ++m_retries;
+        m_options.schedule(delay, [this, session] {
             m_retryPending = false;
             if (session == m_session && isRunning()) {
                 readQueue();
@@ -234,8 +238,18 @@ void CrateRadioSource::onBatch(quint64 session, const JsonResult& result, const 
     } else if (!m_batchIndex) {
         m_batchIndex = 0;
     }
-    if (value.status == QLatin1String("retryable_empty")) {
+    // Nothing new: it may come, but not forever
+    const auto empty = [this, &retry] {
+        if (++m_emptyBatches >= kMaxEmptyBatches) {
+            kLogger.info() << "The radio gave no new track" << m_emptyBatches
+                           << "times in a row: it ran out";
+            finish(StopReason::Exhausted);
+            return;
+        }
         retry();
+    };
+    if (value.status == QLatin1String("retryable_empty")) {
+        empty();
         return;
     }
     QList<RecommendedTrack> fresh;
@@ -248,9 +262,11 @@ void CrateRadioSource::onBatch(quint64 session, const JsonResult& result, const 
         fresh.append(track);
     }
     if (fresh.isEmpty()) {
-        retry();
+        empty();
         return;
     }
+    m_retries = 0;
+    m_emptyBatches = 0;
     // A read of the queue started before these tracks is out of date
     ++m_queueGeneration;
     m_ahead += static_cast<int>(fresh.size());
