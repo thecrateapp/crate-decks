@@ -27,6 +27,7 @@ using crate::test::FakeTokenSource;
 using crate::writeback::HistoryReporter;
 using crate::writeback::Outbox;
 
+const QString kOtherServer = QStringLiteral("srv-2");
 const QString kServer = QStringLiteral("srv-1");
 const QString kUidA = QStringLiteral("0b6f2c1e-5d6a-4c1b-9a51-2f0c8a3c9e10");
 const QString kUidB = QStringLiteral("7d1e9b44-3f2a-4e8e-8c0d-61b5a2f4d7aa");
@@ -52,11 +53,17 @@ class HistoryReporterTest : public MixxxDbTest {
         m_pClient = std::make_unique<Client>(
                 QUrl(QStringLiteral("https://crate.test")), &m_network, std::move(clientOptions));
         m_pClient->setTokenSource(&m_tokens);
+        ClientOptions otherOptions;
+        otherOptions.deviceFingerprint = QStringLiteral("install-1");
+        otherOptions.maxAttempts = 1;
+        m_pOtherClient = std::make_unique<Client>(
+                QUrl(QStringLiteral("https://other.test")), &m_network, std::move(otherOptions));
+        m_pOtherClient->setTokenSource(&m_tokens);
 
         Outbox::Options outboxOptions;
         outboxOptions.pDbConnectionPool = dbConnectionPooler();
-        outboxOptions.clientFor = [this](const QString&) {
-            return m_pClient.get();
+        outboxOptions.clientFor = [this](const QString& serverId) {
+            return serverId == kOtherServer ? m_pOtherClient.get() : m_pClient.get();
         };
         outboxOptions.schedule = m_outboxScheduler.function();
         outboxOptions.now = [this] {
@@ -71,14 +78,15 @@ class HistoryReporterTest : public MixxxDbTest {
         HistoryReporter::Options options;
         options.pOutbox = m_pOutbox.get();
         options.trackOfFile = [](const QString& location) -> std::optional<TrackKey> {
-            const QString prefix = QStringLiteral("/cache/") + kServer + QLatin1Char('/');
-            if (!location.startsWith(prefix)) {
+            // /cache/<server>/<uid>.flac
+            if (!location.startsWith(QStringLiteral("/cache/"))) {
                 return std::nullopt;
             }
-            return TrackKey{kServer, location.mid(prefix.size()).section(QLatin1Char('.'), 0, 0)};
+            return TrackKey{location.section(QLatin1Char('/'), 2, 2),
+                    location.section(QLatin1Char('/'), 3).section(QLatin1Char('.'), 0, 0)};
         };
-        options.clientFor = [this](const QString&) {
-            return m_pClient.get();
+        options.clientFor = [this](const QString& serverId) {
+            return serverId == kOtherServer ? m_pOtherClient.get() : m_pClient.get();
         };
         options.schedule = m_scheduler.function();
         options.now = [this] {
@@ -92,11 +100,13 @@ class HistoryReporterTest : public MixxxDbTest {
         m_pReporter.reset();
         m_pOutbox.reset();
         m_pClient.reset();
+        m_pOtherClient.reset();
     }
 
-    static TrackPointer crateTrack(const QString& uid, const QString& title) {
+    static TrackPointer crateTrack(
+            const QString& uid, const QString& title, const QString& serverId = kServer) {
         TrackPointer pTrack = Track::newTemporary(
-                QStringLiteral("/cache/") + kServer + QLatin1Char('/') + uid + ".flac");
+                QStringLiteral("/cache/") + serverId + QLatin1Char('/') + uid + ".flac");
         pTrack->setTitle(title);
         pTrack->setArtist(QStringLiteral("Aphex Twin"));
         pTrack->setAlbum(QStringLiteral("Windowlicker"));
@@ -123,6 +133,7 @@ class HistoryReporterTest : public MixxxDbTest {
     FakeScheduler m_outboxScheduler;
     FakeTokenSource m_tokens;
     std::unique_ptr<Client> m_pClient;
+    std::unique_ptr<Client> m_pOtherClient;
     std::unique_ptr<Outbox> m_pOutbox;
     std::unique_ptr<HistoryReporter> m_pReporter;
     QDateTime m_now;
@@ -195,6 +206,29 @@ TEST_F(HistoryReporterTest, IgnoresNonCrateTracks) {
     ASSERT_EQ(2, nowPlaying.size());
     EXPECT_EQ(kUidA, bodyOf(nowPlaying[0]).value(QStringLiteral("track_entity_uid")).toString());
     EXPECT_EQ((QJsonObject{{QStringLiteral("playing"), false}}), bodyOf(nowPlaying[1]));
+}
+
+TEST_F(HistoryReporterTest, ClearsNowPlayingWhenTheServerChanges) {
+    m_pReporter->setPlayingTrack(crateTrack(kUidA, QStringLiteral("Windowlicker")));
+    advance(10s);
+    // The same server: B replaces A, nothing to clear
+    m_pReporter->setPlayingTrack(crateTrack(kUidB, QStringLiteral("Flim")));
+    advance(10s);
+    // Another server's track: the first server hears that B left the air
+    m_pReporter->setPlayingTrack(crateTrack(kUidA, QStringLiteral("Windowlicker"), kOtherServer));
+
+    QList<FakeNetworkAccessManager::Sent> first;
+    QList<FakeNetworkAccessManager::Sent> other;
+    const auto nowPlaying = sentTo(kNowPlayingPath);
+    for (const auto& sent : nowPlaying) {
+        (sent.request.url().host() == QStringLiteral("other.test") ? other : first).append(sent);
+    }
+    ASSERT_EQ(3, first.size());
+    EXPECT_EQ(kUidA, bodyOf(first[0]).value(QStringLiteral("track_entity_uid")).toString());
+    EXPECT_EQ(kUidB, bodyOf(first[1]).value(QStringLiteral("track_entity_uid")).toString());
+    EXPECT_EQ((QJsonObject{{QStringLiteral("playing"), false}}), bodyOf(first[2]));
+    ASSERT_EQ(1, other.size());
+    EXPECT_EQ(kUidA, bodyOf(other[0]).value(QStringLiteral("track_entity_uid")).toString());
 }
 
 TEST_F(HistoryReporterTest, NowPlayingEvery60s) {

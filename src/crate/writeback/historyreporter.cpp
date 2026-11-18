@@ -69,8 +69,11 @@ void HistoryReporter::setPlayingTrack(const TrackPointer& pTrack) {
     if (m_options.trackOfFile) {
         crateTrack = m_options.trackOfFile(pTrack->getLocation());
     }
-    // Another Crate track replaces the now playing state: no need to clear it
-    end(!crateTrack.has_value());
+    // Another Crate track of the same server replaces the now playing
+    // state: no need to clear it. Another server's does not.
+    const bool sameServer = crateTrack && m_current && m_current->crateTrack &&
+            m_current->crateTrack->serverId == crateTrack->serverId;
+    end(!sameServer);
     begin(pTrack, crateTrack);
 }
 
