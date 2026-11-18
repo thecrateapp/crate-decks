@@ -2,6 +2,7 @@
 
 #include <gtest/gtest.h>
 
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QSignalSpy>
@@ -66,7 +67,7 @@ class OutboxTest : public MixxxDbTest {
         m_pClient.reset();
     }
 
-    Outbox* makeOutbox() {
+    Outbox* makeOutbox(bool start = true) {
         Outbox::Options options;
         options.pDbConnectionPool = dbConnectionPooler();
         options.clientFor = [this](const QString&) -> Client* {
@@ -77,6 +78,9 @@ class OutboxTest : public MixxxDbTest {
             return m_now;
         };
         m_pOutbox = std::make_unique<Outbox>(std::move(options));
+        if (!start) {
+            return m_pOutbox.get();
+        }
         m_pOutbox->start();
         EXPECT_TRUE(QTest::qWaitFor([this] {
             return m_pOutbox->isLoaded();
@@ -312,6 +316,110 @@ TEST_F(OutboxTest, RateLooksUpTheNumericTrackId) {
     EXPECT_EQ(1, dropped.size());
     EXPECT_EQ(0, pOutbox->pendingCount());
     EXPECT_EQ(4, m_network.sent.size());
+}
+
+TEST_F(OutboxTest, SetsAsideAWriteTheServerKeepsFailing) {
+    Outbox* pOutbox = makeOutbox();
+    QSignalSpy dropped(pOutbox, &Outbox::dropped);
+    pOutbox->enqueue(kServer, outboxkind::kLike, likePayload(QStringLiteral("a")));
+    pOutbox->enqueue(kServer, outboxkind::kUnlike, likePayload(QStringLiteral("a")));
+    pOutbox->enqueue(kServer, outboxkind::kPlayEvent, playEvent(QStringLiteral("evt-1")));
+    pOutbox->enqueue(kServer, outboxkind::kLike, likePayload(QStringLiteral("b")));
+
+    // The like of "a" fails with 503 until its backoff would reach 30 min
+    const QList<std::chrono::milliseconds> waits = {1s, 5s, 30s, 5min};
+    for (int i = 0; i < waits.size(); ++i) {
+        ASSERT_EQ(i + 1, m_network.sent.size());
+        EXPECT_EQ(likePayload(QStringLiteral("a")), bodyOf(m_network.last()));
+        m_network.last().pReply->respond(503);
+        ASSERT_EQ(1, m_scheduler.tasks.size());
+        EXPECT_EQ(waits[i], m_scheduler.tasks[0].delay);
+        m_scheduler.runAll();
+    }
+    m_network.last().pReply->respond(503);
+
+    // Set aside with the unlike after it: the others go now
+    EXPECT_TRUE(m_scheduler.tasks.isEmpty());
+    ASSERT_EQ(6, m_network.sent.size());
+    EXPECT_EQ(QStringLiteral("/api/me/play-events"), m_network.last().request.url().path());
+    m_network.last().pReply->respond(200, QByteArrayLiteral(R"({"ok": true, "id": 1})"));
+    ASSERT_EQ(7, m_network.sent.size());
+    EXPECT_EQ(likePayload(QStringLiteral("b")), bodyOf(m_network.last()));
+    EXPECT_EQ(QNetworkAccessManager::PostOperation, m_network.last().operation);
+    m_network.last().pReply->respond(200, QByteArrayLiteral(R"({"ok": true})"));
+
+    // Its turn again, with a fresh backoff, and the unlike still after it
+    ASSERT_EQ(8, m_network.sent.size());
+    EXPECT_EQ(likePayload(QStringLiteral("a")), bodyOf(m_network.last()));
+    EXPECT_EQ(QNetworkAccessManager::PostOperation, m_network.last().operation);
+    m_network.last().pReply->respond(503);
+    ASSERT_EQ(1, m_scheduler.tasks.size());
+    EXPECT_EQ(1s, m_scheduler.tasks[0].delay);
+    m_scheduler.runAll();
+    m_network.last().pReply->respond(200, QByteArrayLiteral(R"({"ok": true})"));
+    ASSERT_EQ(10, m_network.sent.size());
+    EXPECT_EQ(QNetworkAccessManager::CustomOperation, m_network.last().operation);
+    EXPECT_EQ(likePayload(QStringLiteral("a")), bodyOf(m_network.last()));
+    m_network.last().pReply->respond(200, QByteArrayLiteral(R"({"ok": true})"));
+
+    EXPECT_EQ(0, pOutbox->pendingCount());
+    EXPECT_TRUE(dropped.isEmpty());
+}
+
+TEST_F(OutboxTest, KeepsTheOrderWhenTheNetworkFails) {
+    Outbox* pOutbox = makeOutbox();
+    pOutbox->enqueue(kServer, outboxkind::kLike, likePayload(QStringLiteral("a")));
+    pOutbox->enqueue(kServer, outboxkind::kLike, likePayload(QStringLiteral("b")));
+
+    // No network is no answer about the write: nothing goes ahead of it
+    for (int i = 0; i < 5; ++i) {
+        m_network.last().pReply->failNetwork();
+        m_scheduler.runAll();
+    }
+    m_network.last().pReply->failNetwork();
+    ASSERT_EQ(1, m_scheduler.tasks.size());
+    EXPECT_EQ(30min, m_scheduler.tasks[0].delay);
+    for (const auto& sent : std::as_const(m_network.sent)) {
+        EXPECT_EQ(likePayload(QStringLiteral("a")), bodyOf(sent));
+    }
+    EXPECT_EQ(2, pOutbox->pendingCount());
+}
+
+TEST_F(OutboxTest, KeepsWaitingWhenNothingElseIsPending) {
+    Outbox* pOutbox = makeOutbox();
+    pOutbox->enqueue(kServer,
+            outboxkind::kCueSet,
+            QJsonObject{{QStringLiteral("entity_uid"), kUid},
+                    {QStringLiteral("body"),
+                            QJsonObject{
+                                    {QStringLiteral("cues"), QJsonArray()}}}});
+    for (int i = 0; i < 4; ++i) {
+        m_network.last().pReply->respond(500);
+        m_scheduler.runAll();
+    }
+    m_network.last().pReply->respond(500);
+    ASSERT_EQ(1, m_scheduler.tasks.size());
+    EXPECT_EQ(30min, m_scheduler.tasks[0].delay);
+    EXPECT_EQ(1, pOutbox->pendingCount());
+}
+
+TEST_F(OutboxTest, SendsAnEntryEnqueuedBeforeStartOnce) {
+    Outbox* pOutbox = makeOutbox(false);
+    pOutbox->enqueue(kServer, outboxkind::kPlayEvent, playEvent(QStringLiteral("evt-1")));
+    EXPECT_TRUE(m_network.sent.isEmpty());
+
+    // Its row is stored before start() reads the table
+    pOutbox->start();
+    ASSERT_TRUE(QTest::qWaitFor([pOutbox] {
+        return pOutbox->isLoaded();
+    }));
+
+    EXPECT_EQ(1, pOutbox->pendingCount());
+    ASSERT_EQ(1, m_network.sent.size());
+    m_network.last().pReply->respond(200, QByteArrayLiteral(R"({"ok": true, "id": 1})"));
+    EXPECT_EQ(1, m_network.sent.size());
+    EXPECT_EQ(0, pOutbox->pendingCount());
+    EXPECT_EQ(0, storedRows());
 }
 
 } // namespace

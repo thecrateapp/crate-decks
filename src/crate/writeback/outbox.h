@@ -54,7 +54,12 @@ inline const QString kCorrection = QStringLiteral("correction");
 /// failure that may pass (no network, no session, 408, 429 or a 5xx) is
 /// retried after 1 s, 5 s, 30 s, 5 min and then every 30 min; any other
 /// answer of the server (a 4xx) drops the entry with a log line, since
-/// sending it again would get the same answer. An entry older than seven
+/// sending it again would get the same answer. Order only matters between
+/// the writes of one subject (the same track and family: likes, rating, cue
+/// set, correction; each play event is its own): an entry the server keeps
+/// answering with a retryable status (5xx, 408, 425, 429) is set aside, with
+/// the later writes of its subject, behind the others once its backoff
+/// reaches 30 min, so one bad write does not hold up the rest. An entry older than seven
 /// days is dropped with a log line instead of being sent. flush() sends at
 /// once whatever waits, for when the network or the session comes back.
 ///
@@ -156,7 +161,11 @@ class Outbox : public QObject {
     };
     enum class Outcome {
         Delivered,
+        /// It may pass: no network, no session.
         Retry,
+        /// The server answered, with a status that may pass (5xx, 408, 425,
+        /// 429): a retry, or setting the entry aside.
+        RetryAnswered,
         Drop,
     };
 
@@ -175,6 +184,10 @@ class Outbox : public QObject {
             const QString& reason,
             const QJsonDocument& answer = QJsonDocument());
     void retryLater(const QString& serverId);
+    /// Moves the first entry and the later ones of its subject behind the
+    /// others. False when there are no others.
+    bool setAside(const QString& serverId);
+    static QString subjectOf(const Entry& entry);
     void remove(const QString& serverId,
             const QString& reason,
             bool delivered,

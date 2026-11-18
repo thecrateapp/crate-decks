@@ -2,6 +2,7 @@
 
 #include <QFutureWatcher>
 #include <QJsonDocument>
+#include <QSet>
 #include <QSqlError>
 #include <QSqlQuery>
 #include <QTimer>
@@ -137,7 +138,17 @@ void Outbox::onLoaded(const QList<Entry>& stored) {
     }
     for (const QString& serverId : std::as_const(servers)) {
         ServerState& state = m_servers[serverId];
-        state.entries = byServer.value(serverId) + state.entries;
+        // An entry enqueued before start() was stored before the read, and is
+        // already in memory
+        QSet<QString> inMemory;
+        for (const Entry& entry : std::as_const(state.entries)) {
+            inMemory.insert(entry.id);
+        }
+        QList<Entry> entries = byServer.value(serverId);
+        entries.removeIf([&inMemory](const Entry& entry) {
+            return inMemory.contains(entry.id);
+        });
+        state.entries = entries + state.entries;
     }
     m_loading = false;
     m_loaded = true;
@@ -355,7 +366,7 @@ Outbox::Outcome Outbox::outcomeOf(const Error& error) {
     case Error::Kind::Http: {
         const int status = error.httpStatus;
         if (status == 408 || status == 425 || status == 429 || status >= 500) {
-            return Outcome::Retry;
+            return Outcome::RetryAnswered;
         }
         return Outcome::Drop;
     }
@@ -392,12 +403,55 @@ void Outbox::apply(const QString& serverId,
         remove(serverId, reason, false);
         pump(serverId);
         return;
+    case Outcome::RetryAnswered:
+        // Its backoff would reach the longest wait: the others go first
+        if (state.failures >= static_cast<int>(kBackoff.size()) - 1 && setAside(serverId)) {
+            kLogger.warning() << "The Crate server" << serverId << "keeps failing a"
+                              << state.entries.last().kind << "write (" << reason
+                              << "): the other writes go first";
+            pump(serverId);
+            return;
+        }
+        [[fallthrough]];
     case Outcome::Retry:
         kLogger.info() << "A" << state.entries.first().kind << "write for the Crate server"
                        << serverId << "failed, retrying later:" << reason;
         retryLater(serverId);
         return;
     }
+}
+
+QString Outbox::subjectOf(const Entry& entry) {
+    if (entry.kind == outboxkind::kPlayEvent) {
+        return entry.kind + QLatin1Char(':') + entry.id;
+    }
+    // A like and the unlike after it are one subject
+    const QString family = entry.kind == outboxkind::kUnlike ? outboxkind::kLike : entry.kind;
+    QString track = entry.payload.value(kEntityUidKey).toString();
+    if (track.isEmpty()) {
+        track = entry.payload.value(QStringLiteral("track_entity_uid")).toString();
+    }
+    return family + QLatin1Char(':') + track;
+}
+
+bool Outbox::setAside(const QString& serverId) {
+    ServerState& state = m_servers[serverId];
+    if (state.entries.isEmpty()) {
+        return false;
+    }
+    const QString subject = subjectOf(state.entries.first());
+    QList<Entry> others;
+    QList<Entry> aside;
+    for (const Entry& entry : std::as_const(state.entries)) {
+        (subjectOf(entry) == subject ? aside : others).append(entry);
+    }
+    if (others.isEmpty()) {
+        return false;
+    }
+    state.entries = others + aside;
+    // The next entry starts its own backoff; this one starts again at its turn
+    state.failures = 0;
+    return true;
 }
 
 void Outbox::retryLater(const QString& serverId) {
