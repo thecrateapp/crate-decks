@@ -1510,6 +1510,30 @@ and the per-uid read of Compatibles (a prepared statement over about 25 local ro
   the server's plan cache key has no user, so a corrected edge adds the correction's identity to it; Decks asks
   plans with empty profile revisions, so its plan cache must drop a track's plans when its correction changes.
 
+**Implemented (client, 2026-11-18).** Branch `feat/decks-sm-corrections`, on `integ/decks-f5-f6b` (5e21b446bb).
+
+- `CrateCorrections::correctionChanged(serverId, entityUid)` fires when a track's correction changes: on save and
+  on clear here, again when the server stores either (the outbox delivered it: from then on the server plans with
+  it; new `TrackDataSync::delivered()` hook), and when a different correction is applied from the server, on load
+  or in a lost conflict. A sync that brings the same correction, even at a newer revision, does not fire it.
+- `CrateServerFeature::correctionChanged()` drops the track's plans from that server's `PlanClient`
+  (`invalidateTrack`, as outgoing and incoming), then tells Auto DJ's adapter and the assistant
+  (`trackPlansChanged`). The adapter asks for the next two edges again; the assistant asks again for the plan of the
+  decks' edge if it has the track.
+- `PlanClient` no longer caches a plan of a track invalidated while the plan was on its way: the server may have
+  made it with the old correction. The answer still reaches whoever asked.
+- A transition already handed to the director keeps its plan: the director takes one plan per transition, and
+  Auto DJ's (armed 30 s before the fade) or the assistant's prepared, executing or running one is not re-planned.
+- The local `limit_violations` mirror (`TransitionPlan::limitViolations`) reads only plan fields and the plan's
+  policy limits, so it did not change.
+- Tests: `CrateCorrectionsTest.SignalsTheCorrectionsThatComeChanged`, `SignalsSavesAndClearsMadeHere` and the
+  conflict case in `ConflictAppliesTheNewerCorrection`; `CratePlanClientTest.InvalidatingATrackAsksTheServerAgain`;
+  `AutoDJSmartMixAdapterTest.AsksAgainForThePlansOfACorrectedTrack`;
+  `CrateSmartMixAssistTest.AsksAgainWhenATracksCorrectionChanges`;
+  `CrateServerFeatureTest.CorrectionsDropTheTracksSmartMixPlans` (the wiring, with the real `CrateCorrections`).
+- Still to do: the live agreement check with the server's corrected plans, once the server side is on the dev
+  stack.
+
 ---
 
 ## V · Rediseño visual con el lenguaje del admin
