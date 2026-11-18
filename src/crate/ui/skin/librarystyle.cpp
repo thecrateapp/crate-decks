@@ -972,6 +972,30 @@ void styleLibrary(QWidget* pSkinRoot,
         }
     }
 
+    // A view with a head of its own (the Compatibles view, plan V3.PR2)
+    // has what the search row would show: the row and its rule hide while
+    // it shows
+    if (auto* pLibraryWidget = pSkinRoot->findChild<WLibrary*>()) {
+        const QList<QPointer<QWidget>> searchRow = {
+                pSkinRoot->findChild<QWidget*>(QStringLiteral("CrateSearchRow")),
+                pSkinRoot->findChild<QWidget*>(QStringLiteral("CrateSearchRule")),
+        };
+        const auto showSearchRow = [pLibraryWidget, searchRow] {
+            const QWidget* pCurrent = pLibraryWidget->currentWidget();
+            const bool ownHead = pCurrent && pCurrent->property("crateOwnHead").toBool();
+            for (const QPointer<QWidget>& pPart : searchRow) {
+                if (pPart) {
+                    pPart->setVisible(!ownHead);
+                }
+            }
+        };
+        QObject::connect(pLibraryWidget,
+                &QStackedWidget::currentChanged,
+                pLibraryWidget,
+                showSearchRow);
+        showSearchRow();
+    }
+
     const QList<WTrackTableView*> tables = pSkinRoot->findChildren<WTrackTableView*>();
     if (tables.isEmpty()) {
         return;

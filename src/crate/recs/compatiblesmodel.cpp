@@ -1,5 +1,6 @@
 #include "crate/recs/compatiblesmodel.h"
 
+#include <QDateTime>
 #include <QSqlError>
 #include <QSqlQuery>
 #include <QStringList>
@@ -206,6 +207,8 @@ Result<StoredCompatibles> storeCompatibles(const QSqlDatabase& database,
     const std::optional<double> followedBpm = seedRow.bpm ? seedRow.bpm : seedBpm;
     StoredCompatibles stored;
     stored.seedCamelot = seedRow.camelot.toUpper();
+    stored.seed = seedRow;
+    stored.seed.bpm = followedBpm;
     stored.rows.reserve(compatibles.items.size());
     for (const CompatibleTrack& item : compatibles.items) {
         const QString key = item.track.entityUid.toLower();
@@ -249,6 +252,8 @@ void CompatiblesModel::setResults(const QString& serverId,
     m_seedCamelot = results.seedCamelot;
     m_scores = results.scores;
     m_results = results.rows;
+    m_seed = results.seed;
+    m_resultsTimeMs = QDateTime::currentMSecsSinceEpoch();
     m_keys.clear();
     for (const Row& row : results.rows) {
         const QString key = row.camelot.toUpper();
@@ -264,6 +269,8 @@ void CompatiblesModel::clear() {
     m_seedCamelot.clear();
     m_scores.clear();
     m_results.clear();
+    m_seed = Row();
+    m_resultsTimeMs = 0;
     m_keys.clear();
     setRows(QString(), QString(), {});
 }

@@ -81,6 +81,7 @@
 #include "crate/ui/skin/crateskin.h"
 #include "crate/ui/skin/mixerstyle.h"
 #include "crate/ui/skin/preferencescontrol.h"
+#include "crate/ui/widgets/camelotwheel.h"
 #include "crate/ui/widgets/transitionplanview.h"
 #include "database/mixxxdb.h"
 #include "dialog/dlgabout.h"
@@ -2793,8 +2794,7 @@ class HarnessAudioCache {
 /// the compatibles are the answer the server would give, stored as
 /// Compatibles stores it, and the cache's streams come from a fake network.
 /// Without a server the app's Compatibles never gets to Ready, so the
-/// harness shows the view as it is then: no hint, and the followed track in
-/// the title.
+/// harness hides the hint, and deck A is on air as in the mockup.
 TEST_F(CrateSkinScreenshots, CrateViews) {
     const QString outDir = qEnvironmentVariable("CRATE_SKIN_SCREENSHOTS");
     if (outDir.isEmpty()) {
@@ -2942,11 +2942,10 @@ TEST_F(CrateSkinScreenshots, CrateViews) {
         }
         QSqlDatabase::removeDatabase(name);
     }
+    // Deck A is on air, as in the mockup; without a server the app's
+    // Compatibles never gets to Ready, so its hint goes
+    pFeature->compatibles()->setMasterDeck(QStringLiteral("[Channel1]"));
     pCompatiblesView->hint()->hide();
-    if (auto* pTitle = pCompatiblesView->findChild<QLabel*>(
-                QStringLiteral("CrateCompatiblesTitle"))) {
-        pTitle->setText(QStringLiteral("Compatible with Ondine Varga - Lattice"));
-    }
     if (auto* pTable = pCompatiblesView->findChild<WTrackTableView*>()) {
         pTable->selectRow(0);
         waitFor([] { return false; }, 200);
@@ -2988,6 +2987,172 @@ TEST_F(CrateSkinScreenshots, CrateViews) {
     captureView(QStringLiteral("cache"));
     // The app's cache again before the harness's goes
     pFeature->cacheStatus()->setSources(nullptr, nullptr);
+}
+
+/// The Compatibles view (plan V3.PR2) at 1920 x 1080 and 1366 x 768, under
+/// the decks and with the library maximised, with the GU1 mockup's results:
+/// opening it leaves the window's size and minimum size as they were (its
+/// 470 px wheel used to grow the window to 1149 px and hold it there), the
+/// band or the strip shows by the pane's height, the search row gives way to
+/// the view's head, and the table has the mockup's columns.
+TEST_F(CrateSkinLoadTest, CompatiblesFitsThePaneAndKeepsTheWindowsSize) {
+    QTemporaryDir profile;
+    ASSERT_TRUE(profile.isValid());
+    const QString settingsPath = profile.path() + QLatin1Char('/');
+    OffscreenDecks decks(settingsPath);
+    decks.writeProfile(kCrateDecks, {{ConfigKey("[Config]", "hide_menubar"), QStringLiteral("1")}});
+    const QString rows = profile.filePath(QStringLiteral("crate-rows.tsv"));
+    ASSERT_TRUE(writeMockupCrateRows(rows));
+    ASSERT_TRUE(insertCrateLibrary(settingsPath, rows));
+    decks.start(application());
+    ASSERT_NE(nullptr, decks.skin());
+    decks.mainWindow()->menuBar()->hide();
+    auto* pFeature = decks.coreServices()
+                             ->getLibrary()
+                             ->findChild<crate::library::CrateServerFeature*>();
+    ASSERT_NE(nullptr, pFeature);
+    auto* pSidebar = decks.skin()->findChild<WLibrarySidebar*>();
+    ASSERT_NE(nullptr, pSidebar);
+    auto* pSidebarModel = qobject_cast<SidebarModel*>(pSidebar->model());
+    ASSERT_NE(nullptr, pSidebarModel);
+    auto* pLibrary = decks.skin()->findChild<WLibrary*>();
+    ASSERT_NE(nullptr, pLibrary);
+    auto* pView = decks.skin()->findChild<crate::recs::CompatiblesView*>();
+    ASSERT_NE(nullptr, pView);
+    QWidget* pSearchRow = decks.skin()->findChild<QWidget*>(QStringLiteral("CrateSearchRow"));
+    ASSERT_NE(nullptr, pSearchRow);
+
+    // Opens the Crate section's item `label`, as a click does
+    const auto open = [&](const QString& label) {
+        QModelIndex found;
+        QList<QModelIndex> pending;
+        for (int row = 0; row < pSidebarModel->rowCount(); ++row) {
+            const QModelIndex index = pSidebarModel->index(row, 0);
+            if (index.data().toString().startsWith(QLatin1String("Crate"))) {
+                pending.append(index);
+            }
+        }
+        while (!pending.isEmpty() && !found.isValid()) {
+            const QModelIndex parent = pending.takeFirst();
+            for (int row = 0; row < pSidebarModel->rowCount(parent); ++row) {
+                const QModelIndex index = pSidebarModel->index(row, 0, parent);
+                if (index.data().toString().startsWith(label)) {
+                    found = index;
+                    break;
+                }
+                pending.append(index);
+            }
+        }
+        ASSERT_TRUE(found.isValid()) << label.toStdString();
+        pSidebar->selectIndex(found, false);
+        pSidebarModel->clicked(found);
+        waitFor([] { return false; }, 300);
+    };
+
+    // The mockup's results for "Lattice", stored as the app stores them
+    {
+        const auto compatibles = crate::recs::parseCompatibleTracks(mockupCompatiblesAnswer());
+        ASSERT_TRUE(compatibles.ok());
+        const QString name = QStringLiteral("crate-compatibles-fit");
+        {
+            QSqlDatabase db = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), name);
+            db.setDatabaseName(settingsPath + QString::fromUtf8(crate::kDatabaseFileName));
+            ASSERT_TRUE(db.open());
+            const auto stored = crate::recs::storeCompatibles(db,
+                    QStringLiteral("harness-server"),
+                    QStringLiteral("uid-0"),
+                    compatibles.value(),
+                    QStringLiteral("2026-11-09T10:00:00Z"),
+                    124.0);
+            ASSERT_TRUE(stored.ok());
+            pFeature->compatibles()->model()->setResults(
+                    QStringLiteral("harness-server"), QStringLiteral("uid-0"), stored.value());
+        }
+        QSqlDatabase::removeDatabase(name);
+    }
+
+    for (const bool maximised : {false, true}) {
+        ControlObject::set(ConfigKey("[Skin]", "show_maximized_library"), maximised ? 1 : 0);
+        for (const QSize size : {QSize(1920, 1080), QSize(1366, 768)}) {
+            const std::string at = std::to_string(size.width()) +
+                    (maximised ? " px, library maximised" : " px");
+            open(QStringLiteral("Library"));
+            // Twice: the skin's breakpoints switch its layout once the
+            // window has its new size, and the wide one is wider than 1366
+            decks.mainWindow()->resize(size);
+            waitFor([] { return false; }, 1000);
+            decks.mainWindow()->resize(size);
+            waitFor([] { return false; }, 1000);
+            ASSERT_EQ(size, decks.mainWindow()->size()) << at;
+            const QSize minimum = decks.mainWindow()->minimumSizeHint();
+            const QSize pane = pLibrary->size();
+            EXPECT_TRUE(pSearchRow->isVisible()) << at;
+
+            open(QStringLiteral("Compatibles"));
+            ASSERT_EQ(pView, pLibrary->currentWidget()) << at;
+            EXPECT_EQ(size, decks.mainWindow()->size()) << at;
+            EXPECT_EQ(minimum, decks.mainWindow()->minimumSizeHint()) << at;
+            EXPECT_EQ(QSize(0, 0), pView->minimumSizeHint()) << at;
+            EXPECT_EQ(QSize(0, 0), pView->sizeHint()) << at;
+            // The search row's place goes to the library pane
+            EXPECT_FALSE(pSearchRow->isVisible()) << at;
+            EXPECT_GE(pLibrary->height(), pane.height()) << at;
+            EXPECT_EQ(pLibrary->size(), pView->size()) << at;
+
+            // The band where it fits, else the strip; the list under either,
+            // to the bottom of the pane
+            EXPECT_NE(pView->band()->isVisible(), pView->strip()->isVisible()) << at;
+            const QRect table = pView->table()->geometry();
+            EXPECT_EQ(pView->height(), table.bottom() + 1) << at;
+            EXPECT_GT(table.height(), 0) << at;
+            if (pView->band()->isVisible()) {
+                EXPECT_GE(table.top(), pView->band()->geometry().bottom()) << at;
+                EXPECT_GE(pView->wheel()->width(), 235) << at;
+                EXPECT_LE(pView->wheel()->width(), 470) << at;
+            }
+            if (maximised && size.width() == 1920) {
+                // The mockup's band, with its 470 px wheel
+                EXPECT_TRUE(pView->band()->isVisible()) << at;
+                EXPECT_EQ(470, pView->wheel()->width()) << at;
+            }
+            if (!maximised) {
+                // Under the decks the pane is too short for the band
+                EXPECT_TRUE(pView->strip()->isVisible()) << at;
+            }
+        }
+    }
+    ControlObject::set(ConfigKey("[Skin]", "show_maximized_library"), 0);
+
+    // The mockup's columns, in its order
+    auto* pTable = qobject_cast<WTrackTableView*>(pView->table());
+    ASSERT_NE(nullptr, pTable);
+    QHeaderView* pHeader = pTable->horizontalHeader();
+    QStringList shown;
+    for (int visual = 0; visual < pHeader->count(); ++visual) {
+        const int logical = pHeader->logicalIndex(visual);
+        if (!pHeader->isSectionHidden(logical)) {
+            shown.append(pTable->model()
+                            ->headerData(logical, Qt::Horizontal, TrackModel::kHeaderNameRole)
+                            .toString());
+        }
+    }
+    EXPECT_EQ((QStringList{QStringLiteral("position"),
+                      QStringLiteral("crate_score"),
+                      QStringLiteral("title"),
+                      QStringLiteral("artist"),
+                      QStringLiteral("bpm"),
+                      QStringLiteral("crate_bpm_delta"),
+                      QStringLiteral("key"),
+                      QStringLiteral("crate_harmonic"),
+                      QStringLiteral("crate_energy_delta"),
+                      QStringLiteral("duration"),
+                      QStringLiteral("crate_cache"),
+                      QStringLiteral("crate_liked")}),
+            shown);
+
+    // Back to the library: the search row returns
+    open(QStringLiteral("Library"));
+    EXPECT_TRUE(pSearchRow->isVisible());
 }
 
 /// Where `pWidget` is in `pAncestor`.

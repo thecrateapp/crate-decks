@@ -54,6 +54,9 @@ struct StoredCompatibles {
     QHash<QString, CompatibleScores> scores;
     /// The followed track's key as the catalogue has it; empty if unknown.
     QString seedCamelot;
+    /// The followed track as the catalogue has it (title, artist, key), with
+    /// the deck's BPM when the catalogue has none; empty if unknown.
+    library::CrateServerTrackModel::Row seed;
 };
 
 /// Stores what an answer of `compatible` carries of each track in
@@ -116,6 +119,14 @@ class CompatiblesModel : public library::CrateServerTrackModel {
     const QString& seedCamelot() const {
         return m_seedCamelot;
     }
+    /// The followed track as the catalogue has it; empty if unknown.
+    const Row& seed() const {
+        return m_seed;
+    }
+    /// When the results came, in ms since the epoch; 0 without results.
+    qint64 resultsTimeMs() const {
+        return m_resultsTimeMs;
+    }
 
     /// Shows only the tracks in `camelot` ("8A"); empty shows them all.
     void setKeyFilter(const QString& camelot);
@@ -163,6 +174,8 @@ class CompatiblesModel : public library::CrateServerTrackModel {
     QString m_seedCamelot;
     QHash<QString, CompatibleScores> m_scores;
     QVector<Row> m_results;
+    Row m_seed;
+    qint64 m_resultsTimeMs = 0;
     QStringList m_keys;
     QString m_keyFilter;
 };

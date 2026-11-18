@@ -193,6 +193,9 @@ TEST_F(CrateCompatiblesModelTest, ShowsScoresAndFiltersByKey) {
             0.005);
     // The Harmony column reads the two keys: the seed is 7B
     EXPECT_QSTRING_EQ(QStringLiteral("7B"), model.seedCamelot());
+    EXPECT_QSTRING_EQ(QStringLiteral("I Feel Loved"), model.seed().title);
+    EXPECT_NEAR(128.05983, model.seed().bpm.value_or(0), 1e-6);
+    EXPECT_GT(model.resultsTimeMs(), 0);
     EXPECT_QSTRING_EQ(crate::recs::harmonyLabel(crate::recs::Harmony::Same),
             model.data(model.index(0, CompatiblesModel::kHarmonicColumn)).toString());
     EXPECT_TRUE(model.data(model.index(0, CompatiblesModel::kHarmonicColumn),

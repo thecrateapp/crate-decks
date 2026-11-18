@@ -71,6 +71,7 @@
 #include "library/treeitem.h"
 #include "library/treeitemmodel.h"
 #include "mixer/playerinfo.h"
+#include "mixer/playermanager.h"
 #include "track/track.h"
 #include "util/db/dbconnectionpooled.h"
 #include "util/db/dbconnectionpooler.h"
@@ -444,6 +445,15 @@ CrateServerFeature::CrateServerFeature(Library* pLibrary,
                 m_pCompatibles.get(),
                 &recs::Compatibles::setMasterTrack);
         m_pCompatibles->setMasterTrack(pPlayerInfo->getCurrentPlayingTrack());
+        // The view names the deck it follows and loads into the other one
+        const auto setMasterDeck = [pCompatibles = m_pCompatibles.get()](int deck) {
+            pCompatibles->setMasterDeck(deck >= 0 ? PlayerManager::groupForDeck(deck) : QString());
+        };
+        connect(pPlayerInfo,
+                &PlayerInfo::currentPlayingDeckChanged,
+                m_pCompatibles.get(),
+                setMasterDeck);
+        setMasterDeck(pPlayerInfo->getCurrentPlayingDeck());
     }
     if (m_pLibrary) {
         connect(m_pLibrary,
@@ -1112,6 +1122,11 @@ void CrateServerFeature::bindLibraryWidget(
             m_pCompatibles.get(), pTable, m_pWheelModel.get(), pLibraryWidget);
     pLibraryWidget->registerView(kCompatiblesViewName, pCompatibles);
     m_pCompatiblesView = pCompatibles;
+    // "Plan transition": the assistant, for the edge from the master deck to
+    // the track the view loaded, as the toolbar's Smart Mix button opens it
+    connect(pCompatibles, &recs::CompatiblesView::planTransitionRequested, this, [this] {
+        showSmartMix(true);
+    });
     m_pLibraryWidget = pLibraryWidget;
     connect(pLibraryWidget,
             &QStackedWidget::currentChanged,
