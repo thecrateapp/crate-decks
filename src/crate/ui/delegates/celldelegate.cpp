@@ -86,6 +86,11 @@ QColor TrackTextDelegate::textColour(const QModelIndex& index) const {
     case Kind::Name:
         return foreground(index, m_style.textMuted);
     case Kind::Meta:
+        // A value that needs the DJ's eye, such as a tempo far from the
+        // followed track's (GU1 mockup library-compatibles)
+        if (index.data(WarningRole).toBool()) {
+            return m_style.warningText;
+        }
         return foreground(index, m_style.textSecondary);
     }
     return m_style.textPrimary;

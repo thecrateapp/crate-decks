@@ -265,6 +265,15 @@
   <SetVariable name="CrateLibColumnCache">58</SetVariable>
   <SetVariable name="CrateLibColumnArtist">0.16</SetVariable>
   <SetVariable name="CrateLibColumnGenre">0.13</SetVariable>
+  <SetVariable name="CrateLibColumnRank">40</SetVariable>
+  <SetVariable name="CrateLibColumnScore">120</SetVariable>
+  <SetVariable name="CrateLibColumnDelta">72</SetVariable>
+  <SetVariable name="CrateLibColumnHarmony">120</SetVariable>
+  <SetVariable name="CrateLibColumnDeltaEnergy">48</SetVariable>
+  <SetVariable name="CrateLibColumnLike">40</SetVariable>
+  <SetVariable name="CrateLibScoreFigure">34</SetVariable>
+  <SetVariable name="CrateLibScoreGap">8</SetVariable>
+  <SetVariable name="CrateLibLikeIcon">16</SetVariable>
   <SetVariable name="CrateLibFontSizeText">13</SetVariable>
   <SetVariable name="CrateLibFontSizeMeta">11</SetVariable>
   <SetVariable name="CrateLibFontSizeHeader">10.5</SetVariable>

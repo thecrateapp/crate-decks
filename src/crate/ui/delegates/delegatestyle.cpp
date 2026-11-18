@@ -104,6 +104,9 @@ DelegateStyle DelegateStyle::fromVariables(const SkinVariables& variables) {
     style.ringWidth = number(variables, QStringLiteral("CrateLevelRingWidth"));
     style.ringTrackWidth = number(variables, QStringLiteral("CrateLevelRingTrackWidth"));
     style.ringMinimum = number(variables, QStringLiteral("CrateLevelRingMinimum"));
+    style.scoreFigure = whole(variables, QStringLiteral("CrateLibScoreFigure"));
+    style.scoreGap = whole(variables, QStringLiteral("CrateLibScoreGap"));
+    style.likeIcon = whole(variables, QStringLiteral("CrateLibLikeIcon"));
 
     style.sidebarItemInset = whole(variables, QStringLiteral("CrateSidebarItemInset"));
     style.sidebarItemPadding = whole(variables, QStringLiteral("CrateSidebarItemPadding"));

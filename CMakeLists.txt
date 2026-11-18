@@ -5445,6 +5445,7 @@ if(CRATE)
       src/crate/ui/trackmenuhook.cpp
       src/crate/ui/delegates/camelotdelegate.cpp
       src/crate/ui/delegates/celldelegate.cpp
+      src/crate/ui/delegates/compatiblesdelegates.cpp
       src/crate/ui/delegates/delegatestyle.cpp
       src/crate/ui/delegates/sidebardelegate.cpp
       src/crate/ui/delegates/statedelegates.cpp

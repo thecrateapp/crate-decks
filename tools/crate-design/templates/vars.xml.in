@@ -265,6 +265,15 @@
   <SetVariable name="CrateLibColumnCache">{{libraryColumnCache}}</SetVariable>
   <SetVariable name="CrateLibColumnArtist">{{libraryColumnArtist}}</SetVariable>
   <SetVariable name="CrateLibColumnGenre">{{libraryColumnGenre}}</SetVariable>
+  <SetVariable name="CrateLibColumnRank">{{libraryColumnRank}}</SetVariable>
+  <SetVariable name="CrateLibColumnScore">{{libraryColumnScore}}</SetVariable>
+  <SetVariable name="CrateLibColumnDelta">{{libraryColumnDelta}}</SetVariable>
+  <SetVariable name="CrateLibColumnHarmony">{{libraryColumnHarmony}}</SetVariable>
+  <SetVariable name="CrateLibColumnDeltaEnergy">{{libraryColumnDeltaEnergy}}</SetVariable>
+  <SetVariable name="CrateLibColumnLike">{{libraryColumnLike}}</SetVariable>
+  <SetVariable name="CrateLibScoreFigure">{{libraryScoreFigure}}</SetVariable>
+  <SetVariable name="CrateLibScoreGap">{{libraryScoreGap}}</SetVariable>
+  <SetVariable name="CrateLibLikeIcon">{{iconSm}}</SetVariable>
   <SetVariable name="CrateLibFontSizeText">{{fontSizeCaption}}</SetVariable>
   <SetVariable name="CrateLibFontSizeMeta">{{fontSizeTable}}</SetVariable>
   <SetVariable name="CrateLibFontSizeHeader">{{fontSizeMeta}}</SetVariable>
