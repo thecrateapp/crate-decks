@@ -9,6 +9,7 @@
 #include <QSignalSpy>
 #include <QSqlQuery>
 #include <QTest>
+#include <QTimeZone>
 #include <memory>
 
 #include "crate/analysis/analysisimporter.h"

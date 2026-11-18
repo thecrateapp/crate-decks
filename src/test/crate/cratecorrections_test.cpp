@@ -8,6 +8,7 @@
 #include <QJsonObject>
 #include <QSignalSpy>
 #include <QTest>
+#include <QTimeZone>
 #include <memory>
 
 #include "crate/analysis/analysisimporter.h"
@@ -285,7 +286,8 @@ TEST_F(CrateCorrectionsTest, OffersUploadAfterManualGridEdit) {
     EXPECT_EQ(0, body.value(QStringLiteral("base_revision")).toInt(-1));
     EXPECT_EQ(kInstallation, body.value(QStringLiteral("client_id")).toString());
     EXPECT_DOUBLE_EQ(120.0, body.value(QStringLiteral("bpm")).toDouble());
-    EXPECT_EQ(QStringLiteral("delta-ms-v1"), body.value(QStringLiteral("beat_grid_format")));
+    EXPECT_EQ(QStringLiteral("delta-ms-v1"),
+            body.value(QStringLiteral("beat_grid_format")).toString());
     const QJsonArray beats = body.value(QStringLiteral("beat_grid_ms")).toArray();
     expectValidGrid(beats);
     // 0.25 s plus the 10 ms the user moved it

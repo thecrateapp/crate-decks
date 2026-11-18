@@ -8,6 +8,7 @@
 #include <QSignalSpy>
 #include <QSqlQuery>
 #include <QTest>
+#include <QTimeZone>
 #include <memory>
 
 #include "crate/client/crateclient.h"
@@ -134,7 +135,8 @@ TEST_F(OutboxTest, PersistsAcrossRestart) {
     ASSERT_EQ(1, m_network.sent.size());
     const auto first = m_network.last();
     EXPECT_EQ(QStringLiteral("/api/me/play-events"), first.request.url().path());
-    EXPECT_EQ(QStringLiteral("evt-1"), bodyOf(first).value(QStringLiteral("client_event_id")));
+    EXPECT_EQ(QStringLiteral("evt-1"),
+            bodyOf(first).value(QStringLiteral("client_event_id")).toString());
     first.pReply->respond(200, QByteArrayLiteral(R"({"ok": true, "id": 7})"));
 
     ASSERT_EQ(2, m_network.sent.size());
@@ -167,7 +169,10 @@ TEST_F(OutboxTest, BacksOff) {
     }
     // The same entry every time
     for (const auto& sent : std::as_const(m_network.sent)) {
-        EXPECT_EQ(QStringLiteral("evt-1"), bodyOf(sent).value(QStringLiteral("client_event_id")));
+        EXPECT_EQ(QStringLiteral("evt-1"),
+                bodyOf(sent)
+                        .value(QStringLiteral("client_event_id"))
+                        .toString());
     }
 
     // Delivered at last: the backoff starts again for the next entry
