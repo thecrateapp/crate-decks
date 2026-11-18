@@ -424,6 +424,19 @@ TEST_F(CrateCompatiblesViewTest, ShowsTheBandOrTheStripAndNeverGrows) {
     pTable->selectRow(0);
     EXPECT_QSTRING_EQ(QStringLiteral("Selected · 1 of 8"), view.selectedLabel()->text());
     EXPECT_QSTRING_EQ(QStringLiteral("Load in deck B"), view.loadButton()->text());
+    EXPECT_FALSE(view.badges().first()->isHidden());
+    // At 1366 x 768 with the library maximised: the badges that do not fit
+    // the side column drop from the end, none is cut
+    view.resize(1126, 616);
+    QCoreApplication::processEvents();
+    ASSERT_TRUE(view.band()->isVisible());
+    EXPECT_FALSE(view.badges().first()->isHidden());
+    for (const QLabel* pBadge : view.badges()) {
+        if (!pBadge->isHidden()) {
+            EXPECT_LE(pBadge->geometry().right(), pBadge->parentWidget()->width())
+                    << pBadge->text().toStdString();
+        }
+    }
     QSignalSpy plan(&view, &CompatiblesView::planTransitionRequested);
     view.planButton()->click();
     ASSERT_EQ(1, plan.size());

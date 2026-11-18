@@ -1831,6 +1831,11 @@ WTrackPropertyEditor {
   background-color: #0a0a0f;
   border: 0;
   border-bottom: 1px solid rgba(241, 245, 249, 26);
+  padding: 0;
+}
+/* The titles start where the cells' text does (the delegates' padding) */
+#CrateCacheViewDownloads QHeaderView::section,
+#CrateCacheViewOfflineSets QHeaderView::section {
   padding: 0 10px;
 }
 

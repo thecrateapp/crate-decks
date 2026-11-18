@@ -1045,6 +1045,9 @@ void CompatiblesView::layoutParts() {
         if (m_pWheel) {
             m_pWheel->setFixedSize(band.wheel, band.wheel);
         }
+        m_sideWidth = width - 2 * gutter - columns * gap - summaryWidth -
+                (m_pWheel ? band.wheel : 0) - metrics.px("compatColumnPaddingLeft");
+        fitBadges();
         m_pBand->setGeometry(0, top, width, band.height);
         top += band.height;
     }
@@ -1259,6 +1262,7 @@ void CompatiblesView::updateSelected() {
         m_pSelectedTitle->setText(tr("Select a track to load it or plan the transition"));
         m_pSelectedArtist->clear();
         for (QLabel* pBadge : std::as_const(m_badges)) {
+            pBadge->setProperty("crateWanted", false);
             pBadge->hide();
         }
         m_pLoad->setEnabled(false);
@@ -1328,12 +1332,35 @@ void CompatiblesView::updateSelected() {
     m_badges[3]->setText(cacheText);
     setTone(m_badges[3], cacheTone);
     for (QLabel* pBadge : std::as_const(m_badges)) {
-        pBadge->setVisible(!pBadge->text().isEmpty());
+        pBadge->setProperty("crateWanted", !pBadge->text().isEmpty());
     }
-    m_badges[1]->setVisible(!bpmDelta.isEmpty());
-    m_badges[2]->setVisible(!energyDelta.isEmpty());
+    m_badges[1]->setProperty("crateWanted", !bpmDelta.isEmpty());
+    m_badges[2]->setProperty("crateWanted", !energyDelta.isEmpty());
+    fitBadges();
     m_pLoad->setEnabled(!group.isEmpty());
     m_pPlan->setEnabled(!group.isEmpty());
+}
+
+void CompatiblesView::fitBadges() {
+    // The badges keep their order and drop from the end where the side
+    // column is short of room for them
+    const int gap = DialogMetrics::installed().px("chipGap");
+    int used = 0;
+    bool full = false;
+    for (QLabel* pBadge : std::as_const(m_badges)) {
+        if (!pBadge->property("crateWanted").toBool()) {
+            pBadge->hide();
+            continue;
+        }
+        const int needed = (used > 0 ? gap : 0) + pBadge->sizeHint().width();
+        if (full || (m_sideWidth > 0 && used + needed > m_sideWidth)) {
+            full = true;
+            pBadge->hide();
+            continue;
+        }
+        used += needed;
+        pBadge->show();
+    }
 }
 
 void CompatiblesView::updateCount() {

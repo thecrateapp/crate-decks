@@ -258,6 +258,9 @@ class CompatiblesView : public QWidget, public LibraryView {
     QLabel* selectedLabel() const {
         return m_pSelectedEyebrow;
     }
+    const QList<QLabel*>& badges() const {
+        return m_badges;
+    }
     QLabel* stripCounts() const {
         return m_pStripCounts;
     }
@@ -328,6 +331,8 @@ class CompatiblesView : public QWidget, public LibraryView {
     void updateCache();
     void updateSelected();
     void updateCount();
+    /// Shows the selected track's badges that fit the side column.
+    void fitBadges();
     void watchSelection();
     void layoutParts();
     /// The table's selected row, or -1.
@@ -376,6 +381,8 @@ class CompatiblesView : public QWidget, public LibraryView {
     QTimer m_clock;
     ControlProxy* m_pMaximized = nullptr;
     bool m_compact = false;
+    /// The side column's room for its content, in pixels; 0 if unknown.
+    int m_sideWidth = 0;
 };
 
 } // namespace crate::recs
