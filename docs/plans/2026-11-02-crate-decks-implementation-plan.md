@@ -1494,6 +1494,22 @@ and the per-uid read of Compatibles (a prepared statement over about 25 local ro
 - **Tests:** `test_planner_prefers_user_correction`, `test_other_users_keep_profile`; en Decks, que el acuerdo en vivo con el servidor siga al 100 % con correcciones.
 - Contrato y detalles, a revisar con Diego antes de implementar.
 
+**Decided (Diego, 2026-11-18):**
+
+- **Scope:** only plans requested with `source: "decks"` by a signed-in user. Listen, Android's continuation and
+  VirtualDJ keep the shared profile.
+- **Grid:** the anchors are re-snapped to the corrected grid: `beat_anchor_ms` is the first corrected beat; the
+  downbeat and the intro/outro beat and downbeat anchors snap to the corrected beat nearest to the profile's, which
+  keeps the profile's bar phase; `intro_bpm` and `outro_bpm` take the corrected BPM.
+- **Phrases:** if the corrected BPM is within 2 % of the profile's, phrase boundaries snap to the nearest corrected
+  downbeat; otherwise the planner uses its bar heuristic for that track.
+- **Confidence:** a corrected BPM or grid sets `bpm_confidence` to 1.0; a corrected key sets the Camelot key and
+  `key_confidence` to 1.0. A cleared correction (all fields null) applies nothing.
+- **Facts found before deciding:** the planner reads anchors, not `beat_grid_ms` (only the stems layer does);
+  `limit_violations` reads plan fields and policy limits, never BPM, key or grid, so Decks' mirror needs no change;
+  the server's plan cache key has no user, so a corrected edge adds the correction's identity to it; Decks asks
+  plans with empty profile revisions, so its plan cache must drop a track's plans when its correction changes.
+
 ---
 
 ## V · Rediseño visual con el lenguaje del admin
