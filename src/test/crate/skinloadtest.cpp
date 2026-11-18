@@ -54,16 +54,22 @@
 #include "coreservices.h"
 #include "crate/appidentity.h"
 #include "crate/brand/brandtext.h"
+#include "crate/cache/audiocache.h"
 #include "crate/crateserverrows.h"
 #include "crate/crateservers.h"
 #include "crate/db/crateserverprofiles.h"
 #include "crate/db/crateserverschema.h"
 #include "crate/library/cratelibraryjson.h"
 #include "crate/library/cratelibrarystore.h"
+#include "crate/recs/compatiblesmodel.h"
+#include "crate/recs/compatiblesview.h"
+#include "crate/recs/recsjson.h"
 #include "crate/smartmix/assistpanel.h"
 #include "crate/smartmix/planclient.h"
 #include "crate/smartmix/smartmixassist.h"
 #include "crate/system/systemcheck.h"
+#include "crate/ui/cachestatusmodel.h"
+#include "crate/ui/cachestatusview.h"
 #include "crate/ui/crateaddserverwidget.h"
 #include "crate/ui/cratefirstrun.h"
 #include "crate/ui/crateprefsections.h"
@@ -2526,6 +2532,462 @@ TEST_F(CrateSkinScreenshots, SmartMix) {
     assist.cancel();
     ControlObject::set(showSmartMix, 0);
     capture(QStringLiteral("smartmix-closed-1920"), QSize(1920, 1080));
+}
+
+/// The GU1 mockups' library (decks.js TRACKS): title, artist, genre, BPM,
+/// key, duration, energy (1 to 10) and profile quality, for the Crate views'
+/// screenshots.
+struct MockupTrack {
+    const char* title;
+    const char* artist;
+    const char* genre;
+    double bpm;
+    const char* key;
+    const char* time;
+    int energy;
+    const char* quality;
+};
+
+const MockupTrack kMockupTracks[] = {
+        {"Lattice", "Ondine Varga", "Melodic Techno", 124.00, "8A", "6:12", 7, "full"},
+        {"Northbound Static",
+                "Kessler & Moor",
+                "Progressive House",
+                123.50,
+                "9A",
+                "7:04",
+                6,
+                "full"},
+        {"Glass Orchard", "Tomas Rielle", "Deep House", 124.00, "8B", "6:48", 6, "full"},
+        {"Halcyon Drift", "Mirae", "Melodic Techno", 125.00, "7A", "5:56", 8, "partial"},
+        {"Undertow (Extended Mix)",
+                "Fenna Calder",
+                "Organic House",
+                122.00,
+                "3A",
+                "7:31",
+                5,
+                "full"},
+        {"Cassiopeia", "Ruben Ost", "Techno", 126.00, "9B", "6:22", 8, "full"},
+        {"Low Sun", "Aya Lindqvist", "Downtempo", 120.00, "10A", "5:40", 4, "none"},
+        {"Paper Satellites", "Odd Harbour", "Melodic House", 124.00, "8A", "6:05", 7, "full"},
+        {"Signal Bloom", "Theo Marlin", "Techno", 127.00, "4A", "6:58", 9, "full"},
+        {"Meridian", "Kessler & Moor", "Progressive House", 123.00, "7B", "7:12", 6, "partial"},
+        {"Night Ferry", "Lumen Ward", "Melodic Techno", 124.00, "8A", "6:44", 7, "full"},
+        {"Saltwater Hymn", "Ines Moreau", "Organic House", 121.00, "2A", "6:30", 5, "full"},
+        {"Thermal", "Dalia Kross", "Peak Techno", 128.00, "9A", "6:01", 9, "full"},
+        {"Afterglow Index", "Pablo Serrat", "Deep House", 124.00, "5A", "7:20", 6, "full"},
+        {"Quiet Machines", "Nils Aaberg", "Minimal", 122.50, "8A", "6:15", 5, "full"},
+        {"Copper Line", "Mara Esteve", "Melodic House", 124.00, "9A", "6:37", 7, "full"},
+        {"Tidal Arrays", "Jun Okabe", "Melodic Techno", 125.00, "8B", "6:50", 8, "full"},
+        {"Lantern Season", "Ondine Varga", "Progressive House", 123.00, "7A", "7:02", 6, "full"},
+        {"Even Keel", "Rosa Vance", "Melodic Techno", 124.00, "3A", "6:21", 8, "full"},
+        {"Sodium Glow", "Kai Brennan", "Techno", 126.00, "10A", "5:48", 9, "partial"},
+        {"Velvet Static", "Odd Harbour", "Deep House", 124.00, "8A", "6:28", 6, "full"},
+        {"Wake Patterns", "Lea Fournier", "Progressive House", 123.50, "9A", "6:59", 7, "full"},
+};
+
+double mockupSeconds(const char* time) {
+    const QStringList parts = QString::fromLatin1(time).split(u':');
+    return parts.value(0).toInt() * 60 + parts.value(1).toInt();
+}
+
+/// The mockup's tracks as the rows of insertCrateLibrary(); the track at
+/// index `i` gets the entity uid "uid-<i>".
+bool writeMockupCrateRows(const QString& path) {
+    QFile file(path);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        return false;
+    }
+    for (const MockupTrack& track : kMockupTracks) {
+        file.write(QStringLiteral("%1\t%2\t\t%3\t%4\t%5\t%6\t%7\t%8\n")
+                        .arg(QString::fromUtf8(track.title),
+                                QString::fromUtf8(track.artist),
+                                QString::fromUtf8(track.genre),
+                                QString::number(track.bpm, 'f', 2),
+                                QString::fromLatin1(track.key),
+                                QString::number(mockupSeconds(track.time)),
+                                QString::number(track.energy),
+                                QString::fromLatin1(track.quality))
+                        .toUtf8());
+    }
+    return true;
+}
+
+/// The server's answer to the compatible tracks of "Lattice" (uid-0), as
+/// library-compatibles.html ranks them: track index, score and the
+/// harmonic relationship the server gives (`same`, `adjacent`, `relative`;
+/// the mockup's "Energy +7" has no relationship of its own, and "—" is
+/// `incompatible`).
+QByteArray mockupCompatiblesAnswer() {
+    const struct {
+        int track;
+        double score;
+        const char* relationship;
+    } results[] = {
+            {10, 0.94, "same"},
+            {7, 0.91, "same"},
+            {15, 0.88, "adjacent"},
+            {2, 0.86, "relative"},
+            {3, 0.83, "adjacent"},
+            {16, 0.81, "relative"},
+            {18, 0.79, "unknown"},
+            {14, 0.77, "same"},
+            {20, 0.76, "same"},
+            {21, 0.74, "adjacent"},
+            {17, 0.71, "adjacent"},
+            {12, 0.62, "adjacent"},
+            {13, 0.55, "incompatible"},
+            {19, 0.52, "incompatible"},
+    };
+    QJsonArray items;
+    for (const auto& result : results) {
+        const MockupTrack& track = kMockupTracks[result.track];
+        items.append(QJsonObject{
+                {QStringLiteral("trackEntityUid"), QStringLiteral("uid-%1").arg(result.track)},
+                {QStringLiteral("title"), QString::fromUtf8(track.title)},
+                {QStringLiteral("artist"), QString::fromUtf8(track.artist)},
+                {QStringLiteral("genre"), QString::fromUtf8(track.genre)},
+                {QStringLiteral("score"), result.score},
+                {QStringLiteral("confidence"), 0.9},
+                {QStringLiteral("scoreBreakdown"),
+                        QJsonObject{{QStringLiteral("harmonicRelationship"),
+                                QString::fromLatin1(result.relationship)}}},
+                {QStringLiteral("duration"), mockupSeconds(track.time)},
+                {QStringLiteral("bpm"), track.bpm},
+                {QStringLiteral("camelot"), QString::fromLatin1(track.key)},
+                {QStringLiteral("energy"), track.energy / 10.0},
+        });
+    }
+    return QJsonDocument(QJsonObject{
+                                 {QStringLiteral("seedTrackEntityUid"), QStringLiteral("uid-0")},
+                                 {QStringLiteral("context"), QStringLiteral("auto")},
+                                 {QStringLiteral("items"), items},
+                         })
+            .toJson();
+}
+
+class HarnessStorageInfo : public crate::cache::StorageInfo {
+  public:
+    qint64 bytesAvailable(const QString&) const override {
+        return 100 * crate::cache::AudioCache::kGiB;
+    }
+};
+
+crate::test::FakeReply::Headers flacStreamHeaders(qint64 contentLength) {
+    return {{QByteArrayLiteral("Content-Length"), QByteArray::number(contentLength)},
+            {QByteArrayLiteral("ETag"), QByteArrayLiteral("\"e1\"")},
+            {QByteArrayLiteral("Content-Type"), QByteArrayLiteral("audio/flac")}};
+}
+
+/// An audio cache of the harness server's tracks whose streams come from a
+/// fake network, for the cache view: complete files, an offline set,
+/// downloads on their way and waiting. Nothing reaches a server.
+class HarnessAudioCache {
+  public:
+    HarnessAudioCache()
+            : m_client(QUrl(QStringLiteral("https://dev.crate.local")), &m_network, [] {
+                  crate::ClientOptions options;
+                  options.deviceFingerprint = QStringLiteral("install-1");
+                  return options;
+              }()) {
+        m_client.setTokenSource(&m_tokens);
+        crate::cache::AudioCache::Options options;
+        options.directory = m_dir.path();
+        options.clientFor = [this](const QString& serverId) -> crate::Client* {
+            return serverId == kServer ? &m_client : nullptr;
+        };
+        options.limitBytes = 1000 * 1000 * 1000;
+        options.pStorageInfo = std::make_shared<HarnessStorageInfo>();
+        m_pCache = std::make_unique<crate::cache::AudioCache>(std::move(options));
+    }
+
+    crate::cache::AudioCache* cache() const {
+        return m_pCache.get();
+    }
+
+    bool loaded() {
+        return waitFor([this] { return m_pCache->isLoaded(); }, 5000);
+    }
+
+    /// The open stream of `uid`, or nullptr.
+    crate::test::FakeReply* stream(const QString& uid) {
+        const QString path = QStringLiteral("/api/tracks/by-entity/%1/stream").arg(uid);
+        crate::test::FakeReply* pFound = nullptr;
+        waitFor(
+                [&] {
+                    for (const auto& sent : std::as_const(m_network.sent)) {
+                        if (sent.request.url().path() == path && sent.pReply &&
+                                !sent.pReply->isFinished()) {
+                            pFound = sent.pReply.data();
+                        }
+                    }
+                    return pFound != nullptr;
+                },
+                5000);
+        return pFound;
+    }
+
+    crate::cache::CacheTicket* ensure(int track, crate::cache::Priority priority, qint64 size) {
+        crate::cache::TrackHints hints;
+        hints.format = QStringLiteral("flac");
+        hints.byteLength = size;
+        return m_pCache->ensure(kServer, QStringLiteral("uid-%1").arg(track), priority, hints);
+    }
+
+    /// Downloads the whole track, `size` bytes.
+    bool download(int track, qint64 size) {
+        crate::cache::CacheTicket* pTicket = ensure(track, crate::cache::Priority::Prefetch, size);
+        bool ready = false;
+        QObject context;
+        QObject::connect(pTicket, &crate::cache::CacheTicket::ready, &context, [&ready] {
+            ready = true;
+        });
+        crate::test::FakeReply* pReply = stream(QStringLiteral("uid-%1").arg(track));
+        if (!pReply) {
+            return ready;
+        }
+        pReply->respond(200, QByteArray(size, 'x'), flacStreamHeaders(size));
+        return waitFor([&ready] { return ready; }, 5000);
+    }
+
+    /// Starts the download of the track and stops it at `fraction`.
+    bool startDownload(
+            int track, crate::cache::Priority priority, qint64 size, double fraction) {
+        ensure(track, priority, size);
+        crate::test::FakeReply* pReply = stream(QStringLiteral("uid-%1").arg(track));
+        if (!pReply) {
+            return false;
+        }
+        pReply->respondHeaders(200, flacStreamHeaders(size));
+        pReply->sendBody(QByteArray(static_cast<qsizetype>(size * fraction), 'x'));
+        return true;
+    }
+
+    static inline const QString kServer = QStringLiteral("harness-server");
+
+  private:
+    QTemporaryDir m_dir;
+    crate::test::FakeNetworkAccessManager m_network;
+    crate::test::FakeTokenSource m_tokens;
+    crate::Client m_client;
+    std::unique_ptr<crate::cache::AudioCache> m_pCache;
+};
+
+/// Dev-only harness, like Capture: the Crate views of plan V3.PR2 for the
+/// side-by-side comparison with the GU1 mockups (library-compatibles.html,
+/// the sidebar of main-2deck.html), at 1920 x 1080 and 1366 x 768, with the
+/// library pane at its height under the decks and maximised:
+///
+/// - `crateviews-sidebar-*`: the Crate section of the sidebar with the
+///   mockups' library and its playlists expanded, the library open.
+/// - `crateviews-compatibles-*`: the Compatibles view (plan F5.C-PR1) with
+///   the mockup's 14 results for "Lattice" (8A, 124 BPM), the first one
+///   selected and the fourth under the mouse.
+/// - `crateviews-cache-*`: the cache view (plan F4.C-PR4) with complete
+///   files, an offline set of the "Warm-up · Nov" playlist, two downloads on
+///   their way and three waiting.
+///
+/// Needs CRATE_SKIN_SCREENSHOTS=<output dir>; the decks stay empty. The
+/// tracks are the mockups' (decks.js TRACKS) and nothing reaches a server:
+/// the compatibles are the answer the server would give, stored as
+/// Compatibles stores it, and the cache's streams come from a fake network.
+/// Without a server the app's Compatibles never gets to Ready, so the
+/// harness shows the view as it is then: no hint, and the followed track in
+/// the title.
+TEST_F(CrateSkinScreenshots, CrateViews) {
+    const QString outDir = qEnvironmentVariable("CRATE_SKIN_SCREENSHOTS");
+    if (outDir.isEmpty()) {
+        GTEST_SKIP() << "Set CRATE_SKIN_SCREENSHOTS=<dir> to render the Crate views";
+    }
+    QDir().mkpath(outDir);
+    const bool openGl = QGuiApplication::platformName() != QLatin1String("offscreen");
+
+    QTemporaryDir profile;
+    ASSERT_TRUE(profile.isValid());
+    const QString settingsPath = profile.path() + QLatin1Char('/');
+    OffscreenDecks decks(settingsPath);
+    SoundSourceProxy::registerProviders();
+    decks.writeProfile(kCrateDecks,
+            {
+                    {ConfigKey("[Library]", "SupportedFileExtensions"),
+                            SoundSourceProxy::getSupportedFileSuffixes().join(u',')},
+                    {ConfigKey("[Controls]", "PositionDisplay"), QStringLiteral("1")},
+                    {ConfigKey("[Key]", "KeyNotation"), QStringLiteral("Lancelot")},
+                    {ConfigKey("[Config]", "hide_menubar"), QStringLiteral("1")},
+            });
+    const QString rows = profile.filePath(QStringLiteral("crate-rows.tsv"));
+    ASSERT_TRUE(writeMockupCrateRows(rows));
+    ASSERT_TRUE(insertCrateLibrary(settingsPath, rows));
+    decks.start(application());
+    ASSERT_NE(nullptr, decks.skin());
+    decks.mainWindow()->menuBar()->hide();
+    if (auto* pStatus = decks.skin()->findChild<crate::ServerStatus*>()) {
+        pStatus->showStatus(QStringLiteral("dev.crate.local"),
+                crate::ServerStatus::State::Connected);
+    }
+    auto* pFeature = decks.coreServices()
+                             ->getLibrary()
+                             ->findChild<crate::library::CrateServerFeature*>();
+    ASSERT_NE(nullptr, pFeature);
+    auto* pSidebar = decks.skin()->findChild<WLibrarySidebar*>();
+    ASSERT_NE(nullptr, pSidebar);
+    auto* pSidebarModel = qobject_cast<SidebarModel*>(pSidebar->model());
+    ASSERT_NE(nullptr, pSidebarModel);
+
+    // The item of the Crate section whose label starts with `label`: the
+    // local section has a "Playlists" of its own
+    const auto sidebarItem = [pSidebarModel](const QString& label) {
+        QList<QModelIndex> pending;
+        for (int row = 0; row < pSidebarModel->rowCount(); ++row) {
+            const QModelIndex index = pSidebarModel->index(row, 0);
+            if (index.data().toString().startsWith(QLatin1String("Crate"))) {
+                pending.append(index);
+            }
+        }
+        while (!pending.isEmpty()) {
+            const QModelIndex parent = pending.takeFirst();
+            for (int row = 0; row < pSidebarModel->rowCount(parent); ++row) {
+                const QModelIndex index = pSidebarModel->index(row, 0, parent);
+                if (index.data().toString().startsWith(label)) {
+                    return index;
+                }
+                pending.append(index);
+            }
+        }
+        return QModelIndex();
+    };
+    // Opens the item as a click does
+    const auto open = [&](const QString& label) {
+        const QModelIndex index = sidebarItem(label);
+        EXPECT_TRUE(index.isValid()) << label.toStdString();
+        if (index.isValid()) {
+            pSidebar->selectIndex(index, false);
+            pSidebarModel->clicked(index);
+        }
+        waitFor([] { return false; }, 300);
+    };
+    const auto capture = [&](const QString& name, const QSize& size) {
+        // The session, signed out without a server, replaces the status
+        if (auto* pStatus = decks.skin()->findChild<crate::ServerStatus*>()) {
+            pStatus->showStatus(QStringLiteral("dev.crate.local"),
+                    crate::ServerStatus::State::Connected);
+        }
+        // Again once the layout settled: a view's minimum height from the
+        // other size may have held the window taller
+        decks.mainWindow()->resize(size);
+        waitFor([] { return false; }, 1000);
+        decks.mainWindow()->resize(size);
+        waitFor([] { return false; }, 1000);
+        QImage image = decks.skin()->grab().toImage();
+        if (openGl) {
+            paintOpenGlWindows(decks.skin(), &image);
+        }
+        const QString file = QDir(outDir).filePath(name + QStringLiteral(".png"));
+        EXPECT_TRUE(image.save(file)) << file.toStdString();
+    };
+    // Each view at both sizes, under the decks and with the library maximised
+    const auto captureView = [&](const QString& view) {
+        for (const bool maximised : {false, true}) {
+            ControlObject::set(ConfigKey("[Skin]", "show_maximized_library"), maximised ? 1 : 0);
+            for (const QSize& size : {QSize(1920, 1080), QSize(1366, 768)}) {
+                capture(QStringLiteral("crateviews-%1-%2%3")
+                                .arg(view)
+                                .arg(size.width())
+                                .arg(maximised ? QStringLiteral("-maxlib") : QString()),
+                        size);
+            }
+        }
+        ControlObject::set(ConfigKey("[Skin]", "show_maximized_library"), 0);
+    };
+
+    // The Crate section with its playlists expanded, the library open
+    open(QStringLiteral("Library"));
+    // The server's containers fill the sections once its tree is read
+    EXPECT_TRUE(waitFor(
+            [&] {
+                const QModelIndex index = sidebarItem(QStringLiteral("Playlists"));
+                return index.isValid() && pSidebarModel->rowCount(index) > 0;
+            },
+            10000));
+    const QModelIndex playlists = sidebarItem(QStringLiteral("Playlists"));
+    ASSERT_TRUE(playlists.isValid());
+    pSidebar->expand(playlists);
+    captureView(QStringLiteral("sidebar"));
+    pSidebar->collapse(playlists);
+
+    // Compatibles: the mockup's results for "Lattice", the first selected and
+    // the fourth under the mouse
+    open(QStringLiteral("Compatibles"));
+    auto* pCompatiblesView = decks.skin()->findChild<crate::recs::CompatiblesView*>();
+    ASSERT_NE(nullptr, pCompatiblesView);
+    EXPECT_EQ(pCompatiblesView, decks.skin()->findChild<WLibrary*>()->currentWidget());
+    {
+        const auto compatibles = crate::recs::parseCompatibleTracks(mockupCompatiblesAnswer());
+        ASSERT_TRUE(compatibles.ok()) << compatibles.error().message.toStdString();
+        const QString name = QStringLiteral("crate-views-compatibles");
+        {
+            QSqlDatabase db = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), name);
+            db.setDatabaseName(settingsPath + QString::fromUtf8(crate::kDatabaseFileName));
+            ASSERT_TRUE(db.open());
+            const auto stored = crate::recs::storeCompatibles(db,
+                    QStringLiteral("harness-server"),
+                    QStringLiteral("uid-0"),
+                    compatibles.value(),
+                    QStringLiteral("2026-11-09T10:00:00Z"),
+                    124.0);
+            ASSERT_TRUE(stored.ok()) << stored.error().message.toStdString();
+            pFeature->compatibles()->model()->setResults(
+                    QStringLiteral("harness-server"), QStringLiteral("uid-0"), stored.value());
+        }
+        QSqlDatabase::removeDatabase(name);
+    }
+    pCompatiblesView->hint()->hide();
+    if (auto* pTitle = pCompatiblesView->findChild<QLabel*>(
+                QStringLiteral("CrateCompatiblesTitle"))) {
+        pTitle->setText(QStringLiteral("Compatible with Ondine Varga - Lattice"));
+    }
+    if (auto* pTable = pCompatiblesView->findChild<WTrackTableView*>()) {
+        pTable->selectRow(0);
+        waitFor([] { return false; }, 200);
+        const QPoint at(pTable->viewport()->width() / 2,
+                pTable->rowViewportPosition(3) + pTable->rowHeight(3) / 2);
+        QMouseEvent move(QEvent::MouseMove,
+                at,
+                pTable->viewport()->mapToGlobal(at),
+                Qt::NoButton,
+                Qt::NoButton,
+                Qt::NoModifier);
+        QCoreApplication::sendEvent(pTable->viewport(), &move);
+    }
+    captureView(QStringLiteral("compatibles"));
+
+    // The cache, 1 GB: ten complete files (0.5 GB), five of them the offline set of the
+    // first playlist ("Warm-up · Nov"), two downloads on their way and three
+    // waiting
+    HarnessAudioCache cache;
+    ASSERT_TRUE(cache.loaded());
+    for (int track = 0; track < 10; ++track) {
+        ASSERT_TRUE(cache.download(track, (38 + 3 * track) * 1000 * 1000)) << track;
+        if (track < 5) {
+            cache.cache()->pin(HarnessAudioCache::kServer,
+                    QStringLiteral("uid-%1").arg(track),
+                    QStringLiteral("offline-set:playlist:1"));
+        }
+    }
+    ASSERT_TRUE(cache.startDownload(10, crate::cache::Priority::Deck, 54 * 1000 * 1000, 0.62));
+    ASSERT_TRUE(cache.startDownload(11, crate::cache::Priority::Prefetch, 49 * 1000 * 1000, 0.35));
+    cache.ensure(12, crate::cache::Priority::AutoDj, 52 * 1000 * 1000);
+    cache.ensure(13, crate::cache::Priority::Prefetch, 58 * 1000 * 1000);
+    cache.ensure(14, crate::cache::Priority::OfflineSet, 43 * 1000 * 1000);
+    pFeature->cacheStatus()->setSources(cache.cache(), nullptr);
+    open(QStringLiteral("Cache"));
+    EXPECT_NE(nullptr,
+            qobject_cast<crate::CacheStatusView*>(
+                    decks.skin()->findChild<WLibrary*>()->currentWidget()));
+    captureView(QStringLiteral("cache"));
+    // The app's cache again before the harness's goes
+    pFeature->cacheStatus()->setSources(nullptr, nullptr);
 }
 
 /// Where `pWidget` is in `pAncestor`.
