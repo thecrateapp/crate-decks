@@ -1463,6 +1463,30 @@ elegido en SG3 de smart-mix-3. Activarlo por defecto en el servidor es decisión
   - Correcciones: BPM 127.95, grid `delta-ms-v1` (512 beats, idéntico al de `beatGridOf`) y tonalidad `8A` se guardan, se leen y el segundo equipo las aplica con el BPM bloqueado; sus beats quedan a menos de 0,01 ms, aunque al pasar a ms enteros 2 de 512 redondean al otro lado (límite del formato, no un fallo). Borrar deja los tres valores en `null` con una revisión más.
   - Como dice el contrato, el conjunto vacío y la corrección borrada conservan su fila y su revisión en el stack dev.
 
+### F7/F8 · Review before the integration PR (2026-11-18)
+
+A code review of `integ/decks-f5-f6b` against `main` found ten points; Diego approved fixing seven, each with a
+regression test that fails without the fix:
+
+- **Outbox order** (`outbox.cpp`): order now holds per subject (track and family: likes, rating, cue set,
+  correction; each play event alone). A write the server keeps answering with a retryable status (5xx, 408, 425,
+  429) is set aside with the later writes of its subject once its backoff reaches 30 min, so one bad write no
+  longer holds the rest for seven days. Network and session failures keep the strict order.
+- **Outbox load**: an entry enqueued before `start()` is no longer loaded twice.
+- **Cue sync** (`cratecuesync.cpp`): a newer server set still wins over edits not uploaded yet (Diego,
+  2026-11-16), and now emits `localEditsReplaced` as the 409 path does.
+- **Cue and correction queries** (`trackdatasync.cpp`): a failed query that may pass is asked again after 5 s,
+  30 s and then every 5 min while the tracks stay attached; before, its tracks stayed unreconciled.
+- **Playlist edit resync** (`cratelibrarysync.cpp`): `syncContainerTracks(id, done)` answers with the first sync
+  that starts after the call, never one already running that read the playlist before the change.
+- **Now playing** (`historyreporter.cpp`): moving to another server's track clears the first server's state.
+- **Radio** (`crateradiosource.cpp`): retries double from 1 s up to 32 s, and five batches in a row without a new
+  track end the radio as exhausted.
+
+Left as they are: the shutdown resend of a play event or cue set (the server deduplicates by `client_event_id`,
+and a PUT of the stored content answers 200), the rating's numeric id not being stored (one GET after a restart)
+and the per-uid read of Compatibles (a prepared statement over about 25 local rows, off the main thread).
+
 ### F8.SM · Correcciones en Smart Mix
 
 - **Servidor:** el planner (plans y menú v3) usa la corrección del usuario (BPM, grid, tonalidad) por encima del perfil, solo para los planes de ese usuario. Los perfiles compartidos no cambian. Un lote, sin N+1: las correcciones de las pistas del plan en una consulta.
