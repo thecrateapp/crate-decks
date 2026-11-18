@@ -8,6 +8,7 @@
 #include "crate/db/crateserverschema.h"
 #include "crate/library/cratelibrarystore.h"
 #include "crate/recs/recsjson.h"
+#include "crate/ui/delegates/delegateroles.h"
 #include "test/mixxxdbtest.h"
 
 // The model of the Compatibles view (plan F5.C-PR1): the compatible tracks
@@ -59,6 +60,7 @@ class CrateCompatiblesModelTest : public MixxxDbTest {
         seed.title = QStringLiteral("I Feel Loved");
         seed.bpm = 128.05983;
         seed.energy = 0.81485087;
+        seed.camelot = QStringLiteral("7B");
         lib::RemoteTrack first;
         first.entityUid = kFirst;
         first.title = QStringLiteral("An older title");
@@ -182,12 +184,25 @@ TEST_F(CrateCompatiblesModelTest, ShowsScoresAndFiltersByKey) {
     ASSERT_EQ(8, model.rowCount());
     EXPECT_EQ(CompatiblesModel::kCompatiblesColumnCount, model.columnCount());
     EXPECT_QSTRING_EQ(kFirst, model.entityUid(0));
-    EXPECT_QSTRING_EQ(QStringLiteral("89"),
+    EXPECT_QSTRING_EQ(QStringLiteral("0.89"),
             model.data(model.index(0, CompatiblesModel::kScoreColumn)).toString());
-    EXPECT_QSTRING_EQ(CompatiblesModel::harmonicLabel(QStringLiteral("same")),
+    EXPECT_NEAR(0.89,
+            model.data(model.index(0, CompatiblesModel::kScoreColumn),
+                         crate::delegates::ScoreRole)
+                    .toDouble(),
+            0.005);
+    // The Harmony column reads the two keys: the seed is 7B
+    EXPECT_QSTRING_EQ(QStringLiteral("7B"), model.seedCamelot());
+    EXPECT_QSTRING_EQ(crate::recs::harmonyLabel(crate::recs::Harmony::Same),
             model.data(model.index(0, CompatiblesModel::kHarmonicColumn)).toString());
-    EXPECT_QSTRING_EQ(QStringLiteral("0.0"),
+    EXPECT_TRUE(model.data(model.index(0, CompatiblesModel::kHarmonicColumn),
+                             crate::delegates::HarmonyMatchRole)
+                    .toBool());
+    EXPECT_QSTRING_EQ(QStringLiteral("−0.05"),
             model.data(model.index(0, CompatiblesModel::kBpmDeltaColumn)).toString());
+    EXPECT_FALSE(model.data(model.index(0, CompatiblesModel::kBpmDeltaColumn),
+                              crate::delegates::WarningRole)
+                    .toBool());
     EXPECT_QSTRING_EQ(QStringLiteral("0"),
             model.data(model.index(0, CompatiblesModel::kEnergyDeltaColumn)).toString());
     EXPECT_EQ(CompatiblesModel::kScoreColumn, model.fieldIndex(CompatiblesModel::kScoreField));
@@ -204,6 +219,17 @@ TEST_F(CrateCompatiblesModelTest, ShowsScoresAndFiltersByKey) {
     ASSERT_EQ(1, model.rowCount());
     EXPECT_QSTRING_EQ(QStringLiteral("relative"),
             model.scoresOf(model.entityUid(0))->harmonicRelationship);
+    EXPECT_QSTRING_EQ(crate::recs::harmonyLabel(crate::recs::Harmony::Relative),
+            model.data(model.index(0, CompatiblesModel::kHarmonicColumn)).toString());
+    // The band counts every result, filtered or not
+    const crate::recs::CompatiblesSummary summary = model.summary();
+    EXPECT_EQ(8, summary.results);
+    EXPECT_EQ(summary.same + summary.step + summary.relative + summary.energy + summary.other,
+            summary.results);
+    EXPECT_EQ(summary.harmonic, summary.results - summary.other);
+    EXPECT_GE(summary.relative, 1);
+    EXPECT_EQ(0, summary.cached);
+    EXPECT_EQ(5, model.bestCache(5).size());
     model.setKeyFilter(QString());
     EXPECT_EQ(8, model.rowCount());
 
@@ -216,6 +242,7 @@ TEST_F(CrateCompatiblesModelTest, ShowsScoresAndFiltersByKey) {
 
     model.clear();
     EXPECT_EQ(0, model.rowCount());
+    EXPECT_EQ(0, model.summary().results);
     EXPECT_TRUE(model.keysInResults().isEmpty());
 }
 

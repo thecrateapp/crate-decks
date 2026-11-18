@@ -30,6 +30,18 @@ enum Role : int {
     SidebarSectionRole,
     /// QString, a count shown in mono on the right of a sidebar item.
     SidebarCountRole,
+    /// bool, whether the user likes the track on Crate: a Solar heart,
+    /// filled in accentHi when liked.
+    LikedRole,
+    /// double from 0 to 1, a compatible track's score: its figure and a
+    /// 1 px lane in accentHi as long as the score.
+    ScoreRole,
+    /// bool, whether a compatible track's key mixes with the followed
+    /// track's: its harmony label is in accentHi, else textSubtle.
+    HarmonyMatchRole,
+    /// bool, whether a value needs the DJ's eye (a tempo far from the
+    /// followed track's): its text in the warning tone.
+    WarningRole,
 };
 
 /// How a track's key relates to the master deck's key (design 14.3).

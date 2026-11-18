@@ -9,6 +9,7 @@
 
 #include "crate/client/crateresult.h"
 #include "crate/library/cratelibrarystore.h"
+#include "crate/recs/harmony.h"
 #include "crate/recs/recsjson.h"
 #include "library/crateserver/crateservertrackmodel.h"
 
@@ -25,6 +26,24 @@ struct CompatibleScores {
     /// The track's energy level minus the followed track's, in the levels of
     /// the energy column (1 to 10).
     std::optional<int> energyDelta;
+};
+
+/// What the Compatibles view's band says of the results (GU1 mockup
+/// library-compatibles, "Master key"): how many there are, how many mix in
+/// key, how many are cached, and how many in each relation to the followed
+/// track's key.
+struct CompatiblesSummary {
+    int results = 0;
+    int harmonic = 0;
+    int cached = 0;
+    int same = 0;
+    /// ±1
+    int step = 0;
+    int relative = 0;
+    /// +7
+    int energy = 0;
+    /// Any other key, or none
+    int other = 0;
 };
 
 /// The compatible tracks as the catalogue holds them now, with their scores.
@@ -56,7 +75,8 @@ Result<StoredCompatibles> storeCompatibles(const QSqlDatabase& database,
 /// The tracks of the Compatibles view (plan F5.C-PR1, design §7.5): an
 /// in-memory model over `crateserver_tracks`, so that its rows load into
 /// decks, download, drag and go to Auto DJ as any Crate track, with four
-/// columns more: Score, Harmonic relation, Δ BPM and Δ energy. The rows keep
+/// columns more: Score, Harmony (harmonyOf() of the two Camelot keys), Δ BPM
+/// and Δ energy. The rows keep
 /// the server's ranking until the user sorts them. A key filter (the Camelot
 /// wheel's click) shows only the tracks in one key.
 class CompatiblesModel : public library::CrateServerTrackModel {
@@ -69,6 +89,10 @@ class CompatiblesModel : public library::CrateServerTrackModel {
         kEnergyDeltaColumn,
         kCompatiblesColumnCount,
     };
+
+    /// A tempo this far from the followed track's, in BPM, shows in the
+    /// warning tone (GU1 mockup library-compatibles).
+    static constexpr double kBpmDeltaWarning = 3.0;
 
     static const QString kScoreField;
     static const QString kHarmonicField;
@@ -105,6 +129,17 @@ class CompatiblesModel : public library::CrateServerTrackModel {
     }
     /// The scores of a track of the results.
     std::optional<CompatibleScores> scoresOf(const QString& entityUid) const;
+    /// Every result, filtered or not, in the server's order.
+    const QVector<Row>& results() const {
+        return m_results;
+    }
+    /// The relation of a result's key to the followed track's: from the two
+    /// Camelot keys, or the server's relationship without them.
+    Harmony harmonyOfRow(const Row& row) const;
+    /// The counts of the band, over every result.
+    CompatiblesSummary summary() const;
+    /// Where the audio of the best `count` results is, best first.
+    QVector<CacheCell> bestCache(int count) const;
 
     /// What the Harmonic column says of a relationship.
     static QString harmonicLabel(const QString& relationship);
@@ -127,6 +162,7 @@ class CompatiblesModel : public library::CrateServerTrackModel {
     QString m_seedEntityUid;
     QString m_seedCamelot;
     QHash<QString, CompatibleScores> m_scores;
+    QVector<Row> m_results;
     QStringList m_keys;
     QString m_keyFilter;
 };

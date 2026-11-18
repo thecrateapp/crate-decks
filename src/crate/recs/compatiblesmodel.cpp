@@ -6,6 +6,8 @@
 #include <algorithm>
 #include <cmath>
 
+#include "crate/recs/harmony.h"
+#include "crate/ui/delegates/delegateroles.h"
 #include "moc_compatiblesmodel.cpp"
 #include "util/logger.h"
 
@@ -54,14 +56,18 @@ int energyLevel(double energy) {
     return std::clamp(static_cast<int>(std::lround(energy * 10)), 1, 10);
 }
 
-/// The order of the Harmonic column: the closest relationship first.
-int harmonicRank(const QString& relationship) {
-    static const QStringList kOrder{QStringLiteral("same"),
-            QStringLiteral("adjacent"),
-            QStringLiteral("relative"),
-            QStringLiteral("incompatible")};
-    const qsizetype rank = kOrder.indexOf(relationship);
-    return rank < 0 ? static_cast<int>(kOrder.size()) : static_cast<int>(rank);
+/// The order of the Harmony column: the closest relation first, unknown
+/// last.
+int harmonyRank(Harmony harmony) {
+    return harmony == Harmony::Unknown ? static_cast<int>(Harmony::Other) + 1
+                                       : static_cast<int>(harmony);
+}
+
+/// A delta with its sign, a true minus and `decimals` ("+0.00", "−1.50").
+QString signedText(double value, int decimals) {
+    const double rounded = std::abs(value) < 0.5 * std::pow(10.0, -decimals) ? 0.0 : value;
+    const QString digits = QString::number(std::abs(rounded), 'f', decimals);
+    return (rounded < 0 ? QStringLiteral("−") : QStringLiteral("+")) + digits;
 }
 
 /// Writes what the answer carries of each track, keeping what only a
@@ -242,6 +248,7 @@ void CompatiblesModel::setResults(const QString& serverId,
     m_seedEntityUid = seedEntityUid;
     m_seedCamelot = results.seedCamelot;
     m_scores = results.scores;
+    m_results = results.rows;
     m_keys.clear();
     for (const Row& row : results.rows) {
         const QString key = row.camelot.toUpper();
@@ -256,6 +263,7 @@ void CompatiblesModel::clear() {
     m_seedEntityUid.clear();
     m_seedCamelot.clear();
     m_scores.clear();
+    m_results.clear();
     m_keys.clear();
     setRows(QString(), QString(), {});
 }
@@ -316,42 +324,100 @@ QVariant CompatiblesModel::data(const QModelIndex& index, int role) const {
         return QVariant();
     }
     if (role == Qt::TextAlignmentRole) {
-        return column == kHarmonicColumn
+        return column == kHarmonicColumn || column == kScoreColumn
                 ? QVariant::fromValue(Qt::AlignLeft | Qt::AlignVCenter)
                 : QVariant::fromValue(Qt::AlignRight | Qt::AlignVCenter);
-    }
-    if (role != Qt::DisplayRole && role != Qt::ToolTipRole && role != Qt::EditRole) {
-        return QVariant();
     }
     const CompatibleScores* pScores = scoresOfRow(*pRow);
     if (!pScores) {
         return QVariant();
     }
+    switch (role) {
+    case delegates::ScoreRole:
+        return column == kScoreColumn ? QVariant(pScores->score) : QVariant();
+    case delegates::HarmonyMatchRole:
+        return column == kHarmonicColumn ? QVariant(isHarmonic(harmonyOfRow(*pRow)))
+                                         : QVariant();
+    case delegates::WarningRole:
+        return column == kBpmDeltaColumn
+                ? QVariant(pScores->bpmDelta && std::abs(*pScores->bpmDelta) >= kBpmDeltaWarning)
+                : QVariant();
+    case Qt::DisplayRole:
+    case Qt::ToolTipRole:
+    case Qt::EditRole:
+        break;
+    default:
+        return QVariant();
+    }
     switch (column) {
     case kScoreColumn:
-        return QString::number(std::lround(pScores->score * 100));
+        return QString::number(pScores->score, 'f', 2);
     case kHarmonicColumn:
-        return harmonicLabel(pScores->harmonicRelationship);
-    case kBpmDeltaColumn: {
-        if (!pScores->bpmDelta) {
-            return QVariant();
-        }
-        const double delta = *pScores->bpmDelta;
-        if (std::abs(delta) < 0.05) {
-            return QStringLiteral("0.0");
-        }
-        return QString::asprintf("%+.1f", delta);
-    }
+        return harmonyLabel(harmonyOfRow(*pRow));
+    case kBpmDeltaColumn:
+        return pScores->bpmDelta ? QVariant(signedText(*pScores->bpmDelta, 2)) : QVariant();
     case kEnergyDeltaColumn: {
         if (!pScores->energyDelta) {
             return QVariant();
         }
         const int delta = *pScores->energyDelta;
-        return delta == 0 ? QStringLiteral("0") : QString::asprintf("%+d", delta);
+        return delta == 0 ? QStringLiteral("0") : signedText(delta, 0);
     }
     default:
         return QVariant();
     }
+}
+
+Harmony CompatiblesModel::harmonyOfRow(const Row& row) const {
+    const Harmony harmony = harmonyOf(m_seedCamelot, row.camelot);
+    if (harmony != Harmony::Unknown) {
+        return harmony;
+    }
+    // Without both keys, what the server says
+    const CompatibleScores* pScores = scoresOfRow(row);
+    return pScores ? harmonyOfRelationship(pScores->harmonicRelationship) : Harmony::Unknown;
+}
+
+CompatiblesSummary CompatiblesModel::summary() const {
+    CompatiblesSummary summary;
+    summary.results = static_cast<int>(m_results.size());
+    for (const Row& row : m_results) {
+        const Harmony harmony = harmonyOfRow(row);
+        if (isHarmonic(harmony)) {
+            ++summary.harmonic;
+        }
+        switch (harmony) {
+        case Harmony::Same:
+            ++summary.same;
+            break;
+        case Harmony::Up:
+        case Harmony::Down:
+            ++summary.step;
+            break;
+        case Harmony::Relative:
+            ++summary.relative;
+            break;
+        case Harmony::EnergyBoost:
+            ++summary.energy;
+            break;
+        case Harmony::Other:
+        case Harmony::Unknown:
+            ++summary.other;
+            break;
+        }
+        if (cacheCellOf(row).state == delegates::CacheState::Ready) {
+            ++summary.cached;
+        }
+    }
+    return summary;
+}
+
+QVector<CompatiblesModel::CacheCell> CompatiblesModel::bestCache(int count) const {
+    QVector<CacheCell> cells;
+    for (int index = 0; index < m_results.size() && index < count; ++index) {
+        cells.append(cacheCellOf(m_results[index]));
+    }
+    return cells;
 }
 
 QVariant CompatiblesModel::headerData(int section, Qt::Orientation orientation, int role) const {
@@ -387,13 +453,13 @@ QVariant CompatiblesModel::headerData(int section, Qt::Orientation orientation, 
         return tr("Score");
     case kHarmonicColumn:
         //: How the key of a compatible track relates to the one on air
-        return tr("Harmonic");
+        return tr("Harmony");
     case kBpmDeltaColumn:
         //: The BPM of a compatible track minus the one on air's
         return tr("Δ BPM");
     default:
         //: The energy level of a compatible track minus the one on air's
-        return tr("Δ Nrg");
+        return tr("Δ E");
     }
 }
 
@@ -452,8 +518,8 @@ std::optional<bool> CompatiblesModel::lessThan(
     case kScoreColumn:
         return ordered(pLeft->score, pRight->score);
     case kHarmonicColumn:
-        return ordered(harmonicRank(pLeft->harmonicRelationship),
-                harmonicRank(pRight->harmonicRelationship));
+        // The closest relation first
+        return ordered(harmonyRank(harmonyOfRow(left)), harmonyRank(harmonyOfRow(right)));
     case kBpmDeltaColumn: {
         // The closest tempo first
         const auto distance = [](const std::optional<double>& delta) {

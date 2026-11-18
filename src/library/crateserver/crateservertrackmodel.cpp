@@ -342,6 +342,32 @@ void CrateServerTrackModel::setRows(
     load();
 }
 
+CrateServerTrackModel::CacheCell CrateServerTrackModel::cacheCellOf(const Row& row) const {
+    cache::TrackState state;
+    if (m_pCoordinator && m_pCoordinator->cache()) {
+        state = m_pCoordinator->cache()->trackState(row.serverId, row.entityUid);
+    }
+    CacheCell cell;
+    cell.progress = state.bytesTotal > 0
+            ? static_cast<double>(state.bytesReceived) / static_cast<double>(state.bytesTotal)
+            : 0.0;
+    switch (state.kind) {
+    case cache::TrackState::Kind::Ready:
+        cell.state = delegates::CacheState::Ready;
+        break;
+    case cache::TrackState::Kind::Queued:
+    case cache::TrackState::Kind::Downloading:
+        cell.state = delegates::CacheState::Downloading;
+        break;
+    case cache::TrackState::Kind::Failed:
+        cell.state = delegates::CacheState::Failed;
+        break;
+    case cache::TrackState::Kind::None:
+        break;
+    }
+    return cell;
+}
+
 const CrateServerTrackModel::Row* CrateServerTrackModel::rowAt(int row) const {
     return row >= 0 && row < m_rows.size() ? &m_rows[row] : nullptr;
 }
@@ -578,28 +604,14 @@ QVariant CrateServerTrackModel::data(const QModelIndex& index, int role) const {
         if (column != kCacheColumn) {
             return QVariant();
         }
-        cache::TrackState state;
-        if (m_pCoordinator && m_pCoordinator->cache()) {
-            state = m_pCoordinator->cache()->trackState(row.serverId, row.entityUid);
-        }
-        if (role == delegates::CacheProgressRole) {
-            return state.bytesTotal > 0 ? static_cast<double>(state.bytesReceived) /
-                            static_cast<double>(state.bytesTotal)
-                                        : 0.0;
-        }
-        switch (state.kind) {
-        case cache::TrackState::Kind::Ready:
-            return static_cast<int>(delegates::CacheState::Ready);
-        case cache::TrackState::Kind::Queued:
-        case cache::TrackState::Kind::Downloading:
-            return static_cast<int>(delegates::CacheState::Downloading);
-        case cache::TrackState::Kind::Failed:
-            return static_cast<int>(delegates::CacheState::Failed);
-        case cache::TrackState::Kind::None:
-            break;
-        }
-        return static_cast<int>(delegates::CacheState::None);
+        const CacheCell cell = cacheCellOf(row);
+        return role == delegates::CacheProgressRole ? QVariant(cell.progress)
+                                                    : QVariant(static_cast<int>(cell.state));
     }
+    case delegates::LikedRole:
+        return column == kLikedColumn
+                ? QVariant(m_likedOf && m_likedOf(row.serverId, row.entityUid))
+                : QVariant();
     case Qt::TextAlignmentRole:
         switch (column) {
         case kPositionColumn:

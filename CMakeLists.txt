@@ -5401,6 +5401,7 @@ if(CRATE)
       src/crate/library/cratetrackpreparer.cpp
       src/crate/recs/compatiblesmodel.cpp
       src/crate/recs/compatiblesview.cpp
+      src/crate/recs/harmony.cpp
       src/crate/recs/cratepathsource.cpp
       src/crate/recs/crateradiosource.cpp
       src/crate/recs/recommendationqueue.cpp
@@ -5496,6 +5497,7 @@ if(CRATE)
         src/test/crate/crateclient_test.cpp
         src/test/crate/compatiblesmodel_test.cpp
         src/test/crate/compatiblesview_test.cpp
+        src/test/crate/harmony_test.cpp
         src/test/crate/cratepathsource_test.cpp
         src/test/crate/crateradiosource_test.cpp
         src/test/crate/recommendationqueue_test.cpp
