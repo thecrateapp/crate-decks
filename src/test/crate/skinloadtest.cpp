@@ -3155,6 +3155,52 @@ TEST_F(CrateSkinLoadTest, CompatiblesFitsThePaneAndKeepsTheWindowsSize) {
     EXPECT_TRUE(pSearchRow->isVisible());
 }
 
+/// The sidebar's 8 px scroll bar shows only when its items overflow (plan
+/// V3.PR2): under the decks at 1366 x 768 they do, with the library
+/// maximised at 1920 x 1080 they do not.
+TEST_F(CrateSkinLoadTest, SidebarScrollBarShowsOnlyWhenItOverflows) {
+    QTemporaryDir profile;
+    ASSERT_TRUE(profile.isValid());
+    const QString settingsPath = profile.path() + QLatin1Char('/');
+    OffscreenDecks decks(settingsPath);
+    decks.writeProfile(kCrateDecks, {{ConfigKey("[Config]", "hide_menubar"), QStringLiteral("1")}});
+    const QString rows = profile.filePath(QStringLiteral("crate-rows.tsv"));
+    ASSERT_TRUE(writeMockupCrateRows(rows));
+    ASSERT_TRUE(insertCrateLibrary(settingsPath, rows));
+    decks.start(application());
+    ASSERT_NE(nullptr, decks.skin());
+    decks.mainWindow()->menuBar()->hide();
+    auto* pSidebar = decks.skin()->findChild<WLibrarySidebar*>();
+    ASSERT_NE(nullptr, pSidebar);
+    EXPECT_EQ(Qt::ScrollBarAsNeeded, pSidebar->verticalScrollBarPolicy());
+    // The library's scroll bars: 8 px (tokens.json scrollbarWidth, in QSS)
+    constexpr int kScrollbarWidth = 8;
+    const struct {
+        QSize size;
+        bool maximised;
+        bool overflows;
+    } cases[] = {
+            {QSize(1366, 768), false, true},
+            {QSize(1920, 1080), true, false},
+    };
+    for (const auto& item : cases) {
+        const std::string at = std::to_string(item.size.width()) +
+                (item.maximised ? " px, library maximised" : " px");
+        ControlObject::set(ConfigKey("[Skin]", "show_maximized_library"), item.maximised ? 1 : 0);
+        for (int pass = 0; pass < 2; ++pass) {
+            decks.mainWindow()->resize(item.size);
+            waitFor([] { return false; }, 1000);
+        }
+        QScrollBar* pBar = pSidebar->verticalScrollBar();
+        EXPECT_EQ(item.overflows, pBar->maximum() > 0) << at;
+        EXPECT_EQ(item.overflows, pBar->isVisible()) << at;
+        if (pBar->isVisible()) {
+            EXPECT_EQ(kScrollbarWidth, pBar->width()) << at;
+        }
+    }
+    ControlObject::set(ConfigKey("[Skin]", "show_maximized_library"), 0);
+}
+
 /// Where `pWidget` is in `pAncestor`.
 QRect rectIn(const QWidget* pWidget, const QWidget* pAncestor) {
     return QRect(pWidget->mapTo(pAncestor, QPoint(0, 0)), pWidget->size());

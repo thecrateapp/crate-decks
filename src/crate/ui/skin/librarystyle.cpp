@@ -945,12 +945,14 @@ void styleLibrary(QWidget* pSkinRoot,
         pSidebar->setItemDelegate(pDelegate);
         // The delegate indents child items itself and draws no branches,
         // as the admin's navigation, and the rows are as wide as the sidebar.
-        // The admin hides its navigation's scroll bar (.hide-rail-scrollbar);
-        // the wheel and the keys still scroll it
+        // The library's 8 px scroll bar shows only when the items overflow
+        // (Diego, 2026-11-18, plan V3.PR2): the admin hides its navigation's
+        // (.hide-rail-scrollbar), but a short pane under the decks needs to
+        // say there is more
         pSidebar->setIndentation(0);
         pSidebar->setRootIsDecorated(false);
         pSidebar->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-        pSidebar->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        pSidebar->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
         pSidebar->setMouseTracking(true);
         pSidebar->viewport()->setAttribute(Qt::WA_Hover);
     }
