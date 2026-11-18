@@ -5547,6 +5547,7 @@ if(CRATE)
         src/test/crate/skinloadtest.cpp
         src/test/crate/mixerstyletest.cpp
         src/test/crate/delegatestest.cpp
+        src/test/crate/nohardcodedcolorstest.cpp
         src/test/crate/dialogstest.cpp
         src/test/crate/decktrackfieldstest.cpp
         src/test/crate/brandvisibletest.cpp

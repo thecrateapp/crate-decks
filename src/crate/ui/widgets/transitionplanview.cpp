@@ -860,8 +860,9 @@ void TransitionPlanView::paintLegend(QPainter* pPainter) const {
             pPainter->setPen(pen);
             pPainter->drawLine(QLineF(x, crisp(middle), x + mark, crisp(middle)));
         } else {
-            // stack-map.css .stack-map__legend i: a 9 px dot with a 1 px rim
-            QColor fill = Qt::transparent;
+            // stack-map.css .stack-map__legend i: a 9 px dot with a 1 px rim,
+            // hollow as the nodes are: filled with the background
+            QColor fill = m_style.background;
             QColor rim = m_style.textMuted;
             if (item.node == MomentKind::Entry) {
                 fill = m_style.accent;
