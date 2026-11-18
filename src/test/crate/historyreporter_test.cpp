@@ -43,7 +43,7 @@ class HistoryReporterTest : public MixxxDbTest {
   protected:
     HistoryReporterTest()
             : MixxxDbTest(true),
-              m_now(QDateTime(QDate(2026, 11, 16), QTime(22, 0), QTimeZone::UTC)) {
+              m_now(QDateTime(QDate(2026, 11, 16), QTime(22, 0), QTimeZone::utc())) {
     }
 
     void SetUp() override {

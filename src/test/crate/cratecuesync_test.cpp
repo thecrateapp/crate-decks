@@ -137,7 +137,7 @@ class CrateCueSyncTest : public MixxxDbTest, SoundSourceProviderRegistration {
   protected:
     CrateCueSyncTest()
             : MixxxDbTest(true),
-              m_now(QDateTime(QDate(2026, 11, 16), QTime(22, 0), QTimeZone::UTC)) {
+              m_now(QDateTime(QDate(2026, 11, 16), QTime(22, 0), QTimeZone::utc())) {
     }
 
     void SetUp() override {
@@ -615,7 +615,7 @@ TEST_F(CrateCueSyncTest, DecidesConflictsOnTheServerClock) {
     ASSERT_EQ(1, pending.size());
     // The server's microseconds are read too
     EXPECT_NEAR(0,
-            QDateTime(QDate(2026, 11, 16), QTime(22, 30, 0, 665), QTimeZone::UTC)
+            QDateTime(QDate(2026, 11, 16), QTime(22, 30, 0, 665), QTimeZone::utc())
                     .msecsTo(QDateTime::fromString(
                             pending.first().value(QStringLiteral("edited_at")).toString(),
                             Qt::ISODateWithMs)),
