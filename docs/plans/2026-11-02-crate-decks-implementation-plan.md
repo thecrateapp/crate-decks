@@ -1764,6 +1764,13 @@ La vista del plan de Smart Mix sale de este PR y pasa a V3.PR1b (Diego, 2026-11-
   - `NoGraphicsEffects`: falla si `src/crate/ui/` usa `QGraphicsEffect`.
   - Los tests de las vistas de F4–F6 siguen en verde.
 
+**Decided (Diego, 2026-11-18), V3.PR2**, after a capture comparison with the GU1 mockups (`CrateSkinScreenshots.CrateViews`):
+
+- **Compatibles fits its pane:** the top band scales the wheel to the pane's height, down to its 235 px minimum; below that it collapses to a one-line strip (master key, relation counts, a wheel toggle) and the list takes the pane. Maximised, it is `library-compatibles.html`. Today the 470 px wheel grows the window to 1149 px at both sizes: that is a bug this PR fixes.
+- **Compatibles' top band is the mockup's:** wheel, the "Master key" summary (key and mode, Results / Harmonic / Cached, a meter per relation) and the side column (legend, "Prewarm cache · top 5" with LevelRings, the selected track with "Load in deck N" and "Plan transition", which opens the Smart Mix assistant for that edge). The compact strip keeps only the key and the counts.
+- **Cache view:** LevelGauge stays for the total usage (as in the Preferences mockup); each download's progress and the cache column use LevelRing r 7.
+- **Crate sidebar section:** order and items stay as they are (no Paths item); the 8 px library scrollbar shows only when the sidebar overflows. The Local section is not touched.
+
 **V3.PR3 · Preferencias y diálogos de Crate**
 - La página de preferencias Crate (F2.C-PR3) y los diálogos propios usan los estilos de V2.PR5: secciones con MonoLabel, reglas de 1 px y sin cajas anidadas.
 
