@@ -2,6 +2,7 @@
 
 #include <QHash>
 #include <QJsonObject>
+#include <QSet>
 #include <QString>
 #include <QVector>
 #include <functional>
@@ -73,6 +74,9 @@ bool applyCorrection(const TrackPointer& pTrack, const Correction& correction);
 /// - save() sends the stored correction with the corrected values of the
 ///   track; clear() sends one with no values. Both go through the Outbox,
 ///   and a 409 resolves as for the cues.
+/// - correctionChanged() says when a track's correction changed, for the
+///   Smart Mix plans of the track, which the server makes with it (plan
+///   F8.SM).
 class CrateCorrections : public TrackDataSync {
     Q_OBJECT
   public:
@@ -109,6 +113,11 @@ class CrateCorrections : public TrackDataSync {
   signals:
     /// The user corrected the track: Decks offers to save it to Crate.
     void correctionOffered(const QString& serverId, const QString& entityUid);
+    /// The track's correction changed (plan F8.SM): saved or cleared here,
+    /// stored by the server, or a different one applied from the server on
+    /// load or in a conflict. The server's Smart Mix plans of the track that
+    /// came before are stale. `entityUid` is in lowercase.
+    void correctionChanged(const QString& serverId, const QString& entityUid);
 
   protected:
     bool reconcile(const QString& key,
@@ -122,6 +131,7 @@ class CrateCorrections : public TrackDataSync {
     QJsonObject contentToResend(const QString& key, const QJsonObject& sent) override;
     void trackChanged(const QString& key, const TrackPointer& pTrack, Change change) override;
     void absorb(const QString& key, const TrackPointer& pTrack) override;
+    void delivered(const QString& key) override;
 
   private:
     struct Snapshot {
@@ -140,6 +150,9 @@ class CrateCorrections : public TrackDataSync {
     /// Edits waiting for their debounce.
     QHash<QString, Offer> m_dirty;
     QHash<QString, Offer> m_offers;
+    /// Applied from the server with another correction than the baseline:
+    /// correctionChanged() once serverDataApplied() says it is in.
+    QSet<QString> m_appliedChanges;
     ProfileRestorer m_restoreProfile;
 };
 

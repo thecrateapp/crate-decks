@@ -227,6 +227,15 @@ CrateCorrections::CrateCorrections(Options options, QObject* pParent)
                                 outboxkind::kCorrection},
                   std::move(options),
                   pParent) {
+    // After the baseline and the revision of what was applied are stored
+    connect(this,
+            &TrackDataSync::serverDataApplied,
+            this,
+            [this](const QString& serverId, const QString& entityUid) {
+                if (m_appliedChanges.remove(keyOf(serverId, entityUid))) {
+                    emit correctionChanged(serverId, entityUid.toLower());
+                }
+            });
 }
 
 std::optional<CrateCorrections::Offer> CrateCorrections::offer(
@@ -266,6 +275,7 @@ bool CrateCorrections::save(const QString& serverId, const QString& entityUid) {
     }
     enqueuePut(key, toJson(correction), editStamp(key));
     takeSnapshot(key, pTrack);
+    emit correctionChanged(serverIdOf(key), entityUidOf(key));
     return true;
 }
 
@@ -284,6 +294,7 @@ bool CrateCorrections::clear(const QString& serverId, const QString& entityUid) 
         });
         takeSnapshot(key, pTrack);
     }
+    emit correctionChanged(serverIdOf(key), entityUidOf(key));
     return true;
 }
 
@@ -340,9 +351,13 @@ QJsonObject CrateCorrections::contentOf(const QJsonObject& serverEntry) const {
 QJsonObject CrateCorrections::applyServerContent(
         const QString& key, const TrackPointer& pTrack, const QJsonObject& content) {
     const Correction correction = correctionFromJson(content);
+    const Correction before = correctionFromJson(stateOf(key).baseline);
+    if (correction != before) {
+        m_appliedChanges.insert(key);
+    }
     if (correction.isEmpty()) {
         // Cleared on another computer: Crate's analysis applies again
-        revertCorrection(key, pTrack, correctionFromJson(stateOf(key).baseline));
+        revertCorrection(key, pTrack, before);
     } else if (!applyCorrection(pTrack, correction)) {
         kLogger.warning() << "Cannot apply the correction of" << pTrack->getLocation()
                           << ": its sample rate is not known yet";
@@ -385,6 +400,11 @@ void CrateCorrections::trackChanged(
 void CrateCorrections::absorb(const QString& key, const TrackPointer& pTrack) {
     m_dirty.remove(key);
     takeSnapshot(key, pTrack);
+}
+
+void CrateCorrections::delivered(const QString& key) {
+    // The server plans with it from now on
+    emit correctionChanged(serverIdOf(key), entityUidOf(key));
 }
 
 void CrateCorrections::takeSnapshot(const QString& key, const TrackPointer& pTrack) {

@@ -165,6 +165,11 @@ class TrackDataSync : public QObject {
     virtual void trackChanged(const QString& key, const TrackPointer& pTrack, Change change) = 0;
     /// Whatever the track has now came from the analysis.
     virtual void absorb(const QString& key, const TrackPointer& pTrack) = 0;
+    /// The server stored the content sent last of `key` (its new revision is
+    /// the state's). Nothing by default.
+    virtual void delivered(const QString& key) {
+        Q_UNUSED(key);
+    }
 
     static QString keyOf(const QString& serverId, const QString& entityUid);
     /// The attached track of `key`, if it is still in memory.

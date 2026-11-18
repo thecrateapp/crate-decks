@@ -488,6 +488,7 @@ void TrackDataSync::onDelivered(const QString& serverId,
     State& state = m_states[key];
     state.revision = revision;
     storeState(key);
+    delivered(key);
 }
 
 void TrackDataSync::onConflicted(const QString& serverId,

@@ -510,12 +510,14 @@ TEST_F(CrateCorrectionsTest, RevertsWhenTheCorrectionIsGoneElsewhere) {
 
 TEST_F(CrateCorrectionsTest, ConflictAppliesTheNewerCorrection) {
     QSignalSpy replaced(m_pSync.get(), &CrateCorrections::localEditsReplaced);
+    QSignalSpy changed(m_pSync.get(), &CrateCorrections::correctionChanged);
     const TrackPointer pTrack = analysedTrack();
     attachAndAnswer(pTrack, queryAnswer({}, {kUid}));
     pTrack->setKeyText(QStringLiteral("Am"), mixxx::track::io::key::USER);
     m_scheduler.runAll();
     ASSERT_TRUE(m_pSync->save(kServer, kUid));
     waitForPuts(1);
+    ASSERT_EQ(1, changed.size());
 
     // Another computer saved one at 22:10, after the edit here
     puts().constFirst().pReply->respond(409,
@@ -539,6 +541,89 @@ TEST_F(CrateCorrectionsTest, ConflictAppliesTheNewerCorrection) {
     EXPECT_TRUE(pTrack->isBpmLocked());
     EXPECT_EQ(1, puts().size());
     EXPECT_EQ(0, m_pOutbox->pendingCount());
+    // Plan F8.SM: the other computer's correction is the track's now
+    EXPECT_EQ(2, changed.size());
+}
+
+// Plan F8.SM: the server plans Smart Mix with the user's correction, so
+// Decks hears when it changes. A correction of another computer applied on
+// load changes it; the same one again, even at a newer revision, does not.
+TEST_F(CrateCorrectionsTest, SignalsTheCorrectionsThatComeChanged) {
+    QSignalSpy changed(m_pSync.get(), &CrateCorrections::correctionChanged);
+    const TrackPointer pTrack = analysedTrack();
+    // None on Crate
+    attachAndAnswer(pTrack, queryAnswer({}, {kUid}));
+    EXPECT_TRUE(changed.isEmpty());
+
+    // Another computer saved one
+    attachAndAnswer(pTrack,
+            queryAnswer({correction(2, 126.0, QJsonValue(), QStringLiteral("8A"))}, {}));
+    ASSERT_EQ(1, changed.size());
+    EXPECT_EQ(kServer, changed.first().at(0).toString());
+    EXPECT_EQ(kUid, changed.first().at(1).toString());
+
+    // The same one: at its revision, and stored again at a newer one
+    attachAndAnswer(pTrack,
+            queryAnswer({correction(2, 126.0, QJsonValue(), QStringLiteral("8A"))}, {}));
+    attachAndAnswer(pTrack,
+            queryAnswer({correction(3, 126.0, QJsonValue(), QStringLiteral("8A"))}, {}));
+    EXPECT_EQ(3, m_pSync->revision(kServer, kUid));
+    EXPECT_EQ(1, changed.size());
+
+    // Its key changed, and then it was cleared, on another computer
+    attachAndAnswer(pTrack,
+            queryAnswer({correction(4, 126.0, QJsonValue(), QStringLiteral("9A"))}, {}));
+    EXPECT_EQ(2, changed.size());
+    attachAndAnswer(pTrack,
+            queryAnswer({correction(5, QJsonValue(), QJsonValue(), QJsonValue())}, {}));
+    EXPECT_EQ(3, changed.size());
+    EXPECT_FALSE(m_pSync->hasCorrection(kServer, kUid));
+}
+
+// Plan F8.SM: saving and clearing here change the correction at once, and
+// again when the server has stored it, which plans with it from then on.
+TEST_F(CrateCorrectionsTest, SignalsSavesAndClearsMadeHere) {
+    QSignalSpy changed(m_pSync.get(), &CrateCorrections::correctionChanged);
+    const TrackPointer pTrack = analysedTrack();
+    attachAndAnswer(pTrack, queryAnswer({}, {kUid}));
+    // Nothing to save or clear
+    EXPECT_FALSE(m_pSync->save(kServer, kUid));
+    EXPECT_FALSE(m_pSync->clear(kServer, kUid));
+    EXPECT_TRUE(changed.isEmpty());
+
+    pTrack->setKeyText(QStringLiteral("Am"), mixxx::track::io::key::USER);
+    m_scheduler.runAll();
+    // Offered is not changed
+    EXPECT_TRUE(changed.isEmpty());
+    ASSERT_TRUE(m_pSync->save(kServer, kUid));
+    ASSERT_EQ(1, changed.size());
+    EXPECT_EQ(kServer, changed.last().at(0).toString());
+    EXPECT_EQ(kUid, changed.last().at(1).toString());
+    waitForPuts(1);
+    EXPECT_EQ(1, changed.size());
+    puts().constLast().pReply->respond(200,
+            QJsonDocument(withServerTime(correction(1,
+                                  QJsonValue(),
+                                  QJsonValue(),
+                                  QStringLiteral("8A"),
+                                  kInstallation)))
+                    .toJson());
+    ASSERT_TRUE(QTest::qWaitFor([&] {
+        return changed.size() == 2;
+    }));
+    EXPECT_EQ(1, m_pSync->revision(kServer, kUid));
+
+    ASSERT_TRUE(m_pSync->clear(kServer, kUid));
+    EXPECT_EQ(3, changed.size());
+    waitForPuts(2);
+    puts().constLast().pReply->respond(200,
+            QJsonDocument(withServerTime(correction(
+                                  2, QJsonValue(), QJsonValue(), QJsonValue(), kInstallation)))
+                    .toJson());
+    ASSERT_TRUE(QTest::qWaitFor([&] {
+        return changed.size() == 4;
+    }));
+    EXPECT_EQ(kUid, changed.last().at(1).toString());
 }
 
 } // namespace
