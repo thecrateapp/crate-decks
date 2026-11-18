@@ -5512,6 +5512,7 @@ if(CRATE)
         src/test/crate/crateloadintodecks_test.cpp
         src/test/crate/crateg3budgetslive_test.cpp
         src/test/crate/cratewritebacklive_test.cpp
+        src/test/crate/smartmixcorrectionslive_test.cpp
         src/test/crate/crateprefetcher_test.cpp
         src/test/crate/cratesearch_test.cpp
         src/test/crate/cratesessionpins_test.cpp
