@@ -56,6 +56,9 @@ class CamelotWheelModel : public QObject {
         /// The key in the chosen notation, as KeyUtils writes it ("8A",
         /// "1m", "Am"); only the code of a combined notation ("8A")
         QString label;
+        /// The key's traditional name after its label ("Am"), as the GU1
+        /// mockup's wheel writes it; empty when the label is that name
+        QString name;
         Relation relation = Relation::Rest;
         double opacity = 1;
     };
@@ -96,6 +99,14 @@ class CamelotWheelModel : public QObject {
 
     /// `key` in Camelot ("8A"), or an empty string.
     static QString camelotOf(ChromaticKey key);
+    /// `key`'s traditional name, the first of its spellings ("Am", "F♯"),
+    /// or an empty string.
+    static QString shortNameOf(ChromaticKey key);
+    /// `key` in words, as the mockups' "Master key" and the wheel's centre
+    /// write it ("A minor", "D♭ major"), or an empty string.
+    static QString nameOf(ChromaticKey key);
+    /// The key of `camelot` ("8A"); INVALID if it is not one.
+    static ChromaticKey keyOfCamelot(const QString& camelot);
     /// `key` in the chosen notation, in full ("8A (Am)"), or an empty
     /// string.
     QString labelOf(ChromaticKey key) const;

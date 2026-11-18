@@ -1,5 +1,7 @@
 #include "crate/ui/widgets/camelotwheelmodel.h"
 
+#include <QCoreApplication>
+
 #include "library/library_prefs.h"
 #include "moc_camelotwheelmodel.cpp"
 
@@ -72,8 +74,15 @@ void CamelotWheelModel::setNotation(KeyUtils::KeyNotation notation) {
     bool renamed = false;
     for (Node& node : m_nodes) {
         QString label = KeyUtils::keyToString(node.key, code);
-        if (label != node.label) {
+        // The mockup names each key after its code ("8A Am"), unless the
+        // label already is the name
+        QString name = shortNameOf(node.key);
+        if (name == label) {
+            name.clear();
+        }
+        if (label != node.label || name != node.name) {
             node.label = std::move(label);
+            node.name = std::move(name);
             renamed = true;
         }
     }
@@ -88,6 +97,41 @@ QString CamelotWheelModel::labelOf(ChromaticKey key) const {
 
 QString CamelotWheelModel::camelotOf(ChromaticKey key) {
     return KeyUtils::keyToString(key, KeyUtils::KeyNotation::Lancelot);
+}
+
+QString CamelotWheelModel::shortNameOf(ChromaticKey key) {
+    if (key == mixxx::track::io::key::INVALID) {
+        return QString();
+    }
+    // KeyUtils writes the enharmonic keys both ways ("F♯/G♭")
+    return KeyUtils::keyToString(key, KeyUtils::KeyNotation::Traditional)
+            .section(QLatin1Char('/'), 0, 0);
+}
+
+QString CamelotWheelModel::nameOf(ChromaticKey key) {
+    QString name = shortNameOf(key);
+    if (name.isEmpty()) {
+        return name;
+    }
+    if (KeyUtils::keyIsMajor(key)) {
+        //: A key in words, as the Compatibles view writes it: "D♭ major"
+        return QCoreApplication::translate("crate::widgets::CamelotWheelModel", "%1 major")
+                .arg(name);
+    }
+    name.chop(1);
+    //: A key in words, as the Compatibles view writes it: "A minor"
+    return QCoreApplication::translate("crate::widgets::CamelotWheelModel", "%1 minor")
+            .arg(name);
+}
+
+CamelotWheelModel::ChromaticKey CamelotWheelModel::keyOfCamelot(const QString& camelot) {
+    const QString text = camelot.trimmed().toUpper();
+    if (text.isEmpty()) {
+        return mixxx::track::io::key::INVALID;
+    }
+    const ChromaticKey key = KeyUtils::guessKeyFromText(text);
+    // Only a Camelot key reads back as itself
+    return camelotOf(key) == text ? key : mixxx::track::io::key::INVALID;
 }
 
 int CamelotWheelModel::indexOf(ChromaticKey key) const {

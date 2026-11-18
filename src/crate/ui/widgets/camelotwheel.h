@@ -15,8 +15,9 @@ namespace crate::widgets {
 /// (A inside, B outside) on GenreWheel's canvas, the master deck's key
 /// filled in accent, its compatible keys with an accentHi stroke and active
 /// edges with arrows, keys in the results at rest and the others at
-/// opacityContext, and the master key in display type in the centre. Every
-/// key reads in the notation of the preferences (the model's labels).
+/// opacityContext, and the master key in display type in the centre with
+/// its name under it. Every key reads in the notation of the preferences
+/// (the model's labels), followed by its traditional name where it fits.
 ///
 /// It paints only when its model changes (design 9): the rings and the
 /// related-pair spokes are cached in a pixmap until it is resized, and the
@@ -34,6 +35,12 @@ class CamelotWheel : public QWidget {
 
     /// The MonoLabel under the key in the centre ("A minor").
     void setSubtitle(const QString& subtitle);
+    const QString& subtitle() const {
+        return m_subtitle;
+    }
+    /// Whether the keys' names follow their codes ("9A Em"): only when the
+    /// outer ring's labels have room for them inside the wheel.
+    bool showsNames() const;
 
     QSize sizeHint() const override;
     QSize minimumSizeHint() const override;
@@ -77,7 +84,7 @@ class CamelotWheel : public QWidget {
     QPointF centre() const;
     void paintScale();
     void paintEdges(QPainter* pPainter) const;
-    void paintNodeAndLabel(QPainter* pPainter, int index) const;
+    void paintNodeAndLabel(QPainter* pPainter, int index, bool names) const;
     void paintCentre(QPainter* pPainter) const;
     void setHovered(int index);
     /// Paints the wheel again on the next paint event

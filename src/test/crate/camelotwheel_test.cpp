@@ -219,9 +219,14 @@ TEST_F(CrateCamelotWheelTest, FigureKeepsClearOfTheLabelsBesideIt) {
                  KeyUtils::KeyNotation::OpenKeyAndTraditional}) {
         m_pModel->setNotation(notation);
         const QImage image = render();
+        // The label and, where the wheel names the keys, the name after it
         const auto widthOf = [&](const QString& camelot) {
-            const int index = m_pModel->indexOf(key(camelot));
-            return metrics.horizontalAdvance(m_pModel->nodes().at(index).label);
+            const auto& node = m_pModel->nodes().at(m_pModel->indexOf(key(camelot)));
+            double width = metrics.horizontalAdvance(node.label);
+            if (m_pWheel->showsNames() && !node.name.isEmpty()) {
+                width += m_style.camelotNameGap + metrics.horizontalAdvance(node.name);
+            }
+            return width;
         };
         // Background in the label gap before each label: the figure, made
         // smaller for a long notation, does not reach it
@@ -259,6 +264,57 @@ TEST_F(CrateCamelotWheelTest, CachesStaticScaleUntilResize) {
     m_pWheel->resize(m_pWheel->width() - 40, m_pWheel->height() - 40);
     render();
     EXPECT_NE(m_pWheel->scaleCacheKey(), scale);
+}
+
+TEST_F(CrateCamelotWheelTest, NamesTheKeysWhereTheyFit) {
+    m_pModel->setNotation(KeyUtils::KeyNotation::Lancelot);
+    const CamelotWheelModel::Node& node =
+            m_pModel->nodes().at(m_pModel->indexOf(key(QStringLiteral("8A"))));
+    EXPECT_EQ(QStringLiteral("8A"), node.label);
+    EXPECT_EQ(QStringLiteral("Am"), node.name);
+    // At the mockup's size the names follow the codes ("9A Em"), and a
+    // smaller wheel drops them before the labels leave it
+    EXPECT_TRUE(m_pWheel->showsNames());
+    m_pWheel->resize(m_pWheel->minimumSizeHint());
+    EXPECT_FALSE(m_pWheel->showsNames());
+    // In the traditional notation the label is the name already
+    m_pModel->setNotation(KeyUtils::KeyNotation::Traditional);
+    EXPECT_TRUE(m_pModel->nodes().at(m_pModel->indexOf(key(QStringLiteral("8A")))).name.isEmpty());
+
+    EXPECT_EQ(QStringLiteral("A minor"), CamelotWheelModel::nameOf(key(QStringLiteral("8A"))));
+    EXPECT_EQ(QStringLiteral("C major"), CamelotWheelModel::nameOf(key(QStringLiteral("8B"))));
+    EXPECT_EQ(QStringLiteral("F♯ major"), CamelotWheelModel::nameOf(key(QStringLiteral("2B"))));
+    EXPECT_TRUE(CamelotWheelModel::nameOf(mixxx::track::io::key::INVALID).isEmpty());
+    EXPECT_EQ(key(QStringLiteral("12B")), CamelotWheelModel::keyOfCamelot(QStringLiteral(" 12b")));
+    EXPECT_EQ(mixxx::track::io::key::INVALID,
+            CamelotWheelModel::keyOfCamelot(QStringLiteral("Am")));
+    EXPECT_EQ(mixxx::track::io::key::INVALID, CamelotWheelModel::keyOfCamelot(QString()));
+}
+
+TEST_F(CrateCamelotWheelTest, CentreNamesTheMasterKey) {
+    m_pModel->setMasterKey(key(QStringLiteral("8A")));
+    const QImage bare = render();
+    m_pWheel->setSubtitle(CamelotWheelModel::nameOf(key(QStringLiteral("8A"))));
+    EXPECT_EQ(QStringLiteral("A minor"), m_pWheel->subtitle());
+    const QImage named = render();
+    // The subtitle is painted under the figure, where nothing else is
+    const QPoint centre = m_pWheel->rect().center();
+    const int baseline = centre.y() + qRound(m_style.camelotSubtitleBaseline);
+    const QRect band(centre.x() - 40,
+            baseline - qRound(m_style.fontSizeMeta * 0.8),
+            80,
+            qRound(m_style.fontSizeMeta * 0.8));
+    const auto inked = [&](const QImage& image) {
+        int pixels = 0;
+        for (int y = band.top(); y <= band.bottom(); ++y) {
+            for (int x = band.left(); x <= band.right(); ++x) {
+                pixels += image.pixelColor(x, y) != m_style.background ? 1 : 0;
+            }
+        }
+        return pixels;
+    };
+    EXPECT_EQ(0, inked(bare));
+    EXPECT_GT(inked(named), 20);
 }
 
 } // namespace

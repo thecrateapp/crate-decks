@@ -180,7 +180,28 @@ void CamelotWheel::paintEdges(QPainter* pPainter) const {
     pPainter->restore();
 }
 
-void CamelotWheel::paintNodeAndLabel(QPainter* pPainter, int index) const {
+bool CamelotWheel::showsNames() const {
+    // The names go only where the outer ring's labels have room for them
+    // inside the wheel, as at the mockup's 470 px
+    const QFontMetricsF metrics(
+            m_style.monoFont(m_style.fontSizeWheelLabel, m_style.trackingWheelLabel));
+    const double room = std::min(width(), height()) / 2.0 - m_style.camelotRingB * scale() -
+            m_style.nodeRoot - m_style.camelotLabelGap;
+    double widest = 0;
+    for (const CamelotWheelModel::Node& node : m_pModel->nodes()) {
+        // The inner ring's labels run inwards: only the outer ones can leave
+        // the wheel
+        if (node.name.isEmpty() || !node.major) {
+            continue;
+        }
+        widest = std::max(widest,
+                metrics.horizontalAdvance(node.label) + m_style.camelotNameGap +
+                        metrics.horizontalAdvance(node.name));
+    }
+    return widest > 0 && widest <= room;
+}
+
+void CamelotWheel::paintNodeAndLabel(QPainter* pPainter, int index, bool names) const {
     const CamelotWheelModel::Node& node = m_pModel->nodes().at(index);
     const bool isMaster = node.relation == CamelotWheelModel::Relation::Master;
     const bool isLinked = isMaster || node.relation == CamelotWheelModel::Relation::Compatible;
@@ -190,7 +211,7 @@ void CamelotWheel::paintNodeAndLabel(QPainter* pPainter, int index) const {
 
     // The label runs along the radius, inwards from the inner ring and
     // outwards from the outer one, and turns over on the left half so that
-    // it never reads upside down
+    // it never reads upside down. The key's name follows its code, subtler
     const QFont font = m_style.monoFont(m_style.fontSizeWheelLabel, m_style.trackingWheelLabel);
     const QFontMetricsF metrics(font);
     const double degrees = degreesOf(node);
@@ -199,7 +220,10 @@ void CamelotWheel::paintNodeAndLabel(QPainter* pPainter, int index) const {
     const double rotation = flip ? degrees + 90 : degrees - 90;
     const double offset = radius + m_style.camelotLabelGap;
     const double anchor = (flip ? -1 : 1) * (inward ? -offset : offset);
-    const double width = metrics.horizontalAdvance(node.label);
+    const bool named = names && !node.name.isEmpty();
+    const double codeWidth = metrics.horizontalAdvance(node.label);
+    const double width = codeWidth +
+            (named ? m_style.camelotNameGap + metrics.horizontalAdvance(node.name) : 0);
     const double left = flip == inward ? anchor : anchor - width;
     const double baseline = m_style.camelotLabelShift * m_style.fontSizeWheelLabel;
 
@@ -210,6 +234,11 @@ void CamelotWheel::paintNodeAndLabel(QPainter* pPainter, int index) const {
     pPainter->setFont(font);
     pPainter->setPen(isLinked ? m_style.textPrimary : m_style.textMuted);
     pPainter->drawText(QPointF(left, baseline), node.label);
+    if (named) {
+        pPainter->setPen(m_style.textSubtle);
+        pPainter->drawText(
+                QPointF(left + codeWidth + m_style.camelotNameGap, baseline), node.name);
+    }
     pPainter->restore();
 }
 
@@ -221,10 +250,15 @@ void CamelotWheel::paintCentre(QPainter* pPainter) const {
     // is in em, so the advance scales with the size.
     const QFontMetricsF labels(
             m_style.monoFont(m_style.fontSizeWheelLabel, m_style.trackingWheelLabel));
+    const bool names = showsNames();
     double widestLabel = 0;
     for (const CamelotWheelModel::Node& node : m_pModel->nodes()) {
         if (!node.major && node.number % (kKeysPerRing / 2) == kKeysPerRing / 4) {
-            widestLabel = std::max(widestLabel, labels.horizontalAdvance(node.label));
+            double width = labels.horizontalAdvance(node.label);
+            if (names && !node.name.isEmpty()) {
+                width += m_style.camelotNameGap + labels.horizontalAdvance(node.name);
+            }
+            widestLabel = std::max(widestLabel, width);
         }
     }
     const double room = 2 *
@@ -265,8 +299,9 @@ void CamelotWheel::paintEvent(QPaintEvent* /*pEvent*/) {
         frame.setRenderHint(QPainter::TextAntialiasing);
         frame.drawPixmap(0, 0, m_scale);
         paintEdges(&frame);
+        const bool names = showsNames();
         for (int index = 0; index < m_pModel->nodes().size(); ++index) {
-            paintNodeAndLabel(&frame, index);
+            paintNodeAndLabel(&frame, index, names);
         }
         paintCentre(&frame);
     }
