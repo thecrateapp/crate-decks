@@ -442,6 +442,40 @@ TEST_F(CrateLibrarySyncTest, ReplacesContainerTracksAtomically) {
             titles(warmUp));
 }
 
+TEST_F(CrateLibrarySyncTest, AnswersWithTheSyncThatStartsAfterTheCall) {
+    storeTree();
+    const qint64 warmUp = containerId(QStringLiteral("playlist"), QStringLiteral("7"));
+    LibrarySync* pSync = makeSync();
+    QSignalSpy synced(pSync, &LibrarySync::containerSynced);
+    pSync->syncContainerTracks(warmUp);
+    ASSERT_TRUE(waitForRequests(1));
+
+    // Asked while a sync runs: that one read the playlist before
+    QList<bool> answers;
+    pSync->syncContainerTracks(warmUp, [&answers](bool ok) {
+        answers.append(ok);
+    });
+    m_network.last().pReply->respond(200, page({track(QStringLiteral("a"), QStringLiteral("A"))}));
+    ASSERT_TRUE(synced.wait(5000));
+    EXPECT_TRUE(answers.isEmpty());
+
+    // The sync that repeats it answers
+    ASSERT_TRUE(waitForRequests(2));
+    m_network.last().pReply->respond(200, page({track(QStringLiteral("x"), QStringLiteral("X"))}));
+    ASSERT_TRUE(QTest::qWaitFor([&] { return !answers.isEmpty(); }, 5000));
+    EXPECT_EQ(QList<bool>({true}), answers);
+    EXPECT_EQ(QStringList({QStringLiteral("X")}), titles(warmUp));
+
+    // With nothing running, its own sync answers, also when it fails
+    pSync->syncContainerTracks(warmUp, [&answers](bool ok) {
+        answers.append(ok);
+    });
+    ASSERT_TRUE(waitForRequests(3));
+    m_network.last().pReply->respond(404, QByteArrayLiteral(R"({"detail": "Not found"})"));
+    ASSERT_TRUE(QTest::qWaitFor([&] { return answers.size() == 2; }, 5000));
+    EXPECT_EQ(QList<bool>({true, false}), answers);
+}
+
 TEST_F(CrateLibrarySyncTest, ParseRunsOffMainThread) {
     storeTree();
     const qint64 likes = containerId(QStringLiteral("likes"), QStringLiteral("me"));

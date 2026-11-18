@@ -378,31 +378,9 @@ CrateServerFeature::CrateServerFeature(Library* pLibrary,
             done(playlistId <= 0);
             return;
         }
-        // Answered once, by the first sync of the container that ends
-        auto pConnections = std::make_shared<std::pair<QMetaObject::Connection,
-                QMetaObject::Connection>>();
-        const auto finish = [pConnections, done](bool ok) {
-            QObject::disconnect(pConnections->first);
-            QObject::disconnect(pConnections->second);
-            done(ok);
-        };
-        pConnections->first = connect(pSync,
-                &LibrarySync::containerSynced,
-                this,
-                [containerId, finish](qint64 synced) {
-                    if (synced == containerId) {
-                        finish(true);
-                    }
-                });
-        pConnections->second = connect(pSync,
-                &LibrarySync::syncFailed,
-                this,
-                [containerId, finish](qint64 failed) {
-                    if (failed == containerId) {
-                        finish(false);
-                    }
-                });
-        pSync->syncContainerTracks(containerId);
+        // Answered by the first sync that starts after the edit: one already
+        // running may have read the playlist before the server changed it
+        pSync->syncContainerTracks(containerId, done);
     };
     m_pPlaylistEdit = std::make_unique<writeback::CratePlaylistEdit>(std::move(edit));
     connect(m_pPlaylistEdit.get(),
