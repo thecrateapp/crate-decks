@@ -463,6 +463,33 @@ CrateServerFeature::~CrateServerFeature() {
     m_pool.waitForDone();
 }
 
+PlanClient* CrateServerFeature::planClient(const QString& serverId) {
+    Client* pClient = m_pServers ? m_pServers->client(serverId) : nullptr;
+    if (!pClient) {
+        return nullptr;
+    }
+    std::unique_ptr<PlanClient>& pPlans = m_planClients[serverId];
+    if (!pPlans) {
+        pPlans = std::make_unique<PlanClient>(pClient);
+    }
+    return pPlans.get();
+}
+
+void CrateServerFeature::correctionChanged(const QString& serverId, const QString& entityUid) {
+    // Decks asks plans without profile revisions: the cache cannot tell
+    // the plans made before the correction from those made after
+    const auto it = m_planClients.find(serverId);
+    if (it != m_planClients.end() && it->second) {
+        it->second->invalidateTrack(entityUid);
+    }
+    if (m_pSmartMix) {
+        m_pSmartMix->trackPlansChanged(serverId, entityUid);
+    }
+    if (m_pAssist) {
+        m_pAssist->trackPlansChanged(serverId, entityUid);
+    }
+}
+
 CrateServers* CrateServerFeature::servers() {
     if (!m_pServers && !m_dependencies.pServers && CrateServers::instance()) {
         watchServers(CrateServers::instance());
@@ -537,6 +564,12 @@ void CrateServerFeature::watchServers(CrateServers* pServers) {
                 }
                 showWarning(message);
             });
+    // The server plans with the user's correction (plan F8.SM): the plans
+    // of a track whose correction changed are asked for again
+    connect(pServers->corrections(),
+            &writeback::CrateCorrections::correctionChanged,
+            this,
+            &CrateServerFeature::correctionChanged);
     // Clearing a correction puts Crate's profile back (Diego, 2026-11-16)
     pServers->corrections()->setProfileRestorer(
             [this](const TrackPointer& pTrack, const QString& serverId, const QString& uid) {
@@ -755,16 +788,8 @@ void CrateServerFeature::startLoading() {
     const auto trackOfFile = [pCache = m_pServers->audioCache()](const QString& location) {
         return pCache->trackOfFile(location);
     };
-    const auto planClientFor = [this](const QString& serverId) -> PlanClient* {
-        Client* pClient = m_pServers ? m_pServers->client(serverId) : nullptr;
-        if (!pClient) {
-            return nullptr;
-        }
-        std::unique_ptr<PlanClient>& pPlans = m_planClients[serverId];
-        if (!pPlans) {
-            pPlans = std::make_unique<PlanClient>(pClient);
-        }
-        return pPlans.get();
+    const auto planClientFor = [this](const QString& serverId) {
+        return planClient(serverId);
     };
     const auto capabilitiesOf =
             [pServers = m_pServers](const QString& serverId) -> std::optional<Capabilities> {

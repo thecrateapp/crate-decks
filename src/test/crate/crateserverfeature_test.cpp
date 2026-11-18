@@ -8,6 +8,9 @@
 #include <QFileInfo>
 #include <QIcon>
 #include <QItemSelectionModel>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QSignalSpy>
 #include <QSqlQuery>
 #include <QTemporaryDir>
@@ -34,6 +37,7 @@
 #include "crate/recs/compatiblesview.h"
 #include "crate/recs/crateradiosource.h"
 #include "crate/smartmix/assistpanel.h"
+#include "crate/smartmix/planclient.h"
 #include "crate/smartmix/smartmixassist.h"
 #include "crate/ui/cachestatusmodel.h"
 #include "crate/ui/delegates/delegateroles.h"
@@ -1330,6 +1334,74 @@ TEST_F(CrateServerFeatureTest, TrackMenuClearsTheCorrectionOnCrate) {
     EXPECT_TRUE(body.value(QStringLiteral("bpm")).isNull());
     EXPECT_TRUE(body.value(QStringLiteral("key")).isNull());
     EXPECT_EQ(nullptr, deckEntry(QStringLiteral("Clear correction on Crate")));
+}
+
+// Plan F8.SM: the server plans with the user's correction, and Decks asks
+// for plans without profile revisions, so a correction that comes from the
+// server, or is cleared here, drops the cached plans of the track.
+TEST_F(CrateServerFeatureTest, CorrectionsDropTheTracksSmartMixPlans) {
+    const QString outgoing = QStringLiteral("637bd7c0-380e-5bc7-b841-dc2234cdfaf7");
+    const QString incoming = QStringLiteral("34137088-fcab-5f93-8866-31f1bf6d0871");
+    storeTree();
+    CrateServerFeature* pFeature = makeFeature(createPlayerInfo());
+    crate::writeback::CrateCorrections* pCorrections = m_pServers->corrections();
+    ASSERT_TRUE(QTest::qWaitFor([&] { return pCorrections->isLoaded(); }, 5000));
+    m_pServers->rememberCapabilities(kServer,
+            QByteArrayLiteral(R"({"decks": {"available": true, "min_client_version": "0.1.0",
+                "contract_version": 1, "features": ["library_cursor", "cues"]}})"));
+    crate::PlanClient* pPlans = pFeature->planClient(kServer);
+    ASSERT_NE(nullptr, pPlans);
+    EXPECT_EQ(pPlans, pFeature->planClient(kServer));
+
+    // The plan of an edge with the track, as Auto DJ and the assistant ask
+    const crate::PlanEdge edge{outgoing, incoming, QString(), QString()};
+    const QString plansPath = QStringLiteral("/api/playback/transition-plans");
+    const auto cachePlan = [&] {
+        const int asked = sentTo(plansPath);
+        pPlans->requestPlans({edge}, crate::PlanContext());
+        ASSERT_TRUE(QTest::qWaitFor([&] { return sentTo(plansPath) == asked + 1; }, 5000));
+        QFile file(getTestDir().filePath(
+                QStringLiteral("crate/data/transition-plans/real-beatmatch.json")));
+        ASSERT_TRUE(file.open(QIODevice::ReadOnly));
+        QJsonObject plan = QJsonDocument::fromJson(file.readAll()).object();
+        plan.insert(QStringLiteral("outgoingTrackEntityUid"), outgoing);
+        plan.insert(QStringLiteral("incomingTrackEntityUid"), incoming);
+        lastTo(plansPath)->pReply->respond(200,
+                QJsonDocument(QJsonObject{
+                                      {QStringLiteral("plannerVersion"),
+                                              QStringLiteral("smart-mix-v2")},
+                                      {QStringLiteral("plans"), QJsonArray{plan}},
+                              })
+                        .toJson());
+        ASSERT_TRUE(QTest::qWaitFor([&] { return pPlans->cachedPlans() == 1; }, 5000));
+    };
+    cachePlan();
+
+    // The incoming track is loaded, and another computer corrected it
+    const TrackPointer pTrack = Track::newTemporary(QStringLiteral("/cache/srv-1/incoming.flac"));
+    pTrack->setAudioProperties(mixxx::audio::ChannelCount::stereo(),
+            mixxx::audio::SampleRate(44100),
+            mixxx::audio::Bitrate(320),
+            mixxx::Duration::fromSeconds(372));
+    pCorrections->attach(pTrack, kServer, incoming);
+    const QString query = QStringLiteral("/api/decks/corrections/query");
+    ASSERT_TRUE(QTest::qWaitFor([&] { return sentTo(query) == 1; }, 5000));
+    lastTo(query)->pReply->respond(200,
+            QStringLiteral(R"({"corrections": {"%1": {
+        "entity_uid": "%1", "revision": 2, "updated_at": "2026-11-16T18:10:02.771940Z",
+        "client_id": "install-2", "bpm": 124.5, "beat_grid_format": null,
+        "beat_grid_ms": null, "key": "8A"}}, "missing": [],
+        "server_time": "2026-11-16T22:00:00.000000Z"})")
+                    .arg(incoming)
+                    .toUtf8());
+    ASSERT_TRUE(QTest::qWaitFor(
+            [&] { return pCorrections->hasCorrection(kServer, incoming); }, 5000));
+    EXPECT_EQ(0, pPlans->cachedPlans());
+
+    // Cleared here
+    cachePlan();
+    ASSERT_TRUE(pCorrections->clear(kServer, incoming));
+    EXPECT_EQ(0, pPlans->cachedPlans());
 }
 
 // A Crate playlist's track table removes, reorders and takes tracks on the

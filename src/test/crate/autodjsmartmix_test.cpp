@@ -1028,6 +1028,31 @@ TEST_F(AutoDJSmartMixAdapterTest, AsksForTheNextTwoEdgesAhead) {
     EXPECT_EQ(requests, planRequests().size());
 }
 
+// Plan F8.SM: the correction of a queued track changed and its PlanClient
+// dropped its plans: the edge ahead with it is asked for again, the other
+// one stays cached.
+TEST_F(AutoDJSmartMixAdapterTest, AsksAgainForThePlansOfACorrectedTrack) {
+    makeAdapter();
+    startSmartMix();
+    ASSERT_TRUE(waitFor([this] { return !planRequests().isEmpty(); }));
+    answerPlans();
+    ASSERT_TRUE(waitFor([this] { return m_pPlans->cachedPlans() == 2; }));
+    const int requests = static_cast<int>(planRequests().size());
+
+    m_pPlans->invalidateTrack(kUids[2]);
+    m_pAdapter->trackPlansChanged(kServer, kUids[2]);
+    ASSERT_TRUE(waitFor([&] { return planRequests().size() == requests + 1; }));
+    const QJsonArray edges =
+            bodyOf(planRequests().constLast()).value(QStringLiteral("edges")).toArray();
+    ASSERT_EQ(1, edges.size());
+    EXPECT_EQ(kUids[1],
+            edges[0].toObject().value(QStringLiteral("outgoingTrackEntityUid")).toString());
+    EXPECT_EQ(kUids[2],
+            edges[0].toObject().value(QStringLiteral("incomingTrackEntityUid")).toString());
+    answerPlans();
+    ASSERT_TRUE(waitFor([this] { return m_pPlans->cachedPlans() == 2; }));
+}
+
 // No plan within the director's 3 s: it hands the transition back and Auto DJ
 // makes its FullIntroOutro one at its own fade point.
 TEST_F(AutoDJSmartMixAdapterTest, HandsBackWhenNoPlanComes) {

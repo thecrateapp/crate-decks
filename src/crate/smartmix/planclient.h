@@ -127,7 +127,8 @@ struct PlanClientOptions {
 ///   by both uids, both profile revisions, the planner and the context but
 ///   its set history, so a new profile revision or planner never gets an old
 ///   plan. Asking with a new revision of a track,
-///   or invalidateTrack(), drops that track's older plans.
+///   or invalidateTrack(), drops that track's older plans, and a plan of
+///   the track asked for before it is not cached when it comes.
 /// - The rest go in `POST /api/playback/transition-plans`, up to
 ///   PlanClientOptions::maxEdgesPerRequest per request, without repeating an
 ///   edge.
@@ -155,7 +156,8 @@ class PlanClient : public QObject {
             const PlanContext& context) const;
 
     /// Drops the cached plans of every edge with this track, e.g. when its
-    /// mix profile changed.
+    /// mix profile or the user's correction of it changed (plan F8.SM).
+    /// The plans of it on their way are still answered, but not cached.
     void invalidateTrack(const QString& entityUid);
     void clear();
 
@@ -177,7 +179,8 @@ class PlanClient : public QObject {
     void onReply(const std::shared_ptr<Batch>& pBatch, const JsonResult& result);
     void fillBatch(const Batch& batch, const Error& error);
     void fill(quint64 fetchId, const QList<int>& indexes, const Result<TransitionPlan>& result);
-    void store(const QString& key, const PlanEdge& edge, const TransitionPlan& plan);
+    void store(const Slot& slot, const TransitionPlan& plan);
+    quint64 invalidationsOf(const QString& entityUid) const;
     void finishBatch(quint64 fetchId);
     void finishFetchIfDone(quint64 fetchId);
 
@@ -190,6 +193,9 @@ class PlanClient : public QObject {
     quint64 m_useCounter = 0;
     /// The latest profile revision asked for, by lowercase uid.
     QHash<QString, QString> m_revisions;
+    /// How many times invalidateTrack() dropped each track's plans, by
+    /// lowercase uid: a plan asked for before the last one is not cached.
+    QHash<QString, quint64> m_invalidations;
 };
 
 } // namespace crate

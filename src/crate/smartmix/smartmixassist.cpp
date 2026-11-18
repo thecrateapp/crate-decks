@@ -226,6 +226,20 @@ void SmartMixAssist::scheduleRefresh() {
     }
 }
 
+void SmartMixAssist::trackPlansChanged(const QString& serverId, const QString& entityUid) {
+    if (m_pDirector->isActive() || serverId != m_serverId ||
+            (m_edge.outgoingTrackEntityUid.compare(entityUid, Qt::CaseInsensitive) != 0 &&
+                    m_edge.incomingTrackEntityUid.compare(entityUid, Qt::CaseInsensitive) !=
+                            0)) {
+        return;
+    }
+    kLogger.info() << "The plans of" << entityUid << "changed: asking again";
+    // Without a plan the same edge is asked for again, and the answer of a
+    // request on its way is not taken
+    m_plan.reset();
+    refresh();
+}
+
 void SmartMixAssist::refresh() {
     watchControls();
     if (m_pDirector->isActive()) {

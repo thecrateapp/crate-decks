@@ -137,6 +137,10 @@ class CrateServerFeature : public LibraryFeature {
     SmartMixAssist* smartMixAssist() const {
         return m_pAssist.get();
     }
+    /// The Smart Mix plans of a signed-in server, which Auto DJ and the
+    /// assistant share; created when first asked. nullptr without its
+    /// Client.
+    PlanClient* planClient(const QString& serverId);
     /// What the cache's view shows.
     CacheStatusModel* cacheStatus() const {
         return m_pCacheStatus;
@@ -253,6 +257,9 @@ class CrateServerFeature : public LibraryFeature {
 
     CrateServers* servers();
     void watchServers(CrateServers* pServers);
+    /// The user's correction of a track changed (plan F8.SM): its plans
+    /// are dropped and Auto DJ and the assistant ask for them again.
+    void correctionChanged(const QString& serverId, const QString& entityUid);
     /// Rebuilds the servers and the whole tree when the saved servers change.
     void updateServers();
     /// The coordinator and the prefetcher, once there is a server.

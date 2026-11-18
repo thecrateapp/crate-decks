@@ -305,6 +305,14 @@ void AutoDJSmartMixAdapter::scheduleRefresh() {
     }
 }
 
+void AutoDJSmartMixAdapter::trackPlansChanged(
+        const QString& serverId, const QString& entityUid) {
+    kLogger.info() << "The plans of" << entityUid << "on" << serverId
+                   << "changed: asking for the next ones again";
+    // The edges ahead that had its plans are no longer cached
+    scheduleRefresh();
+}
+
 void AutoDJSmartMixAdapter::refresh() {
     if (!autoDjInSmartMix() || !m_options.pDbConnectionPool) {
         emit refreshed();

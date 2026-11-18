@@ -176,6 +176,11 @@ class SmartMixAssist : public QObject {
     void refresh();
     /// refresh() once the changes settle.
     void scheduleRefresh();
+    /// The plans of the server's track changed (its correction, plan
+    /// F8.SM), and its PlanClient dropped them: the plan of the decks' edge,
+    /// if it has the track, is asked for again. A transition under way
+    /// (prepared, executing or running) keeps its plan.
+    void trackPlansChanged(const QString& serverId, const QString& entityUid);
 
   signals:
     /// The status, the decks or the plan changed.

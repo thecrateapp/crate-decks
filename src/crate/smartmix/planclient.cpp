@@ -118,6 +118,9 @@ struct PlanClient::Slot {
     QString key;
     PlanEdge edge;
     QList<int> indexes;
+    /// invalidationsOf() each track when it was asked for.
+    quint64 outgoingInvalidations = 0;
+    quint64 incomingInvalidations = 0;
 };
 
 /// One request of up to maxEdgesPerRequest edges.
@@ -176,7 +179,11 @@ PlanFetch* PlanClient::requestPlans(const QList<PlanEdge>& edges, const PlanCont
             continue;
         }
         missByKey.insert(key, static_cast<int>(misses.size()));
-        misses.append(Slot{key, edge, {index}});
+        misses.append(Slot{key,
+                edge,
+                {index},
+                invalidationsOf(edge.outgoingTrackEntityUid),
+                invalidationsOf(edge.incomingTrackEntityUid)});
     }
 
     const int size = std::clamp(m_options.maxEdgesPerRequest, 1, kServerMaxEdges);
@@ -220,6 +227,7 @@ void PlanClient::invalidateTrack(const QString& entityUid) {
     if (uid.isEmpty()) {
         return;
     }
+    ++m_invalidations[uid];
     for (auto it = m_cache.begin(); it != m_cache.end();) {
         if (it->plan.outgoingTrackEntityUid == uid || it->plan.incomingTrackEntityUid == uid) {
             it = m_cache.erase(it);
@@ -227,6 +235,10 @@ void PlanClient::invalidateTrack(const QString& entityUid) {
             ++it;
         }
     }
+}
+
+quint64 PlanClient::invalidationsOf(const QString& entityUid) const {
+    return m_invalidations.value(uidOf(entityUid));
 }
 
 void PlanClient::clear() {
@@ -342,7 +354,7 @@ void PlanClient::onReply(const std::shared_ptr<Batch>& pBatch, const JsonResult&
             plan = Error::decode(QStringLiteral("The plan is for another edge"));
         }
         if (plan.ok()) {
-            store(slot.key, slot.edge, plan.value());
+            store(slot, plan.value());
         } else {
             kLogger.warning() << "Unusable transition plan:" << plan.error().message;
         }
@@ -369,14 +381,21 @@ void PlanClient::fill(quint64 fetchId,
     }
 }
 
-void PlanClient::store(const QString& key, const PlanEdge& edge, const TransitionPlan& plan) {
+void PlanClient::store(const Slot& slot, const TransitionPlan& plan) {
     // A plan of a profile that changed while it was asked for is never
     // looked up again.
-    if (m_revisions.value(plan.outgoingTrackEntityUid) != edge.outgoingProfileRevision ||
-            m_revisions.value(plan.incomingTrackEntityUid) != edge.incomingProfileRevision) {
+    if (m_revisions.value(plan.outgoingTrackEntityUid) != slot.edge.outgoingProfileRevision ||
+            m_revisions.value(plan.incomingTrackEntityUid) !=
+                    slot.edge.incomingProfileRevision) {
         return;
     }
-    m_cache.insert(key, CacheEntry{plan, ++m_useCounter});
+    // Nor one of a track invalidated since, e.g. by its correction: the
+    // server may have planned it with the old one.
+    if (invalidationsOf(plan.outgoingTrackEntityUid) != slot.outgoingInvalidations ||
+            invalidationsOf(plan.incomingTrackEntityUid) != slot.incomingInvalidations) {
+        return;
+    }
+    m_cache.insert(slot.key, CacheEntry{plan, ++m_useCounter});
     const int limit = std::max(1, m_options.cacheSize);
     while (m_cache.size() > limit) {
         const auto oldest = std::min_element(m_cache.cbegin(),

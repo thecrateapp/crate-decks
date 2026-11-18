@@ -127,6 +127,10 @@ class AutoDJSmartMixAdapter : public QObject, public AutoDJProcessor::Transition
 
     /// Asks for the next plans once the changes settle.
     void scheduleRefresh();
+    /// The plans of the server's track changed (its correction, plan
+    /// F8.SM), and its PlanClient dropped them: the next edges are asked for
+    /// again. A transition the director already took keeps its plan.
+    void trackPlansChanged(const QString& serverId, const QString& entityUid);
 
   signals:
     /// The plans of the next edges were asked for (or nothing to ask).

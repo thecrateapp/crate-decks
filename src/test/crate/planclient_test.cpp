@@ -282,6 +282,46 @@ TEST_F(CratePlanClientTest, InvalidatesOnProfileChange) {
     EXPECT_FALSE(m_pPlans->cachedPlan(edge(7, 8), PlanContext()).has_value());
 }
 
+// Plan F8.SM: Decks asks without profile revisions, so a change of a
+// track's correction drops its plans by name. The next request asks the
+// server again, and a plan already on its way is not cached.
+TEST_F(CratePlanClientTest, InvalidatingATrackAsksTheServerAgain) {
+    const auto unrevised = [](int from, int to) {
+        return edge(from, to, QString(), QString());
+    };
+    fetch({unrevised(1, 2), unrevised(2, 3), unrevised(4, 5)});
+    ASSERT_EQ(1, m_network.sent.size());
+    ASSERT_EQ(3, m_pPlans->cachedPlans());
+
+    m_pPlans->invalidateTrack(uid(2));
+    EXPECT_EQ(1, m_pPlans->cachedPlans());
+    const PlanResults again = fetch({unrevised(1, 2), unrevised(2, 3), unrevised(4, 5)});
+    ASSERT_EQ(2, m_network.sent.size());
+    const QJsonArray asked = bodyOf(m_network.sent.last()).value(QStringLiteral("edges")).toArray();
+    ASSERT_EQ(2, asked.size());
+    EXPECT_EQ(uid(1),
+            asked[0].toObject().value(QStringLiteral("outgoingTrackEntityUid")).toString());
+    EXPECT_EQ(uid(2),
+            asked[1].toObject().value(QStringLiteral("outgoingTrackEntityUid")).toString());
+    ASSERT_EQ(3, static_cast<int>(again.plans.size()));
+    EXPECT_TRUE(again.plans[0].ok());
+    EXPECT_EQ(3, m_pPlans->cachedPlans());
+
+    // Invalidated while its plan is on its way: answered, not cached
+    QSignalSpy late(m_pPlans->requestPlans({unrevised(6, 7)}, PlanContext()),
+            &PlanFetch::finished);
+    ASSERT_TRUE(waitForRequests(3));
+    m_pPlans->invalidateTrack(uid(7).toUpper());
+    answerAll();
+    const PlanResults results = resultOf(late);
+    ASSERT_TRUE(results.plans.at(0).ok());
+    EXPECT_FALSE(m_pPlans->cachedPlan(unrevised(6, 7), PlanContext()).has_value());
+    // Asked again after it: cached
+    fetch({unrevised(6, 7)});
+    EXPECT_EQ(4, m_network.sent.size());
+    EXPECT_TRUE(m_pPlans->cachedPlan(unrevised(6, 7), PlanContext()).has_value());
+}
+
 TEST_F(CratePlanClientTest, RetriesOnce) {
     QSignalSpy retried(m_pPlans->requestPlans({edge(1, 2)}, PlanContext()), &PlanFetch::finished);
     ASSERT_TRUE(waitForRequests(1));

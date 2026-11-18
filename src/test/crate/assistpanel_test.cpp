@@ -505,6 +505,36 @@ TEST_F(CrateSmartMixAssistTest, AsksAgainWhenADeckLoads) {
     ASSERT_TRUE(waitFor([this] { return m_pAssist->status() == Status::Ready; }));
 }
 
+// Plan F8.SM: the correction of a deck's track changed and its PlanClient
+// dropped its plans: the assistant asks for the plan again, unless the
+// transition is under way. Other tracks and servers change nothing.
+TEST_F(CrateSmartMixAssistTest, AsksAgainWhenATracksCorrectionChanges) {
+    readyPlan();
+    ASSERT_EQ(1, planRequests().size());
+    m_pAssist->trackPlansChanged(kServer, QStringLiteral("00000000-0000-4000-8000-000000000009"));
+    m_pAssist->trackPlansChanged(QStringLiteral("srv-2"), kIncomingUid);
+    EXPECT_EQ(Status::Ready, m_pAssist->status());
+    EXPECT_TRUE(m_pAssist->plan().has_value());
+
+    m_pPlans->invalidateTrack(kIncomingUid);
+    m_pAssist->trackPlansChanged(kServer, kIncomingUid.toUpper());
+    EXPECT_EQ(Status::Requesting, m_pAssist->status());
+    EXPECT_FALSE(m_pAssist->plan().has_value());
+    ASSERT_TRUE(waitFor([this] { return planRequests().size() == 2; }));
+    answerPlans();
+    ASSERT_TRUE(waitFor([this] { return m_pAssist->status() == Status::Ready; }));
+
+    // A prepared transition keeps its plan
+    ASSERT_TRUE(m_pAssist->prepare());
+    ASSERT_EQ(Status::Prepared, m_pAssist->status());
+    m_pPlans->invalidateTrack(kOutgoingUid);
+    m_pAssist->trackPlansChanged(kServer, kOutgoingUid);
+    EXPECT_EQ(Status::Prepared, m_pAssist->status());
+    EXPECT_TRUE(m_pAssist->plan().has_value());
+    QTest::qWait(20);
+    EXPECT_EQ(2, planRequests().size());
+}
+
 // A plan that does not fit the tracks is not offered.
 TEST_F(CrateSmartMixAssistTest, RejectsAPlanThatDoesNotFit) {
     loadDecks();
