@@ -10,6 +10,7 @@
 #include <cmath>
 
 #include "crate/ui/skin/crateskin.h"
+#include "crate/ui/widgets/camelotlegend.h"
 #include "crate/ui/widgets/camelotwheelmodel.h"
 #include "crate/ui/widgets/instrumentpainter.h"
 #include "preferences/configobject.h"
@@ -315,6 +316,48 @@ TEST_F(CrateCamelotWheelTest, CentreNamesTheMasterKey) {
     };
     EXPECT_EQ(0, inked(bare));
     EXPECT_GT(inked(named), 20);
+}
+
+TEST_F(CrateCamelotWheelTest, LegendWrapsToItsWidth) {
+    CamelotLegend legend(m_style);
+    const QSize wide = legend.sizeHint();
+    // In one row at its size hint, the note under it
+    QVector<QRectF> rects = legend.layout(wide.width());
+    ASSERT_EQ(legend.items().size() + 2, rects.size());
+    for (int index = 1; index <= legend.items().size(); ++index) {
+        EXPECT_DOUBLE_EQ(rects.first().top(), rects.at(index).top()) << index;
+    }
+    EXPECT_GT(rects.last().top(), rects.first().bottom());
+    // Narrower, the items wrap and the legend grows, every item inside it
+    const int narrow = wide.width() / 2;
+    rects = legend.layout(narrow);
+    EXPECT_GT(legend.heightForWidth(narrow), legend.heightForWidth(wide.width()));
+    for (const QRectF& rect : rects) {
+        EXPECT_LE(rect.right(), narrow + 0.5);
+    }
+    EXPECT_LE(legend.minimumSizeHint().width(), narrow);
+}
+
+TEST_F(CrateCamelotWheelTest, LegendPaintsTheWheelsSamples) {
+    CamelotLegend legend(m_style);
+    legend.resize(legend.sizeHint());
+    QImage image(legend.size(), QImage::Format_RGB32);
+    image.fill(m_style.background);
+    legend.render(&image, QPoint(), QRegion(), QWidget::DrawChildren);
+    const QVector<QRectF> rects = legend.layout(legend.width());
+    // The master deck's sample is filled in accent, the compatible edge is
+    // accentHi
+    const QRectF master = rects.at(1);
+    const QPointF masterCentre(master.left() + m_style.wheelLegendGlyph / 2, master.center().y());
+    EXPECT_EQ(m_style.accent, image.pixelColor(masterCentre.toPoint()));
+    const QRectF compatible = rects.at(2);
+    EXPECT_GT(strongestShade(image,
+                      QPointF(compatible.left() + m_style.wheelLegendLine / 2,
+                              compatible.center().y()),
+                      2,
+                      m_style.accentHi,
+                      m_style.background),
+            0.9);
 }
 
 } // namespace

@@ -141,6 +141,13 @@ InstrumentStyle InstrumentStyle::fromVariables(const SkinVariables& variables) {
     style.camelotWheelSize = wholeToken(variables, "CamelotWheelSize");
     style.camelotLabelGap = token(variables, "CamelotLabelGap");
     style.camelotNameGap = token(variables, "CamelotNameGap");
+    style.wheelLegendGap = token(variables, "WheelLegendGap");
+    style.wheelLegendRowGap = token(variables, "WheelLegendRowGap");
+    style.wheelLegendItemGap = token(variables, "WheelLegendItemGap");
+    style.wheelLegendLine = token(variables, "WheelLegendLine");
+    style.wheelLegendGlyph = token(variables, "WheelLegendGlyph");
+    style.wheelLegendNode = token(variables, "WheelLegendNode");
+    style.fontSizeWheelLegend = token(variables, "FontSizeWheelLegend");
     style.camelotLabelShift = token(variables, "CamelotLabelShift");
     style.camelotEdgeBow = token(variables, "CamelotEdgeBow");
     style.camelotFigureBaseline = token(variables, "CamelotFigureBaseline");

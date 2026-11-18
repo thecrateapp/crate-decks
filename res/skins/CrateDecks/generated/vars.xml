@@ -175,6 +175,13 @@
   <SetVariable name="CrateInstCamelotWheelSize">470</SetVariable>
   <SetVariable name="CrateInstCamelotLabelGap">7</SetVariable>
   <SetVariable name="CrateInstCamelotNameGap">5</SetVariable>
+  <SetVariable name="CrateInstWheelLegendGap">18</SetVariable>
+  <SetVariable name="CrateInstWheelLegendRowGap">9</SetVariable>
+  <SetVariable name="CrateInstWheelLegendItemGap">7</SetVariable>
+  <SetVariable name="CrateInstWheelLegendLine">22</SetVariable>
+  <SetVariable name="CrateInstWheelLegendGlyph">14</SetVariable>
+  <SetVariable name="CrateInstWheelLegendNode">4</SetVariable>
+  <SetVariable name="CrateInstFontSizeWheelLegend">9</SetVariable>
   <SetVariable name="CrateInstCamelotLabelShift">0.35</SetVariable>
   <SetVariable name="CrateInstCamelotEdgeBow">0.86</SetVariable>
   <SetVariable name="CrateInstCamelotFigureBaseline">4</SetVariable>

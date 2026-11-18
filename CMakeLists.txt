@@ -5462,6 +5462,7 @@ if(CRATE)
       src/crate/ui/skin/mixerstyle.cpp
       src/crate/ui/skin/stemcolors.cpp
       src/crate/ui/skin/preferencescontrol.cpp
+      src/crate/ui/widgets/camelotlegend.cpp
       src/crate/ui/widgets/camelotwheel.cpp
       src/crate/ui/widgets/camelotwheelmodel.cpp
       src/crate/ui/widgets/instrumentpainter.cpp

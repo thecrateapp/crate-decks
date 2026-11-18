@@ -175,6 +175,13 @@
   <SetVariable name="CrateInstCamelotWheelSize">{{camelotWheelSize}}</SetVariable>
   <SetVariable name="CrateInstCamelotLabelGap">{{camelotLabelGap}}</SetVariable>
   <SetVariable name="CrateInstCamelotNameGap">{{camelotNameGap}}</SetVariable>
+  <SetVariable name="CrateInstWheelLegendGap">{{wheelLegendGap}}</SetVariable>
+  <SetVariable name="CrateInstWheelLegendRowGap">{{wheelLegendRowGap}}</SetVariable>
+  <SetVariable name="CrateInstWheelLegendItemGap">{{wheelLegendItemGap}}</SetVariable>
+  <SetVariable name="CrateInstWheelLegendLine">{{wheelLegendLine}}</SetVariable>
+  <SetVariable name="CrateInstWheelLegendGlyph">{{wheelLegendGlyph}}</SetVariable>
+  <SetVariable name="CrateInstWheelLegendNode">{{wheelLegendNode}}</SetVariable>
+  <SetVariable name="CrateInstFontSizeWheelLegend">{{fontSizeWheelLegend}}</SetVariable>
   <SetVariable name="CrateInstCamelotLabelShift">{{camelotLabelShift}}</SetVariable>
   <SetVariable name="CrateInstCamelotEdgeBow">{{camelotEdgeBow}}</SetVariable>
   <SetVariable name="CrateInstCamelotFigureBaseline">{{camelotFigureBaseline}}</SetVariable>
