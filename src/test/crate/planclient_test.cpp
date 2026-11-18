@@ -10,11 +10,15 @@
 #include <QTest>
 #include <memory>
 
+#include "crate/analysis/mixprofile.h"
+#include "crate/client/cratecapabilities.h"
+#include "crate/smartmix/sethistory.h"
 #include "test/crate/fakecratenetwork.h"
 #include "test/mixxxtest.h"
 
 namespace {
 
+using crate::Capabilities;
 using crate::Client;
 using crate::ClientOptions;
 using crate::PlanClient;
@@ -22,6 +26,8 @@ using crate::PlanContext;
 using crate::PlanEdge;
 using crate::PlanFetch;
 using crate::PlanResults;
+using crate::SetHistory;
+using crate::SetHistoryEntry;
 using crate::TransitionPlan;
 using crate::test::FakeNetworkAccessManager;
 using crate::test::FakeScheduler;
@@ -75,6 +81,33 @@ class CratePlanClientTest : public MixxxTest {
 
     static QJsonObject bodyOf(const FakeNetworkAccessManager::Sent& sent) {
         return QJsonDocument::fromJson(sent.body).object();
+    }
+
+    /// The context of the first edge of `sent`.
+    static QJsonObject contextOf(const FakeNetworkAccessManager::Sent& sent) {
+        return bodyOf(sent)
+                .value(QStringLiteral("edges"))
+                .toArray()
+                .first()
+                .toObject()
+                .value(QStringLiteral("context"))
+                .toObject();
+    }
+
+    /// `GET /api/capabilities` of a server with these planners and Decks
+    /// features.
+    static Capabilities capabilities(const char* plannerVersions, const char* features) {
+        const QByteArray json = QByteArrayLiteral(R"({"smart_mix": {"available": true,
+                "planner_version": "smart-mix-v2", "structure": true)") +
+                (plannerVersions ? QByteArrayLiteral(", \"planner_versions\": ") + plannerVersions
+                                 : QByteArray()) +
+                QByteArrayLiteral(R"(}, "decks": {"available": true,
+                "min_client_version": "0.1.0", "contract_version": 1, "features": )") +
+                features + QByteArrayLiteral("}}");
+        const auto result = Capabilities::fromJson(QJsonDocument::fromJson(json));
+        EXPECT_TRUE(result.ok()) << (result.ok() ? std::string()
+                                                 : result.error().message.toStdString());
+        return result.ok() ? result.value() : Capabilities();
     }
 
     /// The server's answer to `sent`: the real beatmatch plan (from the dev
@@ -249,6 +282,46 @@ TEST_F(CratePlanClientTest, InvalidatesOnProfileChange) {
     EXPECT_FALSE(m_pPlans->cachedPlan(edge(7, 8), PlanContext()).has_value());
 }
 
+// Plan F8.SM: Decks asks without profile revisions, so a change of a
+// track's correction drops its plans by name. The next request asks the
+// server again, and a plan already on its way is not cached.
+TEST_F(CratePlanClientTest, InvalidatingATrackAsksTheServerAgain) {
+    const auto unrevised = [](int from, int to) {
+        return edge(from, to, QString(), QString());
+    };
+    fetch({unrevised(1, 2), unrevised(2, 3), unrevised(4, 5)});
+    ASSERT_EQ(1, m_network.sent.size());
+    ASSERT_EQ(3, m_pPlans->cachedPlans());
+
+    m_pPlans->invalidateTrack(uid(2));
+    EXPECT_EQ(1, m_pPlans->cachedPlans());
+    const PlanResults again = fetch({unrevised(1, 2), unrevised(2, 3), unrevised(4, 5)});
+    ASSERT_EQ(2, m_network.sent.size());
+    const QJsonArray asked = bodyOf(m_network.sent.last()).value(QStringLiteral("edges")).toArray();
+    ASSERT_EQ(2, asked.size());
+    EXPECT_EQ(uid(1),
+            asked[0].toObject().value(QStringLiteral("outgoingTrackEntityUid")).toString());
+    EXPECT_EQ(uid(2),
+            asked[1].toObject().value(QStringLiteral("outgoingTrackEntityUid")).toString());
+    ASSERT_EQ(3, static_cast<int>(again.plans.size()));
+    EXPECT_TRUE(again.plans[0].ok());
+    EXPECT_EQ(3, m_pPlans->cachedPlans());
+
+    // Invalidated while its plan is on its way: answered, not cached
+    QSignalSpy late(m_pPlans->requestPlans({unrevised(6, 7)}, PlanContext()),
+            &PlanFetch::finished);
+    ASSERT_TRUE(waitForRequests(3));
+    m_pPlans->invalidateTrack(uid(7).toUpper());
+    answerAll();
+    const PlanResults results = resultOf(late);
+    ASSERT_TRUE(results.plans.at(0).ok());
+    EXPECT_FALSE(m_pPlans->cachedPlan(unrevised(6, 7), PlanContext()).has_value());
+    // Asked again after it: cached
+    fetch({unrevised(6, 7)});
+    EXPECT_EQ(4, m_network.sent.size());
+    EXPECT_TRUE(m_pPlans->cachedPlan(unrevised(6, 7), PlanContext()).has_value());
+}
+
 TEST_F(CratePlanClientTest, RetriesOnce) {
     QSignalSpy retried(m_pPlans->requestPlans({edge(1, 2)}, PlanContext()), &PlanFetch::finished);
     ASSERT_TRUE(waitForRequests(1));
@@ -366,6 +439,163 @@ TEST_F(CratePlanClientTest, SendsAssistOnlyWhenAsked) {
     EXPECT_FALSE(context.value(QStringLiteral("automatic")).toBool());
     EXPECT_TRUE(context.value(QStringLiteral("allowBassHandoff")).toBool());
     EXPECT_FALSE(context.contains(QStringLiteral("allowLongBeatmatch")));
+}
+
+// Planner v3 in Decks (plan F6b.PR1): smart-mix-v3 when the server lists it
+// in `smart_mix.planner_versions`, with its candidate menu when it serves
+// `local_refinement` to Decks, as the dev stack does.
+TEST_F(CratePlanClientTest, UsesV3WhenAdvertised) {
+    const PlanContext context = PlanContext::forServer(capabilities(
+            R"(["smart-mix-v2", "smart-mix-v3"])",
+            R"(["beatmatch", "bass_handoff", "long_beatmatch", "local_refinement"])"));
+    EXPECT_EQ(QStringLiteral("smart-mix-v3"), context.plannerVersion);
+    EXPECT_TRUE(context.localRefinement);
+    EXPECT_TRUE(context.allowBeatmatch);
+    EXPECT_TRUE(context.allowBassHandoff);
+    EXPECT_TRUE(context.allowLongBeatmatch);
+
+    // The real answer for that context: the beatmatch edge of
+    // real-v3-menu-response.json, with its menu.
+    QJsonObject answer = QJsonDocument::fromJson(
+            fixture(QStringLiteral("real-v3-menu-response.json")))
+                                 .object();
+    const QJsonObject plan = answer.value(QStringLiteral("plans")).toArray().first().toObject();
+    answer.insert(QStringLiteral("plans"), QJsonArray{plan});
+    const PlanEdge menuEdge{plan.value(QStringLiteral("outgoingTrackEntityUid")).toString(),
+            plan.value(QStringLiteral("incomingTrackEntityUid")).toString(),
+            QStringLiteral("r1"),
+            QStringLiteral("r1")};
+    QSignalSpy finished(m_pPlans->requestPlans({menuEdge}, context), &PlanFetch::finished);
+    ASSERT_TRUE(waitForRequests(1));
+    const QJsonObject body = bodyOf(m_network.last());
+    EXPECT_EQ(QStringLiteral("smart-mix-v3"),
+            body.value(QStringLiteral("plannerVersion")).toString());
+    EXPECT_TRUE(contextOf(m_network.last()).value(QStringLiteral("localRefinement")).toBool());
+    m_network.last().pReply->respond(200, QJsonDocument(answer).toJson());
+
+    const PlanResults results = resultOf(finished);
+    ASSERT_EQ(1U, results.plans.size());
+    ASSERT_TRUE(results.plans.front().ok()) << results.plans.front().error().message.toStdString();
+    EXPECT_EQ(8U, results.plans.front().value().candidates.size());
+    EXPECT_EQ(std::optional<bool>(true), results.plans.front().value().structureUsed);
+    ASSERT_TRUE(m_pPlans->cachedPlan(menuEdge, context).has_value());
+    EXPECT_EQ(8U, m_pPlans->cachedPlan(menuEdge, context)->candidates.size());
+}
+
+// A server before smart-mix-v3 lists no planners, and one may list v2 alone:
+// Decks asks smart-mix-v2, without the menu or the set history, which such a
+// server rejects. Without capabilities, nothing the server has not offered.
+TEST_F(CratePlanClientTest, FallsBackToV2) {
+    for (const char* plannerVersions : {static_cast<const char*>(nullptr),
+                 static_cast<const char*>(R"(["smart-mix-v2"])")}) {
+        PlanContext context = PlanContext::forServer(
+                capabilities(plannerVersions, R"(["beatmatch", "local_refinement"])"));
+        EXPECT_EQ(QStringLiteral("smart-mix-v2"), context.plannerVersion);
+        EXPECT_FALSE(context.localRefinement);
+        EXPECT_TRUE(context.allowBeatmatch);
+        EXPECT_FALSE(context.allowBassHandoff);
+        EXPECT_FALSE(context.allowLongBeatmatch);
+        context.setHistory = {SetHistoryEntry{TransitionPlan::Mode::Beatmatch, 16, 0.1}};
+        EXPECT_FALSE(context.toJson().contains(QStringLiteral("setHistory")));
+        EXPECT_FALSE(context.toJson().contains(QStringLiteral("localRefinement")));
+    }
+
+    const PlanContext none = PlanContext::forServer(std::nullopt);
+    EXPECT_EQ(QStringLiteral("smart-mix-v2"), none.plannerVersion);
+    EXPECT_FALSE(none.allowBeatmatch);
+    EXPECT_FALSE(none.localRefinement);
+
+    fetch({edge(1, 2)}, PlanContext::forServer(capabilities(nullptr, R"(["beatmatch"])")));
+    ASSERT_EQ(1, m_network.sent.size());
+    EXPECT_EQ(QStringLiteral("smart-mix-v2"),
+            bodyOf(m_network.last()).value(QStringLiteral("plannerVersion")).toString());
+    EXPECT_FALSE(contextOf(m_network.last()).contains(QStringLiteral("localRefinement")));
+}
+
+// `context.setHistory`: the last three transitions the Smart Mix directors
+// played, oldest first, as SetHistory records them from what a director
+// played and the tracks' profiles. The planners do not read it, so it does
+// not split the cache, as on the server.
+TEST_F(CratePlanClientTest, SendsSetHistoryFromDirector) {
+    const auto profile = [](int number, double bpm, double introEnergy, double outroEnergy) {
+        crate::analysis::MixProfile profile;
+        profile.entityUid = uid(number);
+        profile.bpm = bpm;
+        profile.introEnergy = introEnergy;
+        profile.outroEnergy = outroEnergy;
+        return profile;
+    };
+    const auto played = [](int from, int to, TransitionPlan::Mode mode) {
+        TransitionPlan plan;
+        plan.outgoingTrackEntityUid = uid(from);
+        plan.incomingTrackEntityUid = uid(to);
+        plan.mode = mode;
+        return plan;
+    };
+    SetHistory history;
+    // 16 s at 120 BPM: 8 bars of 4/4; the energy rises from 0.5 to 0.7.
+    history.record(played(1, 2, TransitionPlan::Mode::Adaptive),
+            16000.0,
+            profile(1, 120.0, 0.6, 0.5),
+            profile(2, 124.0, 0.7, 0.6));
+    history.record(played(2, 3, TransitionPlan::Mode::Beatmatch),
+            31219.0,
+            profile(2, 123.0, 0.7, 0.8),
+            profile(3, 123.0, 0.7, 0.6));
+    history.record(played(3, 4, TransitionPlan::Mode::Beatmatch),
+            8000.0,
+            profile(3, 128.0, 0.7, 0.6),
+            profile(4, 128.0, 0.9, 0.6));
+    history.record(played(4, 5, TransitionPlan::Mode::Gapless),
+            0.0,
+            profile(4, 128.0, 0.9, 0.6),
+            profile(5, 90.0, 0.3, 0.6));
+    ASSERT_EQ(3, history.entries().size());
+
+    PlanContext context = PlanContext::forServer(
+            capabilities(R"(["smart-mix-v2", "smart-mix-v3"])", R"(["beatmatch"])"));
+    context.setHistory = history.entries();
+    fetch({edge(1, 2)}, context);
+    ASSERT_EQ(1, m_network.sent.size());
+    const QJsonArray sentHistory =
+            contextOf(m_network.last()).value(QStringLiteral("setHistory")).toArray();
+    const QJsonArray expected{
+            QJsonObject{{QStringLiteral("mode"), QStringLiteral("beatmatch")},
+                    {QStringLiteral("durationBars"), 16},
+                    {QStringLiteral("deltaEnergy"), -0.1}},
+            QJsonObject{{QStringLiteral("mode"), QStringLiteral("beatmatch")},
+                    {QStringLiteral("durationBars"), 4},
+                    {QStringLiteral("deltaEnergy"), 0.3}},
+            QJsonObject{{QStringLiteral("mode"), QStringLiteral("gapless")},
+                    {QStringLiteral("durationBars"), 0},
+                    {QStringLiteral("deltaEnergy"), -0.3}},
+    };
+    EXPECT_EQ(expected, sentHistory);
+
+    // Another history is the same plan: from the cache.
+    PlanContext later = context;
+    later.setHistory.removeFirst();
+    EXPECT_TRUE(m_pPlans->cachedPlan(edge(1, 2), later).has_value());
+}
+
+TEST_F(CratePlanClientTest, CacheKeyIncludesPlannerVersion) {
+    PlanContext v2 = PlanContext::forServer(capabilities(nullptr, R"(["beatmatch"])"));
+    PlanContext v3 = PlanContext::forServer(
+            capabilities(R"(["smart-mix-v2", "smart-mix-v3"])", R"(["beatmatch"])"));
+    ASSERT_EQ(QStringLiteral("smart-mix-v2"), v2.plannerVersion);
+    ASSERT_EQ(QStringLiteral("smart-mix-v3"), v3.plannerVersion);
+    // The same context otherwise: only the planner tells them apart.
+    ASSERT_EQ(v2.toJson(), v3.toJson());
+
+    fetch({edge(1, 2)}, v2);
+    EXPECT_TRUE(m_pPlans->cachedPlan(edge(1, 2), v2).has_value());
+    // The server moved to v3: its v2 plan is not served for v3.
+    EXPECT_FALSE(m_pPlans->cachedPlan(edge(1, 2), v3).has_value());
+    fetch({edge(1, 2)}, v3);
+    EXPECT_EQ(2, m_network.sent.size());
+    EXPECT_EQ(QStringLiteral("smart-mix-v3"),
+            bodyOf(m_network.last()).value(QStringLiteral("plannerVersion")).toString());
+    EXPECT_EQ(2, m_pPlans->cachedPlans());
 }
 
 } // namespace

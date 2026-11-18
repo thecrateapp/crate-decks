@@ -319,6 +319,8 @@ TEST_F(CrateLibrarySyncTest, NotModifiedKeepsRows) {
     ASSERT_TRUE(dirty.wait(5000));
     ASSERT_TRUE(stored(warmUp).needsSync());
 
+    // Synced, though nothing changed: a playlist edit waits for this (F7)
+    QSignalSpy synced(pSync, &LibrarySync::containerSynced);
     pSync->syncContainerTracks(warmUp);
     ASSERT_TRUE(waitForRequests(2));
     EXPECT_EQ(QByteArrayLiteral("\"t1\""), m_network.last().request.rawHeader("If-None-Match"));
@@ -328,6 +330,8 @@ TEST_F(CrateLibrarySyncTest, NotModifiedKeepsRows) {
     EXPECT_EQ(QStringList({QStringLiteral("Lattice")}), titles(warmUp));
     EXPECT_FALSE(stored(warmUp).needsSync());
     EXPECT_EQ(1, updated.count());
+    ASSERT_EQ(1, synced.count());
+    EXPECT_EQ(warmUp, synced.first().first().toLongLong());
 }
 
 // The tree's ETag only changes with membership, and a page's ETag covers that
@@ -436,6 +440,40 @@ TEST_F(CrateLibrarySyncTest, ReplacesContainerTracksAtomically) {
     ASSERT_TRUE(updated.wait(5000));
     EXPECT_EQ(QStringList({QStringLiteral("X"), QStringLiteral("Y"), QStringLiteral("Z")}),
             titles(warmUp));
+}
+
+TEST_F(CrateLibrarySyncTest, AnswersWithTheSyncThatStartsAfterTheCall) {
+    storeTree();
+    const qint64 warmUp = containerId(QStringLiteral("playlist"), QStringLiteral("7"));
+    LibrarySync* pSync = makeSync();
+    QSignalSpy synced(pSync, &LibrarySync::containerSynced);
+    pSync->syncContainerTracks(warmUp);
+    ASSERT_TRUE(waitForRequests(1));
+
+    // Asked while a sync runs: that one read the playlist before
+    QList<bool> answers;
+    pSync->syncContainerTracks(warmUp, [&answers](bool ok) {
+        answers.append(ok);
+    });
+    m_network.last().pReply->respond(200, page({track(QStringLiteral("a"), QStringLiteral("A"))}));
+    ASSERT_TRUE(synced.wait(5000));
+    EXPECT_TRUE(answers.isEmpty());
+
+    // The sync that repeats it answers
+    ASSERT_TRUE(waitForRequests(2));
+    m_network.last().pReply->respond(200, page({track(QStringLiteral("x"), QStringLiteral("X"))}));
+    ASSERT_TRUE(QTest::qWaitFor([&] { return !answers.isEmpty(); }, 5000));
+    EXPECT_EQ(QList<bool>({true}), answers);
+    EXPECT_EQ(QStringList({QStringLiteral("X")}), titles(warmUp));
+
+    // With nothing running, its own sync answers, also when it fails
+    pSync->syncContainerTracks(warmUp, [&answers](bool ok) {
+        answers.append(ok);
+    });
+    ASSERT_TRUE(waitForRequests(3));
+    m_network.last().pReply->respond(404, QByteArrayLiteral(R"({"detail": "Not found"})"));
+    ASSERT_TRUE(QTest::qWaitFor([&] { return answers.size() == 2; }, 5000));
+    EXPECT_EQ(QList<bool>({true, false}), answers);
 }
 
 TEST_F(CrateLibrarySyncTest, ParseRunsOffMainThread) {

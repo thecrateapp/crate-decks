@@ -49,6 +49,11 @@ class CratePreferences : public QObject {
     bool prefetchAutoDj() const;
     void setPrefetchAutoDj(bool enabled);
 
+    /// Whether the five best tracks of the Compatibles view are downloaded
+    /// ahead (plan F5.C-PR1). On by default, as the GU1 mockup shows it.
+    bool prewarmCompatibles() const;
+    void setPrewarmCompatibles(bool enabled);
+
     /// Crate's key instead of the key detector's. Off by default (F0 Q5).
     bool keyFromCrate() const;
     void setKeyFromCrate(bool enabled);
@@ -69,6 +74,12 @@ class CratePreferences : public QObject {
     /// most the plan request takes. Longer blends, up to the plan's
     /// `policyLimits.maximumLongBeatmatchMs`, are the planner's choice, not
     /// this one.
+    /// A Crate track that plays for less than this gets no play event in the
+    /// server's history (plan F7.C-PR1). `HistoryMinimumSeconds`, only in
+    /// the settings file; 30 by default.
+    static constexpr int kDefaultHistoryMinimumSeconds = 30;
+    int historyMinimumSeconds() const;
+
     static constexpr int kDefaultAssistTransitionSeconds = 8;
     static constexpr int kMinimumAssistTransitionSeconds = 1;
     static constexpr int kMaximumAssistTransitionSeconds = 12;

@@ -286,9 +286,11 @@ QString CrateBeatsImporter::subVersion(const QString& profileRevision) {
     return kSubVersionPrefix + profileRevision;
 }
 
-mixxx::track::io::key::ChromaticKey keyFromCamelot(const QString& camelot) {
+namespace {
+
+/// The Camelot wheel, as the server's camelot.py writes it.
+const QHash<QString, mixxx::track::io::key::ChromaticKey>& camelotWheel() {
     using namespace mixxx::track::io::key;
-    // The Camelot wheel, as the server's camelot.py writes it.
     static const QHash<QString, ChromaticKey> kWheel = {
             {QStringLiteral("1A"), G_SHARP_MINOR},
             {QStringLiteral("2A"), E_FLAT_MINOR},
@@ -315,7 +317,33 @@ mixxx::track::io::key::ChromaticKey keyFromCamelot(const QString& camelot) {
             {QStringLiteral("11B"), A_MAJOR},
             {QStringLiteral("12B"), E_MAJOR},
     };
-    return kWheel.value(camelot.trimmed().toUpper(), INVALID);
+    return kWheel;
+}
+
+} // namespace
+
+mixxx::track::io::key::ChromaticKey keyFromCamelot(const QString& camelot) {
+    return camelotWheel().value(camelot.trimmed().toUpper(), mixxx::track::io::key::INVALID);
+}
+
+QString camelotFromKey(mixxx::track::io::key::ChromaticKey key) {
+    if (key == mixxx::track::io::key::INVALID) {
+        return QString();
+    }
+    return camelotWheel().key(key);
+}
+
+mixxx::track::io::key::Source keySourceOf(const TrackPointer& pTrack) {
+    mixxx::track::io::key::KeyMap keyMap;
+    if (!pTrack) {
+        return keyMap.source();
+    }
+    // Keys keeps its source in the serialised map only
+    const QByteArray bytes = pTrack->getKeys().toByteArray();
+    if (!keyMap.ParseFromArray(bytes.constData(), static_cast<int>(bytes.size()))) {
+        return mixxx::track::io::key::ANALYZER;
+    }
+    return keyMap.source();
 }
 
 ImportOutcome AnalysisImporter::apply(const TrackPointer& pTrack,
@@ -341,7 +369,7 @@ ImportOutcome AnalysisImporter::apply(const TrackPointer& pTrack,
         }
     }
 
-    if (policy.crateKey) {
+    if (policy.crateKey && keySourceOf(pTrack) != mixxx::track::io::key::USER) {
         const mixxx::track::io::key::ChromaticKey key = keyFromCamelot(profile.camelot);
         if (key != mixxx::track::io::key::INVALID) {
             pTrack->setKeys(KeyFactory::makeBasicKeys(key, mixxx::track::io::key::FILE_METADATA));

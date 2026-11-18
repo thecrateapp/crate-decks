@@ -655,7 +655,11 @@ void AssistPanel::showAssist() {
                         QStringLiteral("%1 %2 dB")
                                 .arg(in,
                                         signedNumber(plan->incomingGainDb, 1)));
-        QStringList planner{SmartMixAssist::kPlannerVersion, tr("assist")};
+        QStringList planner{m_pAssist->plannerVersion(), tr("assist")};
+        if (plan->candidateIndex > 0) {
+            // Not the server's pick: the next option of its menu that fits
+            planner.append(tr("option %1").arg(plan->candidateIndex + 1));
+        }
         if (plan->structureUsed.value_or(false)) {
             planner.append(tr("phrases"));
         }

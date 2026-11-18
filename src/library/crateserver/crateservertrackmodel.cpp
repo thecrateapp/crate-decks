@@ -8,6 +8,7 @@
 #include <QSqlQuery>
 #include <QThread>
 #include <QtConcurrentRun>
+#include <algorithm>
 #include <cmath>
 
 #include "crate/cache/audiocache.h"
@@ -61,6 +62,7 @@ const QString& fieldOf(int column) {
             LIBRARYTABLE_BITRATE,
             LIBRARYTABLE_FILETYPE,
             LIBRARYTABLE_SAMPLERATE,
+            CrateServerTrackModel::kLikedField,
     };
     static const QString kNone;
     return column >= 0 && column < CrateServerTrackModel::kColumnCount ? kFields[column] : kNone;
@@ -220,18 +222,42 @@ QString energyLevel(double energy) {
 const QString CrateServerTrackModel::kEnergyField = QStringLiteral("crate_energy");
 const QString CrateServerTrackModel::kProfileField = QStringLiteral("crate_profile");
 const QString CrateServerTrackModel::kCacheField = QStringLiteral("crate_cache");
+const QString CrateServerTrackModel::kLikedField = QStringLiteral("crate_liked");
 
 CrateServerTrackModel::CrateServerTrackModel(Source source,
         const QSqlDatabase& database,
         mixxx::DbConnectionPoolPtr pDbConnectionPool,
         QObject* pParent)
+        : CrateServerTrackModel(source,
+                  database,
+                  std::move(pDbConnectionPool),
+                  source == Source::Container         ? "crateserver_container"
+                          : source == Source::Library ? "crateserver_library"
+                                                      : "crateserver_memory",
+                  pParent) {
+}
+
+CrateServerTrackModel::CrateServerTrackModel(const QSqlDatabase& database,
+        mixxx::DbConnectionPoolPtr pDbConnectionPool,
+        const char* settingsNamespace,
+        QObject* pParent)
+        : CrateServerTrackModel(Source::Memory,
+                  database,
+                  std::move(pDbConnectionPool),
+                  settingsNamespace,
+                  pParent) {
+}
+
+CrateServerTrackModel::CrateServerTrackModel(Source source,
+        const QSqlDatabase& database,
+        mixxx::DbConnectionPoolPtr pDbConnectionPool,
+        const char* settingsNamespace,
+        QObject* pParent)
         : QAbstractTableModel(pParent),
-          TrackModel(database,
-                  source == Source::Container ? "crateserver_container"
-                                              : "crateserver_library"),
+          TrackModel(database, settingsNamespace),
           m_source(source),
           m_pDbConnectionPool(std::move(pDbConnectionPool)),
-          m_sortColumn(source == Source::Container ? kPositionColumn : kArtistColumn) {
+          m_sortColumn(source == Source::Library ? kArtistColumn : kPositionColumn) {
     m_pool.setMaxThreadCount(1);
     setDefaultSort(m_sortColumn, Qt::AscendingOrder);
     m_repaintTimer.setSingleShot(true);
@@ -307,11 +333,147 @@ void CrateServerTrackModel::showLibrary(const QString& serverId) {
     load();
 }
 
+void CrateServerTrackModel::setRows(
+        const QString& serverId, const QString& key, QVector<Row> rows) {
+    DEBUG_ASSERT(m_source == Source::Memory);
+    m_serverId = serverId;
+    m_memoryKey = key;
+    m_memoryRows = std::move(rows);
+    load();
+}
+
+const CrateServerTrackModel::Row* CrateServerTrackModel::rowAt(int row) const {
+    return row >= 0 && row < m_rows.size() ? &m_rows[row] : nullptr;
+}
+
+void CrateServerTrackModel::refilter() {
+    if (m_source == Source::Memory) {
+        load();
+    }
+}
+
 void CrateServerTrackModel::select() {
     load();
 }
 
+void CrateServerTrackModel::loadFromMemory() {
+    ++m_generation;
+    const QStringList terms = m_filterBySearch
+            ? m_search.split(QLatin1Char(' '), Qt::SkipEmptyParts)
+            : QStringList();
+    QVector<Row> rows;
+    rows.reserve(m_memoryRows.size());
+    for (const Row& row : std::as_const(m_memoryRows)) {
+        const bool matches = std::all_of(terms.cbegin(), terms.cend(), [&row](const QString& term) {
+            return row.title.contains(term, Qt::CaseInsensitive) ||
+                    row.artist.contains(term, Qt::CaseInsensitive) ||
+                    row.album.contains(term, Qt::CaseInsensitive) ||
+                    row.genre.contains(term, Qt::CaseInsensitive);
+        });
+        if (matches && acceptsRow(row)) {
+            rows.append(row);
+        }
+    }
+    const int column = m_sortColumn;
+    const bool ascending = m_sortOrder == Qt::AscendingOrder;
+    // Missing values last, then the column, then the given order
+    const auto compare = [this, column, ascending](const Row& left, const Row& right) {
+        if (const std::optional<bool> less = lessThan(column, left, right)) {
+            return *less;
+        }
+        const auto byValue = [ascending](const auto& a, const auto& b) -> std::optional<bool> {
+            if (a == b) {
+                return std::nullopt;
+            }
+            return ascending ? a < b : b < a;
+        };
+        const auto byOptional = [&byValue](const auto& a, const auto& b) -> std::optional<bool> {
+            if (a.has_value() != b.has_value()) {
+                return a.has_value();
+            }
+            return a ? byValue(*a, *b) : std::nullopt;
+        };
+        const auto byText = [&byValue](const QString& a, const QString& b) -> std::optional<bool> {
+            if (a.isEmpty() != b.isEmpty()) {
+                return !a.isEmpty();
+            }
+            return byValue(a.toCaseFolded(), b.toCaseFolded());
+        };
+        std::optional<bool> less;
+        switch (column) {
+        case kTitleColumn:
+            less = byText(left.title, right.title);
+            break;
+        case kArtistColumn:
+            less = byText(left.artist, right.artist);
+            break;
+        case kAlbumColumn:
+            less = byText(left.album, right.album);
+            break;
+        case kGenreColumn:
+            less = byText(left.genre, right.genre);
+            break;
+        case kBpmColumn:
+            less = byOptional(left.bpm, right.bpm);
+            break;
+        case kKeyColumn: {
+            // 1A, 1B, 2A ... 12B
+            const auto keyOf = [](const QString& camelot)
+                    -> std::optional<std::pair<int, QString>> {
+                if (camelot.isEmpty()) {
+                    return std::nullopt;
+                }
+                return std::pair(QStringView(camelot).chopped(1).toInt(), camelot);
+            };
+            less = byOptional(keyOf(left.camelot), keyOf(right.camelot));
+            break;
+        }
+        case kDurationColumn:
+            less = byOptional(left.durationMs, right.durationMs);
+            break;
+        case kEnergyColumn:
+            less = byOptional(left.energy, right.energy);
+            break;
+        case kProfileColumn:
+            less = byText(left.profileQuality, right.profileQuality);
+            break;
+        case kBitrateColumn:
+            less = byOptional(left.bitrate, right.bitrate);
+            break;
+        case kFileTypeColumn:
+            less = byText(left.format, right.format);
+            break;
+        case kSampleRateColumn:
+            less = byOptional(left.sampleRate, right.sampleRate);
+            break;
+        case kPositionColumn:
+            less = byValue(left.position, right.position);
+            break;
+        default:
+            break;
+        }
+        return less.value_or(left.position < right.position);
+    };
+    std::stable_sort(rows.begin(), rows.end(), compare);
+
+    const QString rowsKey = modelKey(false);
+    if (rowsKey == m_rowsKey && rows.size() == m_rows.size()) {
+        swapRowsKeepingSelection(std::move(rows));
+    } else {
+        beginResetModel();
+        m_rows = std::move(rows);
+        m_rowsKey = rowsKey;
+        endResetModel();
+    }
+    m_loading = false;
+    emit loaded();
+}
+
 void CrateServerTrackModel::load() {
+    if (m_source == Source::Memory) {
+        loadFromMemory();
+        return;
+    }
     const quint64 generation = ++m_generation;
     Request request;
     request.source = m_source;
@@ -493,6 +655,10 @@ QVariant CrateServerTrackModel::data(const QModelIndex& index, int role) const {
         return row.format;
     case kSampleRateColumn:
         return row.sampleRate ? QVariant(*row.sampleRate) : QVariant();
+    case kLikedColumn:
+        //: In the Liked column: the user likes the track on Crate
+        return m_likedOf && m_likedOf(row.serverId, row.entityUid) ? QVariant(tr("Liked"))
+                                                                   : QVariant();
     default:
         return QVariant();
     }
@@ -549,6 +715,9 @@ QVariant CrateServerTrackModel::headerData(
         return tr("Type");
     case kSampleRateColumn:
         return tr("Samplerate");
+    case kLikedColumn:
+        //: Whether the user likes the track on Crate
+        return tr("Liked");
     default:
         return QVariant();
     }
@@ -641,6 +810,7 @@ QList<QAction*> CrateServerTrackModel::trackMenuActions(
     if (!m_pCoordinator) {
         return {};
     }
+    // TEST_GAP: the extra entries only show in a real track menu
     QList<CrateTrackRef> uncached;
     QList<CrateTrackRef> cached;
     for (const QModelIndex& index : indices) {
@@ -675,7 +845,25 @@ QList<QAction*> CrateServerTrackModel::trackMenuActions(
                     pCoordinator->removeFromCache(track.serverId, track.entityUid);
                 }
             });
-    return {pDownload, pRemove};
+    QList<QAction*> actions{pDownload, pRemove};
+    if (m_menuActions) {
+        QList<CrateTrackRef> tracks;
+        QStringList labels;
+        QSet<int> rows;
+        for (const QModelIndex& index : indices) {
+            if (!index.isValid() || index.row() >= m_rows.size() || rows.contains(index.row())) {
+                continue;
+            }
+            rows.insert(index.row());
+            const Row& row = m_rows[index.row()];
+            tracks.append(trackRef(index.row()));
+            labels.append(row.artist.isEmpty() || row.title.isEmpty()
+                            ? row.title + row.artist
+                            : QStringLiteral("%1 - %2").arg(row.artist, row.title));
+        }
+        actions += m_menuActions(tracks, labels, pParent);
+    }
+    return actions;
 }
 
 QUrl CrateServerTrackModel::getTrackUrl(const QModelIndex& index) const {
@@ -787,14 +975,99 @@ TrackModel::Capabilities CrateServerTrackModel::getCapabilities() const {
     }
     // Uncached tracks load through requestTrackLoad() and go to Auto DJ
     // through getTrackIdsForAutoDJ()
-    return Capability::Sorting | Capability::LoadToDeck | Capability::LoadToSampler |
-            Capability::LoadToPreviewDeck | Capability::AddToAutoDJ;
+    Capabilities capabilities = Capability::Sorting | Capability::LoadToDeck |
+            Capability::LoadToSampler | Capability::LoadToPreviewDeck | Capability::AddToAutoDJ;
+    if (m_playlistEditor) {
+        capabilities |= Capability::RemovePlaylist | Capability::ReceiveDrops;
+        if (canReorder()) {
+            capabilities |= Capability::Reorder;
+        }
+    }
+    return capabilities;
+}
+
+void CrateServerTrackModel::setPlaylistEditor(std::optional<PlaylistEditor> editor) {
+    m_playlistEditor = std::move(editor);
+}
+
+bool CrateServerTrackModel::canReorder() const {
+    // Only the whole playlist, as the server stores it
+    return m_playlistEditor && m_source == Source::Container && m_sortColumn == kPositionColumn &&
+            m_sortOrder == Qt::AscendingOrder && (m_search.isEmpty() || !m_filterBySearch);
+}
+
+void CrateServerTrackModel::removeTracks(const QModelIndexList& indices) {
+    if (!m_playlistEditor || !m_playlistEditor->remove) {
+        return;
+    }
+    QList<std::pair<int, QString>> rows;
+    QSet<int> seen;
+    for (const QModelIndex& index : indices) {
+        if (!index.isValid() || index.row() >= m_rows.size() || seen.contains(index.row())) {
+            continue;
+        }
+        seen.insert(index.row());
+        const Row& row = m_rows[index.row()];
+        rows.append({row.position - 1, row.entityUid});
+    }
+    if (!rows.isEmpty()) {
+        m_playlistEditor->remove(rows);
+    }
+}
+
+void CrateServerTrackModel::moveTrack(
+        const QModelIndex& sourceIndex, const QModelIndex& destIndex) {
+    if (!canReorder() || !sourceIndex.isValid() || sourceIndex.row() >= m_rows.size()) {
+        return;
+    }
+    const int from = sourceIndex.row();
+    // Below the last row: to the end
+    const int to = destIndex.isValid()
+            ? std::min(destIndex.row(), static_cast<int>(m_rows.size()) - 1)
+            : static_cast<int>(m_rows.size()) - 1;
+    if (from == to) {
+        return;
+    }
+    // At once here, so that the view's next move sees it; the server gets
+    // the whole order once the view is done
+    beginMoveRows(QModelIndex(), from, from, QModelIndex(), to > from ? to + 1 : to);
+    m_rows.move(from, to);
+    endMoveRows();
+    for (int i = 0; i < m_rows.size(); ++i) {
+        m_rows[i].position = i + 1;
+    }
+    emit dataChanged(index(0, kPositionColumn), index(rowCount() - 1, kPositionColumn));
+    if (m_reorderPending) {
+        return;
+    }
+    m_reorderPending = true;
+    QTimer::singleShot(0, this, [this] {
+        m_reorderPending = false;
+        if (!m_playlistEditor || !m_playlistEditor->reorder) {
+            return;
+        }
+        QStringList order;
+        order.reserve(m_rows.size());
+        for (const Row& row : std::as_const(m_rows)) {
+            order.append(row.entityUid);
+        }
+        m_playlistEditor->reorder(order);
+    });
+}
+
+int CrateServerTrackModel::addTracks(const QModelIndex& index, const QList<QString>& locations) {
+    Q_UNUSED(index);
+    if (m_playlistEditor && m_playlistEditor->add && !locations.isEmpty()) {
+        // The server appends them; they show once the playlist syncs again
+        m_playlistEditor->add(locations);
+    }
+    return 0;
 }
 
 TrackModel::SortColumnId CrateServerTrackModel::sortColumnIdFromColumnIndex(int column) const {
     switch (column) {
     case kPositionColumn:
-        return m_source == Source::Container ? SortColumnId::Position : SortColumnId::Invalid;
+        return m_source != Source::Library ? SortColumnId::Position : SortColumnId::Invalid;
     case kTitleColumn:
         return SortColumnId::Title;
     case kArtistColumn:
@@ -839,10 +1112,26 @@ int CrateServerTrackModel::fieldIndex(const QString& fieldName) const {
     return -1;
 }
 
+void CrateServerTrackModel::likesChanged(const QString& serverId) {
+    if (m_rows.isEmpty() || (!m_serverId.isEmpty() && m_serverId != serverId)) {
+        return;
+    }
+    emit dataChanged(index(0, kLikedColumn), index(rowCount() - 1, kLikedColumn));
+}
+
 QString CrateServerTrackModel::modelKey(bool noSearch) const {
-    QString key = m_source == Source::Container
-            ? QStringLiteral("crateserver_container:%1").arg(m_containerId)
-            : QStringLiteral("crateserver_library:%1").arg(m_serverId);
+    QString key;
+    switch (m_source) {
+    case Source::Container:
+        key = QStringLiteral("crateserver_container:%1").arg(m_containerId);
+        break;
+    case Source::Library:
+        key = QStringLiteral("crateserver_library:%1").arg(m_serverId);
+        break;
+    case Source::Memory:
+        key = QStringLiteral("crateserver_memory:%1:%2").arg(m_serverId, m_memoryKey);
+        break;
+    }
     if (!noSearch && !m_search.isEmpty()) {
         key += QLatin1Char('#') + m_search;
     }

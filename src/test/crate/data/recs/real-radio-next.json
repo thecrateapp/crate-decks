@@ -1,0 +1,68 @@
+{
+  "session_id": "a564d2dd-0cdf-472c-8140-0e09b4fc6d6c",
+  "tracks": [
+    {
+      "format": "flac",
+      "bitrate": 979046,
+      "sample_rate": 44100,
+      "bit_depth": 16,
+      "duration": 148.16,
+      "bpm": 136.0,
+      "audio_key": "D",
+      "audio_scale": "minor",
+      "track_id": 98434,
+      "track_entity_uid": null,
+      "track_path": null,
+      "path": null,
+      "title": "Teenage Kicks",
+      "artist": "The Undertones",
+      "album": "The Undertones",
+      "score": null,
+      "energy": 0.671,
+      "danceability": 0.57,
+      "valence": 0.452,
+      "bliss_vector": [
+        0.3344978,
+        -0.7083156
+      ],
+      "entity_uid": "f0399044-6b04-5839-a03d-c1bffb6199eb",
+      "album_id": 7236,
+      "year": "1979",
+      "distance": 0.007068
+    },
+    {
+      "format": "flac",
+      "bitrate": 844000,
+      "sample_rate": 44100,
+      "bit_depth": 16,
+      "duration": 450.8,
+      "bpm": 64.6,
+      "audio_key": "F",
+      "audio_scale": "major",
+      "track_id": 22385,
+      "track_entity_uid": null,
+      "track_path": null,
+      "path": null,
+      "title": "Blue Monday (2016 Remaster)",
+      "artist": "New Order",
+      "album": "Singles (2016 Remaster)",
+      "score": null,
+      "energy": 0.658,
+      "danceability": 0.521,
+      "valence": 0.404,
+      "bliss_vector": [
+        0.2844187,
+        -0.82155746
+      ],
+      "entity_uid": "af619988-ad58-5aa5-a230-1db169f90700",
+      "album_id": 1713,
+      "year": "2005",
+      "distance": 0.017445
+    }
+  ],
+  "mode": null,
+  "seed_label": null,
+  "batch_index": 1,
+  "status": "ok",
+  "exhausted": false
+}

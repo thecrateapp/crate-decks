@@ -196,24 +196,21 @@ std::optional<cache::TrackKey> SmartMixAssist::crateTrackOn(const QString& group
 }
 
 PlanContext SmartMixAssist::contextFor(const QString& serverId, const QStringList& decks) const {
-    PlanContext context;
-    context.plannerVersion = kPlannerVersion;
+    // v3 with its menu when the server offers them (plan F6b.PR1)
+    PlanContext context = PlanContext::forServer(
+            m_options.capabilitiesOf ? m_options.capabilitiesOf(serverId) : std::nullopt);
     // A planned transition, as Auto DJ's: `automatic=false` is a skip the
     // DJ asks for now, which the server plans as a short crossfade (350 ms
     // on the dev stack)
     context.automatic = true;
     context.assist = true;
-    const std::optional<Capabilities> capabilities =
-            m_options.capabilitiesOf ? m_options.capabilitiesOf(serverId) : std::nullopt;
-    const auto has = [&capabilities](DecksFeature feature) {
-        return capabilities && capabilities->has(feature);
-    };
-    context.allowBeatmatch = has(DecksFeature::Beatmatch);
     context.allowTempoAdjustment = true;
     // The handoff cuts the lows with the default EQ's measured knob
-    context.allowBassHandoff = has(DecksFeature::BassHandoff) && m_options.defaultEqOn &&
+    context.allowBassHandoff = context.allowBassHandoff && m_options.defaultEqOn &&
             m_options.defaultEqOn(decks);
-    context.allowLongBeatmatch = has(DecksFeature::LongBeatmatch);
+    if (m_options.pSetHistory) {
+        context.setHistory = m_options.pSetHistory->entries();
+    }
     // A DJ mixing by hand has no Auto DJ time: the assistant's own, 8 s by
     // default; long blends follow allowLongBeatmatch and the assist limits
     const int seconds = m_options.pPreferences
@@ -229,6 +226,20 @@ void SmartMixAssist::scheduleRefresh() {
     }
 }
 
+void SmartMixAssist::trackPlansChanged(const QString& serverId, const QString& entityUid) {
+    if (m_pDirector->isActive() || serverId != m_serverId ||
+            (m_edge.outgoingTrackEntityUid.compare(entityUid, Qt::CaseInsensitive) != 0 &&
+                    m_edge.incomingTrackEntityUid.compare(entityUid, Qt::CaseInsensitive) !=
+                            0)) {
+        return;
+    }
+    kLogger.info() << "The plans of" << entityUid << "changed: asking again";
+    // Without a plan the same edge is asked for again, and the answer of a
+    // request on its way is not taken
+    m_plan.reset();
+    refresh();
+}
+
 void SmartMixAssist::refresh() {
     watchControls();
     if (m_pDirector->isActive()) {
@@ -242,6 +253,7 @@ void SmartMixAssist::refresh() {
         m_problem.clear();
         m_edge = PlanEdge();
         m_serverId.clear();
+        m_plannerVersion.clear();
         m_context = QJsonObject();
         ++m_request;
         emit changed();
@@ -273,11 +285,13 @@ void SmartMixAssist::refresh() {
     }
     const PlanEdge edge{outgoing->entityUid, incoming->entityUid, QString(), QString()};
     const PlanContext context = contextFor(outgoing->serverId, {m_outgoing, m_incoming});
-    const QJsonObject contextJson = context.toJson();
+    QJsonObject contextJson = context.toJson();
+    // The set history changes no plan
+    contextJson.remove(QStringLiteral("setHistory"));
     if (m_plan && m_serverId == outgoing->serverId &&
             m_edge.outgoingTrackEntityUid == edge.outgoingTrackEntityUid &&
             m_edge.incomingTrackEntityUid == edge.incomingTrackEntityUid &&
-            m_context == contextJson) {
+            m_plannerVersion == context.plannerVersion && m_context == contextJson) {
         // The same edge and context: its plan holds
         emit changed();
         return;
@@ -285,6 +299,7 @@ void SmartMixAssist::refresh() {
     keep(Status::Requesting);
     m_edge = edge;
     m_serverId = outgoing->serverId;
+    m_plannerVersion = context.plannerVersion;
     m_context = contextJson;
     if (const auto cached = pPlans->cachedPlan(edge, context)) {
         m_latencyMs = 0;
@@ -318,17 +333,29 @@ void SmartMixAssist::refresh() {
 }
 
 void SmartMixAssist::setPlan(const TransitionPlan& plan) {
-    const auto problem = plan.validate(static_cast<qint64>(durationMs(m_outgoing)),
-            static_cast<qint64>(durationMs(m_incoming)));
-    if (problem) {
+    // The server's pick, or the next entry of its menu that fits
+    QString problem;
+    std::optional<TransitionPlan> playable =
+            plan.playable(static_cast<qint64>(durationMs(m_outgoing)),
+                    static_cast<qint64>(durationMs(m_incoming)),
+                    &problem);
+    if (!playable) {
         m_base = Status::NoPlan;
-        m_problem = *problem;
-        kLogger.warning() << "The plan does not fit the tracks:" << *problem;
+        m_problem = problem;
+        kLogger.warning() << "The plan does not fit the tracks:" << problem;
     } else {
         m_base = Status::Ready;
-        m_plan = plan;
-        kLogger.info() << "Plan" << toString(plan.mode) << plan.durationMs << "ms, confidence"
-                       << plan.confidence;
+        m_plan = std::move(playable);
+        if (m_plan->candidateIndex != plan.candidateIndex) {
+            kLogger.info() << "Candidate" << m_plan->candidateIndex
+                           << "of the server's menu instead of its pick:" << problem;
+        }
+        kLogger.info() << "Plan" << toString(m_plan->mode) << m_plan->durationMs
+                       << "ms, confidence" << m_plan->confidence;
+        if (m_options.pSetHistory) {
+            m_options.pSetHistory->prepare(
+                    m_serverId, m_edge.outgoingTrackEntityUid, m_edge.incomingTrackEntityUid);
+        }
     }
     emit changed();
 }
@@ -434,6 +461,9 @@ void SmartMixAssist::onDirectorFinished() {
     const SmartMixDirector::Report& report = m_pDirector->report();
     kLogger.info() << "Transition ended:" << report.reason
                    << (report.mixed ? "mixed" : "not mixed") << "late" << report.lateMs << "ms";
+    if (report.mixed && m_pDirector->plan() && m_options.pSetHistory) {
+        m_options.pSetHistory->record(*m_pDirector->plan(), report.durationMs);
+    }
     scheduleRefresh();
     emit changed();
 }

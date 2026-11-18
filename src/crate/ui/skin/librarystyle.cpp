@@ -82,6 +82,8 @@ QHash<QString, QString> sidebarIcons(const QString& skinPath) {
             {QStringLiteral("crate-moods"), QStringLiteral("pulse")},
             {QStringLiteral("crate-recent"), QStringLiteral("clock-circle")},
             {QStringLiteral("crate-likes"), QStringLiteral("heart")},
+            {QStringLiteral("crate-compatibles"), QStringLiteral("stars")},
+            {QStringLiteral("crate-radio"), QStringLiteral("station")},
             {QStringLiteral("crate-smartmix"), QStringLiteral("magic-wand")},
             {QStringLiteral("crate-cache"), QStringLiteral("archive-down")},
     };

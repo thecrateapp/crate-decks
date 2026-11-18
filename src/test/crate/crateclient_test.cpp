@@ -5,6 +5,7 @@
 #include <QCoreApplication>
 #include <QEvent>
 #include <QJsonObject>
+#include <QPointer>
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <memory>
@@ -168,6 +169,47 @@ TEST_F(CrateClientTest, DoesNotRetryPost) {
     EXPECT_EQ(1, m_network.sent.size());
     ASSERT_TRUE(outcome.finished());
     EXPECT_EQ(503, outcome.result->error().httpStatus);
+}
+
+TEST_F(CrateClientTest, SendsDeleteWithJsonBody) {
+    const auto pClient = makeClient();
+    Outcome outcome(pClient->del(QStringLiteral("/api/me/likes"),
+            QJsonDocument(QJsonObject{{QStringLiteral("track_entity_uid"),
+                    QStringLiteral("u-1")}})));
+
+    const auto sent = m_network.last();
+    EXPECT_EQ(QNetworkAccessManager::CustomOperation, sent.operation);
+    EXPECT_EQ(QByteArrayLiteral("DELETE"),
+            sent.request.attribute(QNetworkRequest::CustomVerbAttribute).toByteArray());
+    EXPECT_EQ(QByteArrayLiteral("application/json"),
+            sent.request.header(QNetworkRequest::ContentTypeHeader).toByteArray());
+    EXPECT_EQ(QByteArrayLiteral(R"({"track_entity_uid":"u-1"})"), sent.body);
+    EXPECT_EQ(QStringLiteral("/base/api/me/likes"), sent.request.url().path());
+    sent.pReply->respond(200, kOkBody);
+    ASSERT_TRUE(outcome.finished());
+    EXPECT_TRUE(outcome.result->ok());
+}
+
+// A 409 of the cue and correction routes carries the stored content (plan
+// F8): the Reply keeps the body of an error answer.
+TEST_F(CrateClientTest, KeepsTheBodyOfAnErrorAnswer) {
+    const auto pClient = makeClient();
+    Reply* pReply = pClient->put(QStringLiteral("/api/decks/cues/u-1"),
+            QJsonDocument(QJsonObject{{QStringLiteral("base_revision"), 1}}));
+    Outcome outcome(pReply);
+    // Deleted later, once the event loop runs
+    const QPointer<Reply> pFinished(pReply);
+    const QByteArray conflict = QByteArrayLiteral(
+            R"({"detail": "Cue set revision conflict", "current": {"revision": 5}})");
+
+    m_network.last().pReply->respond(409, conflict);
+
+    ASSERT_TRUE(outcome.finished());
+    ASSERT_FALSE(outcome.result->ok());
+    EXPECT_EQ(409, outcome.result->error().httpStatus);
+    EXPECT_EQ(QStringLiteral("Cue set revision conflict"), outcome.result->error().message);
+    ASSERT_TRUE(pFinished);
+    EXPECT_EQ(conflict, pFinished->body());
 }
 
 TEST_F(CrateClientTest, HonoursRetryAfter) {

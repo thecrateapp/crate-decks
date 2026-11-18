@@ -2,6 +2,7 @@
 
 #include <QJsonDocument>
 #include <QNetworkAccessManager>
+#include <QNetworkInformation>
 #include <QTimer>
 #include <QUuid>
 #include <algorithm>
@@ -17,6 +18,12 @@
 #include "crate/db/crateserverschema.h"
 #include "crate/session/cratesecretstore.h"
 #include "crate/stems/stemsidecar.h"
+#include "crate/writeback/cratecorrections.h"
+#include "crate/writeback/cratecuesync.h"
+#include "crate/writeback/cratelikes.h"
+#include "crate/writeback/crateratings.h"
+#include "crate/writeback/historyreporter.h"
+#include "crate/writeback/outbox.h"
 #include "util/db/dbconnectionpooled.h"
 #include "util/logger.h"
 
@@ -55,12 +62,26 @@ CrateServers::CrateServers(const Dependencies& dependencies, QObject* parent)
         m_pOwnSecretStore = std::make_unique<KeychainSecretStore>();
         m_dependencies.pSecretStore = m_pOwnSecretStore.get();
     }
+    createWriteback();
 }
 
 CrateServers::~CrateServers() {
     if (s_pInstance == this) {
         s_pInstance = nullptr;
     }
+    // The track on air gets its play event, which the outbox stores for the
+    // next run
+    m_pHistory.reset();
+    // The cue edits waiting for their debounce go to the outbox, which keeps
+    // them for the next run
+    if (m_pCueSync) {
+        m_pCueSync->flushEdits();
+    }
+    m_pCueSync.reset();
+    m_pCorrections.reset();
+    m_pRatings.reset();
+    m_pLikes.reset();
+    m_pOutbox.reset();
     // The cache's downloads use the Clients.
     m_pAudioCache.reset();
     // Sessions before the stores and the network they use.
@@ -93,7 +114,94 @@ void CrateServers::start() {
         }
         createServer(profile, true)->pSession->restore();
     }
+    m_pOutbox->start();
+    m_pRatings->start();
+    m_pCueSync->start();
+    m_pCorrections->start();
     emit serversChanged();
+}
+
+void CrateServers::createWriteback() {
+    writeback::Outbox::Options outbox;
+    outbox.pDbConnectionPool = m_dependencies.pDbConnectionPool;
+    outbox.clientFor = [this](const QString& serverId) -> Client* {
+        const Session* pSession = session(serverId);
+        return pSession && pSession->state() == Session::State::SignedIn ? client(serverId)
+                                                                         : nullptr;
+    };
+    m_pOutbox = std::make_unique<writeback::Outbox>(std::move(outbox));
+    // The network coming back sends what waits, without its backoff
+    if (QNetworkInformation::loadDefaultBackend()) {
+        if (QNetworkInformation* pInformation = QNetworkInformation::instance()) {
+            connect(pInformation,
+                    &QNetworkInformation::reachabilityChanged,
+                    m_pOutbox.get(),
+                    [pOutbox = m_pOutbox.get()](QNetworkInformation::Reachability reachability) {
+                        if (reachability == QNetworkInformation::Reachability::Online) {
+                            pOutbox->flush();
+                        }
+                    });
+        }
+    }
+
+    writeback::HistoryReporter::Options history;
+    history.pOutbox = m_pOutbox.get();
+    // A Crate track is one whose file is in the audio cache
+    const auto trackOfFile = [this](const QString& location) -> std::optional<cache::TrackKey> {
+        return m_pAudioCache ? m_pAudioCache->trackOfFile(location) : std::nullopt;
+    };
+    history.trackOfFile = trackOfFile;
+    history.clientFor = [this](const QString& serverId) -> Client* {
+        const Session* pSession = session(serverId);
+        return pSession && pSession->state() == Session::State::SignedIn ? client(serverId)
+                                                                         : nullptr;
+    };
+    history.minimumPlayed = std::chrono::seconds(m_pPreferences->historyMinimumSeconds());
+    m_pHistory = std::make_unique<writeback::HistoryReporter>(std::move(history));
+
+    m_pLikes = std::make_unique<writeback::CrateLikes>(
+            writeback::CrateLikes::Options{m_pOutbox.get(), m_dependencies.pDbConnectionPool});
+    writeback::CrateRatings::Options ratings;
+    ratings.pOutbox = m_pOutbox.get();
+    ratings.pDbConnectionPool = m_dependencies.pDbConnectionPool;
+    ratings.trackOfFile = trackOfFile;
+    m_pRatings = std::make_unique<writeback::CrateRatings>(std::move(ratings));
+
+    // The user's cues and corrections (plan F8), from servers that serve them
+    writeback::TrackDataSync::Options sync;
+    sync.pOutbox = m_pOutbox.get();
+    sync.pDbConnectionPool = m_dependencies.pDbConnectionPool;
+    sync.clientFor = [this](const QString& serverId) -> Client* {
+        const Session* pSession = session(serverId);
+        return pSession && pSession->state() == Session::State::SignedIn ? client(serverId)
+                                                                         : nullptr;
+    };
+    sync.enabledFor = [this](const QString& serverId) {
+        return serverHas(serverId, DecksFeature::Cues);
+    };
+    if (m_dependencies.pConfig) {
+        sync.clientId = deviceFingerprint(m_dependencies.pConfig);
+    }
+    m_pCueSync = std::make_unique<writeback::CrateCueSync>(sync);
+    m_pCorrections = std::make_unique<writeback::CrateCorrections>(std::move(sync));
+}
+
+bool CrateServers::serverHas(const QString& serverId, DecksFeature feature) const {
+    auto it = m_features.find(serverId);
+    if (it == m_features.end()) {
+        // Read once per server and answer: every load asks
+        std::optional<Capabilities> parsed;
+        const QByteArray json = isSaved(serverId) ? lastCapabilities(serverId) : QByteArray();
+        if (!json.isEmpty()) {
+            const Result<Capabilities> capabilities =
+                    Capabilities::fromJson(QJsonDocument::fromJson(json));
+            if (capabilities.ok()) {
+                parsed = capabilities.value();
+            }
+        }
+        it = m_features.insert(serverId, parsed);
+    }
+    return it.value() && it.value()->has(feature);
 }
 
 QList<Session*> CrateServers::sessions() const {
@@ -146,6 +254,7 @@ void CrateServers::removeServer(const QString& serverId) {
     }
     std::unique_ptr<Server> pServer = std::move(*it);
     m_servers.erase(it);
+    m_features.remove(serverId);
     pServer->pSession->logout();
     if (pServer->saved) {
         db::removeServerProfile(database(), serverId);
@@ -169,6 +278,7 @@ void CrateServers::rememberCapabilities(
     for (const auto& pServer : m_servers) {
         if (pServer->pSession->profile().id == serverId && pServer->saved) {
             db::saveLastCapabilities(database(), serverId, capabilitiesJson);
+            m_features.remove(serverId);
             if (pServer->pProfileStore) {
                 const Result<Capabilities> capabilities =
                         Capabilities::fromJson(QJsonDocument::fromJson(capabilitiesJson));
@@ -266,6 +376,11 @@ CrateServers::Server* CrateServers::createServer(const ServerProfile& profile, b
             emit serversChanged();
         }
     });
+    // What waited for the session goes out
+    connect(pCreated->pSession.get(),
+            &Session::signedIn,
+            m_pOutbox.get(),
+            &writeback::Outbox::flush);
     // The preferences page shows the keychain state of every session.
     connect(pCreated->pSession.get(),
             &Session::secretStoreUnavailable,
@@ -285,6 +400,7 @@ bool CrateServers::save(Server* pServer) {
         kLogger.warning() << "Cannot save the Crate server" << pServer->pSession->profile().id;
         return false;
     }
+    m_features.remove(pServer->pSession->profile().id);
     return true;
 }
 

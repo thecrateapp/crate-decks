@@ -237,6 +237,10 @@ Reply* Client::del(const QString& path, const RequestOptions& options) {
     return request(Method::Delete, path, QByteArray(), options);
 }
 
+Reply* Client::del(const QString& path, const QJsonDocument& body, const RequestOptions& options) {
+    return request(Method::Delete, path, body.toJson(QJsonDocument::Compact), options);
+}
+
 Reply* Client::request(Method method,
         const QString& path,
         const QByteArray& body,
@@ -366,7 +370,8 @@ void Client::send(const CallPtr& pCall) {
         pCall->sentToken = m_pTokenSource->accessToken();
     }
     setHeaders(&request, pCall->headers, pCall->sentToken);
-    if (pCall->method == Method::Post || pCall->method == Method::Put) {
+    if (pCall->method == Method::Post || pCall->method == Method::Put ||
+            (pCall->method == Method::Delete && !pCall->body.isEmpty())) {
         request.setHeader(QNetworkRequest::ContentTypeHeader,
                 QByteArrayLiteral("application/json"));
     }
@@ -387,7 +392,11 @@ void Client::send(const CallPtr& pCall) {
         pNetworkReply = m_pNetworkAccessManager->put(request, pCall->body);
         break;
     case Method::Delete:
-        pNetworkReply = m_pNetworkAccessManager->deleteResource(request);
+        // QNetworkAccessManager::deleteResource() sends no body
+        pNetworkReply = pCall->body.isEmpty()
+                ? m_pNetworkAccessManager->deleteResource(request)
+                : m_pNetworkAccessManager->sendCustomRequest(
+                          request, QByteArrayLiteral("DELETE"), pCall->body);
         break;
     }
     ++pCall->attemptsMade;
@@ -546,6 +555,9 @@ void Client::onNetworkReplyFinished(const CallPtr& pCall) {
     }
     if (status < 200 || status >= 300) {
         kLogger.warning() << "Request to" << pCall->url.path() << "failed with HTTP" << status;
+        // Kept for the callers that read more than the detail, such as the
+        // stored content of a 409
+        response.body = body;
         complete({pCall}, httpError(status, body), response);
         return;
     }

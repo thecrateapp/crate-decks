@@ -123,7 +123,8 @@ class Reply : public QObject {
     }
     /// A header of the answer, such as ETag; empty if it has none.
     QByteArray rawHeader(const QByteArray& name) const;
-    /// The body of a RequestOptions::rawBody request.
+    /// The body of a RequestOptions::rawBody request, or of an answer with
+    /// an HTTP error status.
     const QByteArray& body() const {
         return m_response.body;
     }
@@ -196,6 +197,10 @@ class Client : public QObject {
             const QJsonDocument& body,
             const RequestOptions& options = RequestOptions());
     Reply* del(const QString& path, const RequestOptions& options = RequestOptions());
+    /// A DELETE with a JSON body, such as `DELETE /api/me/likes`.
+    Reply* del(const QString& path,
+            const QJsonDocument& body,
+            const RequestOptions& options = RequestOptions());
 
     /// Opens a long-lived GET such as a server-sent event stream: the same
     /// headers as get() plus `Accept: text/event-stream`, no transfer

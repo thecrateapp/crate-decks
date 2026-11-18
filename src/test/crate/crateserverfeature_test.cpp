@@ -4,9 +4,13 @@
 
 #include <QAction>
 #include <QElapsedTimer>
+#include <QFile>
 #include <QFileInfo>
 #include <QIcon>
 #include <QItemSelectionModel>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QSignalSpy>
 #include <QSqlQuery>
 #include <QTemporaryDir>
@@ -29,11 +33,19 @@
 #include "crate/library/cratelibrarystore.h"
 #include "crate/library/crateloadcoordinator.h"
 #include "crate/library/crateprefetcher.h"
+#include "crate/recs/compatiblesmodel.h"
+#include "crate/recs/compatiblesview.h"
+#include "crate/recs/crateradiosource.h"
 #include "crate/smartmix/assistpanel.h"
+#include "crate/smartmix/planclient.h"
 #include "crate/smartmix/smartmixassist.h"
 #include "crate/ui/cachestatusmodel.h"
 #include "crate/ui/delegates/delegateroles.h"
+#include "crate/writeback/cratecorrections.h"
+#include "crate/writeback/outbox.h"
 #include "library/crateserver/crateservertrackmodel.h"
+#include "library/dao/playlistdao.h"
+#include "library/dao/trackschema.h"
 #include "library/trackcollection.h"
 #include "library/trackset/crate/crate.h"
 #include "library/treeitem.h"
@@ -43,6 +55,7 @@
 #include "test/librarytest.h"
 #include "track/track.h"
 #include "widget/wlibrary.h"
+#include "widget/wtrackmenu.h"
 
 namespace {
 
@@ -122,6 +135,7 @@ class CrateServerFeatureTest : public LibraryTest {
     }
 
     void TearDown() override {
+        m_menus.clear();
         m_pFeature.reset();
         m_pServers.reset();
         if (!m_playerControls.empty()) {
@@ -300,6 +314,8 @@ class CrateServerFeatureTest : public LibraryTest {
     std::unique_ptr<CrateServers> m_pServers;
     std::unique_ptr<CrateServerFeature> m_pFeature;
     std::vector<std::unique_ptr<ControlObject>> m_playerControls;
+    /// Track menus a test opened, kept until it ends.
+    std::vector<std::unique_ptr<WTrackMenu>> m_menus;
     qsizetype m_sentAtStart = 0;
 };
 
@@ -327,14 +343,18 @@ TEST_F(CrateServerFeatureTest, SidebarShowsServerAndSections) {
                       QStringLiteral("Crates (1)"),
                       QStringLiteral("Genres"),
                       QStringLiteral("Likes (2)"),
+                      QStringLiteral("Compatibles"),
+                      QStringLiteral("Radio"),
                       QStringLiteral("Smart Mix"),
                       QStringLiteral("Cache")}),
             labels(root()));
     // Their Solar icons, by name, for the CrateDecks sidebar
     EXPECT_EQ(QStringLiteral("crate-library"), root()->child(0)->getIcon().name());
     EXPECT_EQ(QStringLiteral("crate-likes"), root()->child(4)->getIcon().name());
-    EXPECT_EQ(QStringLiteral("crate-smartmix"), root()->child(5)->getIcon().name());
-    EXPECT_EQ(QStringLiteral("crate-cache"), root()->child(6)->getIcon().name());
+    EXPECT_EQ(QStringLiteral("crate-compatibles"), root()->child(5)->getIcon().name());
+    EXPECT_EQ(QStringLiteral("crate-radio"), root()->child(6)->getIcon().name());
+    EXPECT_EQ(QStringLiteral("crate-smartmix"), root()->child(7)->getIcon().name());
+    EXPECT_EQ(QStringLiteral("crate-cache"), root()->child(8)->getIcon().name());
     // The server's order, and its count when there is one
     EXPECT_EQ(QStringList({QStringLiteral("Peak hour"), QStringLiteral("Warm-up (52)")}),
             labels(root()->child(1)));
@@ -581,7 +601,8 @@ TEST_F(CrateServerFeatureTest, TrackMenuDownloadsAndRemovesFromTheCache) {
     QObject parent;
 
     QList<QAction*> actions = pModel->trackMenuActions({pModel->index(0, 0)}, &parent);
-    ASSERT_EQ(2, actions.size());
+    // Download and Remove from cache first; Radio's and Music Paths' next
+    ASSERT_GE(actions.size(), 2);
     EXPECT_EQ(QStringLiteral("Download"), actions[0]->text());
     EXPECT_TRUE(actions[0]->isEnabled());
     EXPECT_EQ(QStringLiteral("Remove from cache"), actions[1]->text());
@@ -599,7 +620,7 @@ TEST_F(CrateServerFeatureTest, TrackMenuDownloadsAndRemovesFromTheCache) {
             5000));
 
     actions = pModel->trackMenuActions({pModel->index(0, 0)}, &parent);
-    ASSERT_EQ(2, actions.size());
+    ASSERT_GE(actions.size(), 2);
     EXPECT_FALSE(actions[0]->isEnabled());
     EXPECT_TRUE(actions[1]->isEnabled());
     actions[1]->trigger();
@@ -617,7 +638,7 @@ TEST_F(CrateServerFeatureTest, ReadsASmartMixPlaylistByItsIdOnTheServer) {
             {remoteTrack(QStringLiteral("e1"), QStringLiteral("Lattice"), 0.7, QString()),
                     remoteTrack(QStringLiteral("e2"), QStringLiteral("Glass"), 0.5, QString())});
     CrateServerFeature* pFeature = makeFeature();
-    ASSERT_TRUE(QTest::qWaitFor([&] { return labels(root()).size() == 7; }, 5000));
+    ASSERT_TRUE(QTest::qWaitFor([&] { return labels(root()).size() == 9; }, 5000));
     const qsizetype sent = m_network.sent.size();
 
     std::optional<std::optional<QList<crate::library::CrateTrackRef>>> read;
@@ -823,6 +844,8 @@ TEST_F(CrateServerFeatureTest, LazyExpansionFetchesOnce) {
     EXPECT_EQ(QStringList({QStringLiteral("Library"),
                       QStringLiteral("Playlists"),
                       QStringLiteral("Crates"),
+                      QStringLiteral("Compatibles"),
+                      QStringLiteral("Radio"),
                       QStringLiteral("Smart Mix"),
                       QStringLiteral("Cache")}),
             labels(root()));
@@ -835,7 +858,7 @@ TEST_F(CrateServerFeatureTest, LazyExpansionFetchesOnce) {
     const QString tree = QStringLiteral("/api/decks/containers");
     ASSERT_TRUE(QTest::qWaitFor([&] { return sentTo(tree) == 1; }, 5000));
     lastTo(tree)->pReply->respond(200, kTree);
-    ASSERT_TRUE(QTest::qWaitFor([&] { return labels(root()).size() == 7; }, 5000));
+    ASSERT_TRUE(QTest::qWaitFor([&] { return labels(root()).size() == 9; }, 5000));
     EXPECT_EQ(QStringLiteral("Library (136512)"), root()->child(0)->getLabel());
     pPlaylists = childLabelled(root(), QStringLiteral("Playlists"));
     EXPECT_EQ(QStringLiteral("Playlists (2)"), pPlaylists->getLabel());
@@ -955,7 +978,7 @@ TEST_F(CrateServerFeatureTest, SearchInTheCrateSectionAsksTheServer) {
     EXPECT_EQ(QStringLiteral("bpm:120-128 key:8A"), pResults->currentSearch());
     // Not a sidebar node
     EXPECT_EQ(2, labels(childLabelled(root(), QStringLiteral("Playlists"))).size());
-    EXPECT_EQ(7, labels(root()).size());
+    EXPECT_EQ(9, labels(root()).size());
 
     // Clearing the search shows the playlist again, unfiltered
     pResults->search(QString());
@@ -1055,6 +1078,359 @@ TEST_F(CrateServerFeatureTest, SmartMixShowsTheAssistant) {
     EXPECT_EQ(1.0, showSmartMix.get());
     pFeature->activateChild(indexOf(childLabelled(root(), QStringLiteral("Cache"))));
     EXPECT_EQ(0.0, showSmartMix.get());
+}
+
+// The Compatibles item (plan F5.C-PR1) shows the Compatibles view, which
+// follows the deck on air from the start
+TEST_F(CrateServerFeatureTest, CompatiblesFollowTheDeckOnAir) {
+    storeTree();
+    PlayerInfo* pPlayerInfo = createPlayerInfo();
+    CrateServerFeature* pFeature = makeFeature(pPlayerInfo);
+    ASSERT_NE(nullptr, pFeature->compatibles());
+    WLibrary library(nullptr);
+    pFeature->bindLibraryWidget(&library, nullptr);
+    QObject::connect(pFeature, &LibraryFeature::switchToView, &library, &WLibrary::switchToView);
+    auto* pView = library.findChild<crate::recs::CompatiblesView*>();
+    ASSERT_NE(nullptr, pView);
+    EXPECT_FALSE(pView->hint()->isHidden());
+
+    TreeItem* pItem = childLabelled(root(), QStringLiteral("Compatibles"));
+    ASSERT_NE(nullptr, pItem);
+    QSignalSpy searchDisabled(pFeature, &LibraryFeature::disableSearch);
+    pFeature->activateChild(indexOf(pItem));
+    EXPECT_EQ(pView, library.currentWidget());
+    EXPECT_EQ(1, searchDisabled.size());
+
+    // A cached Crate track goes on air
+    crate::cache::AudioCache* pAudioCache = m_pServers->audioCache();
+    ASSERT_TRUE(QTest::qWaitFor([&] { return pAudioCache->isLoaded(); }, 5000));
+    const QString uid = QStringLiteral("afe794ee-23ea-53d3-8280-ff633310da60");
+    emit pPlayerInfo->currentPlayingTrackChanged(Track::newTemporary(cachedPathOf(uid)));
+    const QString path = QStringLiteral("/api/tracks/by-entity/%1/compatible").arg(uid);
+    ASSERT_TRUE(QTest::qWaitFor([&] { return sentTo(path) == 1; }, 5000));
+    QFile answer(getTestDir().filePath(QStringLiteral("crate/data/recs/real-compatibles.json")));
+    ASSERT_TRUE(answer.open(QIODevice::ReadOnly));
+    lastTo(path)->pReply->respond(200, answer.readAll());
+    ASSERT_TRUE(QTest::qWaitFor(
+            [&] {
+                return pFeature->compatibles()->state() == crate::recs::Compatibles::State::Ready;
+            },
+            5000));
+    EXPECT_TRUE(pView->hint()->isHidden());
+    EXPECT_EQ(8, pFeature->compatibles()->model()->rowCount());
+    // The five best download ahead, as the preference says by default
+    ASSERT_TRUE(QTest::qWaitFor(
+            [&] {
+                return sentTo(QStringLiteral("/api/tracks/by-entity/"
+                                             "8e618027-6f6d-57c5-9769-f73a02b14d54/stream")) ==
+                        1;
+            },
+            5000));
+}
+
+// A radio started from a track's menu fills Auto DJ's queue, uncached tracks
+// too, and the Radio item shows its tracks with the DJ's feedback in their
+// menu (plan F5.C-PR2)
+TEST_F(CrateServerFeatureTest, RadioFromATrackFillsAutoDj) {
+    storeTree();
+    storeContainerTracks(containerId(QStringLiteral("playlist"), QStringLiteral("7")),
+            {remoteTrack(QStringLiteral("afe794ee-23ea-53d3-8280-ff633310da60"),
+                    QStringLiteral("I Feel Loved"),
+                    0.8,
+                    QStringLiteral("full"))});
+    PlaylistDAO& playlists = internalCollection()->getPlaylistDAO();
+    int autoDj = playlists.getPlaylistIdFromName(AUTODJ_TABLE);
+    if (autoDj < 0) {
+        autoDj = playlists.createPlaylist(AUTODJ_TABLE, PlaylistDAO::PLHT_AUTO_DJ);
+    }
+    ASSERT_GE(autoDj, 0);
+    CrateServerFeature* pFeature = makeFeature();
+    CrateServerTrackModel* pModel = showWarmUp(pFeature);
+    ASSERT_NE(nullptr, pModel);
+    QObject parent;
+    const QList<QAction*> actions = pModel->trackMenuActions({pModel->index(0, 0)}, &parent);
+    const auto start = std::find_if(actions.cbegin(), actions.cend(), [](const QAction* pAction) {
+        return pAction->text() == QStringLiteral("Start radio from this track");
+    });
+    ASSERT_NE(actions.cend(), start);
+    (*start)->trigger();
+
+    const QString path = QStringLiteral("/api/radio/start");
+    ASSERT_TRUE(QTest::qWaitFor([&] { return sentTo(path) == 1; }, 5000));
+    QFile answer(getTestDir().filePath(QStringLiteral("crate/data/recs/real-radio-start.json")));
+    ASSERT_TRUE(answer.open(QIODevice::ReadOnly));
+    lastTo(path)->pReply->respond(200, answer.readAll());
+    ASSERT_TRUE(QTest::qWaitFor([&] { return playlists.tracksInPlaylist(autoDj) == 5; }, 5000));
+    ASSERT_NE(nullptr, pFeature->radio());
+    EXPECT_TRUE(pFeature->radio()->isRunning());
+
+    // The Radio item shows its tracks
+    QSignalSpy shown(pFeature, &LibraryFeature::showTrackModel);
+    pFeature->activateChild(indexOf(childLabelled(root(), QStringLiteral("Radio"))));
+    ASSERT_EQ(1, shown.size());
+    CrateServerTrackModel* pRadio = pFeature->radioModel();
+    EXPECT_EQ(pRadio, shown.first().first().value<QAbstractItemModel*>());
+    ASSERT_EQ(5, pRadio->rowCount());
+    const int title = pRadio->fieldIndex(QStringLiteral("title"));
+    EXPECT_EQ(QStringLiteral("Blue Monday (2023 Digital Master)"),
+            pRadio->index(0, title).data().toString());
+    const QList<QAction*> radioActions =
+            pRadio->trackMenuActions({pRadio->index(0, 0)}, &parent);
+    const auto more = std::find_if(
+            radioActions.cbegin(), radioActions.cend(), [](const QAction* pAction) {
+                return pAction->text() == QStringLiteral("More like this");
+            });
+    ASSERT_NE(radioActions.cend(), more);
+    (*more)->trigger();
+    ASSERT_TRUE(QTest::qWaitFor(
+            [&] { return sentTo(QStringLiteral("/api/radio/feedback")) == 1; }, 5000));
+}
+
+// The track menu offers a Music Path between the two tracks selected, or
+// from the track on air to the one selected (plan F5.C-PR3)
+TEST_F(CrateServerFeatureTest, MusicPathNeedsTwoEnds) {
+    storeTree();
+    storeContainerTracks(containerId(QStringLiteral("playlist"), QStringLiteral("7")),
+            {remoteTrack(QStringLiteral("e1"), QStringLiteral("Lattice"), 0.7, QString()),
+                    remoteTrack(QStringLiteral("e2"), QStringLiteral("Glass"), 0.5, QString())});
+    PlayerInfo* pPlayerInfo = createPlayerInfo();
+    CrateServerFeature* pFeature = makeFeature(pPlayerInfo);
+    CrateServerTrackModel* pModel = showWarmUp(pFeature);
+    ASSERT_NE(nullptr, pModel);
+    ASSERT_TRUE(QTest::qWaitFor([&] { return pModel->rowCount() == 2; }, 5000));
+    QObject parent;
+    const auto pathAction = [&](const QModelIndexList& rows) -> QAction* {
+        const QList<QAction*> actions = pModel->trackMenuActions(rows, &parent);
+        const auto it = std::find_if(actions.cbegin(), actions.cend(), [](const QAction* pAction) {
+            return pAction->text() == QStringLiteral("Music Path...");
+        });
+        return it == actions.cend() ? nullptr : *it;
+    };
+    // Two tracks: from the first to the second
+    QAction* pBoth = pathAction({pModel->index(0, 0), pModel->index(1, 0)});
+    ASSERT_NE(nullptr, pBoth);
+    EXPECT_TRUE(pBoth->isEnabled());
+    // One track and nothing of Crate on air: no path
+    QAction* pOne = pathAction({pModel->index(0, 0)});
+    ASSERT_NE(nullptr, pOne);
+    EXPECT_FALSE(pOne->isEnabled());
+}
+
+// The track menu likes a track on Crate, which the Liked column shows at once
+// (plan F7.C-PR2)
+TEST_F(CrateServerFeatureTest, LikeFromTheTrackMenuShowsInTheLikedColumn) {
+    storeTree();
+    storeContainerTracks(containerId(QStringLiteral("playlist"), QStringLiteral("7")),
+            {remoteTrack(QStringLiteral("e1"), QStringLiteral("Lattice"), 0.7, QString())});
+    CrateServerFeature* pFeature = makeFeature();
+    CrateServerTrackModel* pModel = showWarmUp(pFeature);
+    ASSERT_NE(nullptr, pModel);
+    ASSERT_TRUE(QTest::qWaitFor([&] { return pModel->rowCount() == 1; }, 5000));
+    ASSERT_TRUE(QTest::qWaitFor([&] { return m_pServers->outbox()->isLoaded(); }, 5000));
+    const int liked = pModel->fieldIndex(CrateServerTrackModel::kLikedField);
+    ASSERT_EQ(CrateServerTrackModel::kLikedColumn, liked);
+    EXPECT_EQ(QStringLiteral("Liked"), pModel->headerData(liked, Qt::Horizontal).toString());
+    EXPECT_TRUE(pModel->index(0, liked).data().toString().isEmpty());
+    QObject parent;
+    const auto entry = [&](const QString& text) -> QAction* {
+        const QList<QAction*> actions = pModel->trackMenuActions({pModel->index(0, 0)}, &parent);
+        const auto it = std::find_if(actions.cbegin(), actions.cend(), [&](const QAction* pAction) {
+            return pAction->text() == text;
+        });
+        return it == actions.cend() ? nullptr : *it;
+    };
+    QAction* pLike = entry(QStringLiteral("Like"));
+    ASSERT_NE(nullptr, pLike);
+    QSignalSpy repainted(pModel, &QAbstractItemModel::dataChanged);
+
+    pLike->trigger();
+
+    const QString path = QStringLiteral("/api/me/likes");
+    ASSERT_TRUE(QTest::qWaitFor([&] { return sentTo(path) == 1; }, 5000));
+    EXPECT_EQ(QStringLiteral("e1"),
+            QJsonDocument::fromJson(lastTo(path)->body)
+                    .object()
+                    .value(QStringLiteral("track_entity_uid"))
+                    .toString());
+    EXPECT_FALSE(repainted.isEmpty());
+    EXPECT_EQ(QStringLiteral("Liked"), pModel->index(0, liked).data().toString());
+    EXPECT_EQ(nullptr, entry(QStringLiteral("Like")));
+    EXPECT_NE(nullptr, entry(QStringLiteral("Unlike")));
+
+    // Nothing of Crate on air: the mapping's control does nothing
+    EXPECT_FALSE(pFeature->toggleLikeOnAir());
+    EXPECT_TRUE(ControlObject::exists(CrateServerFeature::likeOnAirKey()));
+}
+
+// Diego, 2026-11-16: the correction entries are in upstream's track menu
+// of a Crate track everywhere (decks, Auto DJ, upstream's lists, the Crate
+// tables), once, through the Crate hook of WTrackMenu (plan F8.C-PR2)
+TEST_F(CrateServerFeatureTest, TrackMenuClearsTheCorrectionOnCrate) {
+    storeTree();
+    storeContainerTracks(containerId(QStringLiteral("playlist"), QStringLiteral("7")),
+            {remoteTrack(QStringLiteral("e1"), QStringLiteral("Lattice"), 0.7, QString())});
+    CrateServerFeature* pFeature = makeFeature(createPlayerInfo());
+    CrateServerTrackModel* pModel = showWarmUp(pFeature);
+    ASSERT_NE(nullptr, pModel);
+    ASSERT_TRUE(QTest::qWaitFor([&] { return pModel->rowCount() == 1; }, 5000));
+    crate::writeback::CrateCorrections* pCorrections = m_pServers->corrections();
+    ASSERT_TRUE(QTest::qWaitFor([&] { return pCorrections->isLoaded(); }, 5000));
+    m_pServers->rememberCapabilities(kServer,
+            QByteArrayLiteral(R"({"decks": {"available": true, "min_client_version": "0.1.0",
+                "contract_version": 1, "features": ["library_cursor", "cues"]}})"));
+
+    // The track is loaded, and the user has a correction of it on Crate
+    const std::optional<QString> path = m_pServers->audioCache()->filePathFor(
+            kServer, QStringLiteral("e1"), QStringLiteral("flac"));
+    ASSERT_TRUE(path);
+    const TrackPointer pTrack = Track::newTemporary(*path);
+    pTrack->setAudioProperties(mixxx::audio::ChannelCount::stereo(),
+            mixxx::audio::SampleRate(44100),
+            mixxx::audio::Bitrate(320),
+            mixxx::Duration::fromSeconds(372));
+    const auto deckEntry = [&](const QString& text) -> QAction* {
+        auto* pMenu = new WTrackMenu(nullptr, config(), nullptr, WTrackMenu::Feature::Properties);
+        pMenu->loadTrack(pTrack, QStringLiteral("[Channel1]"));
+        // As the deck's track widgets open it
+        pMenu->popup(QPoint(0, 0));
+        pMenu->close();
+        m_menus.emplace_back(pMenu);
+        const QList<QAction*> actions = pMenu->actions();
+        const auto it = std::find_if(actions.cbegin(), actions.cend(), [&](const QAction* pAction) {
+            return pAction->text() == text;
+        });
+        return it == actions.cend() ? nullptr : *it;
+    };
+    EXPECT_EQ(nullptr, deckEntry(QStringLiteral("Clear correction on Crate")));
+    pCorrections->attach(pTrack, kServer, QStringLiteral("e1"));
+    const QString query = QStringLiteral("/api/decks/corrections/query");
+    ASSERT_TRUE(QTest::qWaitFor([&] { return sentTo(query) == 1; }, 5000));
+    lastTo(query)->pReply->respond(200, QByteArrayLiteral(R"({"corrections": {"e1": {
+        "entity_uid": "e1", "revision": 2, "updated_at": "2026-11-16T18:10:02.771940Z",
+        "client_id": "install-2", "bpm": 124.5, "beat_grid_format": null,
+        "beat_grid_ms": null, "key": "8A"}}, "missing": [],
+        "server_time": "2026-11-16T22:00:00.000000Z"})"));
+    ASSERT_TRUE(QTest::qWaitFor(
+            [&] { return pCorrections->hasCorrection(kServer, QStringLiteral("e1")); }, 5000));
+    EXPECT_EQ(nullptr, deckEntry(QStringLiteral("Save correction to Crate")));
+    QAction* pClear = deckEntry(QStringLiteral("Clear correction on Crate"));
+    ASSERT_NE(nullptr, pClear);
+    // The Crate table's own entries do not repeat it: its menu is a
+    // WTrackMenu too, which has it from the hook
+    QObject parent;
+    const QList<QAction*> modelActions = pModel->trackMenuActions({pModel->index(0, 0)}, &parent);
+    EXPECT_TRUE(std::none_of(modelActions.cbegin(),
+            modelActions.cend(),
+            [](const QAction* pAction) {
+                return pAction->text().contains(QStringLiteral("correction"));
+            }));
+
+    pClear->trigger();
+
+    const QString put = QStringLiteral("/api/decks/corrections/e1");
+    ASSERT_TRUE(QTest::qWaitFor([&] { return sentTo(put) == 1; }, 5000));
+    const QJsonObject body = QJsonDocument::fromJson(lastTo(put)->body).object();
+    EXPECT_EQ(2, body.value(QStringLiteral("base_revision")).toInt());
+    EXPECT_TRUE(body.value(QStringLiteral("bpm")).isNull());
+    EXPECT_TRUE(body.value(QStringLiteral("key")).isNull());
+    EXPECT_EQ(nullptr, deckEntry(QStringLiteral("Clear correction on Crate")));
+}
+
+// Plan F8.SM: the server plans with the user's correction, and Decks asks
+// for plans without profile revisions, so a correction that comes from the
+// server, or is cleared here, drops the cached plans of the track.
+TEST_F(CrateServerFeatureTest, CorrectionsDropTheTracksSmartMixPlans) {
+    const QString outgoing = QStringLiteral("637bd7c0-380e-5bc7-b841-dc2234cdfaf7");
+    const QString incoming = QStringLiteral("34137088-fcab-5f93-8866-31f1bf6d0871");
+    storeTree();
+    CrateServerFeature* pFeature = makeFeature(createPlayerInfo());
+    crate::writeback::CrateCorrections* pCorrections = m_pServers->corrections();
+    ASSERT_TRUE(QTest::qWaitFor([&] { return pCorrections->isLoaded(); }, 5000));
+    m_pServers->rememberCapabilities(kServer,
+            QByteArrayLiteral(R"({"decks": {"available": true, "min_client_version": "0.1.0",
+                "contract_version": 1, "features": ["library_cursor", "cues"]}})"));
+    crate::PlanClient* pPlans = pFeature->planClient(kServer);
+    ASSERT_NE(nullptr, pPlans);
+    EXPECT_EQ(pPlans, pFeature->planClient(kServer));
+
+    // The plan of an edge with the track, as Auto DJ and the assistant ask
+    const crate::PlanEdge edge{outgoing, incoming, QString(), QString()};
+    const QString plansPath = QStringLiteral("/api/playback/transition-plans");
+    const auto cachePlan = [&] {
+        const int asked = sentTo(plansPath);
+        pPlans->requestPlans({edge}, crate::PlanContext());
+        ASSERT_TRUE(QTest::qWaitFor([&] { return sentTo(plansPath) == asked + 1; }, 5000));
+        QFile file(getTestDir().filePath(
+                QStringLiteral("crate/data/transition-plans/real-beatmatch.json")));
+        ASSERT_TRUE(file.open(QIODevice::ReadOnly));
+        QJsonObject plan = QJsonDocument::fromJson(file.readAll()).object();
+        plan.insert(QStringLiteral("outgoingTrackEntityUid"), outgoing);
+        plan.insert(QStringLiteral("incomingTrackEntityUid"), incoming);
+        lastTo(plansPath)->pReply->respond(200,
+                QJsonDocument(QJsonObject{
+                                      {QStringLiteral("plannerVersion"),
+                                              QStringLiteral("smart-mix-v2")},
+                                      {QStringLiteral("plans"), QJsonArray{plan}},
+                              })
+                        .toJson());
+        ASSERT_TRUE(QTest::qWaitFor([&] { return pPlans->cachedPlans() == 1; }, 5000));
+    };
+    cachePlan();
+
+    // The incoming track is loaded, and another computer corrected it
+    const TrackPointer pTrack = Track::newTemporary(QStringLiteral("/cache/srv-1/incoming.flac"));
+    pTrack->setAudioProperties(mixxx::audio::ChannelCount::stereo(),
+            mixxx::audio::SampleRate(44100),
+            mixxx::audio::Bitrate(320),
+            mixxx::Duration::fromSeconds(372));
+    pCorrections->attach(pTrack, kServer, incoming);
+    const QString query = QStringLiteral("/api/decks/corrections/query");
+    ASSERT_TRUE(QTest::qWaitFor([&] { return sentTo(query) == 1; }, 5000));
+    lastTo(query)->pReply->respond(200,
+            QStringLiteral(R"({"corrections": {"%1": {
+        "entity_uid": "%1", "revision": 2, "updated_at": "2026-11-16T18:10:02.771940Z",
+        "client_id": "install-2", "bpm": 124.5, "beat_grid_format": null,
+        "beat_grid_ms": null, "key": "8A"}}, "missing": [],
+        "server_time": "2026-11-16T22:00:00.000000Z"})")
+                    .arg(incoming)
+                    .toUtf8());
+    ASSERT_TRUE(QTest::qWaitFor(
+            [&] { return pCorrections->hasCorrection(kServer, incoming); }, 5000));
+    EXPECT_EQ(0, pPlans->cachedPlans());
+
+    // Cleared here
+    cachePlan();
+    ASSERT_TRUE(pCorrections->clear(kServer, incoming));
+    EXPECT_EQ(0, pPlans->cachedPlans());
+}
+
+// A Crate playlist's track table removes, reorders and takes tracks on the
+// server, checking the playlist first (plan F7.C-PR3)
+TEST_F(CrateServerFeatureTest, PlaylistTableEditsThePlaylistOnTheServer) {
+    storeTree();
+    storeContainerTracks(containerId(QStringLiteral("playlist"), QStringLiteral("7")),
+            {remoteTrack(QStringLiteral("e1"), QStringLiteral("Lattice"), 0.7, QString()),
+                    remoteTrack(QStringLiteral("e2"), QStringLiteral("Glass"), 0.5, QString())});
+    CrateServerFeature* pFeature = makeFeature();
+    CrateServerTrackModel* pModel = showWarmUp(pFeature);
+    ASSERT_NE(nullptr, pModel);
+    ASSERT_TRUE(QTest::qWaitFor([&] { return pModel->rowCount() == 2; }, 5000));
+    EXPECT_TRUE(pModel->isPlaylistEditable());
+    EXPECT_TRUE(pModel->hasCapabilities(TrackModel::Capability::RemovePlaylist));
+    EXPECT_TRUE(pModel->hasCapabilities(TrackModel::Capability::ReceiveDrops));
+    EXPECT_TRUE(pModel->hasCapabilities(TrackModel::Capability::Reorder));
+
+    pModel->removeTracks({pModel->index(1, 0)});
+
+    const QString path = QStringLiteral("/api/playlists/7");
+    ASSERT_TRUE(QTest::qWaitFor([&] { return sentTo(path) == 1; }, 5000));
+    lastTo(path)->pReply->respond(200,
+            QByteArrayLiteral(R"({"id": 7, "can_edit": true, "tracks": [
+                {"id": 31, "position": 1, "track_entity_uid": "e1"},
+                {"id": 32, "position": 2, "track_entity_uid": "e2"}]})"));
+    const QString remove = QStringLiteral("/api/playlists/7/tracks/2");
+    ASSERT_TRUE(QTest::qWaitFor([&] { return sentTo(remove) == 1; }, 5000));
+    EXPECT_EQ(QNetworkAccessManager::DeleteOperation, lastTo(remove)->operation);
 }
 
 TEST_F(CrateServerFeatureTest, CacheItemShowsTheCacheView) {

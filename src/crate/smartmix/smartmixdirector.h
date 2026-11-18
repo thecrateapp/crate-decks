@@ -104,8 +104,12 @@ class SmartMixDirector : public QObject {
         /// `outgoing_stopped`, `incoming_stopped`, `incoming_started`,
         /// `track_changed`, `outgoing_jumped_back`, `deadline` or `cancelled`.
         QString reason;
-        /// The validation problem of an invalid plan.
+        /// The validation problem of an invalid plan, or of the server's
+        /// pick when another entry of its menu was played.
         QString detail;
+        /// The entry of the server's candidate menu played: 0 for its pick
+        /// (TransitionPlan::playable()).
+        int candidateIndex = 0;
         /// The incoming deck was started: the director played a transition.
         bool mixed = false;
         bool usedBeatClock = false;
@@ -160,10 +164,11 @@ class SmartMixDirector : public QObject {
     bool arm(const QString& outgoingGroup,
             const QString& incomingGroup,
             const Options& options = Options());
-    /// Gives the armed transition its plan. A plan that does not fit the
-    /// decks' tracks (TransitionPlan::validate()) falls back; one that comes
-    /// later than kPrepareLeadMs before its start is prepared at once.
-    /// Returns whether the plan was taken.
+    /// Gives the armed transition its plan. The director plays the server's
+    /// pick, or the next entry of its candidate menu that fits the decks'
+    /// tracks and the server's limits (TransitionPlan::playable()); without
+    /// one it falls back. A plan that comes later than kPrepareLeadMs before
+    /// its start is prepared at once. Returns whether the plan was taken.
     bool setPlan(const TransitionPlan& plan);
     /// Lets a transition armed with Options::holdStart start at its cue.
     /// Returns false, and does nothing, if no transition is held.
@@ -194,6 +199,10 @@ class SmartMixDirector : public QObject {
     std::optional<double> incomingRateBefore() const;
     const Report& report() const {
         return m_report;
+    }
+    /// The plan it plays or played, once setPlan() took one.
+    const std::optional<TransitionPlan>& plan() const {
+        return m_plan;
     }
 
   public slots:

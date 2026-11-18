@@ -1,13 +1,16 @@
 #pragma once
 
+#include <QHash>
 #include <QList>
 #include <QObject>
 #include <QSqlDatabase>
 #include <QString>
 #include <QUrl>
 #include <memory>
+#include <optional>
 #include <vector>
 
+#include "crate/client/cratecapabilities.h"
 #include "crate/session/cratesession.h"
 #include "preferences/usersettings.h"
 #include "util/db/dbconnectionpool.h"
@@ -28,6 +31,15 @@ class ProfileStore;
 namespace cache {
 class AudioCache;
 } // namespace cache
+
+namespace writeback {
+class CrateCorrections;
+class CrateCueSync;
+class CrateLikes;
+class CrateRatings;
+class HistoryReporter;
+class Outbox;
+} // namespace writeback
 
 /// The Crate servers of this installation, each with its Client and Session.
 ///
@@ -102,6 +114,42 @@ class CrateServers : public QObject {
     /// the first time they are asked for.
     analysis::ProfileStore* profileStore(const QString& serverId);
 
+    /// What Decks writes back to the servers (plan F7). It starts sending
+    /// once start() created the Crate tables. A server's entries go out
+    /// while its session is signed in; signing in and the network coming
+    /// back send whatever waits.
+    writeback::Outbox* outbox() const {
+        return m_pOutbox.get();
+    }
+    /// Reports the tracks on air to their servers. The library connects it to
+    /// PlayerInfo.
+    writeback::HistoryReporter* historyReporter() const {
+        return m_pHistory.get();
+    }
+    /// The tracks the user likes on each server, and the likes Decks sends.
+    writeback::CrateLikes* likes() const {
+        return m_pLikes.get();
+    }
+    /// Sends the ratings of Crate tracks. The library connects it to
+    /// TrackCollection::tracksChanged.
+    writeback::CrateRatings* ratings() const {
+        return m_pRatings.get();
+    }
+    /// The user's cues of Crate tracks, synced with the servers that
+    /// announce the `cues` feature (plan F8.C-PR1). The library attaches the
+    /// tracks it loads.
+    writeback::CrateCueSync* cueSync() const {
+        return m_pCueSync.get();
+    }
+    /// The user's BPM, grid and key corrections of Crate tracks (plan
+    /// F8.C-PR2).
+    writeback::CrateCorrections* corrections() const {
+        return m_pCorrections.get();
+    }
+    /// Whether the saved server announces `feature` in its last
+    /// capabilities.
+    bool serverHas(const QString& serverId, DecksFeature feature) const;
+
     /// Whether a server with this origin is kept or being added.
     bool hasOrigin(const QUrl& origin) const;
     /// Whether the server is saved: signed in once and stored.
@@ -117,6 +165,8 @@ class CrateServers : public QObject {
   private:
     struct Server;
     Server* createServer(const ServerProfile& profile, bool saved);
+    /// The outbox, started once the tables exist, and the history reporter.
+    void createWriteback();
     bool save(Server* pServer);
     QSqlDatabase database() const;
 
@@ -128,6 +178,14 @@ class CrateServers : public QObject {
     std::vector<std::unique_ptr<Server>> m_retired;
     std::unique_ptr<CratePreferences> m_pPreferences;
     std::unique_ptr<cache::AudioCache> m_pAudioCache;
+    std::unique_ptr<writeback::Outbox> m_pOutbox;
+    std::unique_ptr<writeback::HistoryReporter> m_pHistory;
+    std::unique_ptr<writeback::CrateLikes> m_pLikes;
+    std::unique_ptr<writeback::CrateRatings> m_pRatings;
+    std::unique_ptr<writeback::CrateCueSync> m_pCueSync;
+    std::unique_ptr<writeback::CrateCorrections> m_pCorrections;
+    /// The last capabilities of each server, as serverHas() read them.
+    mutable QHash<QString, std::optional<Capabilities>> m_features;
 };
 
 } // namespace crate

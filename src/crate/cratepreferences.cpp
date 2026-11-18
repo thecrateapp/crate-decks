@@ -14,6 +14,7 @@ const QString kGroup = QStringLiteral("[Crate]");
 constexpr const char* kCacheDirectory = "CacheDirectory";
 constexpr const char* kCacheLimitBytes = "CacheLimitBytes";
 constexpr const char* kPrefetchAutoDj = "PrefetchAutoDj";
+constexpr const char* kPrewarmCompatibles = "PrewarmCompatibles";
 constexpr const char* kKeyFromCrate = "KeyFromCrate";
 constexpr const char* kStemsOnGpu = "StemsOnGpu";
 constexpr const char* kStemsFineTuned = "StemsFineTuned";
@@ -22,6 +23,7 @@ constexpr const char* kGainFromLufs = "GainFromLufs";
 constexpr const char* kSmartMixKeylock = "SmartMixKeylock";
 // In seconds, as Auto DJ's own transition time ([Auto DJ],Transition)
 constexpr const char* kSmartMixAssistTransition = "SmartMixAssistTransition";
+constexpr const char* kHistoryMinimumSeconds = "HistoryMinimumSeconds";
 
 ConfigKey keyOf(const char* item) {
     return ConfigKey(kGroup, QLatin1String(item));
@@ -117,6 +119,14 @@ void CratePreferences::setPrefetchAutoDj(bool enabled) {
     }
 }
 
+bool CratePreferences::prewarmCompatibles() const {
+    return flag(kPrewarmCompatibles, true);
+}
+
+void CratePreferences::setPrewarmCompatibles(bool enabled) {
+    setFlag(kPrewarmCompatibles, enabled, true);
+}
+
 bool CratePreferences::smartMixKeylock() const {
     return flag(kSmartMixKeylock, true);
 }
@@ -125,6 +135,15 @@ void CratePreferences::setSmartMixKeylock(bool enabled) {
     if (setFlag(kSmartMixKeylock, enabled, true)) {
         emit smartMixKeylockChanged(enabled);
     }
+}
+
+int CratePreferences::historyMinimumSeconds() const {
+    if (!m_pConfig) {
+        return kDefaultHistoryMinimumSeconds;
+    }
+    bool ok = false;
+    const int seconds = m_pConfig->getValueString(keyOf(kHistoryMinimumSeconds)).toInt(&ok);
+    return ok ? std::max(0, seconds) : kDefaultHistoryMinimumSeconds;
 }
 
 int CratePreferences::smartMixAssistTransitionSeconds() const {

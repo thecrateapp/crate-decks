@@ -10,6 +10,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <vector>
 
 #include "crate/client/crateresult.h"
 #include "crate/library/cratelibrarystore.h"
@@ -71,8 +72,11 @@ class LibrarySync : public QObject {
     }
 
     /// Fetches the tracks of a container. A call while one is running for the
-    /// same container repeats it once that one ends.
-    void syncContainerTracks(qint64 containerId);
+    /// same container repeats it once that one ends. `done`, if given, gets
+    /// whether the first sync that starts after this call ended well: never
+    /// the one already running, which may have read the container before.
+    void syncContainerTracks(
+            qint64 containerId, const std::function<void(bool ok)>& done = nullptr);
     bool isSyncing(qint64 containerId) const {
         return m_jobs.find(containerId) != m_jobs.end();
     }
@@ -87,6 +91,9 @@ class LibrarySync : public QObject {
     /// The tracks of a container changed. Not emitted when the server said
     /// nothing changed.
     void containerUpdated(qint64 containerId);
+    /// A sync of a container's tracks ended well, whether they changed or
+    /// not (after containerUpdated()).
+    void containerSynced(qint64 containerId);
     void containersDirty(const QList<qint64>& containerIds);
     /// `containerId` is 0 for the tree.
     void syncFailed(qint64 containerId, const crate::Error& error);
@@ -119,6 +126,10 @@ class LibrarySync : public QObject {
     bool m_treeAgain = false;
     QPointer<Reply> m_pTreeReply;
     std::map<qint64, std::unique_ptr<Job>> m_jobs;
+    /// The `done` of syncContainerTracks(), by container: for the sync
+    /// running, and for the one that repeats it.
+    std::map<qint64, std::vector<std::function<void(bool)>>> m_waiting;
+    std::map<qint64, std::vector<std::function<void(bool)>>> m_waitingAgain;
 };
 
 } // namespace crate::library

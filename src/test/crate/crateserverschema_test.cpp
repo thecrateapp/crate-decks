@@ -236,4 +236,77 @@ TEST_F(CrateServerSchemaTest, CreatesProfilesTable) {
             "json, fetched_at) VALUES ('5b0c', 'e1', 'r2', '{}', '2026-11-11T10:00:00Z')")));
 }
 
+TEST_F(CrateServerSchemaTest, CreatesTheOutboxTableIdempotently) {
+    ASSERT_TRUE(crate::db::createCrateServerSchema(dbConnection()));
+    QSqlQuery insert(dbConnection());
+    ASSERT_TRUE(insert.exec(QStringLiteral(
+            "INSERT INTO crateserver_outbox (id, server_id, kind, payload, created_at) "
+            "VALUES ('e-1', '5b0c', 'like', '{}', '2026-11-16T10:00:00.000Z')")));
+
+    ASSERT_TRUE(crate::db::createCrateServerSchema(dbConnection()));
+
+    // Plan F7.C-PR1: the writes the outbox has not delivered yet
+    EXPECT_EQ(QStringList({QStringLiteral("id"),
+                      QStringLiteral("server_id"),
+                      QStringLiteral("kind"),
+                      QStringLiteral("payload"),
+                      QStringLiteral("created_at")}),
+            columns(QStringLiteral("crateserver_outbox")));
+    QSqlQuery count(dbConnection());
+    ASSERT_TRUE(count.exec(QStringLiteral("SELECT COUNT(*) FROM crateserver_outbox")));
+    ASSERT_TRUE(count.next());
+    EXPECT_EQ(1, count.value(0).toInt());
+}
+
+TEST_F(CrateServerSchemaTest, CreatesTheRatingsTableIdempotently) {
+    ASSERT_TRUE(crate::db::createCrateServerSchema(dbConnection()));
+    QSqlQuery insert(dbConnection());
+    ASSERT_TRUE(insert.exec(QStringLiteral(
+            "INSERT INTO crateserver_ratings (server_id, entity_uid, rating, sent_at) "
+            "VALUES ('5b0c', 'e1', 4, '2026-11-16T10:00:00.000Z')")));
+
+    ASSERT_TRUE(crate::db::createCrateServerSchema(dbConnection()));
+
+    // Plan F7.C-PR2: the last rating sent of each track
+    EXPECT_EQ(QStringList({QStringLiteral("server_id"),
+                      QStringLiteral("entity_uid"),
+                      QStringLiteral("rating"),
+                      QStringLiteral("sent_at")}),
+            columns(QStringLiteral("crateserver_ratings")));
+    QSqlQuery duplicate(dbConnection());
+    EXPECT_FALSE(duplicate.exec(QStringLiteral(
+            "INSERT INTO crateserver_ratings (server_id, entity_uid, rating, sent_at) "
+            "VALUES ('5b0c', 'e1', 2, '2026-11-16T10:00:00.000Z')")));
+}
+
+TEST_F(CrateServerSchemaTest, CreatesTheUserSyncTableIdempotently) {
+    ASSERT_TRUE(crate::db::createCrateServerSchema(dbConnection()));
+    QSqlQuery insert(dbConnection());
+    ASSERT_TRUE(insert.exec(QStringLiteral(
+            "INSERT INTO crateserver_user_sync (server_id, entity_uid, kind, revision, "
+            "baseline, updated_at) VALUES ('5b0c', 'e1', 'cues', 3, '{}', "
+            "'2026-11-16T10:00:00.000Z')")));
+
+    ASSERT_TRUE(crate::db::createCrateServerSchema(dbConnection()));
+
+    // Plan F8: one row per track and kind of user data
+    EXPECT_EQ(QStringList({QStringLiteral("server_id"),
+                      QStringLiteral("entity_uid"),
+                      QStringLiteral("kind"),
+                      QStringLiteral("revision"),
+                      QStringLiteral("baseline"),
+                      QStringLiteral("updated_at")}),
+            columns(QStringLiteral("crateserver_user_sync")));
+    QSqlQuery corrections(dbConnection());
+    EXPECT_TRUE(corrections.exec(QStringLiteral(
+            "INSERT INTO crateserver_user_sync (server_id, entity_uid, kind, revision, "
+            "baseline, updated_at) VALUES ('5b0c', 'e1', 'corrections', 1, '{}', "
+            "'2026-11-16T10:00:00.000Z')")));
+    QSqlQuery duplicate(dbConnection());
+    EXPECT_FALSE(duplicate.exec(QStringLiteral(
+            "INSERT INTO crateserver_user_sync (server_id, entity_uid, kind, revision, "
+            "baseline, updated_at) VALUES ('5b0c', 'e1', 'cues', 4, '{}', "
+            "'2026-11-16T10:00:00.000Z')")));
+}
+
 } // namespace

@@ -856,17 +856,21 @@ TEST_F(CrateAddServerFlowTest, PrefetchAndAnalysisSwitchesSetThePreferences) {
     EXPECT_FALSE(defaults.crateBeats);
     EXPECT_FALSE(defaults.crateKey);
     EXPECT_FALSE(defaults.gainFromLufs);
-    // Prewarm (F5) and progressive playback (F4b) wait for their plans
-    EXPECT_TRUE(page.cacheSection()->prewarm()->parentWidget()->isHidden());
+    // Progressive playback (F4b) waits for its plan; prewarm (F5) is on
+    QCheckBox* pPrewarm = page.cacheSection()->prewarm();
+    EXPECT_FALSE(pPrewarm->parentWidget()->isHidden());
+    EXPECT_TRUE(pPrewarm->isChecked());
     EXPECT_TRUE(page.cacheSection()->progressivePlayback()->parentWidget()->isHidden());
 
     QSignalSpy prefetchChanged(pPreferences, &crate::CratePreferences::prefetchAutoDjChanged);
     QSignalSpy policyChanged(pPreferences, &crate::CratePreferences::analysisPolicyChanged);
     pPrefetch->click();
+    pPrewarm->click();
     pKey->click();
     pGain->click();
 
     EXPECT_FALSE(pPreferences->prefetchAutoDj());
+    EXPECT_FALSE(pPreferences->prewarmCompatibles());
     ASSERT_EQ(1, prefetchChanged.size());
     EXPECT_EQ(2, policyChanged.size());
     const crate::analysis::Policy policy = pPreferences->analysisPolicy();
@@ -876,17 +880,20 @@ TEST_F(CrateAddServerFlowTest, PrefetchAndAnalysisSwitchesSetThePreferences) {
     // Kept in the settings for the next start
     const crate::CratePreferences saved(config());
     EXPECT_FALSE(saved.prefetchAutoDj());
+    EXPECT_FALSE(saved.prewarmCompatibles());
     EXPECT_TRUE(saved.keyFromCrate());
     EXPECT_TRUE(saved.gainFromLufs());
 
     // And a page opened later shows them
     crate::DlgPrefCrate again(nullptr, m_pServers.get());
     EXPECT_FALSE(again.cacheSection()->prefetchAutoDj()->isChecked());
+    EXPECT_FALSE(again.cacheSection()->prewarm()->isChecked());
     EXPECT_TRUE(again.analysisSection()->keyFromCrate()->isChecked());
 
     // Reset to defaults puts everything back
     page.slotResetToDefaults();
     EXPECT_TRUE(pPreferences->prefetchAutoDj());
+    EXPECT_TRUE(pPreferences->prewarmCompatibles());
     EXPECT_FALSE(pPreferences->keyFromCrate());
     EXPECT_FALSE(pPreferences->gainFromLufs());
     EXPECT_TRUE(pPrefetch->isChecked());
@@ -925,6 +932,20 @@ TEST_F(CrateAddServerFlowTest, SmartMixKeylockSwitchSetsThePreference) {
     page.slotResetToDefaults();
     EXPECT_TRUE(pPreferences->smartMixKeylock());
     EXPECT_TRUE(pKeylock->isChecked());
+}
+
+// How long a Crate track plays before Decks reports it to the server's
+// history (plan F7.C-PR1): 30 s unless the settings file says otherwise.
+TEST_F(CrateAddServerFlowTest, HistoryThresholdDefaultsToThirtySeconds) {
+    using crate::CratePreferences;
+    EXPECT_EQ(30, CratePreferences(nullptr).historyMinimumSeconds());
+    EXPECT_EQ(30, CratePreferences(config()).historyMinimumSeconds());
+    config()->setValue(ConfigKey("[Crate]", "HistoryMinimumSeconds"), QStringLiteral("45"));
+    EXPECT_EQ(45, CratePreferences(config()).historyMinimumSeconds());
+    config()->setValue(ConfigKey("[Crate]", "HistoryMinimumSeconds"), QStringLiteral("-3"));
+    EXPECT_EQ(0, CratePreferences(config()).historyMinimumSeconds());
+    config()->setValue(ConfigKey("[Crate]", "HistoryMinimumSeconds"), QStringLiteral("soon"));
+    EXPECT_EQ(30, CratePreferences(config()).historyMinimumSeconds());
 }
 
 // The assistant's transition length is a Crate preference: 8 s by default,

@@ -5399,6 +5399,12 @@ if(CRATE)
       src/crate/library/cratesearch.cpp
       src/crate/library/cratesessionpins.cpp
       src/crate/library/cratetrackpreparer.cpp
+      src/crate/recs/compatiblesmodel.cpp
+      src/crate/recs/compatiblesview.cpp
+      src/crate/recs/cratepathsource.cpp
+      src/crate/recs/crateradiosource.cpp
+      src/crate/recs/recommendationqueue.cpp
+      src/crate/recs/recsjson.cpp
       src/crate/session/crateloopbackserver.cpp
       src/crate/session/cratesecretstore.cpp
       src/crate/session/cratesession.cpp
@@ -5409,6 +5415,7 @@ if(CRATE)
       src/crate/smartmix/curves.cpp
       src/crate/smartmix/eqmap.cpp
       src/crate/smartmix/planclient.cpp
+      src/crate/smartmix/sethistory.cpp
       src/crate/smartmix/smartmixassist.cpp
       src/crate/smartmix/smartmixdirector.cpp
       src/crate/smartmix/transitionplan.cpp
@@ -5434,6 +5441,7 @@ if(CRATE)
       src/crate/ui/cratefirstrun.cpp
       src/crate/ui/dlgprefcrate.cpp
       src/crate/ui/systemcheckview.cpp
+      src/crate/ui/trackmenuhook.cpp
       src/crate/ui/delegates/camelotdelegate.cpp
       src/crate/ui/delegates/celldelegate.cpp
       src/crate/ui/delegates/delegatestyle.cpp
@@ -5458,6 +5466,15 @@ if(CRATE)
       src/crate/ui/widgets/levelring.cpp
       src/crate/ui/widgets/transitionplanview.cpp
       src/crate/ui/widgets/transitionplanviewmodel.cpp
+      src/crate/writeback/cratecorrections.cpp
+      src/crate/writeback/cratecuesync.cpp
+      src/crate/writeback/cratelikes.cpp
+      src/crate/writeback/crateplaylistedit.cpp
+      src/crate/writeback/crateratings.cpp
+      src/crate/writeback/cuemapping.cpp
+      src/crate/writeback/historyreporter.cpp
+      src/crate/writeback/outbox.cpp
+      src/crate/writeback/trackdatasync.cpp
       src/library/crateserver/crateserverfeature.cpp
       src/library/crateserver/crateservertrackmodel.cpp
   )
@@ -5477,12 +5494,25 @@ if(CRATE)
         src/test/crate/profilestore_test.cpp
         src/test/crate/cratecapabilities_test.cpp
         src/test/crate/crateclient_test.cpp
+        src/test/crate/compatiblesmodel_test.cpp
+        src/test/crate/compatiblesview_test.cpp
+        src/test/crate/cratepathsource_test.cpp
+        src/test/crate/crateradiosource_test.cpp
+        src/test/crate/recommendationqueue_test.cpp
+        src/test/crate/cratecorrections_test.cpp
+        src/test/crate/cratecuesync_test.cpp
+        src/test/crate/cratelikes_test.cpp
+        src/test/crate/crateplaylistedit_test.cpp
+        src/test/crate/historyreporter_test.cpp
+        src/test/crate/outbox_test.cpp
         src/test/crate/crateeventsubscriber_test.cpp
         src/test/crate/cratejson_test.cpp
         src/test/crate/cratelibrarysync_test.cpp
         src/test/crate/crateloadcoordinator_test.cpp
         src/test/crate/crateloadintodecks_test.cpp
         src/test/crate/crateg3budgetslive_test.cpp
+        src/test/crate/cratewritebacklive_test.cpp
+        src/test/crate/smartmixcorrectionslive_test.cpp
         src/test/crate/crateprefetcher_test.cpp
         src/test/crate/cratesearch_test.cpp
         src/test/crate/cratesessionpins_test.cpp
@@ -5496,6 +5526,7 @@ if(CRATE)
         src/test/crate/cratesession_test.cpp
         src/test/crate/modelstore_test.cpp
         src/test/crate/planclient_test.cpp
+        src/test/crate/sethistory_test.cpp
         src/test/crate/smartmixdirector_test.cpp
         src/test/crate/stemanalyzer_test.cpp
         src/test/crate/stemdsp_test.cpp

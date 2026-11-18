@@ -101,6 +101,42 @@ const QStringList kAnalysisStatements = {
                        "PRIMARY KEY (server_id, entity_uid))"),
 };
 
+// F7: what Decks writes back to the servers (plan F7). `crateserver_outbox`
+// holds the writes crate::writeback::Outbox has not delivered yet, in the
+// order they were made (`rowid`): `id` is a random UUID, `kind` says which
+// request the entry is (`play_event`, `like`, `unlike` or `rate`),
+// `payload` is its JSON object and `created_at` an ISO 8601 UTC time, from
+// which an entry expires after seven days. `crateserver_ratings` holds the
+// last rating (0-5) crate::writeback::CrateRatings queued for each Crate
+// track, so that only a change is sent (F7.C-PR2); `entity_uid` is
+// lowercase. `crateserver_user_sync` (F8) holds, per track and `kind`
+// (`cues` or `corrections`), the last revision of the user's data Decks
+// read from or wrote to the server and `baseline`, the JSON content Decks
+// counts as in sync with it: crate::writeback::CrateCueSync and
+// crate::writeback::CrateCorrections.
+const QStringList kWritebackStatements = {
+        QStringLiteral("CREATE TABLE IF NOT EXISTS crateserver_outbox ("
+                       "id TEXT PRIMARY KEY NOT NULL, "
+                       "server_id TEXT NOT NULL, "
+                       "kind TEXT NOT NULL, "
+                       "payload TEXT NOT NULL, "
+                       "created_at TEXT NOT NULL)"),
+        QStringLiteral("CREATE TABLE IF NOT EXISTS crateserver_ratings ("
+                       "server_id TEXT NOT NULL, "
+                       "entity_uid TEXT NOT NULL, "
+                       "rating INTEGER NOT NULL, "
+                       "sent_at TEXT NOT NULL, "
+                       "PRIMARY KEY (server_id, entity_uid))"),
+        QStringLiteral("CREATE TABLE IF NOT EXISTS crateserver_user_sync ("
+                       "server_id TEXT NOT NULL, "
+                       "entity_uid TEXT NOT NULL, "
+                       "kind TEXT NOT NULL, "
+                       "revision INTEGER NOT NULL, "
+                       "baseline TEXT NOT NULL, "
+                       "updated_at TEXT NOT NULL, "
+                       "PRIMARY KEY (server_id, entity_uid, kind))"),
+};
+
 // Each statement must be idempotent: they run at every start.
 const QStringList kStatements = {
         // Design §5.2. No secrets: the refresh token is in the keychain.
@@ -146,7 +182,8 @@ bool createCrateServerSchema(const QSqlDatabase& database) {
         kLogger.warning() << "Cannot start a transaction for the Crate tables";
         return false;
     }
-    const QStringList statements = kStatements + kLibraryStatements + kAnalysisStatements;
+    const QStringList statements =
+            kStatements + kLibraryStatements + kAnalysisStatements + kWritebackStatements;
     for (const QString& statement : statements) {
         QSqlQuery query(database);
         if (!query.exec(statement)) {

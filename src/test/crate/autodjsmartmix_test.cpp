@@ -35,6 +35,7 @@
 #include "crate/smartmix/autodjsmartmixadapter.h"
 #include "crate/smartmix/autodjsmartmixmode.h"
 #include "crate/smartmix/planclient.h"
+#include "crate/smartmix/sethistory.h"
 #include "crate/smartmix/smartmixdirector.h"
 #include "library/autodj/autodjprocessor.h"
 #include "library/dao/playlistdao.h"
@@ -745,7 +746,10 @@ class AutoDJSmartMixAdapterTest : public AutoDJSmartMixTest {
         options.capabilitiesOf =
                 [](const QString&) -> std::optional<crate::Capabilities> {
             const auto capabilities = crate::Capabilities::fromJson(
-                    QJsonDocument::fromJson(R"({"decks": {"available": true,
+                    QJsonDocument::fromJson(R"({"smart_mix": {"available": true,
+                        "planner_version": "smart-mix-v2",
+                        "planner_versions": ["smart-mix-v2", "smart-mix-v3"]},
+                        "decks": {"available": true,
                         "min_client_version": "0.1.0", "contract_version": 1,
                         "features": ["beatmatch", "bass_handoff", "long_beatmatch"]}})"));
             return capabilities.value();
@@ -758,7 +762,33 @@ class AutoDJSmartMixAdapterTest : public AutoDJSmartMixTest {
         m_pEnvironment = pEnvironment.get();
         options.pDirector = std::make_unique<crate::SmartMixDirector>(std::move(pEnvironment));
         options.settleTime = std::chrono::milliseconds(1);
+        options.pSetHistory = &m_setHistory;
         m_pAdapter = std::make_unique<crate::AutoDJSmartMixAdapter>(std::move(options));
+    }
+
+    /// The profiles of kUids for the set history: 120 BPM, and an energy
+    /// that rises 0.25 from each outro to the next intro.
+    static crate::SetHistory::Options setHistoryOptions() {
+        crate::SetHistory::Options options;
+        options.profilesOf = [](const QString& serverId,
+                                     const QStringList& uids,
+                                     const crate::SetHistory::Options::ProfilesDone& done) {
+            QList<crate::analysis::MixProfile> profiles;
+            for (const QString& uid : uids) {
+                const int index = static_cast<int>(kUids.indexOf(uid));
+                if (serverId != kServer || index < 0) {
+                    continue;
+                }
+                crate::analysis::MixProfile profile;
+                profile.entityUid = uid;
+                profile.bpm = 120.0;
+                profile.introEnergy = 0.5 + 0.25 * index;
+                profile.outroEnergy = 0.5 + 0.25 * index;
+                profiles.append(profile);
+            }
+            done(profiles);
+        };
+        return options;
     }
 
     crate::SmartMixDirector* director() const {
@@ -847,6 +877,7 @@ class AutoDJSmartMixAdapterTest : public AutoDJSmartMixTest {
     ControlObject keylock1;
     ControlObject keylock2;
     crate::CratePreferences m_preferences{UserSettingsPointer()};
+    crate::SetHistory m_setHistory{setHistoryOptions()};
     crate::test::FakeNetworkAccessManager m_network;
     crate::test::FakeTokenSource m_tokens;
     crate::test::FakeScheduler m_scheduler;
@@ -895,6 +926,33 @@ TEST_F(AutoDJSmartMixAdapterTest, PlaysTheServersPlanThroughAutoDJ) {
     EXPECT_EQ(QList<TrackId>{m_tracks[2]->getId()}, queuedIds());
     EXPECT_EQ(kDeck1, pProcessor->loads.last().group);
     EXPECT_EQ(m_tracks[2], pProcessor->loads.last().pTrack);
+}
+
+// F6b.PR1: the transition the director played goes into the set history,
+// which the next plans carry (smart-mix-v3).
+TEST_F(AutoDJSmartMixAdapterTest, SendsTheTransitionsItPlayedAsTheSetHistory) {
+    makeAdapter();
+    startSmartMix();
+    ASSERT_TRUE(playDeck1Until([this] { return fading(); }).has_value());
+    ASSERT_TRUE(waitFor([this] { return !planRequests().isEmpty(); }));
+    answerPlans();
+    ASSERT_TRUE(waitFor([this] { return director()->plan().has_value(); }));
+    EXPECT_TRUE(m_setHistory.entries().isEmpty());
+    const double toCueMs =
+            418135.0 - deck1.playposition.get() * kSeconds[0] * 1000.0 + 2 * kTickMs;
+    play(toCueMs + 8000.0 + 4 * kTickMs);
+    ASSERT_EQ(crate::SmartMixDirector::State::Completed, director()->state());
+    ASSERT_TRUE(waitFor([this] { return !m_setHistory.entries().isEmpty(); }));
+
+    // 8 s at 120 BPM: 4 bars; from 0.5 to 0.75
+    EXPECT_EQ((QList<crate::SetHistoryEntry>{
+                      crate::SetHistoryEntry{crate::TransitionPlan::Mode::Beatmatch, 4, 0.25}}),
+            m_setHistory.entries());
+    const QJsonArray expected{QJsonObject{{QStringLiteral("mode"), QStringLiteral("beatmatch")},
+            {QStringLiteral("durationBars"), 4},
+            {QStringLiteral("deltaEnergy"), 0.25}}};
+    EXPECT_EQ(expected,
+            m_pAdapter->contextFor(kServer).toJson().value(QStringLiteral("setHistory")).toArray());
 }
 
 // The request: smart-mix-v3, Auto DJ's own transition time within the
@@ -968,6 +1026,31 @@ TEST_F(AutoDJSmartMixAdapterTest, AsksForTheNextTwoEdgesAhead) {
     EXPECT_NEAR(418135.0, director()->report().plannedStartOutgoingMs, 1e-6);
     QTest::qWait(20);
     EXPECT_EQ(requests, planRequests().size());
+}
+
+// Plan F8.SM: the correction of a queued track changed and its PlanClient
+// dropped its plans: the edge ahead with it is asked for again, the other
+// one stays cached.
+TEST_F(AutoDJSmartMixAdapterTest, AsksAgainForThePlansOfACorrectedTrack) {
+    makeAdapter();
+    startSmartMix();
+    ASSERT_TRUE(waitFor([this] { return !planRequests().isEmpty(); }));
+    answerPlans();
+    ASSERT_TRUE(waitFor([this] { return m_pPlans->cachedPlans() == 2; }));
+    const int requests = static_cast<int>(planRequests().size());
+
+    m_pPlans->invalidateTrack(kUids[2]);
+    m_pAdapter->trackPlansChanged(kServer, kUids[2]);
+    ASSERT_TRUE(waitFor([&] { return planRequests().size() == requests + 1; }));
+    const QJsonArray edges =
+            bodyOf(planRequests().constLast()).value(QStringLiteral("edges")).toArray();
+    ASSERT_EQ(1, edges.size());
+    EXPECT_EQ(kUids[1],
+            edges[0].toObject().value(QStringLiteral("outgoingTrackEntityUid")).toString());
+    EXPECT_EQ(kUids[2],
+            edges[0].toObject().value(QStringLiteral("incomingTrackEntityUid")).toString());
+    answerPlans();
+    ASSERT_TRUE(waitFor([this] { return m_pPlans->cachedPlans() == 2; }));
 }
 
 // No plan within the director's 3 s: it hands the transition back and Auto DJ

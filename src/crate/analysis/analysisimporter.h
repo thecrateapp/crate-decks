@@ -94,6 +94,10 @@ class CrateBeatsImporter : public mixxx::BeatsImporter {
 /// The key of a Camelot code (1A to 12B, case and spaces ignored);
 /// INVALID for anything else.
 mixxx::track::io::key::ChromaticKey keyFromCamelot(const QString& camelot);
+/// The Camelot code (1A to 12B) of a key; empty for INVALID.
+QString camelotFromKey(mixxx::track::io::key::ChromaticKey key);
+/// Who set the track's key: the user, a file's tags, upstream's analysis.
+mixxx::track::io::key::Source keySourceOf(const TrackPointer& pTrack);
 
 /// What apply() did.
 struct ImportOutcome {
@@ -118,7 +122,8 @@ struct ImportOutcome {
 ///    checkBeatGrid(), through CrateBeatsImporter, with the BPM locked. A
 ///    BPM the user locked is never replaced; one Decks locked for an older
 ///    revision is.
-/// 3. The key only with Policy::crateKey.
+/// 3. The key only with Policy::crateKey, and never over a key the user set
+///    (in Decks or as a correction synced from Crate, plan F8.C-PR2).
 /// 4. Intro and Outro from the profile when the track has none, or when they
 ///    are the ones `previous` records and the revision changed. Cues the
 ///    user set or moved stay. N60dBSound and the main cue stay upstream's: its

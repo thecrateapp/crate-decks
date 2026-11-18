@@ -174,6 +174,10 @@ void DlgPrefCrate::bindPreferences() {
             &QCheckBox::toggled,
             pPreferences,
             &CratePreferences::setPrefetchAutoDj);
+    connect(m_pCache->prewarm(),
+            &QCheckBox::toggled,
+            pPreferences,
+            &CratePreferences::setPrewarmCompatibles);
     connect(m_pSmartMix->keylock(),
             &QCheckBox::toggled,
             pPreferences,
@@ -220,6 +224,7 @@ void DlgPrefCrate::showPreferences() {
     }
     const CratePreferences* pPreferences = m_pServers->preferences();
     m_pCache->prefetchAutoDj()->setChecked(pPreferences->prefetchAutoDj());
+    m_pCache->prewarm()->setChecked(pPreferences->prewarmCompatibles());
     m_pSmartMix->keylock()->setChecked(pPreferences->smartMixKeylock());
     m_pSmartMix->showAssistTransition(pPreferences->smartMixAssistTransitionSeconds());
     m_pAnalysis->keyFromCrate()->setChecked(pPreferences->keyFromCrate());
@@ -284,6 +289,7 @@ void DlgPrefCrate::slotResetToDefaults() {
     pPreferences->setCacheLimitBytes(CratePreferences::kDefaultCacheLimitBytes);
     pPreferences->setCacheDirectory(QString());
     pPreferences->setPrefetchAutoDj(true);
+    pPreferences->setPrewarmCompatibles(true);
     pPreferences->setSmartMixKeylock(true);
     pPreferences->setSmartMixAssistTransitionSeconds(
             CratePreferences::kDefaultAssistTransitionSeconds);

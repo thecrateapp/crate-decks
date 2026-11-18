@@ -20,6 +20,7 @@
 #include "util/parented_ptr.h"
 
 class ControlProxy;
+class ControlPushButton;
 class KeyboardEventFilter;
 class QNetworkAccessManager;
 class PlayerInfo;
@@ -29,12 +30,29 @@ class WLibrary;
 class WLibrarySidebar;
 
 namespace crate {
+namespace recs {
+class AutoDjRecommendationQueue;
+class Compatibles;
+class CompatiblesModel;
+class CompatiblesView;
+class CratePathSource;
+class CrateRadioSource;
+struct PathRequest;
+struct RadioSeed;
+} // namespace recs
+namespace widgets {
+class CamelotWheelModel;
+} // namespace widgets
+namespace writeback {
+class CratePlaylistEdit;
+} // namespace writeback
 class AssistPanel;
 class AutoDJSmartMixAdapter;
 class CrateServers;
 class LocalStemSeparator;
 class PlanClient;
 class ModelStore;
+class SetHistory;
 class SmartMixAssist;
 class StemJobs;
 class StemSync;
@@ -103,23 +121,62 @@ class CrateServerFeature : public LibraryFeature {
     static const QString kCacheViewName;
     /// The name of the Smart Mix assistant's view (AssistPanel).
     static const QString kSmartMixViewName;
+    /// The name of the Compatibles view (plan F5.C-PR1).
+    static const QString kCompatiblesViewName;
     /// `[CrateDecks],show_smart_mix`: the CrateDecks skin's toolbar button,
     /// on while the assistant shows. Declared by the skin's manifest.
     static const ConfigKey& showSmartMixKey();
+    /// `[CrateDecks],like_on_air`: likes the Crate track on air, or stops
+    /// liking it (plan F7.C-PR2), for keyboard and controller mappings.
+    static const ConfigKey& likeOnAirKey();
+    /// Likes the Crate track on air, or stops liking it. False if no Crate
+    /// track is on air.
+    bool toggleLikeOnAir();
     /// The Smart Mix assist mode; nullptr until there is a server, and
     /// without the decks' PlayerInfo.
     SmartMixAssist* smartMixAssist() const {
         return m_pAssist.get();
     }
+    /// The Smart Mix plans of a signed-in server, which Auto DJ and the
+    /// assistant share; created when first asked. nullptr without its
+    /// Client.
+    PlanClient* planClient(const QString& serverId);
     /// What the cache's view shows.
     CacheStatusModel* cacheStatus() const {
         return m_pCacheStatus;
+    }
+    /// The Compatibles view's logic, which follows the master deck or the
+    /// selection.
+    recs::Compatibles* compatibles() const {
+        return m_pCompatibles.get();
+    }
+    /// Crate's Radio as a source of Auto DJ (plan F5.C-PR2); nullptr until
+    /// there is a server.
+    recs::CrateRadioSource* radio() const {
+        return m_pRadio.get();
+    }
+    /// The tracks of the radio, which its sidebar item shows.
+    CrateServerTrackModel* radioModel() const {
+        return m_pRadioModel.get();
     }
 
     void activate() override;
     void activateChild(const QModelIndex& index) override;
     void onLazyChildExpandation(const QModelIndex& index) override;
     void onRightClickChild(const QPoint& globalPos, const QModelIndex& index) override;
+    /// Crate tracks dropped onto a Crate playlist join it (plan F7.C-PR3).
+    bool dropAcceptChild(const QModelIndex& index,
+            const QList<QUrl>& urls,
+            QObject* pSource) override;
+    bool dragMoveAcceptChild(const QModelIndex& index, const QList<QUrl>& urls) override;
+
+    /// Edits the server's playlists (plan F7.C-PR3).
+    writeback::CratePlaylistEdit* playlistEdit() const {
+        return m_pPlaylistEdit.get();
+    }
+    /// Creates a playlist on the server with the Crate tracks of the Decks
+    /// playlist `playlistId`, under its name.
+    void exportPlaylistToCrate(const QString& serverId, int playlistId);
 
     /// Loads Crate tracks into decks; nullptr until there is a server.
     CrateLoadCoordinator* loadCoordinator() const {
@@ -179,6 +236,8 @@ class CrateServerFeature : public LibraryFeature {
             Section,
             Container,
             SmartMix,
+            Compatibles,
+            Radio,
             Cache,
         };
         Kind kind = Kind::None;
@@ -198,6 +257,9 @@ class CrateServerFeature : public LibraryFeature {
 
     CrateServers* servers();
     void watchServers(CrateServers* pServers);
+    /// The user's correction of a track changed (plan F8.SM): its plans
+    /// are dropped and Auto DJ and the assistant ask for them again.
+    void correctionChanged(const QString& serverId, const QString& entityUid);
     /// Rebuilds the servers and the whole tree when the saved servers change.
     void updateServers();
     /// The coordinator and the prefetcher, once there is a server.
@@ -224,6 +286,11 @@ class CrateServerFeature : public LibraryFeature {
     QString offlineSetName(const QString& serverId, const QString& reason) const;
     /// Applies the server's mix profile of a track to it, once fetched.
     void applyAnalysis(const TrackPointer& pTrack,
+            const QString& serverId,
+            const QString& entityUid);
+    /// Applies Crate's profile of the track, as the preferences say: at load
+    /// and when the user's correction of it is cleared.
+    void applyProfile(const TrackPointer& pTrack,
             const QString& serverId,
             const QString& entityUid);
     Server* server(const QString& serverId) const;
@@ -255,6 +322,40 @@ class CrateServerFeature : public LibraryFeature {
     void onShowSmartMix(double value);
     void onLibraryViewChanged();
     TreeItem* smartMixItem() const;
+    void showCompatibles();
+    /// Every track model of the section.
+    QList<CrateServerTrackModel*> trackModels() const;
+    /// The Crate entries of the track menu: Radio's and Music Paths'.
+    QList<QAction*> trackActions(
+            const QList<CrateTrackRef>& tracks, const QStringList& labels, QObject* pParent);
+    void startRadio(const QString& serverId, const recs::RadioSeed& seed);
+    /// Asks how many tracks and where to, then for the path from `from` to
+    /// `to` (plan F5.C-PR3).
+    void askForPath(const CrateTrackRef& from,
+            const QString& fromLabel,
+            const CrateTrackRef& to,
+            const QString& toLabel);
+    /// The container of the server's playlist `playlistId`; 0 if the tree
+    /// read last has none.
+    qint64 playlistContainer(const QString& serverId, qint64 playlistId) const;
+    /// The server's playlist of a container; 0 for another kind.
+    qint64 playlistIdOf(qint64 containerId) const;
+    /// Lets the container's track table edit the playlist, if it is one.
+    void editPlaylistIn(const QString& serverId, qint64 containerId);
+    /// The Crate tracks of these files join the server's playlist.
+    void addToPlaylist(const QString& serverId, qint64 playlistId, const QStringList& locations);
+    void showWarning(const QString& message);
+    /// "Save correction to Crate" and "Clear correction on Crate" for a
+    /// Crate track, when they apply: the entries of upstream's track menus
+    /// (crate::ui::setTrackMenuProvider()).
+    QList<QAction*> correctionActions(const TrackPointer& pTrack, QObject* pParent);
+    /// The master deck's Crate track, if it has one.
+    std::optional<cache::TrackKey> crateTrackOnAir() const;
+    void showRadio();
+    void updateRadioRows();
+    /// Follows the selection of the library's track table while it shows a
+    /// Crate list, uncached tracks too, for the Compatibles view.
+    void watchSelection();
 
     const Dependencies m_dependencies;
     QPointer<CrateServers> m_pServers;
@@ -287,6 +388,8 @@ class CrateServerFeature : public LibraryFeature {
     /// The Smart Mix plans of each server, and Auto DJ's Crate Smart Mix,
     /// which asks them (plan F6.C-PR3).
     std::map<QString, std::unique_ptr<PlanClient>> m_planClients;
+    /// The transitions Auto DJ and the assistant played, for smart-mix-v3
+    std::unique_ptr<SetHistory> m_pSetHistory;
     std::unique_ptr<AutoDJSmartMixAdapter> m_pSmartMix;
     std::unique_ptr<SmartMixAssist> m_pAssist;
     std::unique_ptr<CrateSessionPins> m_pSessionPins;
@@ -298,7 +401,21 @@ class CrateServerFeature : public LibraryFeature {
     std::unique_ptr<StemJobs> m_pStemJobs;
     /// Servers whose capabilities let this account upload stem analyses.
     QSet<QString> m_stemUploads;
+    /// The Compatibles view (plan F5.C-PR1).
+    parented_ptr<recs::CompatiblesModel> m_pCompatiblesModel;
+    /// Radio (plan F5.C-PR2) and Music Paths (F5.C-PR3) fill Auto DJ's queue
+    parented_ptr<CrateServerTrackModel> m_pRadioModel;
     parented_ptr<CacheStatusModel> m_pCacheStatus;
+    std::unique_ptr<recs::Compatibles> m_pCompatibles;
+    std::unique_ptr<widgets::CamelotWheelModel> m_pWheelModel;
+    std::unique_ptr<recs::AutoDjRecommendationQueue> m_pRecommendations;
+    std::unique_ptr<recs::CrateRadioSource> m_pRadio;
+    std::unique_ptr<recs::CratePathSource> m_pPaths;
+    QPointer<recs::CompatiblesView> m_pCompatiblesView;
+    QMetaObject::Connection m_selectionConnection;
+    std::unique_ptr<writeback::CratePlaylistEdit> m_pPlaylistEdit;
+    /// likeOnAirKey(), unless another feature made it first.
+    std::unique_ptr<ControlPushButton> m_pLikeOnAir;
     QThreadPool m_pool;
 };
 

@@ -194,12 +194,19 @@ LibrarySync::Job* LibrarySync::job(qint64 containerId) const {
     return it == m_jobs.end() ? nullptr : it->second.get();
 }
 
-void LibrarySync::syncContainerTracks(qint64 containerId) {
+void LibrarySync::syncContainerTracks(
+        qint64 containerId, const std::function<void(bool ok)>& done) {
     if (Job* pJob = job(containerId)) {
         pJob->again = true;
+        if (done) {
+            m_waitingAgain[containerId].push_back(done);
+        }
         return;
     }
     m_jobs.emplace(containerId, std::make_unique<Job>());
+    if (done) {
+        m_waiting[containerId].push_back(done);
+    }
     startJob(containerId);
 }
 
@@ -409,16 +416,39 @@ void LibrarySync::finishJob(
     }
     const bool again = it->second->again;
     m_jobs.erase(it);
+    std::vector<std::function<void(bool)>> waiting;
+    if (const auto found = m_waiting.find(containerId); found != m_waiting.end()) {
+        waiting = std::move(found->second);
+        m_waiting.erase(found);
+    }
+    std::vector<std::function<void(bool)>> waitingAgain;
+    if (const auto found = m_waitingAgain.find(containerId); found != m_waitingAgain.end()) {
+        waitingAgain = std::move(found->second);
+        m_waitingAgain.erase(found);
+    }
     const QPointer<LibrarySync> self(this);
     if (error) {
         kLogger.warning() << "Cannot sync the Crate container" << containerId << ":"
                           << error->message;
         emit syncFailed(containerId, *error);
-    } else if (updated) {
-        emit containerUpdated(containerId);
+    } else {
+        if (updated) {
+            emit containerUpdated(containerId);
+        }
+        if (self) {
+            emit containerSynced(containerId);
+        }
     }
-    if (self && again) {
+    if (!self) {
+        return;
+    }
+    if (again) {
         syncContainerTracks(containerId);
+        auto& next = m_waiting[containerId];
+        next.insert(next.end(), waitingAgain.begin(), waitingAgain.end());
+    }
+    for (const auto& done : waiting) {
+        done(!error.has_value());
     }
 }
 

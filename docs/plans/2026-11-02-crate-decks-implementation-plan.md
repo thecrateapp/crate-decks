@@ -907,6 +907,36 @@ Si el deck maestro no tiene una pista Crate, la vista muestra "Carga una pista d
     - `EnqueuesPathInOrder`
     - `SavesPathAsPlaylist`
 
+**Implementado (F5, 2026-11-16).** Rama `feat/decks-recs`, sobre `main` (9ccbe927d3). Los fixtures de `src/test/crate/data/recs/` son respuestas reales del stack dev, pedidas con la sesión `decks` (`X-Crate-App: decks/…`).
+
+- **Comprobado en el servidor:** una sesión nativa `decks` puede llamar a `compatible`, a todo `/api/radio/*` y a `/api/paths*`. El JWT de Decks pasa por `_require_auth` y nada filtra por app; la lista blanca de rutas solo se aplica a los tokens `crv_`. No hace falta ningún S-PR en esta fase.
+- **Común:** `CrateServerTrackModel` tiene una fuente `Memory` (filas dadas con `setRows()`, filtradas y ordenadas en memoria) y un gancho para añadir entradas al menú de pista. Compatibles y la radio se muestran con ella, así que cargan, se descargan, se arrastran y van a AutoDJ como cualquier pista de Crate.
+- **F5.C-PR1 · Compatibles:**
+  - La lógica está en `crate::recs::Compatibles`, sin widgets. `CompatiblesView` es la capa fina: barra (a quién sigue y contexto), aviso y el `WTrackTableView` de upstream sobre `CompatiblesModel`, como la vista de AutoDJ.
+  - Sigue a `PlayerInfo::currentPlayingTrackChanged` desde el arranque. En modo selección sigue a `Library::trackSelected` y a la selección de las tablas de Crate, también las filas sin descargar.
+  - **Δ BPM y Δ energía no salen de `scoreBreakdown`:** el servidor da puntuaciones de 0 a 1, no diferencias. Se calculan contra la pista seguida tal como está en `crateserver_tracks`; para el BPM, si no está ahí, contra el BPM de la pista del deck. Δ energía va en niveles de la columna de energía (1 a 10). La puntuación se muestra de 0 a 100.
+  - Un 404 del servidor (pista sin perfil de Smart Mix utilizable) dice "Crate has not analyzed this track for Smart Mix yet".
+  - Las respuestas se guardan en `crateserver_tracks` (título, artista, álbum, duración, BPM, Camelot, energía, género y carátula). Formato, tamaño, revisiones, calidad del perfil y `playable` no se tocan, porque la respuesta no los trae.
+  - **Rueda Camelot:** ya está a la izquierda de la lista. Muestra las tonalidades de los resultados y la de la pista seguida, y un clic filtra la lista por esa tonalidad (otro clic la quita). El estilo final sigue siendo de V3.PR2.
+  - **Precalentar compatibles:** el interruptor de Preferencias ya se ve. Está activado por defecto, como en la maqueta de GU1, y descarga las 5 mejores con prioridad de prefetch.
+- **F5.C-PR2 · Radio:**
+  - Usa el modo indexado de la radio: Decks elige el `session_id` y numera los lotes (`batch_index`), y manda en `buffer_refs` las pistas que siguen en la cola.
+  - Mantiene 5 pistas por delante. Un 409 (sesión ocupada) se repite al cabo de un segundo.
+  - Se para cuando todas sus pistas desaparecen de golpe de la cola (de dos o más a ninguna; AutoDJ las quita de una en una), cuando el servidor dice `exhausted` o con "Stop radio". Al pararse cierra la sesión con `DELETE /api/radio/session/{id}`.
+  - Se inicia desde el menú de una pista ("Start radio from this track") o desde una playlist o un crate de la barra lateral. Los géneros y los moods no pueden ser semilla: la radio pide el *slug* del género y los contenedores de S3 dan su id numérico.
+  - El nodo "Radio" de la barra lateral muestra sus pistas, y su menú manda "More like this" o "Less like this" a `radio/feedback` (con el `track_id` numérico que pide el servidor).
+- **F5.C-PR3 · Music Paths:**
+  - **Llama a `POST /api/paths/preview` en vez de `POST /api/paths`.** La vista previa calcula el mismo camino sin guardarlo entre los paths del usuario en Listen. Además, en el stack dev `POST /api/paths` falla con un 500 (`TypeError: Object of type Decimal is not JSON serializable` en `create_music_path_record`, `app/crate/db/repositories/paths.py:59`).
+  - "Music Path..." en el menú de pista va de la primera pista seleccionada a la segunda, o de la pista en el aire a la seleccionada. El diálogo pide de 5 a 100 pistas y el destino: el final de la cola de AutoDJ o una playlist nueva de la biblioteca local, con el nombre del path (único).
+- **Tests:**
+  - `compatiblesmodel_test.cpp` (4), con `UpsertsTrackMetadataFromResponse`.
+  - `compatiblesview_test.cpp` (6), con los cinco del plan.
+  - `crateradiosource_test.cpp` (6), con los tres del plan.
+  - `cratepathsource_test.cpp` (4), con los dos del plan.
+  - `recommendationqueue_test.cpp` (2): la cola de AutoDJ y las playlists.
+  - En `crateserverfeature_test.cpp`: `CompatiblesFollowTheDeckOnAir`, `RadioFromATrackFillsAutoDj` y `MusicPathNeedsTwoEnds`.
+  - `TEST_GAP`: los menús de la barra lateral, los avisos y el diálogo de paths dentro de la aplicación necesitan un bucle de eventos con el menú abierto.
+
 ---
 
 ## F6 · Smart Mix en los decks
@@ -1103,6 +1133,11 @@ grep -rn "smart-mix-v2" app/crate | head
 
 **Decided (Diego, 2026-11-10):** Diego has no DJ gear and cannot run listening tests, so G4 uses automatic metrics on rendered transitions, as in SM5: beat phase in the overlap (Beat This!), voice on voice (YAMNet) and EBU R128 level jumps. The same 10 pairs are rendered offline twice, as Android Smart Mix and as Decks AutoDJ would play them, and the report compares both, together with the deviation CSVs. Diego still approves the gate on that report, and the agent still stops at it.
 
+**Decided (Diego, 2026-11-16):** G4 is deferred, not dropped. Work goes on as if it had passed: F5, F6b.PR1,
+F7, F8 and V3.PR2–PR3 start now. The report is still owed before the first release (G6), and whatever it finds
+is fixed then. Open questions it should answer: how often the fixed 30 s handover lead is too short, and why
+the first live run had no bass handoff.
+
 ---
 
 ## F6b · AI Assisted Mixing en Decks (D15)
@@ -1133,6 +1168,21 @@ desarrollar se usa el stack dev con la IA activada en local (Ollama con Qwen), n
   - `FallsBackToV2`
   - `SendsSetHistoryFromDirector`
   - `CacheKeyIncludesPlannerVersion`
+
+**Implemented (F6b.PR1, 2026-11-16).** Branch `feat/decks-planner-v3`, on `main` after F6. Server contract read from the monorepo (`f0d5b9b61` for the planners and `setHistory`, `aea3d084e` for the menu and the limits) and checked against the dev stack.
+
+- **Capabilities:** `smart_mix.planner_versions`, `planner_version` and `structure`. `ai_assisted` is not read (dropped with PR2 and PR3); the tests are `ParsesPlannerVersionsAndStructure`, `MissingPlannerVersionsOfferNoPlanner` and `MalformedSmartMixSectionIsADecodeError`.
+- **Planner:** `PlanContext::forServer()` asks `smart-mix-v3` when the server lists it and `smart-mix-v2` otherwise, with `localRefinement` when v3 is there and `decks.features` has `local_refinement`. Auto DJ and the assistant use it instead of the fixed `smart-mix-v3` of F6. The local cache key already had the planner; `setHistory` is left out of it, as on the server.
+- **Menu and limits:** `TransitionPlan` reads `candidates` (rank, phrases, length in bars, score, breakdown with stems, and a whole plan with the edge's limits) and every field of `policyLimits` that the server's check reads. `limitViolations()` is `limit_violations` code by code and in its order, and `mixes()` says which plans the server checks against the limits (`policy_violations` exempts gapless plans and the planner's short cut, an `adaptive` `insufficient_window` plan of up to 350 ms). `validate()` adds that check to its own when the plan has limits.
+- **Choice (`TransitionPlan::playable()`):** Decks plays the server's pick, the first candidate, when `validate()` passes on the decks' tracks; otherwise the first entry of the menu, in the server's order, that passes; none falls back as before (`invalid_plan`). That is the server's own selection (the best-ranked valid candidate) with Decks' own tracks as the only extra bound. The director plays the choice and reports it (`Report::candidateIndex`, and the pick's problem in `detail`); the assistant shows it, with "option N" in the planner row when it is not the pick. There is no local rescoring or recomposition of candidates.
+- **Agreement:** `limit-violations.json` (43 cases, from `make_limit_violation_cases.py`, which runs the monorepo's own `limit_violations`) pins the mirror: the 16 real candidates of two dev-stack menus pass, and 21 variations give exactly the server's codes. Where Decks is stricter (the loaded track ends before the profile's window) or the pick would break the limits, Decks takes the next candidate; the short cut is exempt on both sides. Live (`AutoDJSmartMixLive`): Decks' check agrees with the server on 88 of 88 candidates in "G3 · Auto DJ (industrial EBM)" and in "G3 · Electronic (Q3 Q5 grids)".
+- **Set history:** `crate::SetHistory` (`src/crate/smartmix/sethistory.{h,cpp}`), kept by `CrateServerFeature` for Auto DJ and the assistant: the last 3 transitions their directors played, with the mode, the length in bars at the outgoing profile's tempo and meter, and `introEnergy` of the incoming profile less `outroEnergy` of the outgoing one (both now read by `MixProfile`). The profiles come from the `ProfileStore` when the transition is handed over (Auto DJ) or planned (assistant); a transition without those numbers is not recorded. Sent only with v3. No deterministic planner reads it: it was the AI refinement's input, so today it changes no plan.
+- **`structureUsed`:** already read since F6.C-PR1; candidates carry their own.
+- **Fixtures:** `real-v3-menu-response.json` and `real-v3-menu-tracks.json` (`export_real_candidate_menus.py`, Auto DJ's context with `localRefinement` on "G3 · Electronic (Q3 Q5 grids)").
+
+`TEST_GAP:` how often the choice differs from the pick with real decks, and whether the next candidate sounds better than Auto DJ's own fallback, is for G4b.
+
+**For Diego:** keep or drop the set history while no planner reads it; and whether a pick that breaks the limits should fall back instead of taking the next candidate (today it never happens: the server serves only valid candidates).
 
 ### F6b.PR2 · Petición y recogida del refinamiento
 
@@ -1236,6 +1286,70 @@ elegido en SG3 de smart-mix-3. Activarlo por defecto en el servidor es decisión
     - `RejectsNonCrateTracks`
     - `RefetchesOnConflict`
 
+**Implementado (F7, 2026-11-16).** Rama `feat/decks-writeback`, sobre la integración de F5 y F6b (4d27d88bfc). El servidor (F7.S-PR1) está en la rama del monorepo del worktree `decks-s6-events` (0f2247474, "feat(me): report Decks now playing and play events"), sin publicar: el stack dev, que corre `origin/main`, todavía no lo tiene, así que no hay prueba contra un servidor real.
+
+- **Contratos comprobados en el servidor:**
+  - S6 tal como quedó: `POST /api/me/now-playing` acepta `deck` (entero `1`–`4`, estricto) y `mix_session_id` (hasta 128 caracteres). Un play event se atribuye a Decks por `X-Crate-App: decks/<versión>` o por una sesión `crate-decks`, que rellenan `device_type`, `app_platform` y `play_source_type` si faltan; Decks los manda igualmente. **`transition_source` se descartó en S6**: Decks no lo envía, y su medición en uso real (F6b.PR2) queda sin hacer.
+  - `POST /api/me/play-events` deduplica por `client_event_id` y no tiene más requisitos para una sesión de Decks (`_require_vdj_scope` solo mira los tokens `crv_`).
+  - Likes: `POST` y `DELETE /api/me/likes`, los dos con `LikeTrackRequest` en el cuerpo (`track_entity_uid`), también el `DELETE`.
+  - `POST /api/track/rate` solo toma `track_id` numérico o `path`. `GET /api/tracks/by-entity/{uid}/info` **sí devuelve `id`**: está en las columnas que lee (`_TRACK_INFO_QUERY_COLS`) y `TrackInfoResponse` deja pasar los campos que no declara (`extra="allow"`), aunque el esquema no lo nombre.
+  - Playlists, sin `ETag` ni `If-Match`: añadir es `POST /api/playlists/{id}/tracks` con `{"tracks": [{"entity_uid": …}]}`, al final; quitar es `DELETE /api/playlists/{id}/tracks/{position}`, por posición (desde 1) y renumerando las demás; reordenar es `POST /api/playlists/{id}/reorder` con `track_ids`, los ids de fila (`tracks[].id`) en el nuevo orden, que tienen que ser una permutación completa: si no, `reorder_playlist` lanza un `ValueError` que nadie captura (500). `GET /api/playlists/{id}` da `can_edit`.
+- **Decisiones de Diego (2026-11-16)**, que sustituyen al texto del plan donde difieren, sin cambios de servidor:
+  - (a) Playlists: como no hay `ETag`, antes de cada edición se relee la playlist y se compara con la copia de Decks; si cambió, se sincroniza otra vez y se reintenta una vez; si sigue distinta, se avisa. Reordenar manda la lista completa de ids de fila.
+  - (b) Valoraciones: el id numérico sale de `GET /api/tracks/by-entity/{uid}/info` (comprobado arriba).
+  - (c) No existe `CrateServerCollection::saveTrack`: se escucha `TrackCollection::tracksChanged` y se compara con la última valoración enviada, guardada en una tabla `crateserver_` nueva. Sin parche de Mixxx.
+- **Común:** `crate::Client` manda un `DELETE` con cuerpo JSON (`del(path, body)`), que `deleteResource()` no puede: sale como petición propia con su `Content-Type` y se sigue reintentando como idempotente.
+- **F7.C-PR1 · `Outbox` y `HistoryReporter`** (`src/crate/writeback/`):
+  - Tabla `crateserver_outbox` (`id` UUID, `server_id`, `kind`, `payload` JSON y `created_at`), en orden de `rowid`. `enqueue(serverId, kind, payload)`; los tipos son `play_event`, `like`, `unlike` y `rate`.
+  - Cada servidor manda sus entradas de una en una y en orden; un servidor no espera a otro. Lo que puede pasar (red, sesión, 408, 425, 429 o 5xx) se reintenta a 1 s, 5 s, 30 s, 5 min y luego cada 30 min; un 4xx descarta la entrada con una línea de log, porque repetirla daría lo mismo. Una entrada de más de siete días se descarta con log, también al arrancar.
+  - El hilo principal no toca SQLite: las entradas viven en memoria y la tabla se lee y escribe en un hilo propio, en orden.
+  - El vaciado al recuperar la red: `flush()` al iniciar sesión cada servidor y cuando `QNetworkInformation` pasa a `Online` (si la plataforma tiene backend). Mientras un servidor no tiene sesión, sus entradas esperan sin reintentos.
+  - `HistoryReporter` sigue a `PlayerInfo::currentPlayingTrackChanged` y `currentPlayingDeckChanged`. Como el historial de upstream, una pista nula (nada en el aire) no termina la pista, y la misma pista que vuelve al aire continúa. `played_seconds` es el tiempo en el aire, sin las pausas; `started_at` es cuando entró por primera vez y `ended_at` cuando salió por última. Lleva `completion_ratio` y `track_duration_seconds` si la pista tiene duración, y no manda `was_skipped` ni `was_completed`.
+  - El umbral es `[Crate],HistoryMinimumSeconds` (30 s por defecto, solo en el fichero de ajustes, sin interfaz). El `client_event_id` es un UUID v4 por reproducción, que sus reintentos conservan.
+  - Now playing va directo al servidor, sin outbox: al entrar una pista Crate y cada 60 s mientras sigue, con `deck` (solo si es 1–4) y `mix_session_id`. **No hay sesión de mezcla en Decks**: `mix_session_id` es un UUID por ejecución de la aplicación. Al salir del aire se manda `{"playing": false}`.
+  - `CrateServers` es dueño del outbox y del reporter, y al cerrarse termina la pista en el aire: su play event queda en la tabla para el siguiente arranque. `CrateServerFeature` conecta `PlayerInfo`.
+- **F7.C-PR2 · Likes y valoraciones:**
+  - `crate::writeback::CrateLikes` mezcla el contenedor Likes del servidor, tal como Decks lo sincronizó, con los likes hechos desde Decks, que se ven al momento y se mantienen hasta que una recarga encuentra al servidor de acuerdo. Los likes van por la outbox.
+  - **Menú:** "Like" o "Unlike" en el menú de pista de las tablas Crate.
+  - **Columna:** "Liked" en `CrateServerTrackModel`, con el texto "Liked" (no ordenable). El dibujo con icono queda para V3.
+  - **Atajo:** **no hay tecla por defecto**: es el control `[CrateDecks],like_on_air`, que da o quita el like a la pista Crate en el aire, para los mappings de teclado y controladoras. Asignarle una tecla en los mappings de upstream sería parchear sus ficheros.
+  - `crate::writeback::CrateRatings` escucha `TrackCollection::tracksChanged` (cualquier cambio de una pista en memoria lo emite) y encola `rate` solo si la valoración difiere de la última enviada, que guarda la tabla nueva `crateserver_ratings` (`server_id`, `entity_uid`, `rating`, `sent_at`). Una pista nunca enviada solo se manda desde una valoración mayor que 0: un 0 en Decks quiere decir "sin valoración", no "borra la de Crate". Las pistas se buscan en la caché de pistas de upstream, sin leer la base de datos.
+  - El outbox resuelve el `track_id` con `GET /api/tracks/by-entity/{uid}/info` justo antes de mandar la valoración, y lo conserva para los reintentos. Un 404 descarta la entrada.
+- **F7.C-PR3 · Editar playlists de Crate:**
+  - `crate::writeback::CratePlaylistEdit` hace las ediciones con la comprobación de (a). Copia de Decks: el contenedor de la playlist en `crateserver_container_tracks`; se compara con las filas de `GET /api/playlists/{id}` que tienen `track_entity_uid`, porque las que no lo tienen (pistas sin fichero local) no las lista Decks.
+  - Al reintentar, las filas se vuelven a encontrar por su pista (la aparición más cercana a su sitio). Si tampoco coincide la segunda vez, se avisa y se sincroniza otra vez, para que Decks muestre lo que hay en el servidor. También avisan una playlist que el usuario no puede editar (`can_edit`), un 5xx y cualquier otro error.
+  - **Quitar** manda un `DELETE` por pista, de la última posición a la primera, con una sola comprobación por edición del usuario, no por petición.
+  - **Reordenar** manda todos los ids de fila; las filas que Decks no lista se quedan en su sitio. Arrastrar en la tabla reordena primero la copia local y manda el orden completo cuando la vista acaba.
+  - **Añadir** solo pone pistas al final (el servidor no tiene posición de inserción) y aparecen al resincronizar.
+  - `LibrarySync` emite `containerSynced` al terminar bien la sincronización de un contenedor, aunque no cambie nada, para que el reintento sepa cuándo seguir.
+  - **Tabla:** `CrateServerTrackModel` tiene un `PlaylistEditor`. Con él, una playlist Crate da "Remove from Playlist", recibe pistas soltadas y se reordena arrastrando mientras está ordenada por posición y sin filtrar. **Solo se arrastran las filas con el audio en caché**, como antes de F7.
+  - **Barra lateral:** soltar pistas en una playlist Crate las añade.
+  - **Exportar:** el menú de la sección Playlists tiene "Export a Decks playlist to Crate...": se elige una playlist de la biblioteca de Decks y se crea en Crate con su nombre (`POST /api/playlists`) y sus pistas Crate de ese servidor. Las demás quedan fuera, con un aviso que las cuenta.
+- **Diferencias con el plan:**
+  - Valoraciones: con `tracksChanged` en lugar de `CrateServerCollection::saveTrack`, que no existe (decisión c).
+  - Conflictos de playlists: con relectura y comparación en lugar de `ETag` (decisión a).
+  - Sin `transition_source`.
+  - `mix_session_id` es por ejecución.
+  - El atajo de like es un control mapeable, sin tecla por defecto.
+  - La columna Liked es texto.
+  - Exportar está en la barra lateral de Crate, no en el menú de las playlists de upstream, para no parchear Mixxx.
+  - El now playing no pasa por la outbox.
+- **Tests:**
+  - `outbox_test.cpp` (7), con los cuatro del plan y `DropsWhatTheServerRefuses`, `FlushesOnNetworkRecovery` y `RateLooksUpTheNumericTrackId`.
+  - `historyreporter_test.cpp` (5), los del plan.
+  - `cratelikes_test.cpp` (3), los del plan; `RatingChangeQueuesRate` cubre también el id numérico y que la última valoración enviada sobrevive a un reinicio.
+  - `crateplaylistedit_test.cpp` (3), los del plan; `RefetchesOnConflict` cubre la relectura, la comparación, el reintento único, el aviso, el 5xx y `can_edit`.
+  - Además: `CrateClientTest.SendsDeleteWithJsonBody`, `CrateServerSchemaTest.CreatesTheOutboxTableIdempotently` y `CreatesTheRatingsTableIdempotently`, `CrateServersTest.OutboxSendsOnceTheServerSignsIn`, `CrateAddServerFlowTest.HistoryThresholdDefaultsToThirtySeconds`, `CrateServerFeatureTest.LikeFromTheTrackMenuShowsInTheLikedColumn` y `PlaylistTableEditsThePlaylistOnTheServer`, y `containerSynced` en `CrateLibrarySyncTest.NotModifiedKeepsRows`.
+  - `TEST_GAP`: el menú de la sección Playlists, el diálogo de exportar y los avisos necesitan un bucle de eventos con la ventana abierta. La exportación desde una playlist de Decks (`exportPlaylistToCrate`) no tiene test de integración: su lógica está en `RejectsNonCrateTracks`.
+- **Confirmado por Diego (2026-11-16):** sin tecla por defecto para el like (basta el control mapeable); `mix_session_id` por ejecución; un 0 nunca enviado no borra la valoración de Crate.
+- **Prueba en vivo (2026-11-17):** contra el stack dev con la rama del servidor `feat/decks-cues` (crate#449, Alembic 166), con `src/test/crate/cratewritebacklive_test.cpp` (`CrateWritebackLive`, se salta sin `CRATE_DECKS_LIVE_URL`; con `CRATE_DECKS_LIVE_COMPOSE` lee también, solo en lectura, la base de datos y Redis). Usa las clases reales (el `Outbox` y `CrateLikes` de `CrateServers`, un `HistoryReporter`, `CrateRatings` y `CratePlaylistEdit` conectados como en la aplicación, con `LibrarySync` real) y comprueba cada efecto en la API. Todo pasa, sin fallos de cliente ni de servidor:
+  - Play event: llega al historial con `client_event_id`, `device_type`, `app_platform` y `play_source_type` = `decks` y los 45 s medidos; repetirlo con el mismo id devuelve el mismo `id` y no lo duplica.
+  - Now playing: el estado guarda `deck` 3 y el `mix_session_id`; `{"playing": false}` lo borra. La API no los muestra (solo Redis); la sesión de Decks sale activa en `/api/auth/sessions`.
+  - Likes: `POST` y `DELETE` con cuerpo JSON (`added`/`removed` = `true`), reflejados en `/api/me/likes`.
+  - Valoración: el id numérico sale de `/api/tracks/by-entity/{uid}/info`, `POST /api/track/rate` la guarda y vuelve a la original.
+  - Playlists: exportar, añadir, quitar, mover y reordenar dejan el orden esperado; con un cambio de otro cliente entre medias, la edición relee, compara, resincroniza y reintenta una vez sin aviso.
+  - Lo que queda en el stack dev: los play events (la API no los borra) y las sesiones de cada ejecución, revocadas al terminar.
+
 ---
 
 ## F8 · Cues y correcciones sincronizadas
@@ -1290,6 +1404,160 @@ elegido en SG3 de smart-mix-3. Activarlo por defecto en el servidor es decisión
     - `AppliesCorrectionOverProfile`
 
 **Gate G5 (Diego):** contrato de cues y correcciones, más la decisión sobre si las correcciones alimentan los perfiles de Smart Mix.
+
+- **G5 aprobado (Diego, 2026-11-16):** el contrato de S7 tal como quedó en `docs/technical/crate-decks.md` del servidor (rama `feat/decks-cues`, sección "Cues and corrections (S7)"): una revisión por usuario, pista y conjunto; un `PUT` con el contenido ya guardado devuelve 200; hotcue, loop y jump comparten los slots 0–35 de Mixxx; tonalidad en Camelot; el servidor no cruza el grid con el BPM; BPM 30–300, etiquetas ≤ 200 caracteres; `contract_version` sigue en 1.
+- **Decisión:** las correcciones **sí** alimentarán Smart Mix, en F8.SM, después de F8.C-PR2.
+
+**Implementado (F8.C-PR1 y F8.C-PR2, 2026-11-16).** Rama `feat/decks-cues-sync`, sobre la integración de F5, F6b y F7 (ce39db97a5). El servidor (S7) está en la rama `feat/decks-cues` del worktree `decks-s7-cues` del monorepo (d2febe83f, "feat(decks): serve synchronised cues and corrections to Decks"), sin publicar: el stack dev, que corre `origin/main`, no tiene estas rutas, así que no hay prueba contra un servidor real. Todo es código de Crate salvo un parche mínimo a `src/widget/wtrackmenu.cpp` (respuesta 3 de Diego, abajo; anotado en `CRATE_PATCHES.md`).
+
+- **Contrato comprobado en el servidor** (esquemas de `decks_cues.py`): coincide con lo aprobado en G5. Detalles que el cliente tuvo que respetar:
+  - Los cuerpos rechazan cualquier campo de más (`extra="forbid"`), así que la entrada del outbox guarda el cuerpo del `PUT` aparte (`{entity_uid, edited_at, body}`) y manda solo `body`.
+  - El 409 lleva el contenido guardado en `current`, que el cliente no podía leer: `Reply::body()` guarda ahora también el cuerpo de una respuesta de error.
+  - `client_id` es el `X-Device-Fingerprint` de la instalación, como propone el contrato; sirve para distinguir los conflictos con una escritura propia anterior.
+- **Común** (`src/crate/writeback/trackdatasync.{h,cpp}`, base de las dos sincronías):
+  - Tabla nueva `crateserver_user_sync` (`server_id`, `entity_uid`, `kind` = `cues` o `corrections`, `revision`, `baseline`, `updated_at`): la última revisión que Decks leyó o escribió de cada pista y el contenido que da por sincronizado con ella. Se lee entera al arrancar, como `crateserver_ratings`, y se escribe en un hilo propio.
+  - **Al cargar:** `CrateServerFeature::applyAnalysis` (la misma vez por ejecución que el perfil) engancha la pista a las dos sincronías. Las pistas que llegan en 100 ms van en una sola consulta (`POST …/query`, hasta 200 UIDs), por servidor.
+  - **Solo con `cues`:** `CrateServers::serverHas()` lee las últimas capacidades guardadas una vez por servidor y las cachea en memoria hasta que cambian, para no leer SQLite en cada carga.
+  - **Cambios automáticos:** lo que cambian el análisis de Crate o el de upstream no cuenta como edición: se absorbe al terminar el análisis (`Track::analyzed`), cuando se completa una importación de cues o beats que esperaba al fichero, y justo después de `AnalysisImporter::apply`.
+  - **Outbox:** dos tipos nuevos, `cue_set` y `correction` (`PUT /api/decks/{cues|corrections}/{uid}`). Un reintento repite el mismo cuerpo y la misma `base_revision`, que el servidor contesta con 200 si el primero llegó a guardarse. Un 409 saca la entrada del outbox por la señal `conflicted()`, con `current`; `delivered()` lleva ahora la respuesta, de la que sale la revisión nueva.
+  - **Conflictos** (regla de F8.C-PR1, para las dos): gana el servidor si `current` lo escribió otra instalación (`client_id` distinto) y su `updated_at` es posterior a la edición de aquí (`edited_at`). Las dos horas son del reloj del servidor (respuesta 1): cada respuesta de S7 trae `server_time`, cada sincronía guarda por servidor la diferencia con el reloj local de la última respuesta y sella las ediciones con ella. Sin diferencia conocida todavía, la edición lleva la hora local, como antes. Entonces se aplica a la pista y se avisa con el aviso no modal de F7 (`showWarning`). Si no, la edición se manda otra vez sobre `current.revision`. Si la pista ya no está en memoria, no se toca la revisión y la siguiente carga aplica la del servidor.
+- **F8.C-PR1 · Cues** (`cuemapping.{h,cpp}`, `cratecuesync.{h,cpp}`):
+  - **Mapeo:** `main` es el cue principal; `intro` y `outro`, sus rangos con inicio o fin opcionales; `hotcue`, `loop` y `jump` son hot cues de upstream con su índice como `slot` (0–35). El `jump` guarda destino y origen tal como upstream (`start_ms` = posición, `end_ms` = fin). Tiempos en ms redondeados a 0,001, como el servidor; color `#rrggbb` en minúsculas; etiqueta en blanco = sin etiqueta y recortada a 200 caracteres.
+  - **Lo que el contrato no expresa se queda fuera:** N60dBSound (el análisis de silencio de upstream), el tipo Beat, el bucle temporal (un loop sin hot cue), los hot cues por encima del 35, los tiempos fuera de 0–24 h y los cues que rompen las reglas de su tipo. Color y etiqueta solo se mandan para `hotcue`, `loop` y `jump`: upstream no los muestra en los demás.
+  - **Al cargar**, si la revisión del servidor es más nueva que la sincronizada, su conjunto sustituye al de la pista. Una vez sincronizada, el conjunto del servidor manda en **todos** los tipos (respuesta 2): uno sin main, intro u outro quita los de la pista, y lo que el perfil o el análisis de silencio de upstream vuelvan a poner se quita otra vez al terminar ellos, así que borrar el intro en un equipo se propaga.
+  - **Al editar**, con debounce de 2 s, el conjunto entero va por el outbox.
+  - **Primera vez:** una pista nunca sincronizada toma como base sus cues automáticos (main, intro y outro). Por eso el análisis solo no sube nada; los hot cues que el usuario ya tenía o pone, sí.
+  - **Primera sincronización con hot cues en los dos lados** (respuesta 2): se fusiona. Los del servidor se quedan; los de aquí que el servidor no tiene ya (mismo tipo y tiempos) conservan su slot si está libre o toman el primero libre (0–35). Si no queda ninguno, se descartan con una línea de log. El conjunto fusionado se sube enseguida, y la biblioteca avisa de cuántos se movieron o se quedaron fuera (`cuesMerged`).
+  - **Al cerrar**, las ediciones que esperan su debounce pasan al outbox, que las guarda para el siguiente arranque.
+- **F8.C-PR2 · Correcciones** (`cratecorrections.{h,cpp}`):
+  - **Al cargar:** una corrección más nueva que la sincronizada se aplica sobre el perfil. El grid queda con el BPM bloqueado y la sub-versión `crate-user-correction`, que `AnalysisImporter` no reemplaza (solo reemplaza su propio grid `crate-mix-profile-*`). La tonalidad entra con origen `USER`, y `AnalysisImporter` ya **no reemplaza una tonalidad del usuario**, tampoco una puesta a mano en Decks.
+  - **Qué es una corrección:** un cambio del grid fuera del análisis (que exige desbloquear el BPM) o una tonalidad con origen `USER`. Las tonalidades de las etiquetas o del análisis no cuentan. No se manda sola: tras 2 s sin cambios se ofrece.
+  - **Interfaz** (respuesta 3): "Save correction to Crate", solo cuando hay algo que guardar, y "Clear correction on Crate", si el servidor tiene una, en el menú de pista de upstream de una pista Crate, en todas partes: decks, Auto DJ, listas de upstream y tablas Crate, una sola vez. `WTrackMenu::popup()` llama a `crate::ui::updateTrackMenu()` (`src/crate/ui/trackmenuhook.{h,cpp}`), que pone las entradas del proveedor que registra `CrateServerFeature`; las tablas Crate ya no las añaden por su cuenta. Nada de diálogos durante una sesión. Señal `correctionOffered` para una futura indicación en la skin.
+  - **Guardar** manda la corrección guardada con los valores corregidos aquí: corregir solo la tonalidad conserva el BPM y el grid que ya había.
+  - **Grid:** `delta-ms-v1` con cada beat desde el inicio del fichero hasta el final de la pista, en ms enteros, estrictamente creciente, el primero > 0 y como mucho 100.000 beats. Al aplicarlo, un grid constante con 2 ms de margen vuelve a ser un grid constante (con el BPM de la corrección si lo trae); si no, un mapa de beats. Un BPM sin grid conserva el primer beat de la pista.
+  - **Borrar** manda una corrección sin valores (respuesta 4). En este equipo, y en los demás cuando leen la corrección vacía, se desbloquea el grid de la corrección, su tonalidad deja de ser del usuario y se vuelve a aplicar el perfil de Crate (`CrateServerFeature::applyProfile`, según las preferencias de análisis).
+- **Diferencias con el plan:**
+  - Las cues del servidor se aplican con un solo `Track::setCuePoints`, no con `createAndAddCue` por cue: un único cambio y una sola señal, con etiqueta y color.
+  - Las correcciones van también por el outbox (el plan solo lo decía de las cues).
+  - "Guardar corrección en Crate" es una entrada del menú de pista, no un aviso.
+  - La tabla `crateserver_user_sync` es común a cues y correcciones.
+  - El cambio en `AnalysisImporter` (no tocar una tonalidad `USER`) afecta también a las tonalidades puestas a mano antes de F8.
+  - Con las respuestas de Diego: el conjunto sincronizado manda sobre el intro y el outro del perfil aunque el perfil cambie de revisión, y un parche a `WTrackMenu` (el único de F8).
+- **Parches a Mixxx:** `src/widget/wtrackmenu.cpp`: un `#include` y cinco líneas entre `#ifdef __CRATE__` en `popup()`, sin lógica de Crate ni cambios en la cabecera (fila en `CRATE_PATCHES.md`).
+- **Tests:**
+  - `cratecuesync_test.cpp` (14): los tres del plan, `ResendsOnConflictWithAnOlderWrite`, `OutboxRetryKeepsTheSameBody`, `QueriesLoadedTracksInOneBatch`, `SyncsOnlyWithTheCuesFeature`, `KeepsTheRevisionAcrossRestarts`, `MapsCuesBothWays` (ida y vuelta, y lo que se queda fuera) y, con las respuestas de Diego, `DecidesConflictsOnTheServerClock`, `FallsBackToTheLocalClockWithoutServerTime`, `MergesLocalHotCuesOnFirstSync`, `DropsLocalCuesWithoutAFreeSlot` y `PropagatesDeletionsOfAutomaticCues`. Las respuestas falsas del servidor llevan `server_time`.
+  - `cratecorrections_test.cpp` (8): los dos del plan, `OffersTheKeyTheUserTyped`, `EncodesTheGridAsDeltaMsV1`, `ClearsTheCorrection`, `ConflictAppliesTheNewerCorrection` y, con las respuestas de Diego, `ClearingRestoresTheProfile` y `RevertsWhenTheCorrectionIsGoneElsewhere`.
+  - Además: `CrateServerSchemaTest.CreatesTheUserSyncTableIdempotently`, `CrateServersTest.SyncsCuesWithServersThatServeThem`, `CrateServerFeatureTest.TrackMenuClearsTheCorrectionOnCrate` (el menú de un deck, con el hook de `WTrackMenu`, y sin repetir la entrada en la tabla Crate), `CrateClientTest.KeepsTheBodyOfAnErrorAnswer` y `AnalysisImporterTest.KeepsTheKeyTheUserSet`.
+  - `TEST_GAP`: el aviso de conflicto (`showWarning`) necesita la ventana abierta. "Save correction to Crate" desde el menú no tiene test de integración; su lógica está en `OffersUploadAfterManualGridEdit`.
+- **Respuestas de Diego (2026-11-16)** a las preguntas abiertas, ya implementadas:
+  1. **Reloj:** se usa el del servidor. El servidor añade `server_time` (ISO 8601 UTC) a todas las respuestas de S7: consultas, `PUT` 200 y el cuerpo del 409, junto a `detail` y `current`. Se cambia en paralelo en `feat/decks-cues`; el cliente se escribió contra esta descripción antes de que ese cambio estuviera publicado.
+  2. **Cues: "fusionar y propagar".** En la primera sincronización con hot cues en los dos lados se fusionan por slots libres y se sube el resultado. Después, el conjunto del servidor manda en todos los tipos y los borrados se propagan.
+  3. **Interfaz de correcciones:** se parchea `WTrackMenu` para tener las dos entradas en el menú de pista de upstream de cualquier pista Crate, con un hook mínimo hacia `src/crate`.
+  4. **Borrar una corrección:** desbloquea el grid y vuelve a aplicar el BPM, el grid y la tonalidad del perfil de Crate, aquí y en los demás equipos.
+- **Notas:**
+  - Si las preferencias dejan el grid o la tonalidad a upstream, volver al perfil solo desbloquea el grid y devuelve la tonalidad al análisis; el análisis de upstream los rehace cuando se reanaliza la pista.
+  - El hook de `WTrackMenu` actúa al abrir el menú (`popup()`), el camino común a todos los menús de pista, porque el menú de los decks (`WTrackWidgetGroup`) no llama a `updateMenus()`.
+- **Prueba en vivo (2026-11-17):** con `CrateWritebackLive` (ver F7), con el `CrateCueSync` y el `CrateCorrections` de `CrateServers` y un "segundo equipo" con su propio outbox (que se puede dejar sin red) y sus propias sincronías. Todo pasa, sin fallos de cliente ni de servidor:
+  - Cues: el conjunto (main, intro, outro, hotcue con etiqueta y color, loop y jump) sube tras el debounce con `base_revision` 0 y `client_id` = fingerprint; la consulta devuelve la revisión, `server_time` y exactamente lo que mapea el cliente (15240.517 ms, colores en minúsculas). El segundo equipo lo aplica igual a una pista nueva.
+  - Conflicto: una edición del segundo equipo sin red, sellada antes de otra de este equipo, recibe 409 al volver (con `current` y `server_time`) y gana el servidor en su reloj (`localEditsReplaced`, la edición perdida no se reenvía). El mismo `PUT` repetido con su `base_revision` vieja recibe 200 sin subir de revisión. Vaciar las cues desde Decks deja el conjunto vacío.
+  - Correcciones: BPM 127.95, grid `delta-ms-v1` (512 beats, idéntico al de `beatGridOf`) y tonalidad `8A` se guardan, se leen y el segundo equipo las aplica con el BPM bloqueado; sus beats quedan a menos de 0,01 ms, aunque al pasar a ms enteros 2 de 512 redondean al otro lado (límite del formato, no un fallo). Borrar deja los tres valores en `null` con una revisión más.
+  - Como dice el contrato, el conjunto vacío y la corrección borrada conservan su fila y su revisión en el stack dev.
+
+### F7/F8 · Review before the integration PR (2026-11-18)
+
+A code review of `integ/decks-f5-f6b` against `main` found ten points; Diego approved fixing seven, each with a
+regression test that fails without the fix:
+
+- **Outbox order** (`outbox.cpp`): order now holds per subject (track and family: likes, rating, cue set,
+  correction; each play event alone). A write the server keeps answering with a retryable status (5xx, 408, 425,
+  429) is set aside with the later writes of its subject once its backoff reaches 30 min, so one bad write no
+  longer holds the rest for seven days. Network and session failures keep the strict order.
+- **Outbox load**: an entry enqueued before `start()` is no longer loaded twice.
+- **Cue sync** (`cratecuesync.cpp`): a newer server set still wins over edits not uploaded yet (Diego,
+  2026-11-16), and now emits `localEditsReplaced` as the 409 path does.
+- **Cue and correction queries** (`trackdatasync.cpp`): a failed query that may pass is asked again after 5 s,
+  30 s and then every 5 min while the tracks stay attached; before, its tracks stayed unreconciled.
+- **Playlist edit resync** (`cratelibrarysync.cpp`): `syncContainerTracks(id, done)` answers with the first sync
+  that starts after the call, never one already running that read the playlist before the change.
+- **Now playing** (`historyreporter.cpp`): moving to another server's track clears the first server's state.
+- **Radio** (`crateradiosource.cpp`): retries double from 1 s up to 32 s, and five batches in a row without a new
+  track end the radio as exhausted.
+
+Left as they are: the shutdown resend of a play event or cue set (the server deduplicates by `client_event_id`,
+and a PUT of the stored content answers 200), the rating's numeric id not being stored (one GET after a restart)
+and the per-uid read of Compatibles (a prepared statement over about 25 local rows, off the main thread).
+
+### F8.SM · Correcciones en Smart Mix
+
+- **Servidor:** el planner (plans y menú v3) usa la corrección del usuario (BPM, grid, tonalidad) por encima del perfil, solo para los planes de ese usuario. Los perfiles compartidos no cambian. Un lote, sin N+1: las correcciones de las pistas del plan en una consulta.
+- **Cliente:** el espejo local de `limit_violations` y el planner local usan la misma prioridad, para que sigan coincidiendo con el servidor.
+- **Tests:** `test_planner_prefers_user_correction`, `test_other_users_keep_profile`; en Decks, que el acuerdo en vivo con el servidor siga al 100 % con correcciones.
+- Contrato y detalles, a revisar con Diego antes de implementar.
+
+**Decided (Diego, 2026-11-18):**
+
+- **Scope:** only plans requested with `source: "decks"` by a signed-in user. Listen, Android's continuation and
+  VirtualDJ keep the shared profile.
+- **Grid:** the anchors are re-snapped to the corrected grid: `beat_anchor_ms` is the first corrected beat; the
+  downbeat and the intro/outro beat and downbeat anchors snap to the corrected beat nearest to the profile's, which
+  keeps the profile's bar phase; `intro_bpm` and `outro_bpm` take the corrected BPM.
+- **Phrases:** if the corrected BPM is within 2 % of the profile's, phrase boundaries snap to the nearest corrected
+  downbeat; otherwise the planner uses its bar heuristic for that track.
+- **Confidence:** a corrected BPM or grid sets `bpm_confidence` to 1.0; a corrected key sets the Camelot key and
+  `key_confidence` to 1.0. A cleared correction (all fields null) applies nothing.
+- **Facts found before deciding:** the planner reads anchors, not `beat_grid_ms` (only the stems layer does);
+  `limit_violations` reads plan fields and policy limits, never BPM, key or grid, so Decks' mirror needs no change;
+  the server's plan cache key has no user, so a corrected edge adds the correction's identity to it; Decks asks
+  plans with empty profile revisions, so its plan cache must drop a track's plans when its correction changes.
+
+**Implemented (client, 2026-11-18).** Branch `feat/decks-sm-corrections`, on `integ/decks-f5-f6b` (5e21b446bb).
+
+- `CrateCorrections::correctionChanged(serverId, entityUid)` fires when a track's correction changes: on save and
+  on clear here, again when the server stores either (the outbox delivered it: from then on the server plans with
+  it; new `TrackDataSync::delivered()` hook), and when a different correction is applied from the server, on load
+  or in a lost conflict. A sync that brings the same correction, even at a newer revision, does not fire it.
+- `CrateServerFeature::correctionChanged()` drops the track's plans from that server's `PlanClient`
+  (`invalidateTrack`, as outgoing and incoming), then tells Auto DJ's adapter and the assistant
+  (`trackPlansChanged`). The adapter asks for the next two edges again; the assistant asks again for the plan of the
+  decks' edge if it has the track.
+- `PlanClient` no longer caches a plan of a track invalidated while the plan was on its way: the server may have
+  made it with the old correction. The answer still reaches whoever asked.
+- A transition already handed to the director keeps its plan: the director takes one plan per transition, and
+  Auto DJ's (armed 30 s before the fade) or the assistant's prepared, executing or running one is not re-planned.
+- The local `limit_violations` mirror (`TransitionPlan::limitViolations`) reads only plan fields and the plan's
+  policy limits, so it did not change.
+- Tests: `CrateCorrectionsTest.SignalsTheCorrectionsThatComeChanged`, `SignalsSavesAndClearsMadeHere` and the
+  conflict case in `ConflictAppliesTheNewerCorrection`; `CratePlanClientTest.InvalidatingATrackAsksTheServerAgain`;
+  `AutoDJSmartMixAdapterTest.AsksAgainForThePlansOfACorrectedTrack`;
+  `CrateSmartMixAssistTest.AsksAgainWhenATracksCorrectionChanges`;
+  `CrateServerFeatureTest.CorrectionsDropTheTracksSmartMixPlans` (the wiring, with the real `CrateCorrections`).
+- The live agreement check with the server's corrected plans: done, below.
+
+**Live check (2026-11-18).** `CrateSmartMixCorrectionsLive.PlansFollowTheUsersCorrections`
+(`src/test/crate/smartmixcorrectionslive_test.cpp`, skipped without `CRATE_DECKS_LIVE_URL`) against the dev stack on
+the server's `feat/decks-sm-corrections` (772da53b4). It takes the 21 edges of "G3 · Electronic (Q3 Q5 grids)" with
+Auto DJ's context (smart-mix-v3, `localRefinement`), saves three corrections through `CrateCorrections` and the
+Outbox, and asks again through a `PlanClient` that drops a track's plans on `correctionChanged()` (the corrected
+edges were no longer cached; an untouched edge still was).
+
+- BPM and grid, more than 2 % off (Youth, 130 to 124 BPM): Second Nature > Youth went from adaptive with
+  `incompatible_tempo` to beatmatch at ratio 1.0, entering at the first corrected beat (58 ms); Youth > Cubismo 8.3
+  from `incompatible_tempo` to beatmatch at ratio 1.00813 (124/123). Both menus lost every phrase (bar heuristic,
+  `structureUsed` and `stemsUsed` false).
+- Grid within 2 % (Headhunter v1.0, 123.04 to 123.66 BPM, first beat 266 to 466 ms): Volume > Headhunter stayed a
+  beatmatch with phrases; the ratio went from 0.975293 to 0.970441, and the 8 phrase entries of the menu moved onto
+  the corrected grid (23673 to 23757 ms, 8068 to 8230 ms): 8 of 8 on it, 0 of 8 before.
+- Key only (Millenium, 6B to 8A): Corridor 2013 > Millenium kept its mode, ratio, cues and phrases; the best
+  harmonic term went from 0 to 0.735 and the confidence from 0.747 to 0.901.
+- Decks' `limitViolations` agreed with the server on 168 of 168 candidates of the 21 uncorrected edges and on 32 of
+  32 of the 4 corrected edges.
+- Scope: the same 4 edges asked with `source: "playlist"` (Listen) got the same plans as before the corrections, 4
+  of 4.
+- Cleared from Decks ("Clear correction on Crate"), the 4 plans were the shared ones again, and the corrections
+  query showed none of the three corrected. TearDown also clears with a PUT of nulls what a stopped run leaves (tried
+  once on purpose: 3 cleared, none left). The existing `AutoDJSmartMixLive` suite still passes (88 of 88
+  candidates).
+- No server bug found.
 
 ---
 
