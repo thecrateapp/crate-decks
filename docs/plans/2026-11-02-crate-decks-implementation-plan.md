@@ -1531,8 +1531,33 @@ and the per-uid read of Compatibles (a prepared statement over about 25 local ro
   `AutoDJSmartMixAdapterTest.AsksAgainForThePlansOfACorrectedTrack`;
   `CrateSmartMixAssistTest.AsksAgainWhenATracksCorrectionChanges`;
   `CrateServerFeatureTest.CorrectionsDropTheTracksSmartMixPlans` (the wiring, with the real `CrateCorrections`).
-- Still to do: the live agreement check with the server's corrected plans, once the server side is on the dev
-  stack.
+- The live agreement check with the server's corrected plans: done, below.
+
+**Live check (2026-11-18).** `CrateSmartMixCorrectionsLive.PlansFollowTheUsersCorrections`
+(`src/test/crate/smartmixcorrectionslive_test.cpp`, skipped without `CRATE_DECKS_LIVE_URL`) against the dev stack on
+the server's `feat/decks-sm-corrections` (772da53b4). It takes the 21 edges of "G3 · Electronic (Q3 Q5 grids)" with
+Auto DJ's context (smart-mix-v3, `localRefinement`), saves three corrections through `CrateCorrections` and the
+Outbox, and asks again through a `PlanClient` that drops a track's plans on `correctionChanged()` (the corrected
+edges were no longer cached; an untouched edge still was).
+
+- BPM and grid, more than 2 % off (Youth, 130 to 124 BPM): Second Nature > Youth went from adaptive with
+  `incompatible_tempo` to beatmatch at ratio 1.0, entering at the first corrected beat (58 ms); Youth > Cubismo 8.3
+  from `incompatible_tempo` to beatmatch at ratio 1.00813 (124/123). Both menus lost every phrase (bar heuristic,
+  `structureUsed` and `stemsUsed` false).
+- Grid within 2 % (Headhunter v1.0, 123.04 to 123.66 BPM, first beat 266 to 466 ms): Volume > Headhunter stayed a
+  beatmatch with phrases; the ratio went from 0.975293 to 0.970441, and the 8 phrase entries of the menu moved onto
+  the corrected grid (23673 to 23757 ms, 8068 to 8230 ms): 8 of 8 on it, 0 of 8 before.
+- Key only (Millenium, 6B to 8A): Corridor 2013 > Millenium kept its mode, ratio, cues and phrases; the best
+  harmonic term went from 0 to 0.735 and the confidence from 0.747 to 0.901.
+- Decks' `limitViolations` agreed with the server on 168 of 168 candidates of the 21 uncorrected edges and on 32 of
+  32 of the 4 corrected edges.
+- Scope: the same 4 edges asked with `source: "playlist"` (Listen) got the same plans as before the corrections, 4
+  of 4.
+- Cleared from Decks ("Clear correction on Crate"), the 4 plans were the shared ones again, and the corrections
+  query showed none of the three corrected. TearDown also clears with a PUT of nulls what a stopped run leaves (tried
+  once on purpose: 3 cleared, none left). The existing `AutoDJSmartMixLive` suite still passes (88 of 88
+  candidates).
+- No server bug found.
 
 ---
 
