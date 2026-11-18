@@ -502,4 +502,23 @@ TEST_F(CrateDelegatesTest, PaintsLikeAsAHeart) {
     EXPECT_GT(strongestShade(image, image.rect(), m_style.accentHi, m_background), 0.9);
 }
 
+TEST_F(CrateDelegatesTest, PaintsDownloadProgressAsARing) {
+    DownloadProgressDelegate delegate(m_style, nullptr);
+    const QImage image = paintCell(delegate,
+            item({{Qt::DisplayRole, QStringLiteral("33.5 MB of 54.0 MB")},
+                    {CacheStateRole, static_cast<int>(CacheState::Downloading)},
+                    {CacheProgressRole, 0.62}}),
+            200);
+    // The ring of r 7 at the start of the cell, lit in accentHi
+    const QRect ring(m_style.cellPadding,
+            0,
+            static_cast<int>(2 * m_style.ringRadius + 4),
+            m_style.rowHeight);
+    EXPECT_GT(strongestShade(image, ring, m_style.accentHi, m_background), 0.5);
+    // The text after it, in mono and textSecondary
+    const QRect text(m_style.cellPadding + delegate.textOffset(), 0, 120, m_style.rowHeight);
+    EXPECT_GT(strongestShade(image, text, m_style.textSecondary, m_background), 0.5);
+    EXPECT_LT(strongestShade(image, text, m_style.accentHi, m_background), 0.3);
+}
+
 } // namespace

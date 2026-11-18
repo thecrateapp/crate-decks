@@ -1,6 +1,7 @@
 #include "crate/ui/delegates/celldelegate.h"
 
 #include <QEvent>
+#include <QFontMetrics>
 #include <QLocale>
 #include <QPainter>
 
@@ -72,6 +73,17 @@ QString TrackTextDelegate::loadedDeck(const QModelIndex& index) const {
         return deck.toString();
     }
     return m_loadedDeck ? m_loadedDeck(index) : QString();
+}
+
+QSize TrackTextDelegate::sizeHint(
+        const QStyleOptionViewItem& option, const QModelIndex& index) const {
+    QSize size = CellDelegate::sizeHint(option, index);
+    if (m_style.isValid()) {
+        const QFontMetrics metrics(textFont());
+        size.setWidth(2 * m_style.cellPadding +
+                metrics.horizontalAdvance(index.data(Qt::DisplayRole).toString()));
+    }
+    return size;
 }
 
 QColor TrackTextDelegate::textColour(const QModelIndex& index) const {

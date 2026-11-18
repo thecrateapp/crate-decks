@@ -5,6 +5,7 @@
 #include <QHeaderView>
 #include <QLabel>
 #include <QPainter>
+#include <QScrollArea>
 #include <QTableView>
 #include <QVBoxLayout>
 
@@ -68,30 +69,44 @@ class RowRules : public QObject {
 CacheStatusView::CacheStatusView(CacheStatusModel* pModel, QWidget* pParent)
         : QWidget(pParent),
           m_pModel(pModel),
-          m_pGauge(new LevelGauge(this)),
-          m_pUsage(textLabel("CrateCacheViewUsage", this)),
-          m_pOf(textLabel("CrateCacheViewOf", this)),
-          m_pCaption(textLabel("CrateCacheViewCaption", this)),
-          m_pDownloads(makeTable("CrateCacheViewDownloads")),
-          m_pNoDownloads(textLabel("CrateCacheViewEmpty", this)),
-          m_pOfflineSets(makeTable("CrateCacheViewOfflineSets")),
-          m_pNoOfflineSets(textLabel("CrateCacheViewEmpty", this)) {
+          m_pScroll(new QScrollArea(this)) {
     setObjectName(QStringLiteral("CrateCacheView"));
     const DialogMetrics& metrics = DialogMetrics::installed();
-    const DelegateStyle& style = DelegateStyle::current();
+    // Everything scrolls together: nothing clips in a short pane
+    m_pScroll->setObjectName(QStringLiteral("CrateCacheViewScroll"));
+    m_pScroll->setFrameShape(QFrame::NoFrame);
+    m_pScroll->setWidgetResizable(true);
+    m_pScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    auto* pContent = new QWidget(m_pScroll);
+    pContent->setObjectName(QStringLiteral("CrateCacheViewContent"));
+    m_pGauge = new LevelGauge(pContent);
+    m_pUsage = textLabel("CrateCacheViewUsage", pContent);
+    m_pOf = textLabel("CrateCacheViewOf", pContent);
+    m_pCaption = textLabel("CrateCacheViewCaption", pContent);
+    m_pDownloads = makeTable("CrateCacheViewDownloads");
+    m_pDownloads->setParent(pContent);
+    m_pNoDownloads = textLabel("CrateCacheViewEmpty", pContent);
+    m_pOfflineSets = makeTable("CrateCacheViewOfflineSets");
+    m_pOfflineSets->setParent(pContent);
+    m_pNoOfflineSets = textLabel("CrateCacheViewEmpty", pContent);
 
     // The use, as the Crate page's cache section shows it (decks.css .usage)
-    auto* pUsage = new QHBoxLayout();
+    m_pHeader = new QWidget(pContent);
+    m_pHeader->setObjectName(QStringLiteral("CrateCacheViewHeader"));
+    auto* pUsage = new QHBoxLayout(m_pHeader);
     pUsage->setContentsMargins(0, 0, 0, metrics.px("usageBottom"));
     pUsage->setSpacing(metrics.px("usageGap"));
     pUsage->addWidget(m_pGauge);
     auto* pText = new QVBoxLayout();
     pText->setSpacing(0);
     pText->addStretch(1);
-    pText->addWidget(monoLabel(tr("In use"), QStringLiteral("MonoCacheViewInUse"), this));
+    pText->addWidget(monoLabel(tr("In use"), QStringLiteral("MonoCacheViewInUse"), m_pHeader));
     pText->addSpacing(metrics.px("usageNumberTop"));
     auto* pNumber = new QHBoxLayout();
     pNumber->setSpacing(metrics.px("buttonGapSm"));
+    m_pUsage->setParent(m_pHeader);
+    m_pOf->setParent(m_pHeader);
+    m_pCaption->setParent(m_pHeader);
     pNumber->addWidget(m_pUsage, 0, Qt::AlignBaseline);
     pNumber->addWidget(m_pOf, 0, Qt::AlignBaseline);
     pNumber->addStretch(1);
@@ -107,37 +122,19 @@ CacheStatusView::CacheStatusView(CacheStatusModel* pModel, QWidget* pParent)
     m_pNoOfflineSets->setWordWrap(true);
     m_pDownloads->setModel(pModel->downloads());
     m_pOfflineSets->setModel(pModel->offlineSets());
-    if (style.isValid()) {
-        m_pDownloads->setItemDelegateForColumn(CacheDownloadsModel::Title,
-                new TrackTextDelegate(style, TrackTextDelegate::Kind::Title, m_pDownloads));
-        m_pDownloads->setItemDelegateForColumn(CacheDownloadsModel::Artist,
-                new TrackTextDelegate(style, TrackTextDelegate::Kind::Name, m_pDownloads));
-        m_pDownloads->setItemDelegateForColumn(CacheDownloadsModel::Purpose,
-                new TrackTextDelegate(style, TrackTextDelegate::Kind::Meta, m_pDownloads));
-        m_pDownloads->setItemDelegateForColumn(CacheDownloadsModel::Progress,
-                new TrackTextDelegate(style, TrackTextDelegate::Kind::Meta, m_pDownloads));
-        m_pOfflineSets->setItemDelegateForColumn(CacheOfflineSetsModel::Name,
-                new TrackTextDelegate(style, TrackTextDelegate::Kind::Title, m_pOfflineSets));
-        m_pOfflineSets->setItemDelegateForColumn(CacheOfflineSetsModel::Tracks,
-                new TrackTextDelegate(style, TrackTextDelegate::Kind::Meta, m_pOfflineSets));
-        m_pOfflineSets->setItemDelegateForColumn(CacheOfflineSetsModel::Size,
-                new TrackTextDelegate(style, TrackTextDelegate::Kind::Meta, m_pOfflineSets));
-        m_pOfflineSets->setItemDelegateForColumn(CacheOfflineSetsModel::State,
-                new delegates::CacheStateDelegate(style, m_pOfflineSets));
-    }
     m_pDownloads->horizontalHeader()->setSectionResizeMode(
             CacheDownloadsModel::Title, QHeaderView::Stretch);
     m_pOfflineSets->horizontalHeader()->setSectionResizeMode(
             CacheOfflineSetsModel::Name, QHeaderView::Stretch);
 
-    auto* pLayout = new QVBoxLayout(this);
+    auto* pLayout = new QVBoxLayout(pContent);
     m_pLayout = pLayout;
     pLayout->setContentsMargins(metrics.px("cacheViewPaddingX"),
             metrics.px("prefsSectionPaddingTop"),
             metrics.px("cacheViewPaddingX"),
             metrics.px("prefsSectionPaddingBottom"));
     pLayout->setSpacing(0);
-    pLayout->addLayout(pUsage);
+    pLayout->addWidget(m_pHeader);
     const struct {
         QString title;
         QTableView* pTable;
@@ -148,19 +145,32 @@ CacheStatusView::CacheStatusView(CacheStatusModel* pModel, QWidget* pParent)
     };
     for (const auto& section : sections) {
         pLayout->addSpacing(metrics.px("prefsSectionPaddingTop"));
-        pLayout->addWidget(monoLabel(section.title, QStringLiteral("MonoCacheViewSection"), this));
+        pLayout->addWidget(
+                monoLabel(section.title, QStringLiteral("MonoCacheViewSection"), pContent));
         pLayout->addSpacing(metrics.px("prefsSectionLabelGap"));
-        pLayout->addWidget(section.pTable, 1);
+        pLayout->addWidget(section.pTable);
         pLayout->addWidget(section.pEmpty);
     }
-    // Takes the height that no table does
+    // The tables are as tall as their rows: what is left stays under them
     pLayout->addStretch(1);
+    m_pScroll->setWidget(pContent);
 
+    auto* pOuter = new QVBoxLayout(this);
+    pOuter->setContentsMargins(0, 0, 0, 0);
+    pOuter->setSpacing(0);
+    pOuter->addWidget(m_pScroll);
+
+    applyStyle();
     connect(pModel, &CacheStatusModel::changed, this, &CacheStatusView::showModel);
     showModel();
 }
 
 CacheStatusView::~CacheStatusView() = default;
+
+QSize CacheStatusView::minimumSizeHint() const {
+    // It scrolls: no height of its own may make the window grow
+    return QSize(0, 0);
+}
 
 QTableView* CacheStatusView::makeTable(const char* objectName) {
     auto* pTable = new QTableView(this);
@@ -172,17 +182,100 @@ QTableView* CacheStatusView::makeTable(const char* objectName) {
     pTable->setWordWrap(false);
     pTable->setFrameShape(QFrame::NoFrame);
     pTable->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    // As tall as its rows: the view scrolls, not the table
+    pTable->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    pTable->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     pTable->verticalHeader()->hide();
     pTable->horizontalHeader()->setHighlightSections(false);
     pTable->horizontalHeader()->setDefaultAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     pTable->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
+    return pTable;
+}
+
+void CacheStatusView::applyStyle() {
     const DelegateStyle& style = DelegateStyle::current();
-    if (style.isValid()) {
+    if (m_styled || !style.isValid()) {
+        return;
+    }
+    m_styled = true;
+    for (QTableView* pTable : {m_pDownloads, m_pOfflineSets}) {
         pTable->verticalHeader()->setDefaultSectionSize(style.rowHeight);
+        pTable->verticalHeader()->setMinimumSectionSize(style.rowHeight);
         pTable->horizontalHeader()->setFixedHeight(style.headerHeight);
         new RowRules(pTable, style);
     }
-    return pTable;
+    const auto replace = [](QTableView* pTable, int column, QAbstractItemDelegate* pDelegate) {
+        QAbstractItemDelegate* pOld = pTable->itemDelegateForColumn(column);
+        pTable->setItemDelegateForColumn(column, pDelegate);
+        delete pOld;
+    };
+    replace(m_pDownloads,
+            CacheDownloadsModel::Title,
+            new TrackTextDelegate(style, TrackTextDelegate::Kind::Title, m_pDownloads));
+    replace(m_pDownloads,
+            CacheDownloadsModel::Artist,
+            new TrackTextDelegate(style, TrackTextDelegate::Kind::Name, m_pDownloads));
+    replace(m_pDownloads,
+            CacheDownloadsModel::Purpose,
+            new TrackTextDelegate(style, TrackTextDelegate::Kind::Meta, m_pDownloads));
+    replace(m_pDownloads,
+            CacheDownloadsModel::Progress,
+            new delegates::DownloadProgressDelegate(style, m_pDownloads));
+    replace(m_pOfflineSets,
+            CacheOfflineSetsModel::Name,
+            new TrackTextDelegate(style, TrackTextDelegate::Kind::Title, m_pOfflineSets));
+    replace(m_pOfflineSets,
+            CacheOfflineSetsModel::Tracks,
+            new TrackTextDelegate(style, TrackTextDelegate::Kind::Meta, m_pOfflineSets));
+    replace(m_pOfflineSets,
+            CacheOfflineSetsModel::Size,
+            new TrackTextDelegate(style, TrackTextDelegate::Kind::Meta, m_pOfflineSets));
+    replace(m_pOfflineSets,
+            CacheOfflineSetsModel::State,
+            new delegates::CacheStateDelegate(style, m_pOfflineSets));
+    for (QTableView* pTable : {m_pDownloads, m_pOfflineSets}) {
+        pTable->horizontalHeader()->resizeSections(QHeaderView::ResizeToContents);
+    }
+    fitTables();
+}
+
+void CacheStatusView::fitTables() {
+    for (QTableView* pTable : {m_pDownloads, m_pOfflineSets}) {
+        int height = pTable->horizontalHeader()->height();
+        for (int row = 0; row < pTable->model()->rowCount(); ++row) {
+            height += pTable->rowHeight(row);
+        }
+        pTable->setFixedHeight(height);
+    }
+}
+
+void CacheStatusView::setCompact(bool compact) {
+    if (compact == m_compact) {
+        return;
+    }
+    m_compact = compact;
+    const DialogMetrics& metrics = DialogMetrics::installed();
+    // The caption goes to the use's tooltip, and the paddings shrink
+    m_pCaption->setVisible(!compact);
+    const int top = compact ? metrics.px("usageBottom") : metrics.px("prefsSectionPaddingTop");
+    m_pLayout->setContentsMargins(metrics.px("cacheViewPaddingX"),
+            top,
+            metrics.px("cacheViewPaddingX"),
+            metrics.px("prefsSectionPaddingBottom"));
+}
+
+void CacheStatusView::showEvent(QShowEvent* pEvent) {
+    // The skin sets its style after the library binds its views
+    applyStyle();
+    QWidget::showEvent(pEvent);
+}
+
+void CacheStatusView::resizeEvent(QResizeEvent* pEvent) {
+    QWidget::resizeEvent(pEvent);
+    // Short of the header and a section's first rows: the compact header
+    const DelegateStyle& style = DelegateStyle::current();
+    const int rows = style.isValid() ? style.headerHeight + 2 * style.rowHeight : 0;
+    setCompact(height() < 2 * m_pHeader->sizeHint().height() + rows);
 }
 
 void CacheStatusView::showModel() {
@@ -212,7 +305,8 @@ void CacheStatusView::showModel() {
     const bool anySet = m_pModel->offlineSets()->rowCount() > 0;
     m_pOfflineSets->setVisible(anySet);
     m_pNoOfflineSets->setVisible(!anySet);
-    m_pLayout->setStretch(m_pLayout->count() - 1, anyDownload || anySet ? 0 : 1);
+    m_pUsage->setToolTip(caption);
+    fitTables();
 }
 
 void CacheStatusView::onShow() {

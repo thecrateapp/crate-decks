@@ -1778,8 +1778,11 @@ WTrackPropertyEditor {
    No mockup of its own: the Crate page's cache header (decks.css .usage)
    over tables in the track table's style. C++ paints the rows' rules and
    cells (crate/ui/cachestatusview.cpp and crate/ui/delegates/). */
-#CrateCacheView {
+#CrateCacheView,
+#CrateCacheViewScroll,
+#CrateCacheViewContent {
   background-color: {{bgApp}};
+  border: 0;
 }
 #CrateCacheViewUsage {
   color: {{textPrimary}};

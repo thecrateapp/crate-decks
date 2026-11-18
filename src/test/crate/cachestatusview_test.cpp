@@ -6,7 +6,11 @@
 
 #include <gtest/gtest.h>
 
+#include <QDir>
+#include <QHeaderView>
 #include <QLabel>
+#include <QScrollArea>
+#include <QScrollBar>
 #include <QSignalSpy>
 #include <QTableView>
 #include <QTemporaryDir>
@@ -17,8 +21,13 @@
 #include "crate/cache/audiocache.h"
 #include "crate/client/crateclient.h"
 #include "crate/ui/cachestatusmodel.h"
+#include "crate/ui/delegates/celldelegate.h"
 #include "crate/ui/delegates/delegateroles.h"
+#include "crate/ui/delegates/delegatestyle.h"
+#include "crate/ui/delegates/statedelegates.h"
 #include "crate/ui/dialogs/levelgauge.h"
+#include "crate/ui/skin/crateskin.h"
+#include "preferences/configobject.h"
 #include "test/crate/fakecratenetwork.h"
 
 namespace {
@@ -288,4 +297,90 @@ TEST_F(CacheStatusViewTest, CaptionShowsTracksInUse) {
     EXPECT_EQ(QStringLiteral("1 tracks · 0 downloading · 300 B in use"),
             m_pView->captionLabel()->text());
     EXPECT_EQ(0, m_pView->offlineSetsTable()->model()->rowCount());
+}
+
+namespace {
+
+/// The CrateDecks skin's style, as styleLibrary() sets it once the skin
+/// loads; the one before comes back after the test.
+class CurrentStyle {
+  public:
+    CurrentStyle()
+            : m_before(crate::delegates::DelegateStyle::current()) {
+    }
+    ~CurrentStyle() {
+        crate::delegates::DelegateStyle::setCurrent(m_before);
+    }
+    static crate::delegates::DelegateStyle skin() {
+        return crate::delegates::DelegateStyle::fromVariables(crate::readSkinVariables(
+                QDir(ConfigObject<ConfigValue>::computeResourcePath())
+                        .filePath(QStringLiteral("skins/CrateDecks/generated/vars.xml"))));
+    }
+
+  private:
+    const crate::delegates::DelegateStyle m_before;
+};
+
+} // namespace
+
+TEST_F(CacheStatusViewTest, TakesTheLibraryStyleWhenItShows) {
+    // The library binds its views before the skin sets its style
+    const CurrentStyle restore;
+    crate::delegates::DelegateStyle::setCurrent(crate::delegates::DelegateStyle());
+    makeView();
+    EXPECT_FALSE(m_pView->isStyled());
+    const auto style = CurrentStyle::skin();
+    ASSERT_TRUE(style.isValid());
+    crate::delegates::DelegateStyle::setCurrent(style);
+    m_pView->show();
+    ASSERT_TRUE(m_pView->isStyled());
+    QTableView* pDownloads = m_pView->downloadsTable();
+    QTableView* pSets = m_pView->offlineSetsTable();
+    EXPECT_NE(nullptr,
+            qobject_cast<crate::delegates::TrackTextDelegate*>(
+                    pDownloads->itemDelegateForColumn(CacheDownloadsModel::Title)));
+    EXPECT_NE(nullptr,
+            qobject_cast<crate::delegates::DownloadProgressDelegate*>(
+                    pDownloads->itemDelegateForColumn(CacheDownloadsModel::Progress)));
+    EXPECT_NE(nullptr,
+            qobject_cast<crate::delegates::CacheStateDelegate*>(
+                    pSets->itemDelegateForColumn(CacheOfflineSetsModel::State)));
+    EXPECT_EQ(style.rowHeight, pSets->verticalHeader()->defaultSectionSize());
+    EXPECT_EQ(style.headerHeight, pSets->horizontalHeader()->height());
+}
+
+TEST_F(CacheStatusViewTest, FitsAShortPane) {
+    const CurrentStyle restore;
+    crate::delegates::DelegateStyle::setCurrent(CurrentStyle::skin());
+    download(kUid1, 400);
+    m_pCache->pin(kServer, kUid1, QStringLiteral("offline-set:playlist:7"));
+    makeView();
+    m_pCache->ensure(kServer, kUid2, Priority::Deck, flacHints(100));
+    m_pCache->ensure(kServer, kUid3, Priority::Prefetch, flacHints(100));
+    ASSERT_TRUE(QTest::qWaitFor(
+            [&] { return m_pView->downloadsTable()->model()->rowCount() == 2; }, kWaitMs));
+    // The library under the decks at 1366 x 768
+    m_pView->resize(1126, 210);
+    m_pView->show();
+    QCoreApplication::processEvents();
+    EXPECT_TRUE(m_pView->isCompact());
+    EXPECT_EQ(QSize(0, 0), m_pView->minimumSizeHint());
+    // Each table as tall as its rows, none overlapping the header or the
+    // other: the view scrolls instead
+    QWidget* pContent = m_pView->scrollArea()->widget();
+    const auto rectOf = [pContent](const QWidget* pWidget) {
+        return QRect(pWidget->mapTo(pContent, QPoint(0, 0)), pWidget->size());
+    };
+    QTableView* pDownloads = m_pView->downloadsTable();
+    EXPECT_EQ(pDownloads->horizontalHeader()->height() + 2 * pDownloads->rowHeight(0),
+            pDownloads->height());
+    EXPECT_GE(rectOf(pDownloads).top(), rectOf(m_pView->gauge()).bottom());
+    EXPECT_GE(rectOf(m_pView->offlineSetsTable()).top(), rectOf(pDownloads).bottom());
+    EXPECT_GT(m_pView->scrollArea()->verticalScrollBar()->maximum(), 0);
+    // Tall again: the full header, the tables under it with nothing between
+    m_pView->resize(1126, 900);
+    QCoreApplication::processEvents();
+    EXPECT_FALSE(m_pView->isCompact());
+    EXPECT_FALSE(m_pView->captionLabel()->isHidden());
+    EXPECT_LT(rectOf(m_pView->offlineSetsTable()).top() - rectOf(pDownloads).bottom(), 80);
 }
