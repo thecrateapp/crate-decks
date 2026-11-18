@@ -226,7 +226,8 @@ TEST(CrateDesignPolicyTest, NoHardcodedColours) {
 }
 
 TEST(CrateDesignPolicyTest, NoGraphicsEffects) {
-    for (const QString& file : scannedSources()) {
+    const QStringList files = scannedSources();
+    for (const QString& file : files) {
         const QStringList found = graphicsEffectViolations(readSource(file));
         EXPECT_TRUE(found.isEmpty()) << qPrintable(file) << ": "
                                      << qPrintable(found.join(QStringLiteral("; ")));

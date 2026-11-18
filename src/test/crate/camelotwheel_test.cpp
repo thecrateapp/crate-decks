@@ -8,6 +8,7 @@
 #include <QSignalSpy>
 #include <QTest>
 #include <cmath>
+#include <utility>
 
 #include "crate/ui/skin/crateskin.h"
 #include "crate/ui/widgets/camelotlegend.h"
@@ -332,7 +333,7 @@ TEST_F(CrateCamelotWheelTest, LegendWrapsToItsWidth) {
     const int narrow = wide.width() / 2;
     rects = legend.layout(narrow);
     EXPECT_GT(legend.heightForWidth(narrow), legend.heightForWidth(wide.width()));
-    for (const QRectF& rect : rects) {
+    for (const QRectF& rect : std::as_const(rects)) {
         EXPECT_LE(rect.right(), narrow + 0.5);
     }
     EXPECT_LE(legend.minimumSizeHint().width(), narrow);

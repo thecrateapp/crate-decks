@@ -79,7 +79,7 @@ QVector<QRectF> CamelotLegend::layout(int width) const {
 }
 
 int CamelotLegend::heightForWidth(int width) const {
-    return static_cast<int>(std::ceil(layout(width).last().bottom()));
+    return static_cast<int>(std::ceil(layout(width).constLast().bottom()));
 }
 
 QSize CamelotLegend::sizeHint() const {
