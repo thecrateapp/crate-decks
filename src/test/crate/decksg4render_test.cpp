@@ -31,6 +31,8 @@
 //   CRATE_DECKS_G4_OUT          output directory
 //   CRATE_DECKS_G4_VARIANTS     optional: v3,v2,v3-norg (default all)
 //   CRATE_DECKS_G4_ONLY         optional: pair ids, comma separated
+//   CRATE_DECKS_G4_BUFFER_FRAMES  optional: the engine's buffer (default
+//                               1024 frames, the app's)
 //   CRATE_DECKS_LIVE_URL, _EMAIL, _PASSWORD   the dev stack, as the live
 //                               suites (loopback or private address only)
 // LimitCheckAgreement also needs CRATE_DECKS_G4_LIMIT_CASES (limit_cases.py).
@@ -122,9 +124,15 @@ const QString kDeck1 = QStringLiteral("[Channel1]");
 const QString kDeck2 = QStringLiteral("[Channel2]");
 const QString kMainGroup = QStringLiteral("[Master]");
 constexpr int kSampleRate = 44100;
-// SoundManagerConfig's default buffer at 44.1 kHz (Size20xms)
-constexpr SINT kBufferFrames = 1024;
-constexpr double kBufferMs = 1000.0 * kBufferFrames / kSampleRate;
+// SoundManagerConfig's default buffer at 44.1 kHz (Size20xms), or
+// CRATE_DECKS_G4_BUFFER_FRAMES (64 to 4096)
+SINT bufferFramesOfEnvironment() {
+    bool ok = false;
+    const int frames = qEnvironmentVariableIntValue("CRATE_DECKS_G4_BUFFER_FRAMES", &ok);
+    return ok && frames >= 64 && frames <= 4096 ? frames : 1024;
+}
+const SINT kBufferFrames = bufferFramesOfEnvironment();
+const double kBufferMs = 1000.0 * static_cast<double>(kBufferFrames) / kSampleRate;
 constexpr double kTickMs = crate::SmartMixDirector::kTickMs;
 // The outgoing deck starts where pairs.json says (renderStartMs): 25 s before
 // the earliest of Auto DJ's estimated handover, the plans' start and its
@@ -917,7 +925,7 @@ TEST_F(CrateDecksG4Render, RendersAutoDJTransitions) {
     if (newDeviation) {
         deviationOut << "pair,variant,pass,reason,detail,mixed,candidateIndex,usedBeatClock,"
                         "plannedStartOutgoingMs,startOutgoingMs,incomingStartMs,lateMs,"
-                        "durationMs,overridden\n";
+                        "durationMs,overridden,startOffsetMs,incomingStagingDb\n";
     }
 
     QModelIndexList queueRows;
@@ -1273,6 +1281,13 @@ TEST_F(CrateDecksG4Render, RendersAutoDJTransitions) {
                         {QStringLiteral("incomingStartMs"), report.incomingStartMs},
                         {QStringLiteral("lateMs"), report.lateMs},
                         {QStringLiteral("durationMs"), report.durationMs},
+                        {QStringLiteral("startOffsetMs"), report.startOffsetMs},
+                        {QStringLiteral("incomingStagingDb"), report.incomingStagingDb},
+                        {QStringLiteral("replayGainDifferenceDb"),
+                                report.replayGainDifferenceDb
+                                        ? QJsonValue(*report.replayGainDifferenceDb)
+                                        : QJsonValue()},
+                        {QStringLiteral("bufferFrames"), static_cast<int>(kBufferFrames)},
                         {QStringLiteral("overridden"), QJsonArray::fromStringList(overridden)},
                         {QStringLiteral("askedPlan"), planJson(*asked)},
                 };
@@ -1314,6 +1329,7 @@ TEST_F(CrateDecksG4Render, RendersAutoDJTransitions) {
                              << report.plannedStartOutgoingMs << ',' << report.startOutgoingMs
                              << ',' << report.incomingStartMs << ',' << report.lateMs << ','
                              << report.durationMs << ',' << overridden.join(QLatin1Char(' '))
+                             << ',' << report.startOffsetMs << ',' << report.incomingStagingDb
                              << '\n';
                 deviationOut.flush();
                 measure(pair.id.toStdString() + " " + variant.name.toStdString() +
