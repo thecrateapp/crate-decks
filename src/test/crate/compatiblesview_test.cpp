@@ -10,7 +10,10 @@
 #include <QTest>
 #include <QUrlQuery>
 #include <memory>
+#include <utility>
+#include <vector>
 
+#include "control/controlobject.h"
 #include "crate/db/crateserverschema.h"
 #include "crate/library/cratelibrarystore.h"
 #include "crate/library/crateloadcoordinator.h"
@@ -18,6 +21,7 @@
 #include "crate/ui/widgets/camelotwheel.h"
 #include "crate/ui/widgets/camelotwheelmodel.h"
 #include "crate/ui/widgets/instrumentpainter.h"
+#include "mixer/playerinfo.h"
 #include "test/crate/fakecratenetwork.h"
 #include "test/mixxxdbtest.h"
 #include "track/track.h"
@@ -49,6 +53,21 @@ class CrateCompatiblesViewTest : public MixxxDbTest {
     }
 
     void SetUp() override {
+        // The view asks PlayerInfo which track a deck has. The controls it
+        // reads when it is created come first, as CoreServices makes them in
+        // the app; a debug build asserts without them.
+        for (const auto& [group, item] : {
+                     std::pair{QStringLiteral("[Master]"), QStringLiteral("crossfader")},
+                     std::pair{QStringLiteral("[App]"), QStringLiteral("num_decks")},
+                     std::pair{QStringLiteral("[App]"), QStringLiteral("num_samplers")},
+                     std::pair{QStringLiteral("[App]"),
+                             QStringLiteral("num_preview_decks")}}) {
+            m_playerInfoControls.push_back(
+                    std::make_unique<ControlObject>(ConfigKey(group, item)));
+        }
+        // Two decks, as the app starts
+        ControlObject::set(ConfigKey(QStringLiteral("[App]"), QStringLiteral("num_decks")), 2);
+        PlayerInfo::create();
         ASSERT_TRUE(MixxxDb::initDatabaseSchema(dbConnection()));
         ASSERT_TRUE(crate::db::createCrateServerSchema(dbConnection()));
         ClientOptions options;
@@ -63,6 +82,8 @@ class CrateCompatiblesViewTest : public MixxxDbTest {
         m_pCompatibles.reset();
         m_pModel.reset();
         m_pClient.reset();
+        PlayerInfo::destroy();
+        m_playerInfoControls.clear();
     }
 
     Compatibles* makeCompatibles() {
@@ -137,6 +158,7 @@ class CrateCompatiblesViewTest : public MixxxDbTest {
     std::unique_ptr<Compatibles> m_pCompatibles;
     bool m_prewarmEnabled = false;
     QStringList m_prewarmed;
+    std::vector<std::unique_ptr<ControlObject>> m_playerInfoControls;
 };
 
 TEST_F(CrateCompatiblesViewTest, FollowsMasterDeck) {
