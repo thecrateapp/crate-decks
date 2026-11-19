@@ -126,10 +126,9 @@ constexpr int kSampleRate = 44100;
 constexpr SINT kBufferFrames = 1024;
 constexpr double kBufferMs = 1000.0 * kBufferFrames / kSampleRate;
 constexpr double kTickMs = crate::SmartMixDirector::kTickMs;
-// The outgoing deck starts this long before the earliest of Auto DJ's
-// estimated handover, the plan's start and its Outro, so Auto DJ computes its
-// fade as in a set
-constexpr double kLeadInMs = 25000.0;
+// The outgoing deck starts where pairs.json says (renderStartMs): 25 s before
+// the earliest of Auto DJ's estimated handover, the plans' start and its
+// Outro, so Auto DJ computes its fade as in a set (select_pairs.py).
 // Recorded around the transition
 constexpr double kKeepBeforeMs = 20000.0;
 constexpr double kKeepAfterMs = 16000.0;
@@ -921,6 +920,8 @@ TEST_F(CrateDecksG4Render, RendersAutoDJTransitions) {
                         "durationMs,overridden\n";
     }
 
+    QModelIndexList queueRows;
+    QStringList overridden;
     for (const Pair& pair : std::as_const(pairs)) {
         for (const Variant& variant : std::as_const(variants)) {
             for (const bool stems : {false, true}) {
@@ -947,17 +948,38 @@ TEST_F(CrateDecksG4Render, RendersAutoDJTransitions) {
                             ControlObject::get(ConfigKey(group, QStringLiteral("duration"))) *
                             1000.0;
                 };
-                QObject::connect(pDirectorRef,
-                        &crate::SmartMixDirector::stateChanged,
-                        [&](crate::SmartMixDirector::State state) {
-                            events.append(StateEvent{
-                                    QString::fromLatin1(
-                                            QMetaEnum::fromType<crate::SmartMixDirector::State>()
-                                                    .valueToKey(static_cast<int>(state))),
-                                    nowMs,
-                                    positionMs(0),
-                                    positionMs(1)});
-                        });
+                // The director's states as they change, read after each step
+                // of the run; a state passed within one step is noted at its time
+                const QList<crate::SmartMixDirector::State> order{
+                        crate::SmartMixDirector::State::Idle,
+                        crate::SmartMixDirector::State::Armed,
+                        crate::SmartMixDirector::State::Preparing,
+                        crate::SmartMixDirector::State::Running};
+                crate::SmartMixDirector::State noted = crate::SmartMixDirector::State::Idle;
+                const auto noteState = [&](crate::SmartMixDirector::State state) {
+                    if (state == noted) {
+                        return;
+                    }
+                    // States of the way in that one step went through are
+                    // noted too; an end state is noted alone
+                    QList<crate::SmartMixDirector::State> passed;
+                    const qsizetype from = order.indexOf(noted);
+                    const qsizetype to = order.indexOf(state);
+                    for (qsizetype i = from + 1; from >= 0 && i < to; ++i) {
+                        passed.append(order[i]);
+                    }
+                    passed.append(state);
+                    for (const crate::SmartMixDirector::State each : std::as_const(passed)) {
+                        events.append(StateEvent{
+                                QString::fromLatin1(
+                                        QMetaEnum::fromType<crate::SmartMixDirector::State>()
+                                                .valueToKey(static_cast<int>(each))),
+                                nowMs,
+                                positionMs(0),
+                                positionMs(1)});
+                    }
+                    noted = state;
+                };
 
                 crate::AutoDJSmartMixAdapter::Options options;
                 options.pConfig = config();
@@ -1011,11 +1033,11 @@ TEST_F(CrateDecksG4Render, RendersAutoDJTransitions) {
                         config(), engine.players(), trackCollectionManager(), autoDjPlaylistId);
                 {
                     PlaylistTableModel* pQueue = pAutoDJ->getTableModel();
-                    QModelIndexList rows;
+                    queueRows.clear();
                     for (int row = 0; row < pQueue->rowCount(); ++row) {
-                        rows.append(pQueue->index(row, 0));
+                        queueRows.append(pQueue->index(row, 0));
                     }
-                    pQueue->removeTracks(rows);
+                    pQueue->removeTracks(queueRows);
                     pQueue->appendTrack(tracks.value(pair.incomingUid)->getId());
                 }
                 pAutoDJ->setTransitionMode(AutoDJProcessor::TransitionMode::CrateSmartMix);
@@ -1037,6 +1059,7 @@ TEST_F(CrateDecksG4Render, RendersAutoDJTransitions) {
                     engineMs += kBufferMs;
                     nowMs = engineMs;
                     QCoreApplication::processEvents();
+                    noteState(pDirectorRef->state());
                     if (stems) {
                         engine.appendStem(0, &outgoing);
                         engine.appendStem(1, &incoming);
@@ -1058,6 +1081,7 @@ TEST_F(CrateDecksG4Render, RendersAutoDJTransitions) {
                         nowMs = next;
                         pDirectorRef->tick();
                         QCoreApplication::processEvents();
+                        noteState(pDirectorRef->state());
                         if (next >= nextTickMs) {
                             nextTickMs += kTickMs;
                         }
@@ -1209,7 +1233,7 @@ TEST_F(CrateDecksG4Render, RendersAutoDJTransitions) {
                             {QStringLiteral("incomingMs"), event.incomingMs},
                     });
                 }
-                QStringList overridden;
+                overridden.clear();
                 for (const ConfigKey& key : report.overridden) {
                     overridden.append(key.group + key.item);
                 }
@@ -1326,12 +1350,13 @@ TEST_F(CrateDecksG4Render, LimitCheckAgreement) {
     int mixesAgreeing = 0;
     int withCodes = 0;
     QJsonArray results;
+    QStringList expected;
     for (const QJsonValue& value : cases) {
         const QJsonObject testCase = value.toObject();
         QJsonObject json = testCase.value(QStringLiteral("plan")).toObject();
         json.insert(QStringLiteral("policyLimits"), testCase.value(QStringLiteral("policyLimits")));
         const auto parsed = crate::TransitionPlan::fromJson(json);
-        QStringList expected;
+        expected.clear();
         const QJsonArray codes = testCase.value(QStringLiteral("codes")).toArray();
         for (const QJsonValue& code : codes) {
             expected.append(code.toString());
