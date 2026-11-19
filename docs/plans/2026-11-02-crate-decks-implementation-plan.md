@@ -1138,6 +1138,11 @@ F7, F8 and V3.PR2–PR3 start now. The report is still owed before the first rel
 is fixed then. Open questions it should answer: how often the fixed 30 s handover lead is too short, and why
 the first live run had no bass handoff.
 
+**G4 approved (Diego, 2026-11-19)** on the report `docs/plans/2026-11-19-decks-g4-g4b-report.md`, after its
+three findings were fixed first (handover lead from the cached plan, start compensation, ReplayGain residual
+staging) and the harness rerun: no late starts, starts within 1 ms at 256/1024/2048 frames, and the same loudness
+and bass as the Android player on 10 of 10 pairs without ReplayGain.
+
 
 **Decided (Diego, 2026-11-19),** on the G4 and G4b report
 ([2026-11-19-decks-g4-g4b-report.md](2026-11-19-decks-g4-g4b-report.md)): fix first, then decide.
@@ -1263,6 +1268,11 @@ desarrollar se usa el stack dev con la IA activada en local (Ollama con Qwen), n
 elegido en SG3 de smart-mix-3. Activarlo por defecto en el servidor es decisión de SG4 de ese plan.
 
 **Decided (Diego, 2026-11-10):** replaced. G4b is an automatic-metrics check of planner v3 in Decks: AutoDJ transitions planned with v2 and with v3 (its candidate menu and limits) are rendered offline over the same pairs, and the report gives automatic metrics on rendered transitions, as in SM5: beat phase in the overlap (Beat This!), voice on voice (YAMNet) and EBU R128 level jumps for both, plus how often Decks' local limit check agrees with the server's `limit_violations`. Diego approves the gate on the report.
+
+**G4b approved (Diego, 2026-11-19):** v3 stays Decks' planner as "not worse" than v2 (net 3/3/4 after the G4
+fixes; smaller loudness step and less voice overlap, deeper dips and a little more bass on bass), the rule used
+for Listen's v3 decision; Decks' limit check agrees with the server on 198 of 198 cases. Revisit with a larger
+pair set.
 
 ---
 

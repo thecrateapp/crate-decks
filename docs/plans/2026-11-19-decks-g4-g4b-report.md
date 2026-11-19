@@ -596,3 +596,8 @@ CRATE_DECKS_G4_BUFFER_FRAMES=2048 CRATE_DECKS_G4_VARIANTS=v3,v2 CRATE_DECKS_G4_O
 python3 compare_runs.py --g4 <g4> --buffers 256=renders-after-256:metrics-after-256/metrics.json \
   2048=renders-after-2048:metrics-after-2048/metrics.json
 ```
+
+## Gate decisions (Diego, 2026-11-19)
+
+- **G4: approved** on the numbers after the fixes (§12).
+- **G4b: approved, v3 kept** as "not worse" than v2; revisit with a larger pair set.
