@@ -131,8 +131,11 @@ CratePathDialog::CratePathDialog(
     m_pSteps->setRange(PathRequest::kMinSteps, PathRequest::kMaxSteps);
     m_pSteps->setValue(20);
     m_pSteps->setAccessibleName(tr("Tracks"));
+    const DialogMetrics& metrics = DialogMetrics::installed();
+    // QSS pads the field, which its size hint does not count
+    m_pSteps->setFixedWidth(metrics.px("numberFieldWidth"));
     auto* pRow = new QHBoxLayout();
-    pRow->setSpacing(DialogMetrics::installed().px("helperGap"));
+    pRow->setSpacing(metrics.px("helperGap"));
     pRow->addWidget(m_pSteps);
     auto* pHelper = new QLabel(
             //: The range of the number of tracks of a Music Path

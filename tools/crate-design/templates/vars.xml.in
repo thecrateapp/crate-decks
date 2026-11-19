@@ -361,6 +361,7 @@
   <SetVariable name="CrateDlgCacheGaugeTickLong">{{cacheGaugeTickLong}}</SetVariable>
   <SetVariable name="CrateDlgCacheGaugeTickShort">{{cacheGaugeTickShort}}</SetVariable>
   <SetVariable name="CrateDlgCacheLimitWidth">{{cacheLimitWidth}}</SetVariable>
+  <SetVariable name="CrateDlgNumberFieldWidth">{{numberFieldWidth}}</SetVariable>
   <SetVariable name="CrateDlgCacheLimitMaximum">{{cacheLimitMaximum}}</SetVariable>
   <SetVariable name="CrateDlgFontSizeUsage">{{fontSizeUsage}}</SetVariable>
   <SetVariable name="CrateDlgUsageGap">{{usageGap}}</SetVariable>

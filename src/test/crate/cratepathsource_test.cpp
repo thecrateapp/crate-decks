@@ -18,6 +18,7 @@
 #include <memory>
 
 #include "crate/recs/recommendationqueue.h"
+#include "crate/ui/dialogs/dialogstyle.h"
 #include "test/crate/fakecratenetwork.h"
 #include "test/mixxxtest.h"
 
@@ -240,6 +241,9 @@ TEST_F(CratePathSourceTest, DialogHasTheCrateDialogsSections) {
     EXPECT_EQ(QStringList({QStringLiteral("Tracks"), QStringLiteral("Destination")}), sections);
     EXPECT_EQ(frames.value(0), dialog.stepsBox()->parentWidget());
     EXPECT_EQ(frames.value(1), dialog.toPlaylist()->parentWidget());
+    // As wide as its three digits with the field's padding
+    EXPECT_EQ(crate::DialogMetrics::installed().px("numberFieldWidth"),
+            dialog.stepsBox()->minimumWidth());
     auto* pMake = dialog.findChild<QPushButton*>(QStringLiteral("crateConfirm"));
     ASSERT_NE(nullptr, pMake);
     EXPECT_QSTRING_EQ(QStringLiteral("Make the path"), pMake->text());

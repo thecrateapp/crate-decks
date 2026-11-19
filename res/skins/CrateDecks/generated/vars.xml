@@ -361,6 +361,7 @@
   <SetVariable name="CrateDlgCacheGaugeTickLong">5</SetVariable>
   <SetVariable name="CrateDlgCacheGaugeTickShort">2</SetVariable>
   <SetVariable name="CrateDlgCacheLimitWidth">52</SetVariable>
+  <SetVariable name="CrateDlgNumberFieldWidth">96</SetVariable>
   <SetVariable name="CrateDlgCacheLimitMaximum">100</SetVariable>
   <SetVariable name="CrateDlgFontSizeUsage">26</SetVariable>
   <SetVariable name="CrateDlgUsageGap">16</SetVariable>
