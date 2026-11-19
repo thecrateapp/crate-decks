@@ -3,6 +3,12 @@
 > **Input for Diego's gates G4 (Android Smart Mix against Decks Auto DJ) and G4b (planner v3 in
 > Decks).** Automatic metrics on rendered transitions, as decided on 2026-11-10; nobody listened.
 > The agent stops here: nothing below is fixed or changed in the product.
+>
+> **Decided (Diego, 2026-11-19): fix first, then decide.** G4 and G4b are not approved on this
+> report. Findings 1 to 3 are fixed (finding 3: "the director stages the residual"), the harness ran
+> again on the same pairs and variants, and §12 gives the numbers before and after the fixes with
+> the revised verdict proposals, which replace §10's. §§1–11 are the report as first written, with
+> one correction: finding 2's direction (the incoming deck started ahead of the plan, not behind).
 
 - **Date:** 2026-11-19.
 - **Plan:** [Crate Decks implementation plan](2026-11-02-crate-decks-implementation-plan.md): Gate G4
@@ -36,9 +42,10 @@
   50.5 s, max 130 s; 18 edges, 7 %, more than 30 s early). v2: 3 % (max 11 s). The director then
   jumps the incoming deck forward by as much: in the G4 pairs by 1.6, 4.4, 44, 46 and 130 s, so the
   listener misses that much of the incoming track's start.
-- **Finding 2, on-time starts land one audio callback late.** With the app's default 1024-frame
-  buffer, the incoming deck starts 1–26 ms (median 18 ms) behind where the plan puts it against the
-  outgoing deck, in 14 on-time starts out of 14; Android's preroll is sample-accurate. The beat
+- **Finding 2, on-time starts are off by up to one audio callback.** With the app's default
+  1024-frame buffer, the incoming deck starts 1–26 ms (median 18 ms) ahead of where the plan puts it
+  against the outgoing deck (the director starts it on an engine position short of the cue), in 14
+  on-time starts out of 14; Android's preroll is sample-accurate. The beat
   clock (`beat_distance`) was used in 1 of 20 runs.
 - **Finding 3, ReplayGain and the plan's gain staging stack.** The app normalises every track
   (ReplayGain on by default) and then applies the plan's staging (−1.8 to −7.2 dB on these pairs),
@@ -168,8 +175,9 @@ From `deviation.csv` and the traces (mix pass; times on the outgoing track):
 variant), from candidate 0 (the server's pick), with no control overridden; the reasons are the
 plans' own (`completed`, or the fallback reason of a plan that was already a fallback, played as
 Android plays it). Beat clock: 1 of 10 v3 runs and 1 of 10 v2 runs (p01). Late starts: v3 5 of 10
-(1.6, 4.4, 44.0, 45.8, 129.5 s), v2 1 (2.4 s). The incoming offset is where the incoming deck is
-behind the plan against the outgoing deck at the start, in output time; it stays constant through the
+(1.6, 4.4, 44.0, 45.8, 129.5 s), v2 1 (2.4 s). The incoming offset is how far the incoming deck is
+ahead of the plan against the outgoing deck at the start, in output time (the outgoing deck had not
+reached its cue yet when the incoming one started); it stays constant through the
 mix (no drift in any run). On late starts the director's jump puts it at 0 because the jump happens
 right after a callback; on on-time starts it is 1.1–25.9 ms, median 17.7 ms (14 starts).
 
@@ -346,10 +354,11 @@ None is implemented; each is owed before G6 if Diego approves (decision of 2026-
 1. **Fixed 30 s handover lead (high; v3).** 35 % of v3 edges start before the handover, 7 % more
    than 30 s before; the incoming deck jumps forward by up to 130 s here. Fix: lead from the cached
    plan (§5). Re-measure: rerun the harness; the "Lead short by" column must read 0.
-2. **Start one callback late (medium; every on-time start).** 1–26 ms, median 18 ms at the default
-   buffer; within the 25 ms clash tolerance on most pairs, but it eats the margin of every
-   beatmatch. The director decides on the last callback's position and its `play` takes effect at
-   the next callback, without compensating; the beat clock snaps rarely (1 of 20 runs; on p01
+2. **Start off by up to one callback (medium; every on-time start).** 1–26 ms early, median 18 ms
+   at the default buffer; within the 25 ms clash tolerance on most pairs, but it eats the margin of
+   every beatmatch. The director decides on the last callback's position, short of the cue, and its
+   `play` takes effect at the next callback, which plays the outgoing deck from that position,
+   without compensating; the beat clock snaps rarely (1 of 20 runs; on p01
    upstream's grid is at half tempo, 85 against 170 BPM). Fix: in `startIncoming`, seek the incoming
    deck by the time to the callback that will start it (or extrapolate the outgoing position with
    `VisualPlayPosition`'s callback time and rate, as its interpolation does) so the start lands on
@@ -391,7 +400,7 @@ None is implemented; each is owed before G6 if Diego approves (decision of 2026-
   significant either way, and the report reads them as "the same" where the counts are even.
 - **No listening.** All metrics are proxies (LV0 §9); the renders are there for Diego's ear.
 
-## 10. Verdict proposals
+## 10. Verdict proposals (superseded by §12.4)
 
 **G4: approve.** Decks' director, on the real engine with Auto DJ in "Crate Smart Mix", plays the
 server's plan as the Android player does: with ReplayGain off the two measure the same on loudness,
@@ -434,3 +443,156 @@ python3 tables.py --g4 <g4> > <g4>/tables.md
 
 The full commands, with the mounts, are in the tools' docstrings. The harness takes about 5 minutes
 for 60 runs; the metrics about 2 minutes with 6 jobs.
+
+## 12. After the fixes (2026-11-19)
+
+### 12.1 What changed and how it was measured
+
+Diego's decision of 2026-11-19 (see the note at the top) asked to fix findings 1 to 3 first. Branch
+`test/decks-g4-reports`, local commits after `873165d875`; the rules are recorded in the plan's G4
+notes ("Implemented (G4 fixes, 2026-11-19)"):
+
+- **Finding 1:** `AutoDJSmartMixAdapter::transitionLeadSeconds()` gives Auto DJ the lead the edge's
+  cached plan needs: Auto DJ's fade start less the plan's start, plus the director's 8 s
+  preparation and a 2 s margin, within 30 s and 300 s; 30 s without a cached plan. Plans that arrive
+  after the handover was placed place it again (`AutoDJProcessor::transitionLeadChanged()`).
+- **Finding 2:** `SmartMixDirector::startIncoming()` moves the incoming deck by however far the
+  outgoing deck's engine position (where the next callback plays it from) is from the plan's start,
+  early or late, and reports it (`Report::startOffsetMs`).
+- **Finding 3 (residual):** with ReplayGain on and data for both tracks, the incoming deck stages
+  `min(0, plan gain − ReplayGain difference)`; otherwise the plan's gain. The outgoing deck's
+  headroom cut stays.
+
+The harness ran again with the same pairs, variants and settings (`renders-after/`,
+`metrics-after/`), and v3 and v2 again at 256 and 2048 frames for the start
+(`renders-after-256/`, `renders-after-2048/`). The Decks metrics now divide out the director's own
+staging (`incomingStagingDb` of each run). The limit check gave 198 of 198 again.
+
+### 12.2 Before and after, finding by finding
+
+#### Finding 1: the handover lead
+
+| Pair | Variant | Handover before → after (s) | Plan start (s) | Lead short by, before → after (s) | Late start, before → after (ms) |
+| --- | --- | ---: | ---: | ---: | ---: |
+| p01 | v3 | 265 → 265 | 277 | 0.0 → 0.0 | 0 → 0 |
+| p01 | v2 | 265 → 265 | 285 | 0.0 → 0.0 | 0 → 0 |
+| p02 | v3 | 79.2 → 79.2 | 94.3 | 0.0 → 0.0 | 0 → 0 |
+| p02 | v2 | 79.2 → 79.2 | 99.0 | 0.0 → 0.0 | 0 → 0 |
+| p03 | v3 | 205 → 190 | 200 | 4.4 → 0.0 | 4,420 → 0 |
+| p03 | v2 | 205 → 192 | 202 | 2.4 → 0.0 | 2,420 → 0 |
+| p04 | v3 | 172 → 160 | 170 | 1.6 → 0.0 | 1,633 → 0 |
+| p04 | v2 | 172 → 172 | 192 | 0.0 → 0.0 | 0 → 0 |
+| p05 | v3 | 314 → 309 | 319 | 0.0 → 0.0 | 0 → 0 |
+| p05 | v2 | 314 → 314 | 334 | 0.0 → 0.0 | 0 → 0 |
+| p06 | v3 | 52.2 → 52.2 | 54.6 | 0.0 → 0.0 | 0 → 0 |
+| p06 | v2 | 52.2 → 52.2 | 72.4 | 0.0 → 0.0 | 0 → 0 |
+| p07 | v3 | 222 → 222 | 236 | 0.0 → 0.0 | 0 → 0 |
+| p07 | v2 | 222 → 222 | 243 | 0.0 → 0.0 | 0 → 0 |
+| p08 | v3 | 382 → 327 | 337 | 45.8 → 0.0 | 45,798 → 0 |
+| p08 | v2 | 382 → 382 | 402 | 0.0 → 0.0 | 0 → 0 |
+| p09 | v3 | 203 → 149 | 159 | 44.0 → 0.0 | 43,986 → 0 |
+| p09 | v2 | 203 → 203 | 204 | 0.0 → 0.0 | 0 → 0 |
+| p10 | v3 | 343 → 204 | 214 | 130 → 0.0 | 129,529 → 0 |
+| p10 | v2 | 343 → 343 | 363 | 0.0 → 0.0 | 0 → 0 |
+
+#### Finding 2: the incoming deck's offset from the plan at the start
+
+| Run | Buffer (frames) | Starts | Offset at start, ms: median / min / max | Within 1 ms |
+| --- | ---: | ---: | ---: | ---: |
+| before | 1024 | 20 | 14.0 / 0.0 / 25.9 | 6 |
+| after | 1024 | 20 | 0.0 / -0.0 / 3.2 | 19 |
+| after | 256 | 20 | -0.0 / -0.5 / 0.5 | 20 |
+| after | 2048 | 20 | 0.0 / -0.0 / 3.2 | 19 |
+
+#### Finding 3: ReplayGain and staging (v3, ReplayGain on)
+
+| Pair | ReplayGain difference (dB) | Incoming staging: plan → residual (dB) | Step, A / D before / D after (LU) | Dip, A / D before / D after (LU) |
+| --- | ---: | ---: | ---: | ---: |
+| p01 | -1.7 | -4.7 → -2.9 | 1.7 / 0.0 / 0.0 | 9.9 / 11.2 / 11.2 |
+| p02 | -0.9 | -4.0 → -3.1 | 2.0 / 2.9 / 2.9 | 6.1 / 6.0 / 5.7 |
+| p03 | 4.3 | -3.8 → -8.1 | 6.7 / 1.5 / 2.4 | 6.4 / 9.6 / 11.0 |
+| p04 | -1.0 | -4.2 → -3.2 | 0.2 / 0.8 / 0.7 | 5.5 / 4.5 / 5.1 |
+| p05 | -2.5 | -4.1 → -1.7 | 2.5 / 0.1 / 0.1 | 6.0 / 6.6 / 6.0 |
+| p06 | 0.6 | -5.3 → -5.9 | 1.4 / 0.8 / 0.8 | 4.9 / 5.2 / 5.7 |
+| p07 | -1.1 | -4.4 → -3.4 | 0.3 / 0.7 / 0.7 | 6.5 / 8.6 / 5.5 |
+| p08 | -7.5 | -6.0 → 0.0 | 4.1 / 0.9 / 11.3 | 5.2 / 7.2 / 1.3 |
+| p09 | 4.8 | -4.0 → -8.8 | 6.5 / 1.5 / 11.4 | 3.6 / 7.5 / 4.0 |
+| p10 | -4.0 | -6.0 → -2.0 | 6.1 / 9.6 / 2.1 | 4.7 / 0.6 / 4.7 |
+
+
+- **Finding 1, done: "Lead short by" reads 0 on all 20 runs** (it was 1.6–129.5 s on 5 v3 runs and
+  2.4 s on one v2 run), and no run started late. Auto DJ now hands over 10 s before the plan's start
+  when the plan needs it (p10: at 204 s for a start at 214 s, instead of 343 s). Over the 254
+  surveyed edges, the new rule gives no late start (the largest lead needed is 170 s, under the 300 s
+  ceiling); it lengthens the lead past 30 s on 151 v3 edges (median lead 34 s, max 170 s) and on
+  11 v2 edges (max 51 s). Auto DJ then waits in its fading state for that long, with the director
+  armed and the incoming deck prepared 8 s before the start.
+- **Finding 2, done: the start lands on the plan at every buffer size.** After the fix 19 of 20
+  starts are within 1 ms at 1024 and 2048 frames and 20 of 20 at 256 (before: 6 of 20, median
+  14 ms, up to 26 ms). The one exception (3.2 ms, p01 v2) is the incoming track's own start: its
+  cue is 23 ms in and the start would need 26 ms before it, so it starts at 0.
+- **Finding 3, done: the dip with ReplayGain on is back to Android's.** Mean dip 6.0 LU (Android
+  5.9, before 6.7); against Decks with ReplayGain off on the same content the dip is now better on
+  3 pairs and worse on 2 (before: 1 better, 5 worse). The loudness step is ReplayGain's own: it
+  normalises whole tracks, not the outro against the intro, so it moves the step either way (p08
+  11.3 LU, p10 2.1 LU, against Android's 4.1 and 6.1); staging cannot change it, because the
+  incoming deck is back at unity at the end of the transition. Where ReplayGain raised the incoming
+  deck over the outgoing one (p03 +4.3 dB, p09 +4.8 dB), the residual is a deeper cut (−8.1 and
+  −8.8 dB) and p03's dip got deeper (11.0 LU).
+
+### 12.3 G4 and G4b after the fixes
+
+Better / same / worse beyond the noise floor (§2.3), 10 pairs:
+
+| Metric | Decks against Android, same plan (ReplayGain on) | The same, ReplayGain off | ReplayGain on against off | G4b: Decks v3 against v2 |
+| --- | ---: | ---: | ---: | ---: |
+| Beat clash | 2 / 5 / 3 | 3 / 5 / 2 | 0 / 9 / 1 | 3 / 2 / 5 |
+| Phase error, median | 3 / 3 / 4 | 3 / 3 / 4 | 0 / 10 / 0 | n/a |
+| Voice on voice | 1 / 8 / 1 | 1 / 8 / 1 | 0 / 10 / 0 | 3 / 7 / 0 |
+| Bass on bass | 0 / 10 / 0 | 0 / 10 / 0 | 0 / 10 / 0 | 0 / 8 / 2 |
+| Loudness step | 5 / 2 / 3 (3.2 against 3.2 LU) | 0 / 10 / 0 | 5 / 2 / 3 | 6 / 2 / 2 (3.2 against 5.7 LU) |
+| Loudness bump | 2 / 6 / 2 | 0 / 10 / 0 | 2 / 6 / 2 | n/a |
+| Loudness dip | 2 / 5 / 3 (6.0 against 5.9 LU) | 0 / 9 / 1 | 3 / 5 / 2 | 3 / 0 / 7 (6.0 against 5.7 LU) |
+| **Net, SM5's four** | **4 / 2 / 4 (p 1.00)** | **4 / 3 / 3 (p 1.00)** | 4 / 5 / 1 (p 0.38) | **3 / 3 / 4 (p 1.00)** |
+
+- **G4: Decks now reproduces the Android renderer on the same plan.** With ReplayGain off, loudness
+  step, bump and slope are the same on 10 of 10 pairs, the dip on 9, bass on bass on 10, voice on 8;
+  beat clash 3 better, 2 worse. The differences of §4 in the late-start pairs are gone with the late
+  starts. With the app's ReplayGain on, net is even (4/2/4): ReplayGain moves the step either way,
+  and nothing else.
+- **G4b changed.** Before the fixes v3 was better than v2 in Decks on net (7/2/1, p 0.07); after,
+  it is even (3/3/4), like the Android renderer's reading of the same plans (5/1/4). Part of v3's
+  earlier advantage came from finding 1's jumps (the incoming track started tens of seconds in, at
+  full level) and from finding 3. v3 still has a smaller loudness step (6/2/2, 3.2 against 5.7 LU)
+  and less voice on voice (3/7/0); it pays in the dip (3/0/7, 6.0 against 5.7 LU, p 0.34) and in
+  bass on bass (0/8/2). Under LV-D8's reading (not worse on net or on the dip at p < 0.1) it still
+  passes; it is no longer better.
+
+### 12.4 Revised verdict proposals
+
+**G4: approve.** With the three fixes, Decks' Auto DJ in "Crate Smart Mix" plays the server's plan
+as the Android player does: no late starts ("Lead short by" 0 on 20 of 20 runs, none expected over
+the 254 surveyed edges), the incoming deck on the plan within 1 ms at 256, 1024 and 2048 frames
+(one 3.2 ms start clamped at the track's beginning), and the same loudness, bass and voice as the
+Android renderer with ReplayGain off. With the app's ReplayGain on the result is even (4/2/4); the
+remaining difference is ReplayGain's whole-track normalisation, which Diego may want to hear on
+p08 and p10 (§12.2).
+
+**G4b: approve v3 as Decks' planner, as "not worse" rather than "better".** After the fixes v3 and
+v2 are even on net in Decks (3/3/4), v3 with a smaller loudness step and less voice on voice and a
+deeper dip and more bass on bass, so it passes LV-D8's rule without a measured gain. The limit
+check mirrors the server on 198 of 198 cases, and Decks always played the server's pick. If Diego
+wants v3 only for a measured gain, the alternative is to keep v2 in Decks' Auto DJ until a larger
+set shows one; the menu and limits work of F6b.PR1 stays either way.
+
+### 12.5 Reproduce the after runs
+
+```bash
+# Decks (this branch): CRATE_DECKS_G4_BUFFER_FRAMES sets the engine's buffer (default 1024)
+CRATE_DECKS_G4_OUT=<g4>/renders-after build/mixxx-test --gtest_filter='CrateDecksG4Render.*'   # + the variables of §11
+CRATE_DECKS_G4_BUFFER_FRAMES=256 CRATE_DECKS_G4_VARIANTS=v3,v2 CRATE_DECKS_G4_OUT=<g4>/renders-after-256 …
+CRATE_DECKS_G4_BUFFER_FRAMES=2048 CRATE_DECKS_G4_VARIANTS=v3,v2 CRATE_DECKS_G4_OUT=<g4>/renders-after-2048 …
+# Metrics for each, then the comparison (monorepo tools)
+python3 compare_runs.py --g4 <g4> --buffers 256=renders-after-256:metrics-after-256/metrics.json \
+  2048=renders-after-2048:metrics-after-2048/metrics.json
+```

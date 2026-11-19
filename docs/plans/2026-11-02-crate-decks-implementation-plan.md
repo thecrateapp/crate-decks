@@ -1066,7 +1066,7 @@ grep -rn "smart-mix-v2" app/crate | head
 
 **Pendiente para F6.C-PR4 y G4:**
 
-- El traspaso se adelanta 30 s fijos. Un plan cuyo cue cae más de 30 s antes del punto de fundido de AutoDJ (por ejemplo, un outro largo sin cues en Decks) empieza tarde: el director hace saltar el entrante hacia delante. Para G4 conviene medir con qué frecuencia pasa y, si hace falta, que el director diga qué adelanto necesita según el plan en caché.
+- El traspaso se adelanta 30 s fijos. Un plan cuyo cue cae más de 30 s antes del punto de fundido de AutoDJ (por ejemplo, un outro largo sin cues en Decks) empieza tarde: el director hace saltar el entrante hacia delante. Para G4 conviene medir con qué frecuencia pasa y, si hace falta, que el director diga qué adelanto necesita según el plan en caché. **Resolved (G4 finding 1, 2026-11-19):** the lead now comes from the cached plan; see the G4 fixes below.
 - Las aristas se piden sin `profileRevision`, porque la cola solo da rutas: la caché de planes de la sesión no se invalida si el perfil de una pista cambia mientras la app está abierta.
 - Si el director se cancela después de arrancar el entrante (seek atrás o bucle en el saliente), AutoDJ espera a que el saliente acabe su pista en vez de terminar el fundido.
 - F6.C-PR4 reutiliza el director y el `PlanClient` por servidor de `CrateServerFeature`. El adaptador no comparte el director con el asistente: hace falta decidir quién lo tiene cuando AutoDJ y el asistente coinciden.
@@ -1138,6 +1138,40 @@ F7, F8 and V3.PR2–PR3 start now. The report is still owed before the first rel
 is fixed then. Open questions it should answer: how often the fixed 30 s handover lead is too short, and why
 the first live run had no bass handoff.
 
+
+**Decided (Diego, 2026-11-19),** on the G4 and G4b report
+([2026-11-19-decks-g4-g4b-report.md](2026-11-19-decks-g4-g4b-report.md)): fix first, then decide.
+G4 and G4b are not approved yet; findings 1 to 3 are fixed, the harness is run again, and Diego
+decides on the new numbers. For finding 3 he chose "the director stages the residual".
+
+**Implemented (G4 fixes, 2026-11-19).** Branch `test/decks-g4-reports`.
+
+- **Handover lead from the cached plan (finding 1).** `AutoDJProcessor::TransitionDirector` gains
+  `transitionLeadSeconds()` (default `kTransitionDirectorLeadSeconds`, so the other directors and
+  the upstream tests see no change) and Auto DJ gains `transitionLeadChanged()`, which places the
+  handover again unless a transition is under way (`CRATE_PATCHES.md`). The rule, in
+  `AutoDJSmartMixAdapter::leadSecondsFor()`: with the edge's plan in the cache, the lead is Auto DJ's
+  fade start less the plan's start (`SmartMixDirector::startAtMs()` of the entry `playable()` would
+  play on the decks' tracks), plus the director's `kPrepareLeadMs` (8 s) and a 2 s margin, within
+  30 s and 300 s; 30 s without a plan in the cache or for a plan the tracks cannot take. Plans that
+  arrive after Auto DJ placed the handover (asked ahead) place it again. Tests:
+  `AutoDJSmartMixAdapterTest.LeadIsWhatThePlanNeeds`, `HandsOverAsEarlyAsTheCachedPlanNeeds`.
+- **Start on the plan at any buffer size (finding 2).** The incoming deck starts at the next audio
+  callback, which plays the outgoing deck from its engine position; `startIncoming()` now moves the
+  incoming deck by however far that position is from the plan's start, early or late (before, only
+  late starts over 5 ms were moved). `Report::startOffsetMs` keeps the signed offset. Test:
+  `CrateSmartMixDirectorTest.AlignsAStartOffTheCueEitherWay`; `StartsOnPredictedBeat` updated.
+  `TEST_GAP:` the audio alignment needs the engine; the G4 harness measures it at 256, 1024 and
+  2048 frames.
+- **ReplayGain and staging (finding 3, residual).** With ReplayGain on and data for both tracks
+  (`[ReplayGain],ReplayGainEnabled`, each deck's `replaygain`), the incoming deck stages
+  `min(0, plan incomingGainDb − (incoming ReplayGain − outgoing ReplayGain in dB))`
+  (`curves::replayGainDifferenceDb()`, `curves::incomingStagingDb()`): the plan's loudness match
+  less what ReplayGain already did, never a boost. ReplayGain off or a track without data: the
+  plan's gain as before. The outgoing deck's gain (the plan's peak headroom) stays. No server
+  change. Tests: `CrateCurvesTest.ReplayGainDifferenceNeedsReplayGainAndBothTracks`,
+  `IncomingStagingIsTheResidualOfThePlanGain`,
+  `CrateSmartMixDirectorTest.StagesTheResidualOfThePlanGainWithReplayGain`.
 ---
 
 ## F6b · AI Assisted Mixing en Decks (D15)
