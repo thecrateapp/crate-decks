@@ -30,19 +30,29 @@ class CrateDialog : public QDialog {
         Cancel,
     };
 
+    /// Form is the first start's size, for dialogs with fields (Music
+    /// Path); Compact is narrower with a smaller title (about 22 px), for one
+    /// question (Diego, 2026-11-19). Both from the "dialog" tokens.
+    enum class Size {
+        Form,
+        Compact,
+    };
+
     /// `context` is the head's MonoLabel ("Music Path"), `intro` the
     /// paragraph under the title, as plain text; both may be empty.
     CrateDialog(const QString& context,
             const QString& title,
             const QString& intro,
-            QWidget* pParent = nullptr);
+            QWidget* pParent = nullptr,
+            Size size = Size::Form);
 
     /// A section at the end of the body: a 1 px rule, the accent MonoLabel
     /// `label` and its rows, which go in the layout it returns.
     QVBoxLayout* addSection(const QString& label);
 
     /// A button at the foot, after the others. A primary action is the
-    /// default button (Enter); a destructive one never is.
+    /// default button (Enter); a destructive one never is, and Cancel is
+    /// then the default.
     QPushButton* addAction(const QString& text, const QString& objectName, Action action);
 
     /// A MonoLabel at the right of the foot, as the first start's "Later:
@@ -52,7 +62,13 @@ class CrateDialog : public QDialog {
     /// The width of its content: sections and rows never widen the dialog.
     int contentWidth() const;
 
+    Size size() const {
+        return m_size;
+    }
+
   private:
+    const Size m_size;
+    bool m_destructive = false;
     QVBoxLayout* m_pBody;
     QHBoxLayout* m_pFoot;
     QLabel* m_pLater;
@@ -73,8 +89,9 @@ struct Confirmation {
     QString cancel;
 };
 
-/// The dialog of `confirmation`: accepted by its action (crateConfirm),
-/// rejected by Cancel (crateCancel).
+/// The compact dialog of `confirmation`: accepted by its action
+/// (crateConfirm), rejected by Cancel (crateCancel), which is the default
+/// button when the action destroys something.
 CrateDialog* createConfirmation(const Confirmation& confirmation, QWidget* pParent = nullptr);
 
 /// A choice from a list, for what QInputDialog::getItem() asked.

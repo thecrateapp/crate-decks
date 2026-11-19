@@ -837,6 +837,16 @@ QDialog[crateChrome="true"] {
   min-height: {{lineHeightFirstRunTitle * fontSizeFirstRunTitle}};
   max-height: {{lineHeightFirstRunTitle * fontSizeFirstRunTitle}};
 }
+/* The compact dialog of one question (V3.PR3, Diego, 2026-11-19) */
+#CrateDialogHeading[crateSize="compact"] {
+  font-size: {{fontSizeConfirmTitle}};
+  letter-spacing: {{trackingTitle * fontSizeConfirmTitle}};
+  min-height: {{lineHeightConfirmTitle * fontSizeConfirmTitle}};
+  max-height: {{lineHeightConfirmTitle * fontSizeConfirmTitle}};
+}
+#CrateDialogIntro[crateSize="compact"] {
+  font-size: {{fontSizeCaption}};
+}
 #CrateFirstRunIntro,
 #CrateDialogIntro,
 #crate_based_on {

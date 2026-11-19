@@ -581,6 +581,16 @@ QtObject {
     readonly property real lineHeightFirstRunTitle: 1.05
     readonly property real lineHeightPrefsTitle: 1.1
     readonly property real fontSizeFirstRunTitle: 34
+    readonly property real confirmWidth: 440
+    readonly property real confirmPaddingTop: 24
+    readonly property real confirmPaddingX: 28
+    readonly property real confirmPaddingBottom: 22
+    readonly property real confirmGap: 14
+    readonly property real confirmHeadGap: 10
+    readonly property real confirmLogoWidth: 26
+    readonly property real confirmLogoHeight: 28
+    readonly property real lineHeightConfirmTitle: 1.15
+    readonly property real fontSizeConfirmTitle: 22
     readonly property real firstRunActionsTop: 4
     readonly property real messageIconSize: 32
     readonly property real stepsGap: 10

@@ -581,6 +581,16 @@ QtObject {
     readonly property real lineHeightFirstRunTitle: {{lineHeightFirstRunTitle}}
     readonly property real lineHeightPrefsTitle: {{lineHeightPrefsTitle}}
     readonly property real fontSizeFirstRunTitle: {{fontSizeFirstRunTitle}}
+    readonly property real confirmWidth: {{confirmWidth}}
+    readonly property real confirmPaddingTop: {{confirmPaddingTop}}
+    readonly property real confirmPaddingX: {{confirmPaddingX}}
+    readonly property real confirmPaddingBottom: {{confirmPaddingBottom}}
+    readonly property real confirmGap: {{confirmGap}}
+    readonly property real confirmHeadGap: {{confirmHeadGap}}
+    readonly property real confirmLogoWidth: {{confirmLogoWidth}}
+    readonly property real confirmLogoHeight: {{confirmLogoHeight}}
+    readonly property real lineHeightConfirmTitle: {{lineHeightConfirmTitle}}
+    readonly property real fontSizeConfirmTitle: {{fontSizeConfirmTitle}}
     readonly property real firstRunActionsTop: {{firstRunActionsTop}}
     readonly property real messageIconSize: {{messageIconSize}}
     readonly property real stepsGap: {{stepsGap}}

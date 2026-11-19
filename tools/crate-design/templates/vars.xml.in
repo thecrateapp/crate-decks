@@ -386,6 +386,17 @@
   <SetVariable name="CrateDlgFirstRunLogoHeight">{{firstRunLogoHeight}}</SetVariable>
   <SetVariable name="CrateDlgFontSizeFirstRunTitle">{{fontSizeFirstRunTitle}}</SetVariable>
   <SetVariable name="CrateDlgFirstRunActionsTop">{{firstRunActionsTop}}</SetVariable>
+  <!-- The compact dialog of one question (V3.PR3) -->
+  <SetVariable name="CrateDlgConfirmWidth">{{confirmWidth}}</SetVariable>
+  <SetVariable name="CrateDlgConfirmPaddingTop">{{confirmPaddingTop}}</SetVariable>
+  <SetVariable name="CrateDlgConfirmPaddingX">{{confirmPaddingX}}</SetVariable>
+  <SetVariable name="CrateDlgConfirmPaddingBottom">{{confirmPaddingBottom}}</SetVariable>
+  <SetVariable name="CrateDlgConfirmGap">{{confirmGap}}</SetVariable>
+  <SetVariable name="CrateDlgConfirmHeadGap">{{confirmHeadGap}}</SetVariable>
+  <SetVariable name="CrateDlgConfirmLogoWidth">{{confirmLogoWidth}}</SetVariable>
+  <SetVariable name="CrateDlgConfirmLogoHeight">{{confirmLogoHeight}}</SetVariable>
+  <SetVariable name="CrateDlgLineHeightConfirmTitle">{{lineHeightConfirmTitle}}</SetVariable>
+  <SetVariable name="CrateDlgFontSizeConfirmTitle">{{fontSizeConfirmTitle}}</SetVariable>
   <!-- The Solar icon of message boxes (own brand: no platform or upstream icon) -->
   <SetVariable name="CrateDlgMessageIconSize">{{messageIconSize}}</SetVariable>
   <SetVariable name="CrateDlgStepsGap">{{stepsGap}}</SetVariable>

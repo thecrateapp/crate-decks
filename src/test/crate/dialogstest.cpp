@@ -650,7 +650,10 @@ TEST_F(CrateDialogsTest, ConfirmationsNameTheirActionAndDestroyOnlyInRed) {
         EXPECT_QSTRING_EQ(destructive ? QStringLiteral("danger") : QStringLiteral("primary"),
                 pConfirm->property("crateButton").toString());
         EXPECT_EQ(!destructive, pConfirm->isDefault());
-        EXPECT_FALSE(pCancel->isDefault());
+        // Beside a destructive action, Enter cancels (Diego, 2026-11-19)
+        EXPECT_EQ(destructive, pCancel->isDefault());
+        EXPECT_QSTRING_EQ(QStringLiteral("ghost"), pCancel->property("crateButton").toString());
+        EXPECT_EQ(crate::CrateDialog::Size::Compact, pDialog->size());
         EXPECT_TRUE(pConfirm->icon().isNull());
         EXPECT_TRUE(pCancel->icon().isNull());
         EXPECT_FALSE(pConfirm->autoDefault());
@@ -667,6 +670,45 @@ TEST_F(CrateDialogsTest, ConfirmationsNameTheirActionAndDestroyOnlyInRed) {
     std::unique_ptr<crate::CrateDialog> pDialog(crate::createConfirmation(notNow));
     EXPECT_QSTRING_EQ(QStringLiteral("Not now"),
             pDialog->findChild<QPushButton*>(QStringLiteral("crateCancel"))->text());
+}
+
+// One question is compact: narrower, with a title of about 22 px; dialogs
+// with fields keep the first start's size (Diego, 2026-11-19)
+TEST_F(CrateDialogsTest, ConfirmationsAreCompactAndFormsKeepTheFirstStartsSize) {
+    ASSERT_TRUE(crate::applyApplicationStyle(nullptr, resourcePath()));
+    const crate::DialogMetrics& metrics = crate::DialogMetrics::installed();
+    ASSERT_GT(metrics.px("confirmWidth"), 0);
+    ASSERT_LT(metrics.px("confirmWidth"), metrics.px("firstRunWidth"));
+    crate::Confirmation confirmation;
+    confirmation.context = QStringLiteral("Servers");
+    confirmation.title = QStringLiteral("Remove dev.crate.local?");
+    confirmation.text = QStringLiteral("Its cached tracks stay.");
+    confirmation.action = QStringLiteral("Sign out and remove");
+    confirmation.destructive = true;
+    std::unique_ptr<crate::CrateDialog> pCompact(crate::createConfirmation(confirmation));
+    crate::Choice choice;
+    choice.title = QStringLiteral("Export a playlist");
+    choice.label = QStringLiteral("Playlist");
+    choice.action = QStringLiteral("Export");
+    std::unique_ptr<crate::CrateDialog> pForm(crate::createChoice(choice));
+    for (crate::CrateDialog* pDialog : {pCompact.get(), pForm.get()}) {
+        pDialog->show();
+        QCoreApplication::processEvents();
+        pDialog->layout()->activate();
+    }
+    EXPECT_EQ(metrics.px("confirmWidth"), pCompact->width());
+    EXPECT_EQ(metrics.px("firstRunWidth"), pForm->width());
+    const auto titleSize = [](const QDialog* pDialog) {
+        const QLabel* pTitle = pDialog->findChild<QLabel*>(QStringLiteral("CrateDialogHeading"));
+        return pTitle ? pTitle->font().pixelSize() : 0;
+    };
+    EXPECT_EQ(metrics.px("fontSizeConfirmTitle"), titleSize(pCompact.get()));
+    EXPECT_EQ(metrics.px("fontSizeFirstRunTitle"), titleSize(pForm.get()));
+    EXPECT_EQ(crate::CrateDialog::Size::Form, pForm->size());
+    const QLabel* pLogo = pCompact->findChild<QLabel*>(QStringLiteral("CrateDialogLogo"));
+    ASSERT_NE(nullptr, pLogo);
+    EXPECT_EQ(metrics.px("confirmLogoWidth"),
+            qRound(pLogo->pixmap().width() / pLogo->pixmap().devicePixelRatio()));
 }
 
 TEST_F(CrateDialogsTest, ChoiceOffersItsItems) {

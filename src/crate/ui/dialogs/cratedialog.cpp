@@ -19,32 +19,38 @@ const QString kChoiceName = QStringLiteral("crateChoice");
 
 } // namespace
 
-CrateDialog::CrateDialog(
-        const QString& context, const QString& title, const QString& intro, QWidget* pParent)
+CrateDialog::CrateDialog(const QString& context,
+        const QString& title,
+        const QString& intro,
+        QWidget* pParent,
+        Size size)
         : QDialog(pParent),
+          m_size(size),
           m_pBody(new QVBoxLayout()),
           m_pFoot(new QHBoxLayout()),
           m_pLater(nullptr) {
     const DialogMetrics& metrics = DialogMetrics::installed();
+    const bool compact = size == Size::Compact;
     setObjectName(QStringLiteral("CrateDialog"));
     setWindowTitle(title);
-    // The first start's padding and width (first-run)
+    // The first start's padding and width (first-run), or the compact ones
     auto* pLayout = new QVBoxLayout(this);
-    pLayout->setContentsMargins(metrics.px("firstRunPaddingX"),
-            metrics.px("firstRunPaddingTop"),
-            metrics.px("firstRunPaddingX"),
-            metrics.px("firstRunPaddingBottom"));
-    pLayout->setSpacing(metrics.px("firstRunGap"));
+    pLayout->setContentsMargins(metrics.px(compact ? "confirmPaddingX" : "firstRunPaddingX"),
+            metrics.px(compact ? "confirmPaddingTop" : "firstRunPaddingTop"),
+            metrics.px(compact ? "confirmPaddingX" : "firstRunPaddingX"),
+            metrics.px(compact ? "confirmPaddingBottom" : "firstRunPaddingBottom"));
+    pLayout->setSpacing(metrics.px(compact ? "confirmGap" : "firstRunGap"));
     pLayout->setSizeConstraint(QLayout::SetFixedSize);
     new DialogChrome(this);
+    const QString sizeName = compact ? QStringLiteral("compact") : QStringLiteral("form");
 
     // Head: the logo and what the dialog is about
     auto* pHead = new QHBoxLayout();
-    pHead->setSpacing(metrics.px("firstRunHeadGap"));
+    pHead->setSpacing(metrics.px(compact ? "confirmHeadGap" : "firstRunHeadGap"));
     auto* pLogo = new QLabel(this);
     pLogo->setObjectName(QStringLiteral("CrateDialogLogo"));
-    pLogo->setPixmap(logoPixmap(metrics.px("firstRunLogoWidth"),
-            metrics.px("firstRunLogoHeight"),
+    pLogo->setPixmap(logoPixmap(metrics.px(compact ? "confirmLogoWidth" : "firstRunLogoWidth"),
+            metrics.px(compact ? "confirmLogoHeight" : "firstRunLogoHeight"),
             devicePixelRatioF()));
     pHead->addWidget(pLogo);
     pHead->addWidget(monoLabel(context, QStringLiteral("MonoDialogKicker"), this, true));
@@ -53,13 +59,15 @@ CrateDialog::CrateDialog(
 
     auto* pTitle = new QLabel(title, this);
     pTitle->setObjectName(QStringLiteral("CrateDialogHeading"));
+    pTitle->setProperty("crateSize", sizeName);
     pTitle->setTextFormat(Qt::PlainText);
     pLayout->addWidget(pTitle);
     setDisplayAxes(pTitle);
     if (!intro.isEmpty()) {
         auto* pIntro = new QLabel(this);
         pIntro->setObjectName(QStringLiteral("CrateDialogIntro"));
-        setParagraph(pIntro, intro, "fontSizeBody");
+        pIntro->setProperty("crateSize", sizeName);
+        setParagraph(pIntro, intro, compact ? "fontSizeCaption" : "fontSizeBody");
         pIntro->setFixedWidth(contentWidth());
         pLayout->addWidget(pIntro);
     }
@@ -79,7 +87,9 @@ CrateDialog::CrateDialog(
 
 int CrateDialog::contentWidth() const {
     const DialogMetrics& metrics = DialogMetrics::installed();
-    return metrics.px("firstRunWidth") - 2 * metrics.px("firstRunPaddingX");
+    return m_size == Size::Compact
+            ? metrics.px("confirmWidth") - 2 * metrics.px("confirmPaddingX")
+            : metrics.px("firstRunWidth") - 2 * metrics.px("firstRunPaddingX");
 }
 
 QVBoxLayout* CrateDialog::addSection(const QString& label) {
@@ -115,11 +125,23 @@ QPushButton* CrateDialog::addAction(const QString& text, const QString& objectNa
     case Action::Danger:
         setButtonVariant(pButton, "danger");
         connect(pButton, &QPushButton::clicked, this, &QDialog::accept);
+        m_destructive = true;
         break;
     case Action::Cancel:
         setButtonVariant(pButton, "ghost");
         connect(pButton, &QPushButton::clicked, this, &QDialog::reject);
         break;
+    }
+    // Beside a destructive action, Enter cancels (and the focus starts there)
+    if (m_destructive) {
+        const QList<QPushButton*> buttons = findChildren<QPushButton*>();
+        for (QPushButton* pOther : buttons) {
+            if (pOther->property("crateButton").toString() == QLatin1String("ghost") &&
+                    pOther->parentWidget() == this) {
+                pOther->setDefault(true);
+                pOther->setFocus();
+            }
+        }
     }
     // Left to right, before the stretch and the "later" label
     m_pFoot->insertWidget(m_actions++, pButton);
@@ -132,8 +154,11 @@ void CrateDialog::setLater(const QString& text) {
 }
 
 CrateDialog* createConfirmation(const Confirmation& confirmation, QWidget* pParent) {
-    auto* pDialog = new CrateDialog(
-            confirmation.context, confirmation.title, confirmation.text, pParent);
+    auto* pDialog = new CrateDialog(confirmation.context,
+            confirmation.title,
+            confirmation.text,
+            pParent,
+            CrateDialog::Size::Compact);
     pDialog->addAction(confirmation.action,
             QStringLiteral("crateConfirm"),
             confirmation.destructive ? CrateDialog::Action::Danger

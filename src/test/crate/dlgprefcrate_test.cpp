@@ -1463,6 +1463,7 @@ TEST_F(CrateAddServerFlowTest, ClearCacheAsksInRedFirst) {
     QString title;
     QString variant;
     bool wasDefault = true;
+    bool cancelIsDefault = false;
     QTimer::singleShot(0, &page, [&] {
         auto* pDialog = qobject_cast<QDialog*>(QApplication::activeModalWidget());
         ASSERT_NE(nullptr, pDialog);
@@ -1471,12 +1472,15 @@ TEST_F(CrateAddServerFlowTest, ClearCacheAsksInRedFirst) {
         ASSERT_NE(nullptr, pConfirm);
         variant = pConfirm->property("crateButton").toString();
         wasDefault = pConfirm->isDefault();
-        pDialog->findChild<QPushButton*>(QStringLiteral("crateCancel"))->click();
+        auto* pCancel = pDialog->findChild<QPushButton*>(QStringLiteral("crateCancel"));
+        cancelIsDefault = pCancel->isDefault();
+        pCancel->click();
     });
     page.cacheSection()->clear()->click();
     EXPECT_QSTRING_EQ(QStringLiteral("Clear the cache?"), title);
     EXPECT_QSTRING_EQ(QStringLiteral("danger"), variant);
     EXPECT_FALSE(wasDefault);
+    EXPECT_TRUE(cancelIsDefault);
     EXPECT_EQ(nullptr, QApplication::activeModalWidget());
 }
 

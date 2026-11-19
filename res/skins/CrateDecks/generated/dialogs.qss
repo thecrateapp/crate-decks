@@ -837,6 +837,16 @@ QDialog[crateChrome="true"] {
   min-height: 35.7px;
   max-height: 35.7px;
 }
+/* The compact dialog of one question (V3.PR3, Diego, 2026-11-19) */
+#CrateDialogHeading[crateSize="compact"] {
+  font-size: 22px;
+  letter-spacing: -0.99px;
+  min-height: 25.3px;
+  max-height: 25.3px;
+}
+#CrateDialogIntro[crateSize="compact"] {
+  font-size: 13px;
+}
 #CrateFirstRunIntro,
 #CrateDialogIntro,
 #crate_based_on {

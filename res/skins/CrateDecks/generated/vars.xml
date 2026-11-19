@@ -386,6 +386,17 @@
   <SetVariable name="CrateDlgFirstRunLogoHeight">43</SetVariable>
   <SetVariable name="CrateDlgFontSizeFirstRunTitle">34</SetVariable>
   <SetVariable name="CrateDlgFirstRunActionsTop">4</SetVariable>
+  <!-- The compact dialog of one question (V3.PR3) -->
+  <SetVariable name="CrateDlgConfirmWidth">440</SetVariable>
+  <SetVariable name="CrateDlgConfirmPaddingTop">24</SetVariable>
+  <SetVariable name="CrateDlgConfirmPaddingX">28</SetVariable>
+  <SetVariable name="CrateDlgConfirmPaddingBottom">22</SetVariable>
+  <SetVariable name="CrateDlgConfirmGap">14</SetVariable>
+  <SetVariable name="CrateDlgConfirmHeadGap">10</SetVariable>
+  <SetVariable name="CrateDlgConfirmLogoWidth">26</SetVariable>
+  <SetVariable name="CrateDlgConfirmLogoHeight">28</SetVariable>
+  <SetVariable name="CrateDlgLineHeightConfirmTitle">1.15</SetVariable>
+  <SetVariable name="CrateDlgFontSizeConfirmTitle">22</SetVariable>
   <!-- The Solar icon of message boxes (own brand: no platform or upstream icon) -->
   <SetVariable name="CrateDlgMessageIconSize">32</SetVariable>
   <SetVariable name="CrateDlgStepsGap">10</SetVariable>
