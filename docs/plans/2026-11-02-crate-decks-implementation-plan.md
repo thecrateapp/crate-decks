@@ -1803,6 +1803,25 @@ La vista del plan de Smart Mix sale de este PR y pasa a V3.PR1b (Diego, 2026-11-
 **V3.PR3 · Preferencias y diálogos de Crate**
 - La página de preferencias Crate (F2.C-PR3) y los diálogos propios usan los estilos de V2.PR5: secciones con MonoLabel, reglas de 1 px y sin cajas anidadas.
 
+**Implementado (V3.PR3, 2026-11-19).** Branch `feat/decks-crate-views`, on top of V3.PR2 (ef2c8cabc8). Captures in `crate-agents/decks-mockups/compare/v3pr3/` (`before/`, `after/`, the mockups at 1920 × 1080 and 1366 × 768 and `sbs-*.png`).
+
+- **Inventory.** V2.PR5 had already given the Crate page (`dlgprefcrate`, `crateprefsections`), the add-server form, the first start, the system check and About the mockups' grammar; none uses `QGroupBox` or nested framed boxes. What still had Qt's look: the Music Path dialog (`QFormLayout`, `QDialogButtonBox` with the platform's check and cross icons), the confirmations (`QMessageBox` Yes/No for "Clear cache", the Smart Mix playlist download, the stems' model and offline sets, with the default button in cyan even to destroy) and "Export to Crate" (`QInputDialog::getItem`). Warnings and information keep the message box with its Solar icon (BR.PR3).
+- **Crate page fits Preferences.** At the mockup's 1180 px the page asked for 1002 px: it scrolled sideways and cut "Sign out and remove" and the switches. The switches' hints and the form helpers wrap. "of 40 GB" takes the figure's mono, as the mockup. With "Add a server…" open, the button and its helper give way to the form (the helper showed twice). At 1366 × 768 the mockup's dialog (1180 × 704) shows the same page without scrolling sideways.
+- **`crate::CrateDialog`** (`src/crate/ui/dialogs/cratedialog.{h,cpp}`): a dialog of Decks' own with the first start's grammar and width: the logo and an accent MonoLabel, a display title, a paragraph, sections (`addSection()`) headed by an accent MonoLabel over a 1 px rule (`#CrateDialogSection`, border-top), and Crate buttons at the foot (`addAction()`: Primary accepts and is the default button, Danger accepts and never is, Cancel is ghost). `createConfirmation()` names its action with a verb; `createChoice()` replaces `QInputDialog::getItem()`.
+- **Dialogs moved to it:** Music Path ("Tracks" with its range under the field, "Destination", "Make the path"); "Clear the cache?" (red "Clear cache", `DlgPrefCrate::clearCacheConfirmation()`); "Download" / "Not now" for the Smart Mix playlist and the stems' model (still opened with `open()`, as during a set); "Download" for offline sets; "Export a playlist" with the playlist in a section.
+- **Tokens:** `numberFieldWidth` (96 px, Decks) for the Music Path's field, which QSS pads beyond its size hint; `scrollbarWidth` in `vars.xml` as `CrateDlgScrollbarWidth`.
+- **Tests:**
+  - `dlgprefcrate_test.cpp`: `CratePageFitsTheMockupWidth` (with the mockup's two servers: no sideways scroll, nothing cut, buttons at their size hint), `CratePageHasTheMockupsGrammar` (six sections with accent MonoLabel headers over the rule, no group boxes or framed boxes, mono never bold, primary / danger / ghost roles and red only for "Sign out and remove" and "Clear cache", chip tones cyan and amber), `ClearCacheAsksInRedFirst` (the modal confirmation, red and not default; Cancel closes it), and `PageAddsAServer` follows the add row and the form.
+  - `dialogstest.cpp`: `CrateDialogHasTheFirstStartsGrammar`, `ConfirmationsNameTheirActionAndDestroyOnlyInRed`, `ChoiceOffersItsItems`.
+  - `cratepathsource_test.cpp`: `DialogHasTheCrateDialogsSections`.
+  - `CrateSkinScreenshots.Dialogs` also renders the page with "Add a server" open and at 1366 × 768, Music Path, "Clear the cache?", an offline download and the export.
+  - TEST_GAP: the feature's confirmations come up from a server's Smart Mix playlists and the stems' first run; `createConfirmation()`, which builds them, is tested.
+- **Deviations from the mockup:**
+  - The servers' chips say "Signed in" / "Signed out" (cyan / amber) where the mockup says "Online" / "Offline": Decks knows the session's state, not whether the server answers (a restored session counts as signed in without a network).
+  - The page has more than the mockup: Crate analysis, Stems and This computer under the two columns, the assistant's transition chips (the Auto DJ transition chips and the later Smart Mix switches stay hidden until their plans), and Prefetch Auto DJ; so it scrolls, which the mockup does not. Some hints wrap to a second line in the right column.
+  - The navigation lists upstream's 18 pages (the mockup 15) and scrolls at 1366 × 768; the foot keeps upstream's "Restore Defaults" and "Ok".
+  - Decks' own dialogs have no mockup: they follow first-run (head, title, paragraph, foot) and the Crate page's sections.
+
 ### V4 · Interfaz QML (etapa 2, solo tras GU2)
 
 **No se empieza sin GU2.** GU2 se evalúa con los criterios de §14.4 del diseño, nunca antes de la primera release.
