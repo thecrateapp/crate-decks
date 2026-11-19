@@ -12,7 +12,7 @@ Es un repositorio independiente basado en el código de [Mixxx](https://mixxx.or
 
 ## Relación con Mixxx
 
-- **Origen:** Mixxx `main` en `bc49961` (2.7-alpha). La rama `upstream` apunta a esa base y solo sirve para traer cambios de Mixxx cuando se decide. Cómo hacerlo: [docs/mixxx-merges.md](docs/mixxx-merges.md).
+- **Origen:** Mixxx `main` en `bc49961` (2.7-alpha). Decks es un fork duro: no sigue a Mixxx ni hace merges de sus versiones (Diego, 2026-11-19). El remoto `upstream` solo sirve para traer con cherry-pick arreglos concretos que nos resuelvan algo: [docs/mixxx-merges.md](docs/mixxx-merges.md).
 - **Una sola dirección:** no se envía nada a Mixxx (ni PRs, ni issues, ni comentarios). Los fallos de Mixxx que encontremos se arreglan aquí.
 - **Ficheros de Mixxx que cambiamos:** [CRATE_PATCHES.md](CRATE_PATCHES.md).
 - **Licencia:** GPL-2.0-or-later, como Mixxx ([LICENSE](LICENSE)). Decks se distribuye con su código fuente, y el código de Crate que se compila en Decks también es GPL. El servidor Crate no queda afectado: habla con Decks por HTTP.
