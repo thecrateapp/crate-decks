@@ -389,7 +389,8 @@ TEST_F(CrateAddServerFlowTest, ReachabilityFollowsTheServersAnswers) {
     // Each attempt fails as it is sent, until the Client gives up
     ASSERT_TRUE(QTest::qWaitFor(
             [&] {
-                for (crate::test::FakeReply* pOpen : m_network.openReplies()) {
+                const QList<crate::test::FakeReply*> open = m_network.openReplies();
+                for (crate::test::FakeReply* pOpen : open) {
                     pOpen->failNetwork();
                 }
                 return m_pServers->reachability(serverId) == crate::Reachability::Offline;
