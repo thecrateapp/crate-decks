@@ -18,7 +18,8 @@
 - **Server:** the dev stack (`crate-main/crate` at `5e7a9d6ec`, Decks flags for beatmatch and bass
   handoff on), analyzer v10 profiles. Plans were read through the API; nothing was written.
 - **Renders, CSVs and measurements** (not committed): `~/Code/Ninja/crate-agents/decks-g4/`
-  (`renders/<pair>/<variant>/`, `renders/deviation.csv`, `metrics/metrics.json`, `tables.md`,
+  (`renders/<pair>/<variant>/`, `renders/deviation.csv`, `metrics/metrics.json`, `tables.md`; the
+  first full run in `renders-run1/`, `metrics-run1/`;
   `README.md` with the pairs' titles).
 
 ## 1. Summary
@@ -42,7 +43,7 @@
 - **Finding 3, ReplayGain and the plan's gain staging stack.** The app normalises every track
   (ReplayGain on by default) and then applies the plan's staging (−1.8 to −7.2 dB on these pairs),
   which the server computed for unnormalised tracks. The loudness step gets better than Android's
-  (1.9 against 3.2 LU), the dip deeper (6.4 against 5.9 LU mean, up to 3.9 LU deeper on one pair).
+  (1.9 against 3.2 LU), the dip deeper (6.7 against 5.9 LU mean, up to 3.9 LU deeper on one pair).
 - **The first live run's missing bass handoff (open question 2):** by design only beatmatch plans
   carry one, and in "G3 · Auto DJ (industrial EBM)" 1 of 11 edges plans a beatmatch (8.7 % of all
   254 surveyed edges). On top, the server's Decks bass switch only reached `main` at 20:47 that day.
@@ -179,15 +180,15 @@ right after a callback; on on-time starts it is 1.1–25.9 ms, median 17.7 ms (1
 | Pair | Beat clash (ms) | Phase error, median (ms) | Voice on voice (ms) | Bass on bass (ms) |
 | --- | ---: | ---: | ---: | ---: |
 | p01 | 0 / 0 / 0 | 10 / 20 / 20 | 0 / 480 / 480 | 0 / 0 / 0 |
-| p02 | 3,340 / 3,330 / 3,340 | 70 / 90 / 90 | 180 / 0 / 0 | 0 / 0 / 0 |
+| p02 | 3,340 / 3,340 / 3,340 | 70 / 90 / 90 | 180 / 0 / 0 | 0 / 0 / 0 |
 | p03 | 2,550 / 1,000 / 1,000 | 20 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
 | p04 | 2,810 / 2,350 / 2,350 | 80 / 80 / 80 | 0 / 0 / 0 | 3,010 / 3,100 / 3,100 |
 | p05 | 2,630 / 2,290 / 2,290 | 140 / 140 / 140 | 0 / 0 / 0 | 0 / 0 / 0 |
 | p06 | 3,340 / 1,780 / 1,780 | 100 / 60 / 60 | 0 / 0 / 0 | 2,960 / 2,960 / 2,960 |
-| p07 | 3,340 / 3,330 / 3,330 | 100 / 100 / 100 | 2,200 / 2,210 / 2,210 | 400 / 370 / 360 |
+| p07 | 3,340 / 3,330 / 3,330 | 100 / 100 / 100 | 2,200 / 2,210 / 2,210 | 400 / 360 / 360 |
 | p08 | 2,790 / 3,320 / 3,320 | 120 / 140 / 140 | 1,440 / 1,590 / 1,590 | 0 / 780 / 780 |
 | p09 | 440 / 0 / 0 | 20 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
-| p10 | 2,680 / 2,850 / 2,850 | 160 / 160 / 160 | 1,620 / 0 / 0 | 1,700 / 3,200 / 3,200 |
+| p10 | 2,680 / 2,860 / 2,850 | 160 / 160 / 160 | 1,620 / 0 / 0 | 1,700 / 3,210 / 3,200 |
 
 ### 4.2 Loudness, EBU R128 (A / D / D-norg)
 
@@ -195,13 +196,13 @@ right after a callback; on on-time starts it is 1.1–25.9 ms, median 17.7 ms (1
 | --- | ---: | ---: | ---: | ---: |
 | p01 | 1.7 / 0.0 / 1.7 | 9.9 / 11.2 / 10.8 | 0.2 / 0.3 / 0.3 | 2.5 / 2.8 / 2.6 |
 | p02 | 2.0 / 2.9 / 1.9 | 6.1 / 6.0 / 6.4 | 1.6 / 1.6 / 1.6 | 2.0 / 2.2 / 2.1 |
-| p03 | 6.7 / 1.4 / 5.7 | 6.4 / 9.6 / 7.3 | 0.7 / 0.6 / 0.7 | 1.3 / 1.3 / 1.4 |
-| p04 | 0.2 / 0.8 / 0.2 | 5.5 / 4.5 / 4.8 | 0.3 / 1.4 / 0.8 | 1.4 / 1.6 / 1.5 |
+| p03 | 6.7 / 1.5 / 5.7 | 6.4 / 9.6 / 7.3 | 0.7 / 0.6 / 0.7 | 1.3 / 1.3 / 1.4 |
+| p04 | 0.2 / 0.8 / 0.2 | 5.5 / 4.5 / 4.8 | 0.3 / 1.1 / 0.8 | 1.4 / 1.6 / 1.5 |
 | p05 | 2.5 / 0.1 / 2.5 | 6.0 / 6.6 / 6.0 | 1.4 / 1.1 / 1.1 | 3.3 / 2.6 / 3.3 |
 | p06 | 1.4 / 0.8 / 1.4 | 4.9 / 5.2 / 4.9 | 0.6 / 0.6 / 0.6 | 1.9 / 1.8 / 1.9 |
-| p07 | 0.3 / 0.7 / 0.3 | 6.5 / 6.1 / 6.7 | 2.6 / 1.5 / 2.5 | 3.6 / 3.1 / 3.6 |
+| p07 | 0.3 / 0.7 / 0.3 | 6.5 / 8.6 / 6.7 | 2.6 / 1.5 / 2.5 | 3.6 / 3.2 / 3.6 |
 | p08 | 4.1 / 0.9 / 8.4 | 5.2 / 7.2 / 4.8 | 2.0 / −0.1 / −0.5 | 2.8 / 1.6 / 3.3 |
-| p09 | 6.5 / 1.6 / 6.4 | 3.6 / 7.5 / 4.1 | 0.4 / 2.0 / 2.0 | 3.7 / 2.4 / 2.5 |
+| p09 | 6.5 / 1.5 / 6.4 | 3.6 / 7.5 / 4.1 | 0.4 / 2.0 / 2.0 | 3.7 / 2.4 / 2.5 |
 | p10 | 6.1 / 9.6 / 5.7 | 4.7 / 0.6 / 2.3 | 0.3 / 0.8 / 0.8 | 1.9 / 1.7 / 1.6 |
 
 ### 4.3 Aggregates
@@ -210,16 +211,16 @@ Better / same / worse beyond the noise floor, two-sided sign test.
 
 | Metric | Decks against Android (same plan) | Decks with ReplayGain off against Android | Decks against Android's own Listen plan |
 | --- | ---: | ---: | ---: |
-| Beat clash | 5 / 3 / 2 (2,025 against 2,392 ms) | 5 / 3 / 2 | **1 / 1 / 8 (p 0.04)** (2,025 against 1,550 ms) |
+| Beat clash | 5 / 3 / 2 (2,027 against 2,392 ms) | 5 / 3 / 2 | **1 / 1 / 8 (p 0.04)** (2,027 against 1,550 ms) |
 | Phase error, median | 3 / 4 / 3 | 3 / 4 / 3 | 4 / 1 / 5 |
-| Beats within 25 ms | 2 / 5 / 3 | 2 / 4 / 4 | **7 / 2 / 1 (p 0.07)** |
+| Beats within 25 ms | 2 / 4 / 4 | 2 / 4 / 4 | **7 / 2 / 1 (p 0.07)** |
 | Voice on voice | 1 / 9 / 0 | 1 / 9 / 0 | 1 / 7 / 2 |
 | Bass on bass | 0 / 8 / 2 (1,041 against 807 ms) | 0 / 8 / 2 | 3 / 3 / 4 |
 | Loudness step | 6 / 1 / 3 (1.9 against 3.2 LU) | 1 / 8 / 1 (3.4 LU) | **9 / 1 / 0 (p < 0.01)** (1.9 against 8.1 LU) |
 | Loudness bump | 2 / 6 / 2 | 1 / 8 / 1 | 2 / 3 / 5 |
-| Loudness dip | 2 / 3 / 5 (6.4 against 5.9 LU) | 2 / 6 / 2 (5.8 LU) | 3 / 0 / 7 (6.4 against 3.5 LU) |
+| Loudness dip | 2 / 2 / 6 (6.7 against 5.9 LU) | 2 / 6 / 2 (5.8 LU) | 3 / 0 / 7 (6.7 against 3.5 LU) |
 | Steepest change | 3 / 7 / 0 | 1 / 9 / 0 | **7 / 3 / 0 (p 0.02)** |
-| **Net, SM5's four** | **5 / 3 / 2 (p 0.45)** | **6 / 2 / 2 (p 0.29)** | 2 / 4 / 4 (p 0.69) |
+| **Net, SM5's four** | **5 / 2 / 3 (p 0.73)** | **6 / 2 / 2 (p 0.29)** | 2 / 4 / 4 (p 0.69) |
 
 Reading:
 
@@ -232,7 +233,8 @@ Reading:
   players (phase 70–90 ms): the plan's own alignment, not Decks'.
 - **ReplayGain on (the app's default):** only loudness moves (rhythm, voice and bass are identical
   to the millisecond). The step gets smaller (6 better, 3 worse against Android) and the dip deeper
-  (2 better, 5 worse; p03 9.6 against 7.3 LU without ReplayGain, p09 7.5 against 4.1): finding 3.
+  (2 better, 6 worse; p03 9.6 against 7.3 LU without ReplayGain, p07 8.6 against 6.7, p09 7.5
+  against 4.1): finding 3. Net against Android drops from 6/2/2 to 5/2/3.
 - **Against Android's own Listen plan** (6 s, v2, no bass swap on this server, see §11): Decks Auto
   DJ's 10 s plans clash longer (more overlap at full level) but lock more beats, and level far
   better (step 1.9 against 8.1 LU), at a deeper dip. Not the gate's question, but what a listener of
@@ -291,29 +293,29 @@ Listen's (LV-D9) would also shorten v3's early cues, at the cost of v3's gains.
 
 | Pair | Beat clash (ms) | Phase error (ms) | Voice on voice (ms) | Bass on bass (ms) | Step (LU) | Dip (LU) | Bump (LU) |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| p01 | 200 / 0 | 20 / 20 | 0 / 480 | 0 / 0 | 6.6 / 0.0 | 11.7 / 11.2 | 1.1 / 0.3 |
-| p02 | 2,320 / 3,330 | 20 / 90 | 0 / 0 | 0 / 0 | 3.8 / 2.9 | 10.1 / 6.0 | 0.1 / 1.6 |
-| p03 | 480 / 1,000 | 20 / 0 | 0 / 0 | 0 / 0 | 2.5 / 1.4 | 8.7 / 9.6 | 0.6 / 0.6 |
-| p04 | 3,340 / 2,350 | 80 / 80 | 2,860 / 0 | 1,340 / 3,100 | 0.6 / 0.8 | 5.2 / 4.5 | −0.2 / 1.4 |
+| p01 | 0 / 0 | 0 / 20 | 0 / 480 | 0 / 0 | 6.6 / 0.0 | 11.7 / 11.2 | 1.1 / 0.3 |
+| p02 | 2,320 / 3,340 | 20 / 90 | 0 / 0 | 0 / 0 | 3.8 / 2.9 | 10.1 / 6.0 | 0.1 / 1.6 |
+| p03 | 480 / 1,000 | 20 / 0 | 0 / 0 | 0 / 0 | 2.5 / 1.5 | 8.7 / 9.6 | 0.6 / 0.6 |
+| p04 | 3,340 / 2,350 | 80 / 80 | 2,860 / 0 | 1,340 / 3,100 | 0.6 / 0.8 | 5.2 / 4.5 | −0.2 / 1.1 |
 | p05 | 2,230 / 2,290 | 140 / 140 | 0 / 0 | 0 / 0 | 8.4 / 0.1 | 2.2 / 6.6 | 2.4 / 1.1 |
-| p06 | 2,880 / 1,780 | 100 / 60 | 1,740 / 0 | 2,790 / 2,960 | 4.4 / 0.8 | 4.0 / 5.2 | 0.3 / 0.6 |
-| p07 | 3,330 / 3,330 | 220 / 100 | 2,850 / 2,210 | 820 / 370 | 8.5 / 0.7 | 2.1 / 6.1 | 0.2 / 1.5 |
+| p06 | 2,880 / 1,780 | 100 / 60 | 1,740 / 0 | 2,790 / 2,960 | 4.9 / 0.8 | 3.8 / 5.2 | 0.3 / 0.6 |
+| p07 | 3,330 / 3,330 | 220 / 100 | 2,850 / 2,210 | 820 / 360 | 8.5 / 0.7 | 2.1 / 8.6 | 0.2 / 1.5 |
 | p08 | 2,450 / 3,320 | 140 / 140 | 480 / 1,590 | 0 / 780 | 8.9 / 0.9 | 9.1 / 7.2 | −3.5 / −0.1 |
-| p09 | 440 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 1.1 / 1.6 | 9.8 / 7.5 | 2.3 / 2.0 |
-| p10 | 3,300 / 2,850 | 100 / 160 | 1,740 / 0 | 0 / 3,200 | 12.2 / 9.6 | 1.0 / 0.6 | −0.1 / 0.8 |
+| p09 | 440 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 1.0 / 1.5 | 9.7 / 7.5 | 2.3 / 2.0 |
+| p10 | 2,920 / 2,860 | 100 / 160 | 1,740 / 0 | 0 / 3,210 | 12.2 / 9.6 | 1.0 / 0.6 | −0.1 / 0.8 |
 
 ### 7.2 Aggregates (v3 against v2, better / same / worse)
 
 | Metric | Decks (as Decks plays them) | The same plans on the Android renderer |
 | --- | ---: | ---: |
-| Beat clash | 5 / 2 / 3 (2,025 against 2,097 ms) | 3 / 2 / 5 |
-| Phase error, median | 3 / 5 / 2 | 2 / 4 / 4 |
-| Mix beat interval CV | 2 / 3 / 5 | 2 / 4 / 4 |
+| Beat clash | 3 / 4 / 3 (2,027 against 2,039 ms) | 3 / 2 / 5 |
+| Phase error, median | 3 / 4 / 3 | 2 / 4 / 4 |
+| Mix beat interval CV | 2 / 4 / 4 | 2 / 4 / 4 |
 | Voice on voice | 4 / 5 / 1 (428 against 967 ms) | 2 / 8 / 0 |
 | Bass on bass | 0 / 7 / 3 (1,041 against 495 ms) | 0 / 8 / 2 |
-| Loudness step | **8 / 2 / 0 (p 0.01)** (1.9 against 5.7 LU) | 7 / 1 / 2 (p 0.18) |
+| Loudness step | **8 / 2 / 0 (p 0.01)** (1.9 against 5.8 LU) | 7 / 1 / 2 (p 0.18) |
 | Loudness bump | 2 / 3 / 5 | 3 / 2 / 5 |
-| Loudness dip | 4 / 2 / 4 (6.4 against 6.4 LU) | 4 / 0 / 6 |
+| Loudness dip | 4 / 2 / 4 (6.7 against 6.4 LU) | 4 / 0 / 6 |
 | Steepest change | 4 / 4 / 2 | 2 / 5 / 3 |
 | **Net, SM5's four** | **7 / 2 / 1 (p 0.07)** | 5 / 1 / 4 (p 1.00) |
 
@@ -354,7 +356,8 @@ None is implemented; each is owed before G6 if Diego approves (decision of 2026-
    the plan at any buffer size; re-measure with the harness at 256 and 2048 frames too.
 3. **ReplayGain on top of the plan's staging (medium; levels).** The server stages gains for
    unnormalised tracks (−1.8 to −7.2 dB here); Decks applies them on top of ReplayGain, which the app
-   turns on by default. Dip deeper on 5 pairs (up to +3.9 LU), step flatter. Fix, one of: send the
+   turns on by default. Dip deeper than without ReplayGain on 5 pairs (up to +3.4 LU) and than
+   Android's on 6 (up to +3.9 LU), step flatter. Fix, one of: send the
    server a context flag that playback is normalised (planner skips or recomputes staging), or have
    the director stage only the residual (`plan gain − (ReplayGain difference of the two decks)`,
    attenuating only), or turn staging off when both decks have ReplayGain. Decide with the ear.
@@ -378,6 +381,12 @@ None is implemented; each is owed before G6 if Diego approves (decision of 2026-
 - **Android's own Listen plan** used this server's `listen_planner_version` (`smart-mix-v2`) and the
   production context; the dev stack's Android flags are off, so those plans have no bass swap.
   Production Listen (v3 with LV-D9's caps after LV1) was not rendered.
+- **Repeatability.** The harness was run twice in full. The director's Reports (`deviation.csv`),
+  the starts and the late starts are identical; the end of the transition came one callback later or
+  earlier on 7 of 30 runs (the reader thread's timing), which moves a few metrics at the window's
+  edge: p07's dip by 2.5 LU, p01's and p10's v2 beat clash by 200 and 380 ms. The tables are the
+  second run's, made with the committed harness; no reading in §§4, 7 and 10 changes between runs
+  except G4's net with ReplayGain on (5/3/2 in the first run, 5/2/3 here).
 - **Ten pairs.** Sign tests over 10 pairs flag only large effects; most comparisons here are not
   significant either way, and the report reads them as "the same" where the counts are even.
 - **No listening.** All metrics are proxies (LV0 §9); the renders are there for Diego's ear.
@@ -387,7 +396,8 @@ None is implemented; each is owed before G6 if Diego approves (decision of 2026-
 **G4: approve.** Decks' director, on the real engine with Auto DJ in "Crate Smart Mix", plays the
 server's plan as the Android player does: with ReplayGain off the two measure the same on loudness,
 voice and bass and Decks is better or even on beat clash (net 6/2/2), and every one of the 30 runs
-was played by the director from the server's pick. Owed before G6, in this order: finding 1 (the
+was played by the director from the server's pick. With the app's ReplayGain on, net is 5/2/3,
+the difference being finding 3's deeper dips. Owed before G6, in this order: finding 1 (the
 handover lead from the cached plan), finding 2 (start compensation) and a decision on finding 3
 (ReplayGain and staging). Then rerun this harness on the same pairs; the gate's evidence is
 reproducible from the branch.
