@@ -2,28 +2,38 @@
 
 #include <QAbstractButton>
 #include <QApplication>
+#include <QComboBox>
+#include <QCoreApplication>
 #include <QDialog>
+#include <QDialogButtonBox>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QFont>
+#include <QFrame>
+#include <QGroupBox>
 #include <QImage>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMessageBox>
 #include <QPixmap>
 #include <QPushButton>
+#include <QRadioButton>
 #include <QRegularExpression>
 #include <QScreen>
 #include <QSet>
 #include <QSpinBox>
 #include <QString>
 #include <QTimer>
+#include <QVBoxLayout>
 #include <QWindow>
 #include <functional>
 #include <initializer_list>
 #include <limits>
+#include <memory>
 
 #include "crate/ui/crateaddserverwidget.h"
+#include "crate/ui/dialogs/cratedialog.h"
 #include "crate/ui/dialogs/dialogscrim.h"
 #include "crate/ui/dialogs/dialogstyle.h"
 #include "crate/ui/dialogs/levelgauge.h"
@@ -545,6 +555,186 @@ TEST(CrateAddServerWidgetTest, StepsAreNumberedAsTheMockup) {
     EXPECT_EQ(3, crate::AddServerWidget::stepNumber(Step::SignIn));
     EXPECT_EQ(3, crate::AddServerWidget::stepNumber(Step::SigningIn));
     EXPECT_EQ(3, crate::AddServerWidget::kStepCount);
+}
+
+// V3.PR3: Decks' own dialogs have the first start's grammar: the head's
+// MonoLabel, a display title, sections over a 1 px rule without boxes, mono
+// never bold, and Crate buttons at the foot instead of a button box
+TEST_F(CrateDialogsTest, CrateDialogHasTheFirstStartsGrammar) {
+    ASSERT_TRUE(crate::applyApplicationStyle(nullptr, resourcePath()));
+    crate::CrateDialog dialog(QStringLiteral("Music Path"),
+            QStringLiteral("Music Path"),
+            QStringLiteral("A path of tracks between two tracks."));
+    QVBoxLayout* pRows = dialog.addSection(QStringLiteral("Tracks"));
+    pRows->addWidget(new QSpinBox(&dialog));
+    dialog.addSection(QStringLiteral("Destination"))
+            ->addWidget(new QRadioButton(QStringLiteral("Auto DJ queue"), &dialog));
+    dialog.addAction(QStringLiteral("Make the path"),
+            QStringLiteral("crateConfirm"),
+            crate::CrateDialog::Action::Primary);
+    dialog.addAction(QStringLiteral("Cancel"),
+            QStringLiteral("crateCancel"),
+            crate::CrateDialog::Action::Cancel);
+    dialog.show();
+    QCoreApplication::processEvents();
+    dialog.layout()->activate();
+
+    const crate::DialogMetrics& metrics = crate::DialogMetrics::installed();
+    EXPECT_EQ(metrics.px("firstRunWidth"), dialog.width());
+    EXPECT_TRUE(dialog.findChildren<QGroupBox*>().isEmpty());
+    EXPECT_TRUE(dialog.findChildren<QDialogButtonBox*>().isEmpty());
+    auto* pKicker = dialog.findChild<QLabel*>(QStringLiteral("MonoDialogKicker"));
+    ASSERT_NE(nullptr, pKicker);
+    EXPECT_QSTRING_EQ(QStringLiteral("accent"), pKicker->property("crateTone").toString());
+    auto* pHeading = dialog.findChild<QLabel*>(QStringLiteral("CrateDialogHeading"));
+    ASSERT_NE(nullptr, pHeading);
+    EXPECT_QSTRING_EQ(metrics.variables().value(QStringLiteral("CrateFontDisplay")),
+            pHeading->font().family());
+
+    const QList<QFrame*> sections =
+            dialog.findChildren<QFrame*>(QStringLiteral("CrateDialogSection"));
+    ASSERT_EQ(2, sections.size());
+    for (const QFrame* pSection : sections) {
+        EXPECT_EQ(QFrame::NoFrame, pSection->frameShape());
+        auto* pHead = qobject_cast<QLabel*>(pSection->layout()->itemAt(0)->widget());
+        ASSERT_NE(nullptr, pHead);
+        EXPECT_QSTRING_EQ(QStringLiteral("MonoDialogSection"), pHead->objectName());
+        EXPECT_QSTRING_EQ(QStringLiteral("accent"), pHead->property("crateTone").toString());
+        EXPECT_EQ(dialog.contentWidth(), pSection->width());
+    }
+    // The rule is the section's top border, in the border token
+    const QString qss = crate::dialogStyleSheet(resourcePath());
+    const qsizetype rule = qss.indexOf(QStringLiteral("#CrateDialogSection {"));
+    ASSERT_GE(rule, 0);
+    EXPECT_TRUE(qss.mid(rule, qss.indexOf(u'}', rule) - rule)
+                    .contains(QStringLiteral("border-top")));
+
+    const QString mono = metrics.variables().value(QStringLiteral("CrateFontMono"));
+    int monoWidgets = 0;
+    const QList<QWidget*> widgets = dialog.findChildren<QWidget*>();
+    for (const QWidget* pWidget : widgets) {
+        if (pWidget->font().family() == mono) {
+            ++monoWidgets;
+            EXPECT_LE(pWidget->font().weight(), QFont::Normal)
+                    << pWidget->objectName().toStdString();
+        }
+    }
+    EXPECT_GE(monoWidgets, 3);
+
+    auto* pConfirm = dialog.findChild<QPushButton*>(QStringLiteral("crateConfirm"));
+    auto* pCancel = dialog.findChild<QPushButton*>(QStringLiteral("crateCancel"));
+    ASSERT_TRUE(pConfirm && pCancel);
+    EXPECT_QSTRING_EQ(QStringLiteral("primary"), pConfirm->property("crateButton").toString());
+    EXPECT_TRUE(pConfirm->isDefault());
+    EXPECT_QSTRING_EQ(QStringLiteral("ghost"), pCancel->property("crateButton").toString());
+    // Left to right in the order they were added
+    EXPECT_LT(pConfirm->x(), pCancel->x());
+}
+
+// A confirmation names its action; red and never the default button only
+// when it destroys something. No platform icons on its buttons
+TEST_F(CrateDialogsTest, ConfirmationsNameTheirActionAndDestroyOnlyInRed) {
+    for (const bool destructive : {false, true}) {
+        crate::Confirmation confirmation;
+        confirmation.context = QStringLiteral("Cache");
+        confirmation.title = QStringLiteral("Clear the cache?");
+        confirmation.text = QStringLiteral("Delete the cached tracks from this computer?");
+        confirmation.action = QStringLiteral("Clear cache");
+        confirmation.destructive = destructive;
+        std::unique_ptr<crate::CrateDialog> pDialog(crate::createConfirmation(confirmation));
+        auto* pConfirm = pDialog->findChild<QPushButton*>(QStringLiteral("crateConfirm"));
+        auto* pCancel = pDialog->findChild<QPushButton*>(QStringLiteral("crateCancel"));
+        ASSERT_TRUE(pConfirm && pCancel);
+        EXPECT_QSTRING_EQ(QStringLiteral("Clear cache"), pConfirm->text());
+        EXPECT_QSTRING_EQ(QStringLiteral("Cancel"), pCancel->text());
+        EXPECT_QSTRING_EQ(destructive ? QStringLiteral("danger") : QStringLiteral("primary"),
+                pConfirm->property("crateButton").toString());
+        EXPECT_EQ(!destructive, pConfirm->isDefault());
+        // Beside a destructive action, Enter cancels (Diego, 2026-11-19)
+        EXPECT_EQ(destructive, pCancel->isDefault());
+        EXPECT_QSTRING_EQ(QStringLiteral("ghost"), pCancel->property("crateButton").toString());
+        EXPECT_EQ(crate::CrateDialog::Size::Compact, pDialog->size());
+        EXPECT_TRUE(pConfirm->icon().isNull());
+        EXPECT_TRUE(pCancel->icon().isNull());
+        EXPECT_FALSE(pConfirm->autoDefault());
+
+        pConfirm->click();
+        EXPECT_EQ(QDialog::Accepted, pDialog->result());
+        pDialog->setResult(-1);
+        pCancel->click();
+        EXPECT_EQ(QDialog::Rejected, pDialog->result());
+    }
+    crate::Confirmation notNow;
+    notNow.action = QStringLiteral("Download");
+    notNow.cancel = QStringLiteral("Not now");
+    std::unique_ptr<crate::CrateDialog> pDialog(crate::createConfirmation(notNow));
+    EXPECT_QSTRING_EQ(QStringLiteral("Not now"),
+            pDialog->findChild<QPushButton*>(QStringLiteral("crateCancel"))->text());
+}
+
+// One question is compact: narrower, with a title of about 22 px; dialogs
+// with fields keep the first start's size (Diego, 2026-11-19)
+TEST_F(CrateDialogsTest, ConfirmationsAreCompactAndFormsKeepTheFirstStartsSize) {
+    ASSERT_TRUE(crate::applyApplicationStyle(nullptr, resourcePath()));
+    const crate::DialogMetrics& metrics = crate::DialogMetrics::installed();
+    ASSERT_GT(metrics.px("confirmWidth"), 0);
+    ASSERT_LT(metrics.px("confirmWidth"), metrics.px("firstRunWidth"));
+    crate::Confirmation confirmation;
+    confirmation.context = QStringLiteral("Servers");
+    confirmation.title = QStringLiteral("Remove dev.crate.local?");
+    confirmation.text = QStringLiteral("Its cached tracks stay.");
+    confirmation.action = QStringLiteral("Sign out and remove");
+    confirmation.destructive = true;
+    std::unique_ptr<crate::CrateDialog> pCompact(crate::createConfirmation(confirmation));
+    crate::Choice choice;
+    choice.title = QStringLiteral("Export a playlist");
+    choice.label = QStringLiteral("Playlist");
+    choice.action = QStringLiteral("Export");
+    std::unique_ptr<crate::CrateDialog> pForm(crate::createChoice(choice));
+    for (crate::CrateDialog* pDialog : {pCompact.get(), pForm.get()}) {
+        pDialog->show();
+        QCoreApplication::processEvents();
+        pDialog->layout()->activate();
+    }
+    EXPECT_EQ(metrics.px("confirmWidth"), pCompact->width());
+    EXPECT_EQ(metrics.px("firstRunWidth"), pForm->width());
+    const auto titleSize = [](const QDialog* pDialog) {
+        const QLabel* pTitle = pDialog->findChild<QLabel*>(QStringLiteral("CrateDialogHeading"));
+        return pTitle ? pTitle->font().pixelSize() : 0;
+    };
+    EXPECT_EQ(metrics.px("fontSizeConfirmTitle"), titleSize(pCompact.get()));
+    EXPECT_EQ(metrics.px("fontSizeFirstRunTitle"), titleSize(pForm.get()));
+    EXPECT_EQ(crate::CrateDialog::Size::Form, pForm->size());
+    const QLabel* pLogo = pCompact->findChild<QLabel*>(QStringLiteral("CrateDialogLogo"));
+    ASSERT_NE(nullptr, pLogo);
+    EXPECT_EQ(metrics.px("confirmLogoWidth"),
+            qRound(pLogo->pixmap().width() / pLogo->pixmap().devicePixelRatio()));
+}
+
+TEST_F(CrateDialogsTest, ChoiceOffersItsItems) {
+    crate::Choice choice;
+    choice.context = QStringLiteral("Export to Crate");
+    choice.title = QStringLiteral("Export a playlist");
+    choice.label = QStringLiteral("Playlist");
+    choice.items = {QStringLiteral("Warm-up"), QStringLiteral("Peak time")};
+    choice.action = QStringLiteral("Export");
+    std::unique_ptr<crate::CrateDialog> pDialog(crate::createChoice(choice));
+    QComboBox* pBox = crate::choiceBox(pDialog.get());
+    ASSERT_NE(nullptr, pBox);
+    EXPECT_EQ(2, pBox->count());
+    EXPECT_QSTRING_EQ(QStringLiteral("Warm-up"), pBox->currentText());
+    auto* pSection = pDialog->findChild<QFrame*>(QStringLiteral("CrateDialogSection"));
+    ASSERT_NE(nullptr, pSection);
+    EXPECT_EQ(pSection, pBox->parentWidget());
+    EXPECT_QSTRING_EQ(QStringLiteral("Playlist"),
+            pSection->findChild<QLabel*>(QStringLiteral("MonoDialogSection"))->text());
+    auto* pExport = pDialog->findChild<QPushButton*>(QStringLiteral("crateConfirm"));
+    ASSERT_NE(nullptr, pExport);
+    EXPECT_TRUE(pExport->isEnabled());
+
+    choice.items.clear();
+    std::unique_ptr<crate::CrateDialog> pEmpty(crate::createChoice(choice));
+    EXPECT_FALSE(pEmpty->findChild<QPushButton*>(QStringLiteral("crateConfirm"))->isEnabled());
 }
 
 } // namespace

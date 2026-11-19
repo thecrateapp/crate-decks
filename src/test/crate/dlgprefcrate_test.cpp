@@ -2,13 +2,18 @@
 
 #include <gtest/gtest.h>
 
+#include <QAbstractScrollArea>
+#include <QApplication>
 #include <QButtonGroup>
 #include <QCheckBox>
 #include <QComboBox>
+#include <QCoreApplication>
 #include <QDialog>
+#include <QEvent>
 #include <QFile>
 #include <QFileInfo>
 #include <QFrame>
+#include <QGroupBox>
 #include <QJsonDocument>
 #include <QLabel>
 #include <QLayout>
@@ -26,7 +31,9 @@
 #include <QTest>
 #include <QTimer>
 #include <QUrl>
+#include <QVBoxLayout>
 #include <memory>
+#include <utility>
 
 #include "crate/cache/audiocache.h"
 #include "crate/client/crateserveraddress.h"
@@ -39,6 +46,7 @@
 #include "crate/system/systemcheck.h"
 #include "crate/ui/cratefirstrun.h"
 #include "crate/ui/crateprefsections.h"
+#include "crate/ui/dialogs/cratedialog.h"
 #include "crate/ui/dialogs/dialogscrim.h"
 #include "crate/ui/dialogs/dialogstyle.h"
 #include "skin/legacy/launchimage.h"
@@ -270,8 +278,15 @@ TEST_F(CrateAddServerFlowTest, PageAddsAServer) {
     auto* pSignIn = page.findChild<QPushButton*>(QStringLiteral("crateSignIn"));
     ASSERT_TRUE(pList && pAdd && pAddress && pConnect && pEmail && pPassword && pSignIn);
     EXPECT_EQ(0, pList->count());
+    auto* pAddRow = page.findChild<QWidget*>(QStringLiteral("crateAddServerRow"));
+    auto* pForm = page.findChild<QWidget*>(QStringLiteral("crateAddServerBox"));
+    ASSERT_TRUE(pAddRow && pForm);
+    EXPECT_TRUE(pForm->isHidden());
 
+    // The form takes the place of "Add a server…" and its helper
     pAdd->click();
+    EXPECT_TRUE(pAddRow->isHidden());
+    EXPECT_FALSE(pForm->isHidden());
     pAddress->setText(QStringLiteral("https://crate.test"));
     pConnect->click();
     lastSent().pReply->respond(200, kDecksCapabilities);
@@ -283,6 +298,8 @@ TEST_F(CrateAddServerFlowTest, PageAddsAServer) {
 
     ASSERT_EQ(1, pList->count());
     EXPECT_TRUE(pList->item(0)->text().contains(QStringLiteral("https://crate.test")));
+    EXPECT_TRUE(pForm->isHidden());
+    EXPECT_FALSE(pAddRow->isHidden());
 }
 
 TEST_F(CrateAddServerFlowTest, ServerRowsShowFeaturesAndState) {
@@ -302,13 +319,117 @@ TEST_F(CrateAddServerFlowTest, ServerRowsShowFeaturesAndState) {
     EXPECT_QSTRING_EQ(QStringLiteral("https://crate.test"), row.meta.value(0));
     EXPECT_TRUE(row.meta.join(u' ').contains(QStringLiteral("dj@crate.test")));
     EXPECT_EQ(crate::ServerRow::State::SignedIn, row.state);
-    EXPECT_QSTRING_EQ(QStringLiteral("signedIn"), row.stateName());
+    // It answered the sign-in: online
+    EXPECT_EQ(crate::Reachability::Online, row.reachability);
+    EXPECT_QSTRING_EQ(QStringLiteral("online"), row.stateName());
     // Every feature of the contract, in the mockup's order, available or not
     ASSERT_EQ(6, row.features.size());
     EXPECT_EQ((crate::ServerRow::Feature{QStringLiteral("library"), true}), row.features[0]);
     EXPECT_EQ((crate::ServerRow::Feature{QStringLiteral("analysis"), false}), row.features[1]);
     EXPECT_EQ((crate::ServerRow::Feature{QStringLiteral("beatmatch"), true}), row.features[2]);
     EXPECT_FALSE(row.features[5].available);
+}
+
+// The chip of a server (Diego, 2026-11-19): signed in, whether it answers
+// (Online in cyan, Offline in amber, "Signed in" muted until a request says);
+// otherwise the session's own state, muted
+TEST(CrateServerRowsTest, StateShowsWhetherTheServerAnswers) {
+    using State = crate::ServerRow::State;
+    using crate::Reachability;
+    struct Case {
+        State state;
+        Reachability reachability;
+        const char* name;
+        const char* text;
+    };
+    const Case cases[] = {
+            {State::SignedIn, Reachability::Online, "online", "Online"},
+            {State::SignedIn, Reachability::Offline, "offline", "Offline"},
+            {State::SignedIn, Reachability::Unknown, "signedIn", "Signed in"},
+            {State::Connecting, Reachability::Online, "connecting", "Connecting"},
+            {State::Connecting, Reachability::Offline, "connecting", "Connecting"},
+            {State::SignedOut, Reachability::Online, "signedOut", "Signed out"},
+            {State::SignedOut, Reachability::Offline, "signedOut", "Signed out"},
+            {State::SignedOut, Reachability::Unknown, "signedOut", "Signed out"},
+    };
+    for (const Case& c : cases) {
+        crate::ServerRow row;
+        row.state = c.state;
+        row.reachability = c.reachability;
+        EXPECT_QSTRING_EQ(QLatin1String(c.name), row.stateName()) << c.text;
+        EXPECT_QSTRING_EQ(QLatin1String(c.text), row.stateText()) << c.name;
+    }
+}
+
+// Whether a signed-in server answers: what its requests learn, and a light
+// check (GET /api/capabilities, without the session) that the page runs
+// when it opens; one at a time per server, none for a signed-out one
+TEST_F(CrateAddServerFlowTest, ReachabilityFollowsTheServersAnswers) {
+    m_pFlow->setAddress(QStringLiteral("https://crate.test"));
+    lastSent().pReply->respond(200, kDecksCapabilities);
+    m_pFlow->loginWithPassword(QStringLiteral("dj@crate.test"), QStringLiteral("right"));
+    lastSent().pReply->respond(200, kLoginAnswer);
+    ASSERT_EQ(1, m_pServers->sessions().size());
+    const QString serverId = m_pServers->sessions().constFirst()->profile().id;
+    EXPECT_EQ(crate::Reachability::Online, m_pServers->reachability(serverId));
+    QSignalSpy changed(m_pServers.get(), &CrateServers::reachabilityChanged);
+
+    // The check: one request, not authenticated, and no second one while it
+    // is on its way
+    const qsizetype before = m_network.sent.size();
+    m_pServers->checkReachability();
+    m_pServers->checkReachability();
+    ASSERT_EQ(before + 1, m_network.sent.size());
+    FakeNetworkAccessManager::Sent check = lastSent();
+    EXPECT_TRUE(check.request.url().path().endsWith(QStringLiteral("/api/capabilities")));
+    EXPECT_FALSE(check.request.hasRawHeader("Authorization"));
+
+    // Unreachable, after the Client's retries: offline, on the page too
+    crate::DlgPrefCrate page(nullptr, m_pServers.get());
+    // Each attempt fails as it is sent, until the Client gives up
+    ASSERT_TRUE(QTest::qWaitFor(
+            [&] {
+                const QList<crate::test::FakeReply*> open = m_network.openReplies();
+                for (crate::test::FakeReply* pOpen : open) {
+                    pOpen->failNetwork();
+                }
+                return m_pServers->reachability(serverId) == crate::Reachability::Offline;
+            },
+            10000));
+    EXPECT_EQ(1, changed.size());
+    // The rows the page replaced go with the deferred deletes
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+    auto* pBadge = page.findChild<QLabel*>(QStringLiteral("CrateStateBadge"));
+    ASSERT_NE(nullptr, pBadge);
+    EXPECT_QSTRING_EQ(QStringLiteral("Offline"), pBadge->text());
+    EXPECT_QSTRING_EQ(QStringLiteral("offline"), pBadge->property("crateState").toString());
+
+    // It answers again, with new features: online, and the features follow
+    const QByteArray features = QByteArrayLiteral(R"({"decks": {
+        "available": true, "min_client_version": "0.1.0", "contract_version": 1,
+        "features": ["library_cursor"]}})");
+    m_pServers->checkReachability();
+    lastSent().pReply->respond(200, features);
+    EXPECT_EQ(crate::Reachability::Online, m_pServers->reachability(serverId));
+    EXPECT_EQ(QJsonDocument::fromJson(features),
+            QJsonDocument::fromJson(m_pServers->lastCapabilities(serverId)));
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+    pBadge = page.findChild<QLabel*>(QStringLiteral("CrateStateBadge"));
+    ASSERT_NE(nullptr, pBadge);
+    EXPECT_QSTRING_EQ(QStringLiteral("Online"), pBadge->text());
+
+    // An HTTP error is an answer too
+    m_pServers->checkReachability();
+    lastSent().pReply->respond(503);
+    ASSERT_TRUE(QTest::qWaitFor(
+            [&] { return m_network.openReplies().isEmpty(); }, 5000));
+    EXPECT_EQ(crate::Reachability::Online, m_pServers->reachability(serverId));
+
+    // Signed out: not asked
+    m_pServers->session(serverId)->logout();
+    const qsizetype afterLogout = m_network.sent.size();
+    m_pServers->checkReachability();
+    EXPECT_EQ(afterLogout, m_network.sent.size());
 }
 
 TEST(CrateServerRowsTest, FeaturesNeedAValidAnswer) {
@@ -1235,6 +1356,301 @@ TEST_F(CrateAddServerFlowTest, PreferencesRunTheSystemCheckAgain) {
     pPower = checkRow(pSection, "powerLimit");
     ASSERT_NE(nullptr, pPower);
     EXPECT_EQ(nullptr, pPower->findChild<QPushButton*>(QStringLiteral("crateCheckAction")));
+}
+
+/// The GU1 mockup's two servers (preferences-crate): one online with every
+/// feature, one offline on the local network without two of them.
+QList<crate::ServerRow> mockupServerRows() {
+    const QStringList features = {QStringLiteral("library"),
+            QStringLiteral("analysis"),
+            QStringLiteral("beatmatch"),
+            QStringLiteral("bass handoff"),
+            QStringLiteral("long beatmatch"),
+            QStringLiteral("cues")};
+    crate::ServerRow dev;
+    dev.id = QStringLiteral("dev");
+    dev.name = QStringLiteral("dev.crate.local");
+    dev.meta = {QStringLiteral("https://dev.crate.local"),
+            QStringLiteral("signed in as diego@crate.local"),
+            QStringLiteral("136 512 tracks")};
+    dev.state = crate::ServerRow::State::SignedIn;
+    crate::ServerRow home;
+    home.id = QStringLiteral("home");
+    home.name = QStringLiteral("home.crate.lan");
+    home.meta = {QStringLiteral("http://192.168.1.20:8585"),
+            QStringLiteral("local network, no HTTPS"),
+            QStringLiteral("last seen 2 h ago")};
+    home.state = crate::ServerRow::State::SignedIn;
+    dev.reachability = crate::Reachability::Online;
+    home.reachability = crate::Reachability::Offline;
+    for (const QString& feature : features) {
+        dev.features.append({feature, true});
+        home.features.append({feature,
+                feature != QLatin1String("long beatmatch") &&
+                        feature != QLatin1String("cues")});
+    }
+    return {dev, home};
+}
+
+/// The Crate page in a dialog with Decks' dialog style and the page padding
+/// of Preferences (preferenceschrome.cpp), `width` wide.
+class StyledCratePage {
+  public:
+    StyledCratePage(CrateServers* pServers, int width)
+            : m_styled(crate::applyApplicationStyle(nullptr, crate::resourcePath())) {
+        const crate::DialogMetrics& metrics = crate::DialogMetrics::installed();
+        auto* pLayout = new QVBoxLayout(&m_dialog);
+        pLayout->setContentsMargins(0, 0, 0, 0);
+        pPage = new crate::DlgPrefCrate(&m_dialog, pServers);
+        pPage->layout()->setContentsMargins(metrics.px("prefsPagePaddingX"),
+                0,
+                metrics.px("prefsPagePaddingX"),
+                metrics.px("prefsPagePaddingY"));
+        pLayout->addWidget(pPage);
+        pPage->showServerRows(mockupServerRows());
+        m_dialog.resize(width, metrics.px("prefsHeight"));
+        m_dialog.show();
+        QCoreApplication::processEvents();
+        m_dialog.layout()->activate();
+    }
+    ~StyledCratePage() {
+        crate::applyStyles(nullptr, QString(), QString());
+    }
+    bool styled() const {
+        return m_styled;
+    }
+
+    crate::DlgPrefCrate* pPage = nullptr;
+
+  private:
+    const bool m_styled;
+    QDialog m_dialog;
+};
+
+/// The width Preferences gives a page at the GU1 mockup's size: the dialog
+/// less its navigation and the page's scroll bar.
+int mockupPageWidth() {
+    const crate::DialogMetrics& metrics = crate::DialogMetrics::installed();
+    return metrics.px("prefsWidth") - metrics.px("prefsNavWidth") -
+            metrics.px("scrollbarWidth");
+}
+
+// V3.PR3: at the mockup's width (1180 px, the same at 1920 x 1080 and at
+// 1366 x 768) the Crate page never scrolls sideways and cuts nothing: the
+// hints wrap instead of widening it
+TEST_F(CrateAddServerFlowTest, CratePageFitsTheMockupWidth) {
+    const int width = mockupPageWidth();
+    ASSERT_GT(width, 0);
+    StyledCratePage styled(m_pServers.get(), width);
+    ASSERT_TRUE(styled.styled());
+    crate::DlgPrefCrate* pPage = styled.pPage;
+    EXPECT_LE(pPage->minimumSizeHint().width(), width);
+    EXPECT_EQ(width, pPage->width());
+    const QRect pageRect = pPage->rect();
+    const QList<QWidget*> widgets = pPage->findChildren<QWidget*>();
+    int checked = 0;
+    for (QWidget* pWidget : widgets) {
+        if (!pWidget->isVisibleTo(pPage) ||
+                !(qobject_cast<QPushButton*>(pWidget) || qobject_cast<QCheckBox*>(pWidget) ||
+                        qobject_cast<QLabel*>(pWidget))) {
+            continue;
+        }
+        const QRect rect(pWidget->mapTo(pPage, QPoint(0, 0)), pWidget->size());
+        EXPECT_TRUE(pageRect.contains(rect))
+                << pWidget->objectName().toStdString() << " is cut at x "
+                << rect.right() << " of " << pageRect.right();
+        if (qobject_cast<QPushButton*>(pWidget)) {
+            EXPECT_GE(pWidget->width(), pWidget->sizeHint().width())
+                    << pWidget->objectName().toStdString();
+        }
+        ++checked;
+    }
+    EXPECT_GT(checked, 40);
+}
+
+// V3.PR3: the page has the grammar of the mockups: sections headed by an
+// accent MonoLabel over a 1 px rule, no group boxes or framed boxes inside
+// them, mono never bold, and red only where something is destroyed
+TEST_F(CrateAddServerFlowTest, CratePageHasTheMockupsGrammar) {
+    StyledCratePage styled(m_pServers.get(), mockupPageWidth());
+    ASSERT_TRUE(styled.styled());
+    crate::DlgPrefCrate* pPage = styled.pPage;
+    EXPECT_TRUE(pPage->findChildren<QGroupBox*>().isEmpty());
+
+    const QList<crate::PrefsSection*> sections = pPage->findChildren<crate::PrefsSection*>();
+    // Servers, Cache, Auto DJ and Smart Mix, Crate analysis, Stems, This
+    // computer
+    EXPECT_EQ(6, sections.size());
+    for (const crate::PrefsSection* pSection : sections) {
+        EXPECT_QSTRING_EQ(QStringLiteral("CratePrefsSection"), pSection->objectName());
+        EXPECT_EQ(QFrame::NoFrame, pSection->frameShape());
+        auto* pHead = qobject_cast<QLabel*>(pSection->layout()->itemAt(0)->widget());
+        ASSERT_NE(nullptr, pHead);
+        EXPECT_QSTRING_EQ(QStringLiteral("MonoPrefsSection"), pHead->objectName());
+        EXPECT_QSTRING_EQ(QStringLiteral("accent"), pHead->property("crateTone").toString());
+        // The 1 px rule over the section is its top border
+        EXPECT_EQ(crate::DialogMetrics::installed().px("prefsSectionPaddingTop"),
+                pSection->layout()->contentsMargins().top());
+    }
+    const QList<QFrame*> frames = pPage->findChildren<QFrame*>();
+    for (const QFrame* pFrame : frames) {
+        if (qobject_cast<const QLabel*>(pFrame) ||
+                qobject_cast<const QAbstractScrollArea*>(pFrame)) {
+            continue;
+        }
+        EXPECT_EQ(QFrame::NoFrame, pFrame->frameShape()) << pFrame->objectName().toStdString();
+    }
+
+    // Mono is never bold
+    const QString mono = crate::DialogMetrics::installed().variables().value(
+            QStringLiteral("CrateFontMono"));
+    ASSERT_FALSE(mono.isEmpty());
+    int monoWidgets = 0;
+    const QList<QWidget*> widgets = pPage->findChildren<QWidget*>();
+    for (QWidget* pWidget : widgets) {
+        if (pWidget->font().family() == mono) {
+            ++monoWidgets;
+            EXPECT_LE(pWidget->font().weight(), QFont::Normal)
+                    << pWidget->objectName().toStdString();
+        }
+    }
+    EXPECT_GT(monoWidgets, 20);
+
+    // Buttons: outlined cyan by default, red only to destroy
+    const auto variantOf = [pPage](const char* name) {
+        auto* pButton = pPage->findChild<QPushButton*>(QLatin1String(name));
+        return pButton ? pButton->property("crateButton").toString() : QStringLiteral("none");
+    };
+    EXPECT_QSTRING_EQ(QStringLiteral("primary"), variantOf("crateAddServer"));
+    EXPECT_QSTRING_EQ(QStringLiteral("danger"), variantOf("crateRemoveServer"));
+    EXPECT_QSTRING_EQ(QStringLiteral("danger"), variantOf("crateClearCache"));
+    EXPECT_QSTRING_EQ(QStringLiteral("ghost"), variantOf("crateChooseCache"));
+    const QList<QPushButton*> buttons = pPage->findChildren<QPushButton*>();
+    for (const QPushButton* pButton : buttons) {
+        if (pButton->property("crateButton").toString() == QLatin1String("danger")) {
+            EXPECT_TRUE(pButton->objectName() == QLatin1String("crateRemoveServer") ||
+                    pButton->objectName() == QLatin1String("crateClearCache"))
+                    << pButton->objectName().toStdString();
+        }
+    }
+
+    // The servers' chips: cyan when online, amber when offline
+    QStringList states;
+    const QList<QLabel*> badges = pPage->findChildren<QLabel*>(QStringLiteral("CrateStateBadge"));
+    for (const QLabel* pBadge : badges) {
+        states.append(pBadge->property("crateState").toString());
+    }
+    EXPECT_EQ(QStringList({QStringLiteral("online"), QStringLiteral("offline")}), states);
+    const QString qss = crate::dialogStyleSheet(crate::resourcePath());
+    const crate::DialogMetrics& metrics = crate::DialogMetrics::installed();
+    for (const auto& [state, colour] : {std::pair{"online", "CrateAccentHi"},
+                 std::pair{"offline", "CrateWarningText"},
+                 std::pair{"signedOut", "CrateTextMuted"}}) {
+        const QString selector =
+                QStringLiteral("#CrateStateBadge[crateState=\"%1\"]").arg(QLatin1String(state));
+        const qsizetype at = qss.indexOf(selector);
+        ASSERT_GE(at, 0) << state;
+        const QString body = qss.mid(at, qss.indexOf(u'}', at) - at);
+        EXPECT_TRUE(body.contains(metrics.colour(colour).name(), Qt::CaseInsensitive))
+                << state << " " << body.toStdString();
+    }
+}
+
+// V3.PR3: "Clear cache" asks first in a Crate dialog, with the action named
+// and red; Cancel deletes nothing. TEST_GAP: what Clear deletes is
+// AudioCache::clear(), tested in audiocache_test.cpp.
+TEST_F(CrateAddServerFlowTest, ClearCacheAsksInRedFirst) {
+    const crate::Confirmation confirmation = crate::DlgPrefCrate::clearCacheConfirmation();
+    EXPECT_TRUE(confirmation.destructive);
+    EXPECT_QSTRING_EQ(QStringLiteral("Clear cache"), confirmation.action);
+
+    crate::DlgPrefCrate page(nullptr, m_pServers.get());
+    crate::cache::AudioCache* pAudioCache = m_pServers->audioCache();
+    ASSERT_NE(nullptr, pAudioCache);
+    ASSERT_TRUE(QTest::qWaitFor([&] { return pAudioCache->isLoaded(); }, 5000));
+    QString title;
+    QString variant;
+    bool wasDefault = true;
+    bool cancelIsDefault = false;
+    QTimer::singleShot(0, &page, [&] {
+        auto* pDialog = qobject_cast<QDialog*>(QApplication::activeModalWidget());
+        ASSERT_NE(nullptr, pDialog);
+        title = pDialog->findChild<QLabel*>(QStringLiteral("CrateDialogHeading"))->text();
+        auto* pConfirm = pDialog->findChild<QPushButton*>(QStringLiteral("crateConfirm"));
+        ASSERT_NE(nullptr, pConfirm);
+        variant = pConfirm->property("crateButton").toString();
+        wasDefault = pConfirm->isDefault();
+        auto* pCancel = pDialog->findChild<QPushButton*>(QStringLiteral("crateCancel"));
+        cancelIsDefault = pCancel->isDefault();
+        pCancel->click();
+    });
+    page.cacheSection()->clear()->click();
+    EXPECT_QSTRING_EQ(QStringLiteral("Clear the cache?"), title);
+    EXPECT_QSTRING_EQ(QStringLiteral("danger"), variant);
+    EXPECT_FALSE(wasDefault);
+    EXPECT_TRUE(cancelIsDefault);
+    EXPECT_EQ(nullptr, QApplication::activeModalWidget());
+}
+
+// "Sign out and remove" asks first (Diego, 2026-11-19): red, Cancel the
+// default, and it says that the server's cached tracks and offline sets stay
+// (CrateServers::removeServer() leaves the audio cache alone)
+TEST_F(CrateAddServerFlowTest, RemovingAServerAsksInRedFirst) {
+    const crate::Confirmation confirmation =
+            crate::DlgPrefCrate::removeServerConfirmation(QStringLiteral("crate.test"));
+    EXPECT_TRUE(confirmation.destructive);
+    EXPECT_QSTRING_EQ(QStringLiteral("Remove crate.test?"), confirmation.title);
+    EXPECT_QSTRING_EQ(QStringLiteral("Sign out and remove"), confirmation.action);
+    EXPECT_TRUE(confirmation.text.contains(QStringLiteral("crate.test")));
+    EXPECT_TRUE(confirmation.text.contains(QStringLiteral("cached tracks and offline sets stay")));
+
+    m_pFlow->setAddress(QStringLiteral("https://crate.test"));
+    lastSent().pReply->respond(200, kDecksCapabilities);
+    m_pFlow->loginWithPassword(QStringLiteral("dj@crate.test"), QStringLiteral("right"));
+    lastSent().pReply->respond(200, kLoginAnswer);
+    ASSERT_EQ(1, crate::serverRows(*m_pServers).size());
+    crate::DlgPrefCrate page(nullptr, m_pServers.get());
+
+    // Answers the confirmation with `button` once it shows, and keeps what
+    // it showed
+    struct Shown {
+        QString title;
+        QString action;
+        bool cancelIsDefault = false;
+    };
+    const auto answer = [&page](const char* button, Shown* pShown) {
+        QTimer::singleShot(0, &page, [button, pShown] {
+            auto* pDialog = qobject_cast<QDialog*>(QApplication::activeModalWidget());
+            if (!pDialog) {
+                ADD_FAILURE() << "No confirmation";
+                return;
+            }
+            pShown->title =
+                    pDialog->findChild<QLabel*>(QStringLiteral("CrateDialogHeading"))->text();
+            auto* pConfirm = pDialog->findChild<QPushButton*>(QStringLiteral("crateConfirm"));
+            pShown->action = pConfirm->property("crateButton").toString();
+            pShown->cancelIsDefault =
+                    pDialog->findChild<QPushButton*>(QStringLiteral("crateCancel"))->isDefault();
+            pDialog->findChild<QPushButton*>(QLatin1String(button))->click();
+        });
+    };
+    const auto removeButton = [&page] {
+        return page.findChild<QPushButton*>(QStringLiteral("crateRemoveServer"));
+    };
+    ASSERT_NE(nullptr, removeButton());
+
+    Shown shown;
+    answer("crateCancel", &shown);
+    removeButton()->click();
+    EXPECT_QSTRING_EQ(QStringLiteral("Remove crate.test?"), shown.title);
+    EXPECT_QSTRING_EQ(QStringLiteral("danger"), shown.action);
+    EXPECT_TRUE(shown.cancelIsDefault);
+    EXPECT_EQ(1, crate::serverRows(*m_pServers).size()) << "Cancel removes nothing";
+
+    answer("crateConfirm", &shown);
+    removeButton()->click();
+    EXPECT_TRUE(crate::serverRows(*m_pServers).isEmpty());
+    EXPECT_TRUE(crate::db::loadServerProfiles(dbConnection()).isEmpty());
 }
 
 } // namespace

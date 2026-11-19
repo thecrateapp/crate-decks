@@ -18,7 +18,7 @@
 
 | Repo | Contenido | Ramas |
 |---|---|---|
-| `thecrateapp/crate-decks` (independiente, basado en `mixxxdj/mixxx`, fuera de la red de forks de GitHub) | Cliente de escritorio | `main` = `upstream` + código de Crate. `upstream` solo sirve para traer cambios de Mixxx (AGENTS.md §9) |
+| `thecrateapp/crate-decks` (independiente, basado en `mixxxdj/mixxx`, fuera de la red de forks de GitHub) | Cliente de escritorio | Fork duro desde el 2026-11-19: `upstream` solo sirve para traer con cherry-pick arreglos concretos de Mixxx (AGENTS.md §9) |
 | `thecrateapp/crate` (monorepo) | Cambios de servidor S1–S7 y documentación canónica | `feat/decks-server-<tema>` desde `main` en un worktree propio (`worktrees/decks-server-<tema>`) |
 
 ### 0.2. Reglas
@@ -1764,12 +1764,72 @@ La vista del plan de Smart Mix sale de este PR y pasa a V3.PR1b (Diego, 2026-11-
   - `NoGraphicsEffects`: falla si `src/crate/ui/` usa `QGraphicsEffect`.
   - Los tests de las vistas de F4–F6 siguen en verde.
 
+**Decided (Diego, 2026-11-18), V3.PR2**, after a capture comparison with the GU1 mockups (`CrateSkinScreenshots.CrateViews`):
+
+- **Compatibles fits its pane:** the top band scales the wheel to the pane's height, down to its 235 px minimum; below that it collapses to a one-line strip (master key, relation counts, a wheel toggle) and the list takes the pane. Maximised, it is `library-compatibles.html`. Today the 470 px wheel grows the window to 1149 px at both sizes: that is a bug this PR fixes.
+- **Compatibles' top band is the mockup's:** wheel, the "Master key" summary (key and mode, Results / Harmonic / Cached, a meter per relation) and the side column (legend, "Prewarm cache · top 5" with LevelRings, the selected track with "Load in deck N" and "Plan transition", which opens the Smart Mix assistant for that edge). The compact strip keeps only the key and the counts.
+- **Cache view:** LevelGauge stays for the total usage (as in the Preferences mockup); each download's progress and the cache column use LevelRing r 7.
+- **Crate sidebar section:** order and items stay as they are (no Paths item); the 8 px library scrollbar shows only when the sidebar overflows. The Local section is not touched.
+
+**Implementado (V3.PR2, 2026-11-18).** Branch `feat/decks-crate-views`, from 9ab0095292. Captures and side by sides in `crate-agents/decks-mockups/compare/v3pr2/after/` and `sbs-after-*.png`.
+
+- **Compatibles fits its pane** (`src/crate/recs/compatiblesview.{h,cpp}`): the view lays its parts out itself and asks for no size (`sizeHint()` and `minimumSizeHint()` are 0: the library pane is `MinimumExpanding`, so the widest view's size hint was its minimum, and the old 470 px wheel took the window to 1240 × 1149). The band scales the wheel to the pane (`compatWheelMinimum` 235 to 470 px) and keeps `compatListRows` (3) rows of list; where its columns do not fit, the strip (key in words, relation counts, a "Wheel" toggle) takes its place. `bandLayout()` is a pure function. Maximised at 1920 × 1080 it is the mockup's band with the 470 px wheel; at 1366 × 768 maximised the wheel is about 400 px; under the decks, at both sizes, the strip.
+- **Head (56 px)**: icon, COMPATIBLES, "DECK A · LATTICE · 8A · 124.00 BPM" (`Compatibles::masterDeck()`, from `PlayerInfo::currentPlayingDeckChanged`; the track from the catalogue's seed row, `CompatiblesModel::seed()`), the Follow (Master deck / Selected track) and Context (Auto / Beatmatch / Smooth) chips in place of the two dropdowns, "14 TRACKS · 0.4 S AGO" (`resultsTimeMs()`, a 1 s clock while it shows) and the library's maximise button. The search row ("- - -", upstream's disabled `WSearchLineEdit`) and its rule hide while a view with `crateOwnHead` shows (`librarystyle.cpp`), so the maximise button moved into the head. Narrow, the Follow and Context labels and then the count give way.
+- **Band**: the wheel with its centre subtitle ("A MINOR") and key names ("9A Em", `CamelotWheelModel::shortNameOf()`, only where the outer labels fit); the "Master key" summary (`CompatiblesModel::summary()`: Results / Harmonic / Cached and a meter per relation, at twice the share as the mockup draws them); the side column: `crate::widgets::CamelotLegend` (new), "Prewarm cache · top 5" with five `LevelRing`s and "N / 5 ready" (`bestCache(5)`), and the selected track with its badges (harmony and key, Δ BPM in amber from 3 BPM, Δ energy, cache), which drop from the end when the column is narrow. "Load in deck N" loads it beside the master deck (its partner if stopped, else the first stopped deck, as the assistant pairs them; `targetDeck()`), through `WTrackTableView::loadSelectedTrackToGroup()`. "Plan transition" loads it there (unless the deck has it) and opens the Smart Mix assistant as the toolbar does (`showSmartMix(true)`), which plans the master → that deck edge.
+- **Columns**: `#`, Score (figure and a 1 px lane in accentHi), Title, Artist, BPM, Δ BPM, Key, Harmony, Δ E, Time, Cache, Like, with the colgroup's widths (8 `libraryColumn*`/`libraryScore*` tokens), for a model with a score column (`defaultColumns()` in `librarystyle.cpp`). New delegates in `src/crate/ui/delegates/compatiblesdelegates.{h,cpp}` (`ScoreDelegate`, `HarmonyDelegate`, `LikeDelegate`) and the warning tone in `TrackTextDelegate` (`WarningRole`). The harmony comes from the two Camelot keys (`crate::recs::harmonyOf()`, `src/crate/recs/harmony.{h,cpp}`: Same key, +1, −1, Relative, Energy +7, —; the server's relationship without both keys).
+- **Cache view** (`src/crate/ui/cachestatusview.cpp`): the delegates were built in the constructor, before `styleLibrary()` sets the style; the view now takes it when it first shows. Each download's progress is a `LevelRing` r 7 with its text (`DownloadProgressDelegate`), the offline sets' cache cell the library's dot or ring, LevelGauge stays for the total. Tables as tall as their rows (title stretches, the rest pack to their mono contents: `TrackTextDelegate::sizeHint()`), everything in a scroll area, and a compact header (no caption line) when the pane is short: no gap between the sections when maximised, no clipping at 210 px.
+- **Sidebar**: order and items as they were; `Qt::ScrollBarAsNeeded` shows the library's 8 px bar only when the items overflow.
+- **Policy tests** (`src/test/crate/nohardcodedcolorstest.cpp`): they read `src/crate/ui/` and also `src/crate/recs/`, `src/crate/smartmix/` and `src/library/crateserver/` (wider than the plan: those views paint too). The transparent fill of the plan legend's hollow dot (`transitionplanview.cpp`) is the background now.
+- **Tokens**: 8 library, 8 instrument (legend, `camelotNameGap`) and 28 dialog (`compat*`, `fontSizeCompat*`), with their sources in the mockup's CSS; in `vars.xml`, `Theme.qml` and the QSS.
+- **Tests**:
+  - `harmony_test.cpp` (5): every key against every key, the wrap 12 → 1, unreadable keys, labels, steps.
+  - `compatiblesmodel_test.cpp`: harmony from the keys, score and deltas as the mockup writes them, the summary, the seed.
+  - `compatiblesview_test.cpp` (+5): `BandFitsThePaneOrGivesWay` (table), `LoadsIntoTheMasterDecksPartner`, `SaysHowOldTheResultsAre`, `ChipsPickWhatToFollowAndTheContext`, `ShowsTheBandOrTheStripAndNeverGrows` (band, strip, toggle, summary, wheel subtitle, badges that fit, "Load in deck B", "Plan transition").
+  - `delegatestest.cpp` (+5): score lane, harmony, warning tone, like, download progress.
+  - `camelotwheel_test.cpp` (+4): key names where they fit, the centre's subtitle, the legend's wrapping and samples.
+  - `cachestatusview_test.cpp` (+2): `TakesTheLibraryStyleWhenItShows`, `FitsAShortPane`.
+  - `skinloadtest.cpp`: `CrateSkinLoadTest.CompatiblesFitsThePaneAndKeepsTheWindowsSize` (both sizes, under the decks and maximised: window size and minimum unchanged, the search row gives way, band or strip, the mockup's columns) and `SidebarScrollBarShowsOnlyWhenItOverflows`.
+  - `nohardcodedcolorstest.cpp` (3): `NoHardcodedColours`, `NoGraphicsEffects` and a self-test of both checks.
+- **Deviations from the mockup:**
+  - Under the decks (both sizes) Compatibles shows the strip, not the band: decided by Diego; the mockup only draws the maximised library.
+  - The head carries the library's maximise button, which the mockup does not draw: the search row that has it hides for this view.
+  - At 1366 × 768 the head drops the FOLLOW and CONTEXT labels and the count instead of wrapping the chips onto a second row, as the mockup does.
+  - The list is sorted by its rank (`# ↑`, the server's order, the same as score descending) where the mockup shows `SCORE ↓`.
+  - Key names follow KeyUtils' spellings (12A "C♯m", 1A "G♯m", 2A "D♯m") where the mockup writes flats (D♭m, A♭m, E♭m).
+  - In the captures the prewarm rings and the Cache column are empty, the hearts all filled and the Cached figure 0: the harness's compatibles are not in the app's cache, and its likes fixture likes every track. The waveform band is empty because no deck has a track.
+  - The cache view has no mockup: it keeps the Crate page's cache header and the library's tables.
+  - TEST_GAP: the legend dot's fill paints the same pixels as before over the panel's background; only the policy test covers it.
+
 **V3.PR3 · Preferencias y diálogos de Crate**
 - La página de preferencias Crate (F2.C-PR3) y los diálogos propios usan los estilos de V2.PR5: secciones con MonoLabel, reglas de 1 px y sin cajas anidadas.
 
+**Implementado (V3.PR3, 2026-11-19).** Branch `feat/decks-crate-views`, on top of V3.PR2 (ef2c8cabc8). Captures in `crate-agents/decks-mockups/compare/v3pr3/` (`before/`, `after/`, the mockups at 1920 × 1080 and 1366 × 768 and `sbs-*.png`).
+
+- **Inventory.** V2.PR5 had already given the Crate page (`dlgprefcrate`, `crateprefsections`), the add-server form, the first start, the system check and About the mockups' grammar; none uses `QGroupBox` or nested framed boxes. What still had Qt's look: the Music Path dialog (`QFormLayout`, `QDialogButtonBox` with the platform's check and cross icons), the confirmations (`QMessageBox` Yes/No for "Clear cache", the Smart Mix playlist download, the stems' model and offline sets, with the default button in cyan even to destroy) and "Export to Crate" (`QInputDialog::getItem`). Warnings and information keep the message box with its Solar icon (BR.PR3).
+- **Crate page fits Preferences.** At the mockup's 1180 px the page asked for 1002 px: it scrolled sideways and cut "Sign out and remove" and the switches. The switches' hints and the form helpers wrap. "of 40 GB" takes the figure's mono, as the mockup. With "Add a server…" open, the button and its helper give way to the form (the helper showed twice). At 1366 × 768 the mockup's dialog (1180 × 704) shows the same page without scrolling sideways.
+- **`crate::CrateDialog`** (`src/crate/ui/dialogs/cratedialog.{h,cpp}`): a dialog of Decks' own with the first start's grammar and width: the logo and an accent MonoLabel, a display title, a paragraph, sections (`addSection()`) headed by an accent MonoLabel over a 1 px rule (`#CrateDialogSection`, border-top), and Crate buttons at the foot (`addAction()`: Primary accepts and is the default button, Danger accepts and never is, Cancel is ghost). `createConfirmation()` names its action with a verb; `createChoice()` replaces `QInputDialog::getItem()`.
+- **Dialogs moved to it:** Music Path ("Tracks" with its range under the field, "Destination", "Make the path"); "Clear the cache?" (red "Clear cache", `DlgPrefCrate::clearCacheConfirmation()`); "Remove <server>?" (below); "Download" / "Not now" for the Smart Mix playlist and the stems' model (still opened with `open()`, as during a set); "Download" for offline sets; "Export a playlist" with the playlist in a section.
+- **Tokens:** `numberFieldWidth` (96 px, Decks) for the Music Path's field, which QSS pads beyond its size hint; `scrollbarWidth` in `vars.xml` as `CrateDlgScrollbarWidth`.
+- **Tests:**
+  - `dlgprefcrate_test.cpp`: `CratePageFitsTheMockupWidth` (with the mockup's two servers: no sideways scroll, nothing cut, buttons at their size hint), `CratePageHasTheMockupsGrammar` (six sections with accent MonoLabel headers over the rule, no group boxes or framed boxes, mono never bold, primary / danger / ghost roles and red only for "Sign out and remove" and "Clear cache", chip tones cyan and amber), `ClearCacheAsksInRedFirst` (the modal confirmation, red and not default; Cancel closes it), and `PageAddsAServer` follows the add row and the form.
+  - `dialogstest.cpp`: `CrateDialogHasTheFirstStartsGrammar`, `ConfirmationsNameTheirActionAndDestroyOnlyInRed`, `ChoiceOffersItsItems`.
+  - `cratepathsource_test.cpp`: `DialogHasTheCrateDialogsSections`.
+  - `CrateSkinScreenshots.Dialogs` also renders the page with "Add a server" open and at 1366 × 768, Music Path, "Clear the cache?", an offline download and the export.
+  - TEST_GAP: the feature's confirmations come up from a server's Smart Mix playlists and the stems' first run; `createConfirmation()`, which builds them, is tested.
+- **Decided (Diego, 2026-11-19), V3.PR3**, after the first report:
+  1. **Online and Offline.** The chips show whether a signed-in server answers. `Client::answered()` says it after every request (any HTTP answer yes, a network failure after the retries no, a cancel nothing) and `CrateServers::reachability()` keeps it per server. A light check (`checkReachability()`: `GET /api/capabilities` without the session, one at a time per signed-in server) runs when the Crate page opens and when the network changes (`QNetworkInformation`); a new answer also updates the server's features. Nothing polls. Signed in: Online (cyan), Offline (amber), or "Signed in" (muted) until a request says; "Connecting" and "Signed out" muted. Tests: `CrateServerRowsTest.StateShowsWhetherTheServerAnswers` (every state and reachability), `CrateClientTest.SaysWhetherTheServerAnswered`, `CrateAddServerFlowTest.ReachabilityFollowsTheServersAnswers`.
+  2. **"Sign out and remove" asks first:** a compact red CrateDialog, "Remove <server>?", with Cancel as the default button. Its text says what `CrateServers::removeServer()` does: it signs out and forgets the server (it leaves the library and nothing new is downloaded from it); the audio cache keeps its cached tracks and offline sets. Test: `RemovingAServerAsksInRedFirst` (Cancel removes nothing; the action removes the server and its saved profile).
+  3. **Compact dialogs for one question:** `CrateDialog::Size::Compact` (440 px, a 22 px title, a 26 × 28 px logo, the caption's paragraph; ten `confirm*` tokens) for every confirmation; Music Path and the export to Crate, which have fields, keep the first start's size. Beside a destructive action Cancel is the default button. Test: `ConfirmationsAreCompactAndFormsKeepTheFirstStartsSize`.
+  4. **The Preferences foot** says "Restore defaults" and "OK": the Crate chrome's mirrored buttons take the labels from its own strings and keep upstream's mnemonics; no upstream file changes. Test: `CrateSkinLoadTest.PreferencesHaveTheMockupsDialog`.
+- **Deviations from the mockup:**
+  - "Last seen 2 h ago" in the mockup's meta is not shown: Decks keeps whether a server answers, not when it last did.
+  - The page has more than the mockup: Crate analysis, Stems and This computer under the two columns, the assistant's transition chips (the Auto DJ transition chips and the later Smart Mix switches stay hidden until their plans), and Prefetch Auto DJ; so it scrolls, which the mockup does not. Some hints wrap to a second line in the right column.
+  - The navigation lists upstream's 18 pages (the mockup 15) and scrolls at 1366 × 768.
+  - Decks' own dialogs have no mockup: they follow first-run (head, title, paragraph, foot) and the Crate page's sections; confirmations are its compact size.
+
 ### V4 · Interfaz QML (etapa 2, solo tras GU2)
 
-**No se empieza sin GU2.** GU2 se evalúa con los criterios de §14.4 del diseño, nunca antes de la primera release.
+**No se empieza sin GU2.** GU2 se evalúa con los criterios de §14.4 del diseño, nunca antes de la primera release. Desde el fork duro (Diego, 2026-11-19) no dependen de upstream: la interfaz QML heredada la terminaríamos nosotros.
 
 Esquema previsto (se detallará en un plan propio cuando GU2 lo apruebe):
 1. **Skin QML:** derivar `res/skins/LateNightQML` en `res/skins/CrateDecksQML`; su tema sale del `Theme.qml` que V1 ya genera.
@@ -1819,7 +1879,7 @@ Esquema previsto (se detallará en un plan propio cuando GU2 lo apruebe):
 
 | Tarea | Frecuencia | Responsable |
 |---|---|---|
-| Traer cambios de Mixxx (`docs/mixxx-merges.md`) | Cuando Diego lo decide: tags estables, arreglos de motor, audio, controladoras o seguridad | Agente con revisión de Diego si hay conflictos en ficheros parcheados |
+| Traer arreglos de Mixxx con cherry-pick (`docs/mixxx-merges.md`) | Cuando un arreglo de upstream (motor, audio, controladoras, seguridad o un fallo que nos afecta) resuelve algo nuestro; Diego decide. Sin merges de tags: fork duro desde el 2026-11-19 | Agente con revisión de Diego si hay conflictos en ficheros parcheados |
 | Revisar `CRATE_PATCHES.md`: ¿qué parches se pueden reducir o convertir en hooks genéricos? | Trimestral | Diego decide; nada va a Mixxx |
 | Paridad de curvas y comportamiento de Smart Mix con Android | Cada cambio del planner o de las curvas en el monorepo | Test `MatchesAndroidReferenceValues` actualizado con la tabla nueva |
 | Sincronía de tokens con `app/shared/ui/tokens/`, `MonoLabel`, GenreWheel y StackMap (siempre desde `origin/main`) | En cada cambio de esos ficheros en el monorepo | PR en el fork que actualiza `tokens.json`, regenera y adjunta capturas |
@@ -1834,7 +1894,7 @@ Esquema previsto (se detallará en un plan propio cuando GU2 lo apruebe):
 | ~~F0 muestra que `Beats` importados se reanalizan igualmente~~ | Q3: no se reanalizan (10 de 10, medido) | Ninguna; el riesgo queda cerrado |
 | Desviación de arranque > 10 ms desde el hilo principal | Q7 en rojo | Mover el disparo a un `EngineControl` propio en el hilo del motor (parche más grande; evaluar en G0) |
 | El modo de AutoDJ externo necesita reescribir `AutoDJProcessor` | Q8 con más de 300 líneas de parche | Implementar el director como "AutoDJ paralelo" propio que usa la cola de Mixxx pero no su procesador |
-| Conflictos al traer cambios de Mixxx en ficheros parcheados | Más de 2 conflictos por merge | Reducir parches moviendo lógica a señales y slots externos o a hooks genéricos; traer solo tags estables o arreglos concretos |
+| Conflictos al traer arreglos de Mixxx en ficheros parcheados | Un cherry-pick que choca con varios parches | Reducir parches moviendo lógica a señales y slots externos o a hooks genéricos; si no compensa, rehacer el arreglo aquí |
 | Q13 muestra que QSS no llega al aspecto del admin | Capturas que no se reconocen como Crate | Ampliar los controles SVG propios y los delegates (sin tocar el motor); si aun así no basta, reevaluar en G0 adelantar QML con LateNightQML, aceptando el riesgo de §14.2 |
 | El QSS de la biblioteca degrada el scroll | Q14 o una medida de V2 por debajo del presupuesto | Sacar estilos de las reglas `::item` a delegates; simplificar selectores |
 | Divergencia entre `tokens.json` y el admin | El admin cambia de paleta y Decks no | Revisión en el trabajo continuo: cada cambio en `app/shared/ui/tokens/` abre un issue en el fork |

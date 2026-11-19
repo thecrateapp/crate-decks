@@ -95,6 +95,15 @@ struct InstrumentStyle {
     double camelotRingB = 0;
     int camelotWheelSize = 0;
     double camelotLabelGap = 0;
+    double camelotNameGap = 0;
+    // The wheel's legend (genre-wheel.css .genre-wheel-relationship-key)
+    double wheelLegendGap = 0;
+    double wheelLegendRowGap = 0;
+    double wheelLegendItemGap = 0;
+    double wheelLegendLine = 0;
+    double wheelLegendGlyph = 0;
+    double wheelLegendNode = 0;
+    double fontSizeWheelLegend = 0;
     double camelotLabelShift = 0; // em
     double camelotEdgeBow = 0;
     double camelotFigureBaseline = 0;

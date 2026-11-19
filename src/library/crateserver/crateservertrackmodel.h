@@ -10,6 +10,7 @@
 #include <functional>
 #include <optional>
 
+#include "crate/ui/delegates/delegateroles.h"
 #include "library/trackmodel.h"
 #include "util/db/dbconnectionpool.h"
 
@@ -188,6 +189,14 @@ class CrateServerTrackModel : public QAbstractTableModel, public TrackModel {
         std::optional<qint64> byteLength;
         QString sourceRevision;
     };
+
+    /// Where a row's audio is (the Cache column) and how much of its download
+    /// is done, from 0 to 1.
+    struct CacheCell {
+        delegates::CacheState state = delegates::CacheState::None;
+        double progress = 0;
+    };
+    CacheCell cacheCellOf(const Row& row) const;
 
     /// Source::Memory: shows `rows` of the server `serverId`, in their order
     /// until the user sorts them. `key` names them for modelKey(), such as

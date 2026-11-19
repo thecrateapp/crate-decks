@@ -286,6 +286,14 @@ QtObject {
     readonly property real libraryColumnArtist: {{libraryColumnArtist}}
     readonly property real libraryColumnGenre: {{libraryColumnGenre}}
     readonly property real libraryStateGap: {{libraryStateGap}}
+    readonly property real libraryColumnRank: {{libraryColumnRank}}
+    readonly property real libraryColumnScore: {{libraryColumnScore}}
+    readonly property real libraryColumnDelta: {{libraryColumnDelta}}
+    readonly property real libraryColumnHarmony: {{libraryColumnHarmony}}
+    readonly property real libraryColumnDeltaEnergy: {{libraryColumnDeltaEnergy}}
+    readonly property real libraryColumnLike: {{libraryColumnLike}}
+    readonly property real libraryScoreFigure: {{libraryScoreFigure}}
+    readonly property real libraryScoreGap: {{libraryScoreGap}}
     readonly property real searchGap: {{searchGap}}
     readonly property real searchIconGap: {{searchIconGap}}
     readonly property real sidebarPaddingTop: {{sidebarPaddingTop}}
@@ -374,6 +382,14 @@ QtObject {
     readonly property real glowHoverAlpha: {{glowHoverAlpha}}
     readonly property real camelotWheelSize: {{camelotWheelSize}}
     readonly property real camelotLabelGap: {{camelotLabelGap}}
+    readonly property real wheelLegendGap: {{wheelLegendGap}}
+    readonly property real wheelLegendRowGap: {{wheelLegendRowGap}}
+    readonly property real wheelLegendItemGap: {{wheelLegendItemGap}}
+    readonly property real wheelLegendLine: {{wheelLegendLine}}
+    readonly property real wheelLegendGlyph: {{wheelLegendGlyph}}
+    readonly property real wheelLegendNode: {{wheelLegendNode}}
+    readonly property real fontSizeWheelLegend: {{fontSizeWheelLegend}}
+    readonly property real camelotNameGap: {{camelotNameGap}}
     readonly property real camelotLabelShift: {{camelotLabelShift}}
     readonly property real camelotEdgeBow: {{camelotEdgeBow}}
     readonly property real camelotFigureBaseline: {{camelotFigureBaseline}}
@@ -541,6 +557,7 @@ QtObject {
     readonly property real cacheGaugeTickShort: {{cacheGaugeTickShort}}
     readonly property real cacheLimitWidth: {{cacheLimitWidth}}
     readonly property real cacheLimitMaximum: {{cacheLimitMaximum}}
+    readonly property real numberFieldWidth: {{numberFieldWidth}}
     readonly property real fontSizeUsage: {{fontSizeUsage}}
     readonly property real usageGap: {{usageGap}}
     readonly property real usageBottom: {{usageBottom}}
@@ -564,6 +581,16 @@ QtObject {
     readonly property real lineHeightFirstRunTitle: {{lineHeightFirstRunTitle}}
     readonly property real lineHeightPrefsTitle: {{lineHeightPrefsTitle}}
     readonly property real fontSizeFirstRunTitle: {{fontSizeFirstRunTitle}}
+    readonly property real confirmWidth: {{confirmWidth}}
+    readonly property real confirmPaddingTop: {{confirmPaddingTop}}
+    readonly property real confirmPaddingX: {{confirmPaddingX}}
+    readonly property real confirmPaddingBottom: {{confirmPaddingBottom}}
+    readonly property real confirmGap: {{confirmGap}}
+    readonly property real confirmHeadGap: {{confirmHeadGap}}
+    readonly property real confirmLogoWidth: {{confirmLogoWidth}}
+    readonly property real confirmLogoHeight: {{confirmLogoHeight}}
+    readonly property real lineHeightConfirmTitle: {{lineHeightConfirmTitle}}
+    readonly property real fontSizeConfirmTitle: {{fontSizeConfirmTitle}}
     readonly property real firstRunActionsTop: {{firstRunActionsTop}}
     readonly property real messageIconSize: {{messageIconSize}}
     readonly property real stepsGap: {{stepsGap}}
@@ -615,4 +642,32 @@ QtObject {
     readonly property real assistActionsGap: {{assistActionsGap}}
     readonly property real assistActionsPaddingY: {{assistActionsPaddingY}}
     readonly property real assistQuietTop: {{assistQuietTop}}
+    readonly property real compatBandPaddingTop: {{compatBandPaddingTop}}
+    readonly property real compatBandPaddingBottom: {{compatBandPaddingBottom}}
+    readonly property real compatBandGap: {{compatBandGap}}
+    readonly property real compatSummaryMinWidth: {{compatSummaryMinWidth}}
+    readonly property real compatSummaryMaxWidth: {{compatSummaryMaxWidth}}
+    readonly property real compatSideMinWidth: {{compatSideMinWidth}}
+    readonly property real compatColumnPaddingLeft: {{compatColumnPaddingLeft}}
+    readonly property real compatSideGap: {{compatSideGap}}
+    readonly property real compatWheelMinimum: {{compatWheelMinimum}}
+    readonly property real compatListRows: {{compatListRows}}
+    readonly property real compatTitleTop: {{compatTitleTop}}
+    readonly property real compatTitleBottom: {{compatTitleBottom}}
+    readonly property real compatMetricsTop: {{compatMetricsTop}}
+    readonly property real compatMetricsPaddingY: {{compatMetricsPaddingY}}
+    readonly property real compatMetricGap: {{compatMetricGap}}
+    readonly property real compatSharesTop: {{compatSharesTop}}
+    readonly property real compatSharesGap: {{compatSharesGap}}
+    readonly property real compatMeterTop: {{compatMeterTop}}
+    readonly property real compatPrewarmGap: {{compatPrewarmGap}}
+    readonly property real compatSelectedGap: {{compatSelectedGap}}
+    readonly property real compatSelectedPaddingTop: {{compatSelectedPaddingTop}}
+    readonly property real compatButtonsTop: {{compatButtonsTop}}
+    readonly property real compatStripPaddingY: {{compatStripPaddingY}}
+    readonly property real compatHintPaddingY: {{compatHintPaddingY}}
+    readonly property real fontSizeCompatTitle: {{fontSizeCompatTitle}}
+    readonly property real fontSizeCompatMetric: {{fontSizeCompatMetric}}
+    readonly property real fontSizeCompatShare: {{fontSizeCompatShare}}
+    readonly property real fontSizeCompatSelected: {{fontSizeCompatSelected}}
 }

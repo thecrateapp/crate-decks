@@ -117,11 +117,9 @@ Desde F1.PR2 el ejecutable se llama `crate-decks` y, en Linux, su carpeta de aju
 
 - **Independiente:** el repositorio sale de la red de forks de GitHub ("Leave fork network", decisión de Diego del 2026-11-03). No se publica nada en `mixxxdj/mixxx`: ni PRs, ni issues, ni reviews, ni texto. Los fallos de Mixxx que encontremos se arreglan aquí.
 - **Origen:** Mixxx `main` en `bc49961` (2.7-alpha), la base elegida en G0.
-- **Traer cambios de Mixxx** (en una sola dirección, opción A):
-  - El remoto `upstream` y la rama `upstream` siguen a `mixxxdj/mixxx` sin cambios. `main` es `upstream` más el código de Crate.
-  - Se trae lo que interese (un merge de un tag estable, o cherry-picks de arreglos de motor, audio, controladoras o seguridad) cuando Diego lo decide. No hay sincronía obligatoria.
-  - Los conflictos en ficheros parcheados los revisa Diego.
-- **Disciplina de aislamiento:** por eso sigue vigente la de §5.2. Cuanto menos se toque de Mixxx, más baratos son esos merges.
+- **Fork duro (Diego, 2026-11-19):** Decks ya no sigue a Mixxx. No se hacen merges de tags ni de ramas de upstream, y nada de Decks espera a una versión de Mixxx.
+- **Arreglos de Mixxx por cherry-pick:** el remoto `upstream` se conserva, solo para leer. Cuando un arreglo de upstream (motor, audio, controladoras, seguridad o un fallo que nos afecta) resuelve algo nuestro, se trae con `git cherry-pick -x` en su propia rama y PR ([docs/mixxx-merges.md](docs/mixxx-merges.md)). Lo decide Diego; los conflictos en ficheros parcheados los revisa él.
+- **Disciplina de aislamiento:** sigue vigente la de §5.2. Cuanto menos se toque de Mixxx, más fácil es aplicar esos cherry-picks.
 - **Licencia:** GPL-2.0-or-later.
   - Se conservan `LICENSE`, los avisos de copyright y los créditos de Mixxx en *About*.
   - Decks se distribuye bajo GPL con su código fuente, y el código de Crate que se compila en Decks también.

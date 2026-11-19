@@ -130,7 +130,8 @@ void CrateServers::createWriteback() {
                                                                          : nullptr;
     };
     m_pOutbox = std::make_unique<writeback::Outbox>(std::move(outbox));
-    // The network coming back sends what waits, without its backoff
+    // The network coming back sends what waits, without its backoff. Any
+    // change of the network asks the servers again whether they answer.
     if (QNetworkInformation::loadDefaultBackend()) {
         if (QNetworkInformation* pInformation = QNetworkInformation::instance()) {
             connect(pInformation,
@@ -141,6 +142,10 @@ void CrateServers::createWriteback() {
                             pOutbox->flush();
                         }
                     });
+            connect(pInformation,
+                    &QNetworkInformation::reachabilityChanged,
+                    this,
+                    &CrateServers::checkReachability);
         }
     }
 
@@ -255,6 +260,10 @@ void CrateServers::removeServer(const QString& serverId) {
     std::unique_ptr<Server> pServer = std::move(*it);
     m_servers.erase(it);
     m_features.remove(serverId);
+    m_reachability.remove(serverId);
+    m_checking.remove(serverId);
+    // Its sign-out still answers: not for a server that is gone
+    disconnect(pServer->pClient.get(), &Client::answered, this, nullptr);
     pServer->pSession->logout();
     if (pServer->saved) {
         db::removeServerProfile(database(), serverId);
@@ -341,6 +350,43 @@ analysis::ProfileStore* CrateServers::profileStore(const QString& serverId) {
     return pServer->pProfileStore.get();
 }
 
+Reachability CrateServers::reachability(const QString& serverId) const {
+    return m_reachability.value(serverId, Reachability::Unknown);
+}
+
+void CrateServers::setReachability(const QString& serverId, Reachability reachability) {
+    if (m_reachability.value(serverId, Reachability::Unknown) == reachability) {
+        return;
+    }
+    m_reachability.insert(serverId, reachability);
+    emit reachabilityChanged(serverId);
+}
+
+void CrateServers::checkReachability() {
+    for (const auto& pServer : m_servers) {
+        const QString serverId = pServer->pSession->profile().id;
+        if (!pServer->saved || pServer->pSession->state() != Session::State::SignedIn ||
+                m_checking.contains(serverId)) {
+            continue;
+        }
+        m_checking.insert(serverId);
+        RequestOptions options;
+        options.authenticated = false;
+        options.rawBody = true;
+        Reply* pReply = pServer->pClient->get(QStringLiteral("/api/capabilities"), options);
+        // The Client's answered() sets the reachability; a new answer also
+        // updates the server's features
+        connect(pReply, &Reply::finished, this, [this, serverId, pReply](const JsonResult& result) {
+            m_checking.remove(serverId);
+            if (result.ok() && pReply->httpStatus() == 200 && isSaved(serverId) &&
+                    pReply->body() != lastCapabilities(serverId) &&
+                    Capabilities::fromJson(QJsonDocument::fromJson(pReply->body())).ok()) {
+                rememberCapabilities(serverId, pReply->body());
+            }
+        });
+    }
+}
+
 QByteArray CrateServers::lastCapabilities(const QString& serverId) const {
     return db::loadLastCapabilities(database(), serverId);
 }
@@ -369,6 +415,11 @@ CrateServers::Server* CrateServers::createServer(const ServerProfile& profile, b
     pServer->saved = saved;
 
     Server* const pCreated = pServer.get();
+    // Every request says whether the server answers
+    const QString serverId = profile.id;
+    connect(pCreated->pClient.get(), &Client::answered, this, [this, serverId](bool reachable) {
+        setReachability(serverId, reachable ? Reachability::Online : Reachability::Offline);
+    });
     connect(pCreated->pSession.get(), &Session::signedIn, this, [this, pCreated] {
         // Marked as saved before anyone hears of it.
         if (!pCreated->saved && save(pCreated)) {

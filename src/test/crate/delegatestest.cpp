@@ -13,6 +13,7 @@
 
 #include "crate/ui/delegates/camelotdelegate.h"
 #include "crate/ui/delegates/celldelegate.h"
+#include "crate/ui/delegates/compatiblesdelegates.h"
 #include "crate/ui/delegates/delegateroles.h"
 #include "crate/ui/delegates/sidebardelegate.h"
 #include "crate/ui/delegates/statedelegates.h"
@@ -432,6 +433,92 @@ TEST_F(CrateDelegatesTest, PaintsLoadedTitleInTheDeckColour) {
     EXPECT_EQ(m_style.textSecondary, meta.textColour(resting));
     const QImage image = paintCell(meta, item({{Qt::DisplayRole, QStringLiteral("124.00")}}));
     EXPECT_GT(strongestShade(image, textArea(50), m_style.textSecondary, m_background), 0.5);
+}
+
+TEST_F(CrateDelegatesTest, PaintsScoreWithItsLane) {
+    ScoreDelegate delegate(m_style, nullptr);
+    const QModelIndex index =
+            item({{Qt::DisplayRole, QStringLiteral("0.75")}, {ScoreRole, 0.75}});
+    const int width = 120;
+    const QImage image = paintCell(delegate, index, width);
+    // The figure in textPrimary in its own column
+    EXPECT_GT(strongestShade(image,
+                      QRect(m_style.cellPadding, 0, m_style.scoreFigure, m_style.rowHeight),
+                      m_style.textPrimary,
+                      m_background),
+            0.5);
+    // The lane: a 1 px rule, three quarters of it in accentHi
+    QStyleOptionViewItem option;
+    option.rect = QRect(0, 0, width, m_style.rowHeight);
+    const QRect lane = delegate.laneRect(option);
+    EXPECT_EQ(m_style.cellPadding + m_style.scoreFigure + m_style.scoreGap, lane.left());
+    EXPECT_EQ(m_style.rule, lane.height());
+    const int lit = ScoreDelegate::litWidth(lane, 0.75);
+    EXPECT_NEAR(lane.width() * 0.75, lit, 1);
+    EXPECT_EQ(m_style.accentHi.rgb(), image.pixel(lane.left() + lit / 2, lane.top()));
+    EXPECT_GT(shareOf(image.pixel(lane.left() + lit + 3, lane.top()),
+                      m_style.border,
+                      m_background),
+            0.9);
+    EXPECT_EQ(0, ScoreDelegate::litWidth(lane, -1));
+    EXPECT_EQ(lane.width(), ScoreDelegate::litWidth(lane, 2));
+}
+
+TEST_F(CrateDelegatesTest, PaintsHarmonyInAccentWhenItMatches) {
+    HarmonyDelegate delegate(m_style, nullptr);
+    const QModelIndex match = item({{Qt::DisplayRole, QStringLiteral("Same key")},
+            {HarmonyMatchRole, true}});
+    const QModelIndex clash =
+            item({{Qt::DisplayRole, QStringLiteral("—")}, {HarmonyMatchRole, false}});
+    EXPECT_EQ(m_style.accentHi, delegate.textColour(match));
+    EXPECT_EQ(m_style.textSubtle, delegate.textColour(clash));
+    const QImage image = paintCell(delegate, match);
+    EXPECT_GT(strongestShade(image, textArea(90), m_style.accentHi, m_background), 0.5);
+}
+
+TEST_F(CrateDelegatesTest, PaintsFarTempoInTheWarningTone) {
+    TrackTextDelegate meta(m_style, TrackTextDelegate::Kind::Meta, nullptr);
+    const QModelIndex far =
+            item({{Qt::DisplayRole, QStringLiteral("+4.00")}, {WarningRole, true}});
+    const QModelIndex near =
+            item({{Qt::DisplayRole, QStringLiteral("+1.00")}, {WarningRole, false}});
+    EXPECT_EQ(m_style.warningText, meta.textColour(far));
+    EXPECT_EQ(m_style.textSecondary, meta.textColour(near));
+}
+
+TEST_F(CrateDelegatesTest, PaintsLikeAsAHeart) {
+    const QString icons = QDir(ConfigObject<ConfigValue>::computeResourcePath())
+                                  .filePath(QStringLiteral("skins/CrateDecks/generated/icons/"));
+    LikeDelegate delegate(m_style,
+            icons + QStringLiteral("heart_idle.svg"),
+            icons + QStringLiteral("heart-bold_idle.svg"),
+            nullptr);
+    const QModelIndex liked = item({{LikedRole, true}});
+    const QModelIndex unliked = item({{LikedRole, false}});
+    EXPECT_TRUE(delegate.iconPath(liked).endsWith(QStringLiteral("heart-bold_idle.svg")));
+    EXPECT_EQ(m_style.accentHi, delegate.iconColour(liked));
+    EXPECT_EQ(m_style.textFaint, delegate.iconColour(unliked));
+    const QImage image = paintCell(delegate, liked, 40);
+    EXPECT_GT(strongestShade(image, image.rect(), m_style.accentHi, m_background), 0.9);
+}
+
+TEST_F(CrateDelegatesTest, PaintsDownloadProgressAsARing) {
+    DownloadProgressDelegate delegate(m_style, nullptr);
+    const QImage image = paintCell(delegate,
+            item({{Qt::DisplayRole, QStringLiteral("33.5 MB of 54.0 MB")},
+                    {CacheStateRole, static_cast<int>(CacheState::Downloading)},
+                    {CacheProgressRole, 0.62}}),
+            200);
+    // The ring of r 7 at the start of the cell, lit in accentHi
+    const QRect ring(m_style.cellPadding,
+            0,
+            static_cast<int>(2 * m_style.ringRadius + 4),
+            m_style.rowHeight);
+    EXPECT_GT(strongestShade(image, ring, m_style.accentHi, m_background), 0.5);
+    // The text after it, in mono and textSecondary
+    const QRect text(m_style.cellPadding + delegate.textOffset(), 0, 120, m_style.rowHeight);
+    EXPECT_GT(strongestShade(image, text, m_style.textSecondary, m_background), 0.5);
+    EXPECT_LT(strongestShade(image, text, m_style.accentHi, m_background), 0.3);
 }
 
 } // namespace

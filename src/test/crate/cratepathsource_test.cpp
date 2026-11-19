@@ -2,16 +2,23 @@
 
 #include <gtest/gtest.h>
 
+#include <QDialogButtonBox>
 #include <QFile>
+#include <QFrame>
+#include <QGroupBox>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QLabel>
+#include <QPushButton>
 #include <QRadioButton>
 #include <QSignalSpy>
 #include <QSpinBox>
+#include <QStringList>
 #include <QTest>
 #include <memory>
 
 #include "crate/recs/recommendationqueue.h"
+#include "crate/ui/dialogs/dialogstyle.h"
 #include "test/crate/fakecratenetwork.h"
 #include "test/mixxxtest.h"
 
@@ -216,6 +223,33 @@ TEST_F(CratePathSourceTest, DialogAsksForStepsAndDestination) {
     dialog.toPlaylist()->click();
     EXPECT_EQ(12, dialog.steps());
     EXPECT_EQ(PathRequest::Destination::Playlist, dialog.destination());
+}
+
+// V3.PR3: a dialog of Decks' own, with the tracks and the destination as
+// sections and its action named, instead of Qt's form and button box
+TEST_F(CratePathSourceTest, DialogHasTheCrateDialogsSections) {
+    crate::recs::CratePathDialog dialog(QStringLiteral("Depeche Mode - I Feel Loved"),
+            QStringLiteral("Adult. - Lovely Love"));
+    EXPECT_TRUE(dialog.findChildren<QDialogButtonBox*>().isEmpty());
+    EXPECT_TRUE(dialog.findChildren<QGroupBox*>().isEmpty());
+    QStringList sections;
+    const QList<QFrame*> frames =
+            dialog.findChildren<QFrame*>(QStringLiteral("CrateDialogSection"));
+    for (const QFrame* pSection : frames) {
+        sections.append(pSection->findChild<QLabel*>(QStringLiteral("MonoDialogSection"))->text());
+    }
+    EXPECT_EQ(QStringList({QStringLiteral("Tracks"), QStringLiteral("Destination")}), sections);
+    EXPECT_EQ(frames.value(0), dialog.stepsBox()->parentWidget());
+    EXPECT_EQ(frames.value(1), dialog.toPlaylist()->parentWidget());
+    // As wide as its three digits with the field's padding
+    EXPECT_EQ(crate::DialogMetrics::installed().px("numberFieldWidth"),
+            dialog.stepsBox()->minimumWidth());
+    auto* pMake = dialog.findChild<QPushButton*>(QStringLiteral("crateConfirm"));
+    ASSERT_NE(nullptr, pMake);
+    EXPECT_QSTRING_EQ(QStringLiteral("Make the path"), pMake->text());
+    EXPECT_QSTRING_EQ(QStringLiteral("primary"), pMake->property("crateButton").toString());
+    pMake->click();
+    EXPECT_EQ(QDialog::Accepted, dialog.result());
 }
 
 } // namespace

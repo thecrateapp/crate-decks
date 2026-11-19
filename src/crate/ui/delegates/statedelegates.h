@@ -31,4 +31,22 @@ class CacheStateDelegate : public CellDelegate {
             const QModelIndex& index) const override;
 };
 
+/// A download's progress (the cache view's Progress column, plan V3.PR2):
+/// StackMap's level ring of r 7 from CacheProgressRole, as the library's
+/// Cache column draws a download, then the display text ("33.5 MB of
+/// 54.0 MB", "Queued") in 11 px mono.
+class DownloadProgressDelegate : public CellDelegate {
+    Q_OBJECT
+  public:
+    DownloadProgressDelegate(const DelegateStyle& style, QObject* pParent);
+
+    void paint(QPainter* pPainter,
+            const QStyleOptionViewItem& option,
+            const QModelIndex& index) const override;
+    QSize sizeHint(const QStyleOptionViewItem& option, const QModelIndex& index) const override;
+
+    /// Where the text starts in a cell's content: after the ring and its gap.
+    int textOffset() const;
+};
+
 } // namespace crate::delegates

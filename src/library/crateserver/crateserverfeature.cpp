@@ -1,8 +1,9 @@
 #include "library/crateserver/crateserverfeature.h"
 
+#include <QComboBox>
+#include <QDialog>
 #include <QFutureWatcher>
 #include <QIconEngine>
-#include <QInputDialog>
 #include <QJsonDocument>
 #include <QLocale>
 #include <QMenu>
@@ -15,7 +16,9 @@
 #include <QTimer>
 #include <QtConcurrentRun>
 #include <chrono>
+#include <functional>
 #include <limits>
+#include <memory>
 
 #include "control/controlproxy.h"
 #include "control/controlpushbutton.h"
@@ -52,6 +55,7 @@
 #endif
 #include "crate/stems/stemsync.h"
 #include "crate/ui/cachestatusview.h"
+#include "crate/ui/dialogs/cratedialog.h"
 #include "crate/ui/trackmenuhook.h"
 #include "crate/ui/widgets/camelotwheelmodel.h"
 #include "crate/ui/widgets/instrumentpainter.h"
@@ -71,6 +75,7 @@
 #include "library/treeitem.h"
 #include "library/treeitemmodel.h"
 #include "mixer/playerinfo.h"
+#include "mixer/playermanager.h"
 #include "track/track.h"
 #include "util/db/dbconnectionpooled.h"
 #include "util/db/dbconnectionpooler.h"
@@ -247,6 +252,22 @@ QStringList childData(const TreeItem* pItem) {
         data.append(pChild->getData().toString());
     }
     return data;
+}
+
+/// Opens `pDialog` as the confirmations that may come up during a set are
+/// opened (open(), not exec()), and gives `answer` whether its action was
+/// chosen. It deletes itself when it closes.
+// TEST_GAP: the confirmations of the feature come up from a server's Smart
+// Mix playlists and from the stems' first run; createConfirmation(), which
+// builds them, is tested in dialogstest.cpp.
+void openConfirmation(CrateDialog* pDialog, std::function<void(bool)> answer) {
+    pDialog->setAttribute(Qt::WA_DeleteOnClose);
+    QObject::connect(pDialog,
+            &QDialog::finished,
+            pDialog,
+            [answer = std::move(answer)](
+                    int result) { answer(result == QDialog::Accepted); });
+    pDialog->open();
 }
 
 } // namespace
@@ -444,6 +465,15 @@ CrateServerFeature::CrateServerFeature(Library* pLibrary,
                 m_pCompatibles.get(),
                 &recs::Compatibles::setMasterTrack);
         m_pCompatibles->setMasterTrack(pPlayerInfo->getCurrentPlayingTrack());
+        // The view names the deck it follows and loads into the other one
+        const auto setMasterDeck = [pCompatibles = m_pCompatibles.get()](int deck) {
+            pCompatibles->setMasterDeck(deck >= 0 ? PlayerManager::groupForDeck(deck) : QString());
+        };
+        connect(pPlayerInfo,
+                &PlayerInfo::currentPlayingDeckChanged,
+                m_pCompatibles.get(),
+                setMasterDeck);
+        setMasterDeck(pPlayerInfo->getCurrentPlayingDeck());
     }
     if (m_pLibrary) {
         connect(m_pLibrary,
@@ -1112,6 +1142,11 @@ void CrateServerFeature::bindLibraryWidget(
             m_pCompatibles.get(), pTable, m_pWheelModel.get(), pLibraryWidget);
     pLibraryWidget->registerView(kCompatiblesViewName, pCompatibles);
     m_pCompatiblesView = pCompatibles;
+    // "Plan transition": the assistant, for the edge from the master deck to
+    // the track the view loaded, as the toolbar's Smart Mix button opens it
+    connect(pCompatibles, &recs::CompatiblesView::planTransitionRequested, this, [this] {
+        showSmartMix(true);
+    });
     m_pLibraryWidget = pLibraryWidget;
     connect(pLibraryWidget,
             &QStackedWidget::currentChanged,
@@ -1885,37 +1920,35 @@ void CrateServerFeature::confirmSmartMixDownload(const QString& serverId,
         }
     }
     // Not modal: it may come up at any time, also during a set
-    auto* pBox = new QMessageBox(QMessageBox::Question,
-            tr("Smart Mix playlist"),
-            //: A playlist marked for Smart Mix on the server is downloaded to
-            //: this computer, as an offline set, before its stems are made
-            tr("Download %n track(s) of the Smart Mix playlist \u201c%1\u201d, %2, and keep "
-               "them on this computer?",
-                    nullptr,
-                    tracks)
-                    .arg(name, QLocale().formattedDataSize(bytes)),
-            QMessageBox::Yes | QMessageBox::No);
-    pBox->setAttribute(Qt::WA_DeleteOnClose);
-    connect(pBox, &QMessageBox::finished, this, [answer = std::move(answer)](int result) {
-        answer(result == QMessageBox::Yes);
-    });
-    pBox->open();
+    Confirmation confirmation;
+    confirmation.context = tr("Smart Mix playlist");
+    //: Asks whether to download a playlist marked for Smart Mix on the server
+    confirmation.title = tr("Keep it on this computer?");
+    //: A playlist marked for Smart Mix on the server is downloaded to
+    //: this computer, as an offline set, before its stems are made
+    confirmation.text = tr(
+            "Download %n track(s) of the Smart Mix playlist \u201c%1\u201d, %2, "
+            "and keep them on this computer?",
+            nullptr,
+            tracks)
+                                .arg(name, QLocale().formattedDataSize(bytes));
+    confirmation.action = tr("Download");
+    confirmation.cancel = tr("Not now");
+    openConfirmation(createConfirmation(confirmation), std::move(answer));
 }
 
 void CrateServerFeature::confirmModelDownload(qint64 bytes, std::function<void(bool)> answer) {
-    auto* pBox = new QMessageBox(QMessageBox::Question,
-            tr("Stems"),
-            //: Asked the first time Decks separates a track into stems
-            //: on this computer
-            tr("Separating stems on this computer needs the separation model, %1. "
-               "Download it now?")
-                    .arg(QLocale().formattedDataSize(bytes)),
-            QMessageBox::Yes | QMessageBox::No);
-    pBox->setAttribute(Qt::WA_DeleteOnClose);
-    connect(pBox, &QMessageBox::finished, this, [answer = std::move(answer)](int result) {
-        answer(result == QMessageBox::Yes);
-    });
-    pBox->open();
+    Confirmation confirmation;
+    confirmation.context = tr("Stems");
+    //: Asked the first time Decks separates a track into stems on this computer
+    confirmation.title = tr("Download the separation model?");
+    confirmation.text = tr(
+            "Separating stems on this computer needs the separation model, %1. "
+            "Download it now?")
+                                .arg(QLocale().formattedDataSize(bytes));
+    confirmation.action = tr("Download");
+    confirmation.cancel = tr("Not now");
+    openConfirmation(createConfirmation(confirmation), std::move(answer));
 }
 
 void CrateServerFeature::startStems(const QString& serverId) {
@@ -2504,18 +2537,20 @@ void CrateServerFeature::onRightClickChild(const QPoint& globalPos, const QModel
         for (const auto& playlist : playlists) {
             names.append(playlist.second);
         }
-        bool ok = false;
-        const QString name = QInputDialog::getItem(m_pSidebarWidget,
-                tr("Export to Crate"),
-                //: Only its Crate tracks of this server go to Crate
-                tr("Playlist to export (only its Crate tracks go):"),
-                names,
-                0,
-                false,
-                &ok);
-        const int chosen = static_cast<int>(names.indexOf(name));
-        if (ok && chosen >= 0) {
-            exportPlaylistToCrate(node.serverId, playlists[chosen].first);
+        Choice choice;
+        choice.context = tr("Export to Crate");
+        choice.title = tr("Export a playlist");
+        //: Only its Crate tracks of this server go to Crate
+        choice.text = tr("Only its Crate tracks of this server go to Crate.");
+        choice.label = tr("Playlist");
+        choice.items = names;
+        choice.action = tr("Export");
+        const std::unique_ptr<CrateDialog> pChoose(createChoice(choice, m_pSidebarWidget));
+        if (pChoose->exec() == QDialog::Accepted) {
+            const int chosen = choiceBox(pChoose.get())->currentIndex();
+            if (chosen >= 0 && chosen < playlists.size()) {
+                exportPlaylistToCrate(node.serverId, playlists[chosen].first);
+            }
         }
         return;
     }
@@ -2537,13 +2572,17 @@ void CrateServerFeature::onRightClickChild(const QPoint& globalPos, const QModel
                 //: The size of an offline set, when some tracks' sizes are unknown
                 size = tr("%1 or more").arg(size);
             }
-            const auto answer = QMessageBox::question(nullptr,
-                    tr("Download for offline use"),
-                    tr("Download %n track(s), %1, and keep them on this computer?",
-                            nullptr,
-                            static_cast<int>(set.tracks.size()))
-                            .arg(size));
-            if (answer == QMessageBox::Yes) {
+            Confirmation confirmation;
+            confirmation.context = tr("Download for offline use");
+            //: Asks whether to download every track of a list for playing without network
+            confirmation.title = tr("Keep it on this computer?");
+            confirmation.text = tr("Download %n track(s), %1, and keep them on this computer?",
+                    nullptr,
+                    static_cast<int>(set.tracks.size()))
+                                        .arg(size);
+            confirmation.action = tr("Download");
+            const std::unique_ptr<CrateDialog> pConfirm(createConfirmation(confirmation));
+            if (pConfirm->exec() == QDialog::Accepted) {
                 downloadOfflineSet(containerId, set);
             }
         });

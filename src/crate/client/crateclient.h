@@ -209,6 +209,14 @@ class Client : public QObject {
     QNetworkReply* openStream(const QString& path,
             const RequestOptions& options = RequestOptions());
 
+  signals:
+    /// A request finished and says whether the server answered: true for
+    /// any HTTP answer (an error status included), false when it could not
+    /// be reached after its retries. Nothing for a cancelled request, nor for
+    /// an Auth error without an answer. What CrateServers::reachability()
+    /// learns from the requests that go out anyway.
+    void answered(bool reachable);
+
   private:
     friend class Reply;
     enum class Method {

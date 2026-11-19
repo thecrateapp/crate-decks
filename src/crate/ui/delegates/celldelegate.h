@@ -62,6 +62,9 @@ class TrackTextDelegate : public CellDelegate {
     void paint(QPainter* pPainter,
             const QStyleOptionViewItem& option,
             const QModelIndex& index) const override;
+    /// As wide as the text in its font, with the cell's padding, so that a
+    /// column sized to its contents packs it as the mockups' tables do.
+    QSize sizeHint(const QStyleOptionViewItem& option, const QModelIndex& index) const override;
 
     /// The colour the text of `index` takes.
     QColor textColour(const QModelIndex& index) const;

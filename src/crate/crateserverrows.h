@@ -9,6 +9,13 @@ namespace crate {
 
 class CrateServers;
 
+/// Whether a server answers: what its last request learned.
+enum class Reachability {
+    Unknown,
+    Online,
+    Offline,
+};
+
 /// What the Crate page of Preferences shows of one server (GU1 mockups
 /// preferences-crate, plan V2.PR5), without widgets: its name, address and
 /// notes, the Decks features of the server and its sign-in state.
@@ -36,11 +43,15 @@ struct ServerRow {
     /// Every feature of the Decks contract, available or not.
     QList<Feature> features;
     State state = State::SignedOut;
+    /// Whether it answers; only shown while signed in.
+    Reachability reachability = Reachability::Unknown;
 
-    /// signedIn, connecting or signedOut: the crateState property that
-    /// generated/default.qss selects on.
+    /// The crateState property that generated/dialogs.qss selects on, with
+    /// the chip's text (Diego, 2026-11-19): signed in, "online" ("Online",
+    /// cyan) or "offline" ("Offline", amber), or "signedIn" ("Signed in",
+    /// muted) until a request says; otherwise the session's own state,
+    /// muted: "connecting" ("Connecting") or "signedOut" ("Signed out").
     QString stateName() const;
-    /// "Signed in", "Connecting" or "Signed out".
     QString stateText() const;
 };
 

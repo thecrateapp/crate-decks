@@ -64,6 +64,10 @@ struct DelegateStyle {
     double ringWidth = 0;
     double ringTrackWidth = 0;
     double ringMinimum = 0;
+    // Compatibles (decks.css .score, library-compatibles' like column)
+    int scoreFigure = 0;
+    int scoreGap = 0;
+    int likeIcon = 0;
 
     // Sidebar (decks.css .side)
     int sidebarItemInset = 0;

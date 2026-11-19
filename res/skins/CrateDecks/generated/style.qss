@@ -1778,8 +1778,11 @@ WTrackPropertyEditor {
    No mockup of its own: the Crate page's cache header (decks.css .usage)
    over tables in the track table's style. C++ paints the rows' rules and
    cells (crate/ui/cachestatusview.cpp and crate/ui/delegates/). */
-#CrateCacheView {
+#CrateCacheView,
+#CrateCacheViewScroll,
+#CrateCacheViewContent {
   background-color: #0a0a0f;
+  border: 0;
 }
 #CrateCacheViewUsage {
   color: #f1f5f9;
@@ -1828,6 +1831,11 @@ WTrackPropertyEditor {
   background-color: #0a0a0f;
   border: 0;
   border-bottom: 1px solid rgba(241, 245, 249, 26);
+  padding: 0;
+}
+/* The titles start where the cells' text does (the delegates' padding) */
+#CrateCacheViewDownloads QHeaderView::section,
+#CrateCacheViewOfflineSets QHeaderView::section {
   padding: 0 10px;
 }
 
@@ -1869,7 +1877,8 @@ WTrackPropertyEditor {
 #CrateAssistStatusDot[crateState="ready"] { background-color: #67e8f9; }
 #CrateAssistStatusDot[crateState="busy"] { background-color: #999ca0; }
 #CrateAssistStatusDot[crateState="warning"] { background-color: #fbbf24; }
-#CrateSmartMixAssist #CrateChip {
+#CrateSmartMixAssist #CrateChip,
+#CrateCompatibles #CrateChip {
   min-height: 30px;
   max-height: 30px;
   padding: 0 12px;
@@ -1882,11 +1891,13 @@ WTrackPropertyEditor {
   font-weight: 400;
   letter-spacing: 0.48px;
 }
-#CrateSmartMixAssist #CrateChip:hover {
+#CrateSmartMixAssist #CrateChip:hover,
+#CrateCompatibles #CrateChip:hover {
   border-color: rgba(103, 232, 249, 102);
   color: #f1f5f9;
 }
-#CrateSmartMixAssist #CrateChip:checked {
+#CrateSmartMixAssist #CrateChip:checked,
+#CrateCompatibles #CrateChip:checked {
   border-color: #67e8f9;
   background-color: #67e8f9;
   color: #0a0a0f;
@@ -1983,7 +1994,8 @@ WTrackPropertyEditor {
 }
 /* The admin's buttons (base.css .crate-button), as in the dialogs: neutral,
    cyan outline for the action, ghost for Cancel */
-#CrateSmartMixAssist QPushButton {
+#CrateSmartMixAssist QPushButton,
+#CrateCompatibles QPushButton {
   min-height: 30px;
   padding: 0 12px;
   border: 1px solid rgba(241, 245, 249, 26);
@@ -1995,40 +2007,169 @@ WTrackPropertyEditor {
   font-weight: 500;
   qproperty-iconSize: 18px 18px;
 }
-#CrateSmartMixAssist QPushButton:hover {
+#CrateSmartMixAssist QPushButton:hover,
+#CrateCompatibles QPushButton:hover {
   border-color: rgba(241, 245, 249, 51);
   color: #f1f5f9;
 }
-#CrateSmartMixAssist QPushButton:pressed {
+#CrateSmartMixAssist QPushButton:pressed,
+#CrateCompatibles QPushButton:pressed {
   background-color: rgba(241, 245, 249, 13);
 }
-#CrateSmartMixAssist QPushButton:disabled {
+#CrateSmartMixAssist QPushButton:disabled,
+#CrateCompatibles QPushButton:disabled {
   border-color: rgba(241, 245, 249, 15);
   color: #4a4c52;
 }
-#CrateSmartMixAssist QPushButton[crateButton="primary"] {
+#CrateSmartMixAssist QPushButton[crateButton="primary"],
+#CrateCompatibles QPushButton[crateButton="primary"] {
   border-color: #06b6d4;
   color: #06b6d4;
 }
-#CrateSmartMixAssist QPushButton[crateButton="primary"]:hover {
+#CrateSmartMixAssist QPushButton[crateButton="primary"]:hover,
+#CrateCompatibles QPushButton[crateButton="primary"]:hover {
   border-color: #67e8f9;
   color: #67e8f9;
 }
-#CrateSmartMixAssist QPushButton[crateButton="primary"]:disabled {
+#CrateSmartMixAssist QPushButton[crateButton="primary"]:disabled,
+#CrateCompatibles QPushButton[crateButton="primary"]:disabled {
   border-color: rgba(6, 182, 212, 76);
   color: #4a4c52;
 }
-#CrateSmartMixAssist QPushButton[crateButton="ghost"] {
+#CrateSmartMixAssist QPushButton[crateButton="ghost"],
+#CrateCompatibles QPushButton[crateButton="ghost"] {
   border-color: transparent;
   color: rgba(241, 245, 249, 199);
 }
-#CrateSmartMixAssist QPushButton[crateButton="ghost"]:hover {
+#CrateSmartMixAssist QPushButton[crateButton="ghost"]:hover,
+#CrateCompatibles QPushButton[crateButton="ghost"]:hover {
   background-color: rgba(241, 245, 249, 13);
   color: #f1f5f9;
 }
-#CrateSmartMixAssist QPushButton[crateButton="ghost"]:disabled {
+#CrateSmartMixAssist QPushButton[crateButton="ghost"]:disabled,
+#CrateCompatibles QPushButton[crateButton="ghost"]:disabled {
   color: #4a4c52;
 }
+/* ── Compatibles view of the Crate section (plan V3.PR2) ───────────────
+   GU1 mockup library-compatibles (decks.css .view-head, .compat-top,
+   genre-wheel.css .genre-taxonomy-summary): the head, the band with the
+   wheel, the "Master key" summary and the side column, and the compact
+   strip. C++ lays it out with the dialog metrics and paints the wheel, the
+   legend and the meters (crate/recs/compatiblesview.cpp); the chips and
+   buttons are the assistant's, above. */
+#CrateCompatibles,
+#CrateCompatiblesBand,
+#CrateCompatiblesSummary,
+#CrateCompatiblesSide {
+  background-color: #0a0a0f;
+  border: 0;
+}
+#CrateCompatiblesHead,
+#CrateCompatiblesStrip {
+  background-color: #0a0a0f;
+  border: 0;
+  border-bottom: 1px solid rgba(241, 245, 249, 26);
+}
+#CrateCompatiblesBand {
+  border-bottom: 1px solid rgba(241, 245, 249, 26);
+}
+#MonoCompatiblesEyebrow {
+  color: #67e8f9;
+  font-size: 8.625pt;
+  letter-spacing: 2.07px;
+}
+#MonoCompatiblesMasterKey,
+#MonoCompatiblesSelected,
+#MonoCompatiblesStripKey {
+  color: #67e8f9;
+}
+#CrateCompatiblesSummary,
+#CrateCompatiblesSide {
+  border-left: 1px solid rgba(241, 245, 249, 26);
+}
+#CrateCompatiblesTitle {
+  color: #f1f5f9;
+  font-family: "Bricolage Grotesque";
+  font-size: 21.6pt;
+  font-weight: 700;
+}
+#CrateCompatiblesTrack,
+#CrateCompatiblesHint {
+  color: #999ca0;
+  font-family: "Roboto";
+  font-size: 13px;
+}
+#CrateCompatiblesMetrics {
+  border: 0;
+  border-top: 1px solid rgba(241, 245, 249, 26);
+  border-bottom: 1px solid rgba(241, 245, 249, 26);
+}
+#CrateCompatiblesFigure,
+#CrateCompatiblesShare {
+  color: #f1f5f9;
+  font-family: "JetBrains Mono";
+  font-weight: 400;
+}
+#CrateCompatiblesFigure {
+  font-size: 12.600000000000001pt;
+}
+#CrateCompatiblesShare {
+  font-size: 10.8pt;
+}
+#CrateCompatiblesPrewarm {
+  color: #999ca0;
+  font-family: "JetBrains Mono";
+  font-size: 11px;
+}
+#CrateCompatiblesSelected {
+  border: 0;
+  border-top: 1px solid rgba(241, 245, 249, 26);
+}
+#CrateCompatiblesSelectedTitle,
+#CrateCompatiblesSelectedArtist {
+  color: #f1f5f9;
+  font-family: "Roboto";
+  font-size: 15px;
+}
+#CrateCompatiblesSelectedArtist {
+  color: #999ca0;
+}
+/* InfoBadge (base.css .crate-info-badge), 24 px */
+#CrateCompatibles #CrateBadge {
+  min-height: 22px;
+  max-height: 22px;
+  padding: 0 9px;
+  border: 1px solid rgba(241, 245, 249, 26);
+  border-radius: 12px;
+  background-color: transparent;
+  color: rgba(241, 245, 249, 199);
+  font-family: "JetBrains Mono";
+  font-size: 12px;
+}
+#CrateCompatibles #CrateBadge[crateTone="accent"] {
+  border-color: rgba(103, 232, 249, 102);
+  background-color: rgba(6, 182, 212, 26);
+  color: #67e8f9;
+}
+#CrateCompatibles #CrateBadge[crateTone="warning"] {
+  border-color: rgba(251, 191, 36, 64);
+  background-color: rgba(251, 191, 36, 26);
+  color: #f9c94a;
+}
+#CrateCompatibles #CrateBadge[crateTone="off"] {
+  border-color: rgba(241, 245, 249, 10);
+  color: rgba(241, 245, 249, 79);
+}
+#CrateCompatibles #CrateCompatiblesMaximize {
+  min-width: 32px;
+  max-width: 32px;
+  min-height: 32px;
+  max-height: 32px;
+  padding: 0;
+  border: 0;
+  background-color: transparent;
+}
+
 /* ── Auto DJ and Analyze: the button bars of the library (plan V2.PR5) ─ */
 
 /* The admin's small buttons, outlined and neutral, with Solar icons; the

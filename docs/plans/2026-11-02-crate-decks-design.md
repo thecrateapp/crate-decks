@@ -104,10 +104,10 @@ Decks es el cliente de DJ de primera clase.
 **D1. Repositorio independiente basado en el código de Mixxx.** (Decisión de Diego del 2026-11-03: opción A)
 - **Repo:** `thecrateapp/crate-decks`, fuera de la red de forks de GitHub ("Leave fork network") y con el historial completo de Mixxx.
 - **Sin contribuir a Mixxx:** no se publica nada en `mixxxdj/mixxx`.
-- **Cambios de Mixxx en una sola dirección:** la rama `upstream` permite traer, cuando conviene, tags estables o arreglos concretos (AGENTS.md §9).
+- **Fork duro (Diego, 2026-11-19):** Decks no sigue a Mixxx ni hace merges de sus versiones; solo trae con cherry-pick arreglos concretos que nos resuelvan algo (AGENTS.md §9).
 - **Fuera del monorepo de Crate:** el build, el CI y la licencia son distintos.
 - **Código propio aislado** en `src/crate/` (cliente, caché, director de Smart Mix) y `src/library/crateserver/` (feature y modelos).
-- **Parches a ficheros de Mixxx** mínimos y enumerados en `CRATE_PATCHES.md`, con su motivo. Se prefieren hooks genéricos: abaratan los merges desde Mixxx.
+- **Parches a ficheros de Mixxx** mínimos y enumerados en `CRATE_PATCHES.md`, con su motivo. Se prefieren hooks genéricos: facilitan los cherry-picks de arreglos de Mixxx.
 
 **D2. Licencia y marca.**
 - Crate Decks queda **GPL-2.0-or-later** por ser una obra derivada de Mixxx, y el código propio que se compila en Decks también.
@@ -495,8 +495,8 @@ Todas siguen las reglas del monorepo:
 
 | Riesgo | Impacto | Mitigación |
 |---|---|---|
-| Deriva respecto a Mixxx (unas 343.000 líneas, muy activo) | Merges costosos | Código aislado, parches enumerados y hooks genéricos. Se traen desde `upstream` tags estables o arreglos concretos cuando Diego lo decide, sin sincronía obligatoria |
-| Mixxx 2.7 sigue en alpha | Bugs del motor | Base decidida en G0: `main` (2.7-alpha). Traer el tag estable de 2.7 cuando exista (`docs/mixxx-merges.md`) |
+| Deriva respecto a Mixxx (unas 343.000 líneas, muy activo) | Arreglos de upstream cada vez más difíciles de traer | Fork duro desde el 2026-11-19: código aislado, parches enumerados y hooks genéricos; solo se traen con cherry-pick arreglos concretos que nos resuelvan algo |
+| Mixxx 2.7 sigue en alpha | Bugs del motor | Base decidida en G0: `main` (2.7-alpha). Sin merge del tag estable (fork duro): los arreglos del motor que nos afecten se traen con cherry-pick (`docs/mixxx-merges.md`) o se arreglan aquí |
 | Análisis del servidor poco fiable (F0 Q3–Q5) | Grids desplazados y tonalidades erróneas en los decks y en la compatibilidad armónica | S8. Mientras tanto, `AnalysisImporter` deja los beats y la tonalidad a Mixxx y usa de Crate las cues, los planes y los compatibles |
 | La fuente FFmpeg de Mixxx no lee MP3 con FFmpeg 9.0.2 (F0 Q17) | D14 sin MP3; riesgo también para builds sin MAD | Reproducción progresiva solo para FLAC, AAC, ALAC y Opus. Investigar la causa (`av_seek_frame` devuelve −1) y arreglarlo aquí si hace falta; no se avisa a Mixxx (AGENTS.md §9) |
 | Numeración de los parámetros de EQ sin verificar (`parameter1` = graves se infiere del manifiesto) | Intercambio de bajos sobre la banda equivocada | Verificar en F0 con una prueba de audio y un test |
@@ -778,12 +778,10 @@ barra de título que dibuja Qt (CSD); aceptado por Diego el 2026-11-09.
 
 ### 14.4. Criterios para la etapa 2 (QML, GU2)
 
-Se propone migrar solo si se cumplen **todos**:
+**Revisado (Diego, 2026-11-19), con el fork duro:** Decks ya no espera a Mixxx, así que los criterios que dependían de upstream (su 3.0-beta, su biblioteca QML con features externas, sus contribuidores activos) desaparecen. La interfaz QML que tenemos es la de Mixxx en `bc49961` (2.7-alpha), experimental; si se hace la etapa 2, la terminamos nosotros. GU2 propone migrar solo si se cumplen **todos**:
 1. Decks ya ha tenido su primera release y es estable con la skin QWidget.
-2. Upstream ha publicado la 3.0-beta, o la interfaz QML ya no exige un perfil nuevo ni avisa de corrupción.
-3. La biblioteca QML soporta features externas, o el puente `LegacyLibraryItem` sigue existiendo y se puede tematizar sin parches grandes.
-4. Existen vistas QML de AutoDJ y preferencias completas, o el coste de hacer las nuestras está acotado (≤ 3 semanas).
-5. Más de un contribuidor activo mantiene la QML en upstream durante los 6 meses previos.
+2. Hay una ganancia concreta que la skin QWidget no puede dar (por ejemplo, fluidez de las ondas o animaciones con GPU, o una pantalla táctil), medida o demostrada en una prueba.
+3. La estimación de terminar la interfaz QML heredada (estabilidad de `LateNightQML`, el puente `LegacyLibraryItem` o una biblioteca QML propia, y las vistas QML de AutoDJ, preferencias de Crate y asistente de Smart Mix) cabe en lo que Diego acepte invertir en ese momento.
 
 **Camino previsto:**
 - Derivar `LateNightQML` en `res/skins/CrateDecksQML`, y que el generador de tokens produzca su `Theme.qml`.

@@ -616,10 +616,12 @@ QDialog[crateChrome="true"] {
   border-radius: 3px;
   background-color: #7e8084;
 }
-#CrateServerDot[crateState="signedIn"] {
+/* Online in cyan, Offline in amber; the session's own states muted
+   (Diego, 2026-11-19) */
+#CrateServerDot[crateState="online"] {
   background-color: #67e8f9;
 }
-#CrateServerDot[crateState="signedOut"] {
+#CrateServerDot[crateState="offline"] {
   background-color: #f9c94a;
 }
 #CrateServerName {
@@ -658,15 +660,21 @@ QDialog[crateChrome="true"] {
   border-radius: 12px;
   font-size: 12px;
 }
-#CrateStateBadge[crateState="signedIn"] {
+#CrateStateBadge[crateState="online"] {
   border-color: rgba(103, 232, 249, 102);
   background-color: rgba(6, 182, 212, 26);
   color: #67e8f9;
 }
-#CrateStateBadge[crateState="signedOut"] {
+#CrateStateBadge[crateState="offline"] {
   border-color: rgba(251, 191, 36, 64);
   background-color: rgba(251, 191, 36, 26);
   color: #f9c94a;
+}
+#CrateStateBadge[crateState="signedIn"],
+#CrateStateBadge[crateState="connecting"],
+#CrateStateBadge[crateState="signedOut"] {
+  border-color: rgba(241, 245, 249, 26);
+  color: #999ca0;
 }
 #CrateStateBadge[crateState="ok"] {
   border-color: rgba(103, 232, 249, 102);
@@ -766,9 +774,12 @@ QDialog[crateChrome="true"] {
   font-size: 26px;
   letter-spacing: -1.3px;
 }
+/* "of 40 GB" in the figure's mono, without its tracking (preferences-crate) */
 #CrateCacheOf {
   color: #7e8084;
+  font-family: "JetBrains Mono";
   font-size: 13px;
+  letter-spacing: 0;
 }
 #CrateCacheCaption,
 #CratePrefsHint {
@@ -824,6 +835,7 @@ QDialog[crateChrome="true"] {
 /* ── First start (GU1 mockups first-run) and About ───────────────────── */
 
 #CrateFirstRunTitle,
+#CrateDialogHeading,
 #CrateAboutTitle {
   color: #f1f5f9;
   font-family: "Bricolage Grotesque";
@@ -833,10 +845,28 @@ QDialog[crateChrome="true"] {
   min-height: 35.7px;
   max-height: 35.7px;
 }
+/* The compact dialog of one question (V3.PR3, Diego, 2026-11-19) */
+#CrateDialogHeading[crateSize="compact"] {
+  font-size: 22px;
+  letter-spacing: -0.99px;
+  min-height: 25.3px;
+  max-height: 25.3px;
+}
+#CrateDialogIntro[crateSize="compact"] {
+  font-size: 13px;
+}
 #CrateFirstRunIntro,
+#CrateDialogIntro,
 #crate_based_on {
   color: #999ca0;
   font-size: 15px;
+}
+/* Decks' own dialogs (CrateDialog, plan V3.PR3): sections as the Crate
+   page's, a 1 px rule over each, without a box */
+#CrateDialogSection {
+  border: 0;
+  border-top: 1px solid rgba(241, 245, 249, 26);
+  background-color: transparent;
 }
 #crate_attribution {
   color: #7e8084;

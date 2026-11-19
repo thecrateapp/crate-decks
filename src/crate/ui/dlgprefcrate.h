@@ -10,11 +10,13 @@
 class QLabel;
 class QListWidget;
 class QPushButton;
+class QShowEvent;
 class QWidget;
 
 namespace crate {
 
 class AddServerWidget;
+struct Confirmation;
 class AnalysisSection;
 class CacheSection;
 class CacheStatusModel;
@@ -77,11 +79,22 @@ class DlgPrefCrate : public DlgPreferencePage {
         return m_pPowerHelper;
     }
 
+    /// "Clear the cache?", which "Clear cache" asks before it deletes
+    /// anything: red, as it destroys the cached tracks.
+    static Confirmation clearCacheConfirmation();
+    /// "Remove <server>?", which "Sign out and remove" asks first: red, and
+    /// it says what becomes of the server's cached tracks and offline sets.
+    static Confirmation removeServerConfirmation(const QString& serverName);
+
   public slots:
     void slotUpdate() override;
     void slotApply() override {
     }
     void slotResetToDefaults() override;
+
+  protected:
+    /// Checks whether the servers answer (CrateServers::checkReachability()).
+    void showEvent(QShowEvent* pEvent) override;
 
   private:
     void showRows(const QList<ServerRow>& rows);

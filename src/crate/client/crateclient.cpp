@@ -680,6 +680,14 @@ void Client::scheduleRetry(const CallPtr& pCall, std::chrono::milliseconds delay
 void Client::complete(const QList<CallPtr>& calls,
         const JsonResult& result,
         const Reply::Response& response) {
+    // Before the subscribers hear of it: a subscriber may delete this Client
+    if (!result.ok() && result.error().kind == Error::Kind::Network) {
+        emit answered(false);
+    } else if (result.ok() || response.status > 0 ||
+            (result.error().kind != Error::Kind::Cancelled &&
+                    result.error().kind != Error::Kind::Auth)) {
+        emit answered(true);
+    }
     QList<QPointer<Reply>> subscribers;
     for (const CallPtr& pCall : calls) {
         subscribers += pCall->subscribers;

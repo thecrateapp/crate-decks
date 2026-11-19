@@ -5401,6 +5401,7 @@ if(CRATE)
       src/crate/library/cratetrackpreparer.cpp
       src/crate/recs/compatiblesmodel.cpp
       src/crate/recs/compatiblesview.cpp
+      src/crate/recs/harmony.cpp
       src/crate/recs/cratepathsource.cpp
       src/crate/recs/crateradiosource.cpp
       src/crate/recs/recommendationqueue.cpp
@@ -5444,10 +5445,12 @@ if(CRATE)
       src/crate/ui/trackmenuhook.cpp
       src/crate/ui/delegates/camelotdelegate.cpp
       src/crate/ui/delegates/celldelegate.cpp
+      src/crate/ui/delegates/compatiblesdelegates.cpp
       src/crate/ui/delegates/delegatestyle.cpp
       src/crate/ui/delegates/sidebardelegate.cpp
       src/crate/ui/delegates/statedelegates.cpp
       src/crate/ui/dialogs/aboutstyle.cpp
+      src/crate/ui/dialogs/cratedialog.cpp
       src/crate/ui/dialogs/dialogchrome.cpp
       src/crate/ui/dialogs/dialogscrim.cpp
       src/crate/ui/dialogs/dialogstyle.cpp
@@ -5460,6 +5463,7 @@ if(CRATE)
       src/crate/ui/skin/mixerstyle.cpp
       src/crate/ui/skin/stemcolors.cpp
       src/crate/ui/skin/preferencescontrol.cpp
+      src/crate/ui/widgets/camelotlegend.cpp
       src/crate/ui/widgets/camelotwheel.cpp
       src/crate/ui/widgets/camelotwheelmodel.cpp
       src/crate/ui/widgets/instrumentpainter.cpp
@@ -5496,6 +5500,7 @@ if(CRATE)
         src/test/crate/crateclient_test.cpp
         src/test/crate/compatiblesmodel_test.cpp
         src/test/crate/compatiblesview_test.cpp
+        src/test/crate/harmony_test.cpp
         src/test/crate/cratepathsource_test.cpp
         src/test/crate/crateradiosource_test.cpp
         src/test/crate/recommendationqueue_test.cpp
@@ -5543,6 +5548,7 @@ if(CRATE)
         src/test/crate/skinloadtest.cpp
         src/test/crate/mixerstyletest.cpp
         src/test/crate/delegatestest.cpp
+        src/test/crate/nohardcodedcolorstest.cpp
         src/test/crate/dialogstest.cpp
         src/test/crate/decktrackfieldstest.cpp
         src/test/crate/brandvisibletest.cpp

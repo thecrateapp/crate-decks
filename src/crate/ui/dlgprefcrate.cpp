@@ -1,6 +1,7 @@
 #include "crate/ui/dlgprefcrate.h"
 
 #include <QCheckBox>
+#include <QDialog>
 #include <QDir>
 #include <QFileDialog>
 #include <QFrame>
@@ -8,10 +9,11 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
-#include <QMessageBox>
 #include <QPushButton>
+#include <QShowEvent>
 #include <QStringList>
 #include <QVBoxLayout>
+#include <memory>
 
 #include "crate/cache/audiocache.h"
 #include "crate/cratepreferences.h"
@@ -24,6 +26,7 @@
 #include "crate/ui/cachestatusmodel.h"
 #include "crate/ui/crateaddserverwidget.h"
 #include "crate/ui/crateprefsections.h"
+#include "crate/ui/dialogs/cratedialog.h"
 #include "crate/ui/dialogs/dialogstyle.h"
 
 namespace crate {
@@ -92,7 +95,11 @@ DlgPrefCrate::DlgPrefCrate(QWidget* pParent, CrateServers* pServers, const QStri
     auto* pServersSection = new PrefsSection(tr("Servers"), this);
     pServersSection->rows()->addWidget(m_pServerList);
     pServersSection->rows()->addWidget(m_pStatus);
-    auto* pAddRow = new QHBoxLayout();
+    // "Add a server…" and its helper give way to the form, which has its
+    // own helper and Cancel (V3.PR3)
+    auto* pAddRowBox = new QWidget(this);
+    pAddRowBox->setObjectName(QStringLiteral("crateAddServerRow"));
+    auto* pAddRow = new QHBoxLayout(pAddRowBox);
     pAddRow->setContentsMargins(0, metrics.px("addServerTop"), 0, 0);
     pAddRow->setSpacing(metrics.px("helperGap"));
     pAddRow->addWidget(m_pAdd);
@@ -100,8 +107,9 @@ DlgPrefCrate::DlgPrefCrate(QWidget* pParent, CrateServers* pServers, const QStri
                                   "local network after confirming"),
             "CrateFormHelper",
             this);
+    pHelper->setWordWrap(true);
     pAddRow->addWidget(pHelper, 1);
-    pServersSection->rows()->addLayout(pAddRow);
+    pServersSection->rows()->addWidget(pAddRowBox);
     m_pAddBox->setObjectName(QStringLiteral("crateAddServerBox"));
     auto* pAddLayout = new QVBoxLayout(m_pAddBox);
     pAddLayout->setContentsMargins(0, metrics.px("addServerTop"), 0, 0);
@@ -139,14 +147,34 @@ DlgPrefCrate::DlgPrefCrate(QWidget* pParent, CrateServers* pServers, const QStri
     pLayout->addWidget(m_pSystem);
     pLayout->addStretch(1);
 
-    connect(m_pAdd, &QPushButton::clicked, m_pAddBox, &QWidget::show);
-    connect(m_pAddServer, &AddServerWidget::cancelled, m_pAddBox, &QWidget::hide);
-    connect(m_pAddServer, &AddServerWidget::serverAdded, m_pAddBox, &QWidget::hide);
+    connect(m_pAdd, &QPushButton::clicked, this, [this, pAddRowBox] {
+        pAddRowBox->hide();
+        m_pAddBox->show();
+    });
+    const auto closeForm = [this, pAddRowBox] {
+        m_pAddBox->hide();
+        pAddRowBox->show();
+    };
+    connect(m_pAddServer, &AddServerWidget::cancelled, this, closeForm);
+    connect(m_pAddServer, &AddServerWidget::serverAdded, this, closeForm);
     if (m_pServers) {
         connect(m_pServers, &CrateServers::serversChanged, this, &DlgPrefCrate::slotUpdate);
+        // Online or Offline, as the servers' requests learn it
+        connect(m_pServers,
+                &CrateServers::reachabilityChanged,
+                this,
+                &DlgPrefCrate::slotUpdate);
         bindPreferences();
     }
     slotUpdate();
+}
+
+void DlgPrefCrate::showEvent(QShowEvent* pEvent) {
+    DlgPreferencePage::showEvent(pEvent);
+    // A light check of whether the servers answer each time the page opens
+    if (m_pServers && !pEvent->spontaneous()) {
+        m_pServers->checkReachability();
+    }
 }
 
 void DlgPrefCrate::bindPreferences() {
@@ -272,13 +300,39 @@ void DlgPrefCrate::clearCache() {
     if (!pCache) {
         return;
     }
-    const QMessageBox::StandardButton answer = QMessageBox::question(this,
-            tr("Clear cache"),
-            tr("Delete the cached tracks from this computer? Offline sets and the "
-               "downloads on their way stay."));
-    if (answer == QMessageBox::Yes) {
+    const std::unique_ptr<CrateDialog> pConfirm(createConfirmation(clearCacheConfirmation(), this));
+    if (pConfirm->exec() == QDialog::Accepted) {
         pCache->clear();
     }
+}
+
+Confirmation DlgPrefCrate::clearCacheConfirmation() {
+    Confirmation confirmation;
+    confirmation.context = tr("Cache");
+    confirmation.title = tr("Clear the cache?");
+    confirmation.text = tr(
+            "Delete the cached tracks from this computer? Offline sets and the "
+            "downloads on their way stay.");
+    confirmation.action = tr("Clear cache");
+    confirmation.destructive = true;
+    return confirmation;
+}
+
+Confirmation DlgPrefCrate::removeServerConfirmation(const QString& serverName) {
+    Confirmation confirmation;
+    confirmation.context = tr("Servers");
+    //: %1 is the name of a Crate server
+    confirmation.title = tr("Remove %1?").arg(serverName);
+    // What CrateServers::removeServer() does: it signs out, forgets the
+    // server and its client, and leaves the audio cache alone
+    confirmation.text = tr(
+            "Decks signs out of %1 and forgets it: it leaves the library and "
+            "nothing new is downloaded from it. Its cached tracks and offline "
+            "sets stay on this computer.")
+                                .arg(serverName);
+    confirmation.action = tr("Sign out and remove");
+    confirmation.destructive = true;
+    return confirmation;
 }
 
 void DlgPrefCrate::slotResetToDefaults() {
@@ -393,8 +447,15 @@ QWidget* DlgPrefCrate::rowWidget(const ServerRow& row) {
     setButtonVariant(pRemove, "danger");
     pLayout->addWidget(pRemove, 0, Qt::AlignVCenter);
     const QString id = row.id;
-    connect(pRemove, &QPushButton::clicked, this, [this, id] {
-        if (m_pServers && !id.isEmpty()) {
+    const QString name = row.name;
+    connect(pRemove, &QPushButton::clicked, this, [this, id, name] {
+        if (!m_pServers || id.isEmpty()) {
+            return;
+        }
+        // Asked first, in red, with Cancel as the default (Diego, 2026-11-19)
+        const std::unique_ptr<CrateDialog> pConfirm(
+                createConfirmation(removeServerConfirmation(name), this));
+        if (pConfirm->exec() == QDialog::Accepted && m_pServers) {
             m_pServers->removeServer(id);
         }
     });

@@ -2,18 +2,26 @@
 
 #include <gtest/gtest.h>
 
-#include <QComboBox>
 #include <QFile>
 #include <QHash>
+#include <QPushButton>
 #include <QSignalSpy>
 #include <QTableView>
 #include <QTest>
 #include <QUrlQuery>
 #include <memory>
+#include <utility>
+#include <vector>
 
+#include "control/controlobject.h"
 #include "crate/db/crateserverschema.h"
+#include "crate/library/cratelibrarystore.h"
 #include "crate/library/crateloadcoordinator.h"
 #include "crate/recs/compatiblesmodel.h"
+#include "crate/ui/widgets/camelotwheel.h"
+#include "crate/ui/widgets/camelotwheelmodel.h"
+#include "crate/ui/widgets/instrumentpainter.h"
+#include "mixer/playerinfo.h"
 #include "test/crate/fakecratenetwork.h"
 #include "test/mixxxdbtest.h"
 #include "track/track.h"
@@ -45,6 +53,21 @@ class CrateCompatiblesViewTest : public MixxxDbTest {
     }
 
     void SetUp() override {
+        // The view asks PlayerInfo which track a deck has. The controls it
+        // reads when it is created come first, as CoreServices makes them in
+        // the app; a debug build asserts without them.
+        for (const auto& [group, item] : {
+                     std::pair{QStringLiteral("[Master]"), QStringLiteral("crossfader")},
+                     std::pair{QStringLiteral("[App]"), QStringLiteral("num_decks")},
+                     std::pair{QStringLiteral("[App]"), QStringLiteral("num_samplers")},
+                     std::pair{QStringLiteral("[App]"),
+                             QStringLiteral("num_preview_decks")}}) {
+            m_playerInfoControls.push_back(
+                    std::make_unique<ControlObject>(ConfigKey(group, item)));
+        }
+        // Two decks, as the app starts
+        ControlObject::set(ConfigKey(QStringLiteral("[App]"), QStringLiteral("num_decks")), 2);
+        PlayerInfo::create();
         ASSERT_TRUE(MixxxDb::initDatabaseSchema(dbConnection()));
         ASSERT_TRUE(crate::db::createCrateServerSchema(dbConnection()));
         ClientOptions options;
@@ -59,6 +82,8 @@ class CrateCompatiblesViewTest : public MixxxDbTest {
         m_pCompatibles.reset();
         m_pModel.reset();
         m_pClient.reset();
+        PlayerInfo::destroy();
+        m_playerInfoControls.clear();
     }
 
     Compatibles* makeCompatibles() {
@@ -133,6 +158,7 @@ class CrateCompatiblesViewTest : public MixxxDbTest {
     std::unique_ptr<Compatibles> m_pCompatibles;
     bool m_prewarmEnabled = false;
     QStringList m_prewarmed;
+    std::vector<std::unique_ptr<ControlObject>> m_playerInfoControls;
 };
 
 TEST_F(CrateCompatiblesViewTest, FollowsMasterDeck) {
@@ -277,6 +303,166 @@ TEST_F(CrateCompatiblesViewTest, TrackWithoutProfileSaysSo) {
             2000));
     EXPECT_EQ(0, m_pModel->rowCount());
     EXPECT_FALSE(CompatiblesView::hintFor(Compatibles::State::NoProfile).isEmpty());
+}
+
+TEST(CompatiblesViewLayoutTest, BandFitsThePaneOrGivesWay) {
+    const struct {
+        int available;
+        int wheelMaximum;
+        int content;
+        bool compact;
+        int wheel;
+        int height;
+    } cases[] = {
+            // Maximised at 1920 x 1080: the mockup's 470 px wheel
+            {750, 470, 390, false, 470, 502},
+            // Less room: the wheel shrinks with the pane
+            {436, 462, 386, false, 404, 436},
+            // Columns taller than the wheel: the band is as tall as they are
+            {600, 300, 386, false, 300, 418},
+            // Short of what the columns need: the strip
+            {410, 470, 386, true, 235, 418},
+            // Short of the wheel's minimum
+            {200, 470, 150, true, 235, 267},
+            // Too narrow for the wheel's minimum
+            {900, 200, 300, true, 235, 332},
+    };
+    for (const auto& item : cases) {
+        const auto layout = CompatiblesView::bandLayout(
+                item.available, 32, 235, item.wheelMaximum, item.content);
+        EXPECT_EQ(item.compact, layout.compact) << item.available << " " << item.wheelMaximum;
+        EXPECT_EQ(item.wheel, layout.wheel) << item.available << " " << item.wheelMaximum;
+        EXPECT_EQ(item.height, layout.height) << item.available << " " << item.wheelMaximum;
+        if (!layout.compact) {
+            EXPECT_LE(layout.height, item.available);
+        }
+    }
+}
+
+TEST(CompatiblesViewLayoutTest, LoadsIntoTheMasterDecksPartner) {
+    const auto none = [](int) {
+        return false;
+    };
+    const auto deck = [](int playing) {
+        return [playing](int index) {
+            return index == playing;
+        };
+    };
+    EXPECT_EQ(1, CompatiblesView::targetDeck(0, 2, none));
+    EXPECT_EQ(0, CompatiblesView::targetDeck(1, 2, none));
+    EXPECT_EQ(-1, CompatiblesView::targetDeck(0, 2, deck(1)));
+    EXPECT_EQ(3, CompatiblesView::targetDeck(2, 4, none));
+    // The partner plays: the first other deck that does not
+    EXPECT_EQ(0, CompatiblesView::targetDeck(2, 4, deck(3)));
+    EXPECT_EQ(2, CompatiblesView::targetDeck(1, 4, deck(0)));
+    // No master deck: the first deck that is stopped
+    EXPECT_EQ(0, CompatiblesView::targetDeck(-1, 2, none));
+    EXPECT_EQ(1, CompatiblesView::targetDeck(-1, 2, deck(0)));
+}
+
+TEST(CompatiblesViewLayoutTest, SaysHowOldTheResultsAre) {
+    EXPECT_EQ(QStringLiteral("0.4 s ago"), CompatiblesView::ageText(400));
+    EXPECT_EQ(QStringLiteral("0.0 s ago"), CompatiblesView::ageText(-5));
+    EXPECT_EQ(QStringLiteral("12 s ago"), CompatiblesView::ageText(12'400));
+    EXPECT_EQ(QStringLiteral("3 min ago"), CompatiblesView::ageText(180'000));
+    EXPECT_EQ(QStringLiteral("2 h ago"), CompatiblesView::ageText(7'300'000));
+}
+
+TEST_F(CrateCompatiblesViewTest, ChipsPickWhatToFollowAndTheContext) {
+    Compatibles* pCompatibles = makeCompatibles();
+    CompatiblesView view(pCompatibles, new QTableView(), nullptr);
+    ASSERT_NE(nullptr, view.followChip(Compatibles::Follow::Selection));
+    EXPECT_TRUE(view.followChip(Compatibles::Follow::MasterDeck)->isChecked());
+    EXPECT_TRUE(view.contextChip(crate::recs::CompatibleContext::Auto)->isChecked());
+    view.followChip(Compatibles::Follow::Selection)->click();
+    EXPECT_EQ(Compatibles::Follow::Selection, pCompatibles->follow());
+    EXPECT_TRUE(view.followChip(Compatibles::Follow::Selection)->isChecked());
+    EXPECT_FALSE(view.followChip(Compatibles::Follow::MasterDeck)->isChecked());
+    view.contextChip(crate::recs::CompatibleContext::Smooth)->click();
+    EXPECT_EQ(crate::recs::CompatibleContext::Smooth, pCompatibles->context());
+    EXPECT_TRUE(view.contextChip(crate::recs::CompatibleContext::Smooth)->isChecked());
+}
+
+TEST_F(CrateCompatiblesViewTest, ShowsTheBandOrTheStripAndNeverGrows) {
+    // The followed track in the catalogue, for the band's summary
+    crate::library::RemoteTrack seed;
+    seed.entityUid = kSeed;
+    seed.title = QStringLiteral("Lattice");
+    seed.artist = QStringLiteral("Ondine Varga");
+    seed.bpm = 124.0;
+    seed.camelot = QStringLiteral("8A");
+    ASSERT_EQ(crate::library::WriteStatus::Ok,
+            crate::library::storeTracks(
+                    dbConnection(), kServer, {seed}, QStringLiteral("2026-11-18")));
+    Compatibles* pCompatibles = makeCompatibles();
+    const auto style = crate::widgets::InstrumentStyle::installed();
+    crate::widgets::CamelotWheelModel wheelModel(style.opacityContext);
+    auto* pTable = new QTableView();
+    pTable->setModel(m_pModel.get());
+    CompatiblesView view(pCompatibles, pTable, &wheelModel);
+    EXPECT_EQ(QSize(0, 0), view.minimumSizeHint());
+    pCompatibles->setMasterDeck(QStringLiteral("[Channel1]"));
+    pCompatibles->setMasterTrack(crateTrack(kSeed));
+    ASSERT_TRUE(waitForRequests(1));
+    answerLast();
+
+    // The summary names the key and counts the results
+    EXPECT_QSTRING_EQ(QStringLiteral("8A · A minor"), view.summaryTitle()->text());
+    EXPECT_TRUE(view.headMeta()->text().contains(QStringLiteral("Lattice")));
+    EXPECT_TRUE(view.headMeta()->text().startsWith(QStringLiteral("Deck A")));
+    EXPECT_TRUE(view.countLabel()->text().startsWith(QStringLiteral("8 tracks")));
+    EXPECT_EQ(crate::widgets::CamelotWheelModel::keyOfCamelot(QStringLiteral("8A")),
+            wheelModel.masterKey());
+    EXPECT_QSTRING_EQ(QStringLiteral("A minor"), view.wheel()->subtitle());
+    EXPECT_EQ(5, view.prewarmRings().size());
+    EXPECT_QSTRING_EQ(QStringLiteral("0 / 5 ready"), view.prewarmLabel()->text());
+
+    // A tall pane: the band, with the mockup's wheel, the list under it
+    view.resize(1680, 1000);
+    view.show();
+    QCoreApplication::processEvents();
+    EXPECT_FALSE(view.isCompact());
+    EXPECT_TRUE(view.band()->isVisible());
+    EXPECT_FALSE(view.strip()->isVisible());
+    EXPECT_EQ(style.camelotWheelSize, view.wheel()->width());
+    EXPECT_GE(pTable->geometry().top(), view.band()->geometry().bottom());
+    EXPECT_EQ(view.height(), pTable->geometry().bottom() + 1);
+
+    // A short one: the strip, and the list takes the pane; the toggle shows
+    // the wheel anyway
+    view.resize(1680, 400);
+    QCoreApplication::processEvents();
+    EXPECT_TRUE(view.isCompact());
+    EXPECT_FALSE(view.band()->isVisible());
+    EXPECT_TRUE(view.strip()->isVisible());
+    EXPECT_TRUE(view.stripCounts()->text().contains(QStringLiteral("Relative")));
+    EXPECT_EQ(view.strip()->geometry().bottom() + 1, pTable->geometry().top());
+    view.wheelToggle()->click();
+    EXPECT_TRUE(view.band()->isVisible());
+    EXPECT_GE(view.wheel()->width(), 235);
+    EXPECT_EQ(QSize(0, 0), view.minimumSizeHint());
+
+    // The selected track, ready to load into deck B or to plan
+    pTable->selectRow(0);
+    EXPECT_QSTRING_EQ(QStringLiteral("Selected · 1 of 8"), view.selectedLabel()->text());
+    EXPECT_QSTRING_EQ(QStringLiteral("Load in deck B"), view.loadButton()->text());
+    EXPECT_FALSE(view.badges().first()->isHidden());
+    // At 1366 x 768 with the library maximised: the badges that do not fit
+    // the side column drop from the end, none is cut
+    view.resize(1126, 616);
+    QCoreApplication::processEvents();
+    ASSERT_TRUE(view.band()->isVisible());
+    EXPECT_FALSE(view.badges().first()->isHidden());
+    for (const QLabel* pBadge : view.badges()) {
+        if (!pBadge->isHidden()) {
+            EXPECT_LE(pBadge->geometry().right(), pBadge->parentWidget()->width())
+                    << pBadge->text().toStdString();
+        }
+    }
+    QSignalSpy plan(&view, &CompatiblesView::planTransitionRequested);
+    view.planButton()->click();
+    ASSERT_EQ(1, plan.size());
+    EXPECT_QSTRING_EQ(QStringLiteral("[Channel2]"), plan.first().first().toString());
 }
 
 } // namespace

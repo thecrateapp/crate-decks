@@ -616,10 +616,12 @@ QDialog[crateChrome="true"] {
   border-radius: {{statusDot.half}};
   background-color: {{textSubtle}};
 }
-#CrateServerDot[crateState="signedIn"] {
+/* Online in cyan, Offline in amber; the session's own states muted
+   (Diego, 2026-11-19) */
+#CrateServerDot[crateState="online"] {
   background-color: {{accentHi}};
 }
-#CrateServerDot[crateState="signedOut"] {
+#CrateServerDot[crateState="offline"] {
   background-color: {{warningText}};
 }
 #CrateServerName {
@@ -658,15 +660,21 @@ QDialog[crateChrome="true"] {
   border-radius: {{heightControlXs.half}};
   font-size: {{fontSizeInfoBadge}};
 }
-#CrateStateBadge[crateState="signedIn"] {
+#CrateStateBadge[crateState="online"] {
   border-color: {{accentHiBorder}};
   background-color: {{accentBg}};
   color: {{accentHi}};
 }
-#CrateStateBadge[crateState="signedOut"] {
+#CrateStateBadge[crateState="offline"] {
   border-color: {{warningBorder}};
   background-color: {{warningBg}};
   color: {{warningText}};
+}
+#CrateStateBadge[crateState="signedIn"],
+#CrateStateBadge[crateState="connecting"],
+#CrateStateBadge[crateState="signedOut"] {
+  border-color: {{border}};
+  color: {{textMuted}};
 }
 #CrateStateBadge[crateState="ok"] {
   border-color: {{accentHiBorder}};
@@ -766,9 +774,12 @@ QDialog[crateChrome="true"] {
   font-size: {{fontSizeUsage}};
   letter-spacing: {{trackingNumeral * fontSizeUsage}};
 }
+/* "of 40 GB" in the figure's mono, without its tracking (preferences-crate) */
 #CrateCacheOf {
   color: {{textSubtle}};
+  font-family: "{{fontMono}}";
   font-size: {{fontSizeCaption}};
+  letter-spacing: 0;
 }
 #CrateCacheCaption,
 #CratePrefsHint {
@@ -824,6 +835,7 @@ QDialog[crateChrome="true"] {
 /* ── First start (GU1 mockups first-run) and About ───────────────────── */
 
 #CrateFirstRunTitle,
+#CrateDialogHeading,
 #CrateAboutTitle {
   color: {{textPrimary}};
   font-family: "{{fontDisplay}}";
@@ -833,10 +845,28 @@ QDialog[crateChrome="true"] {
   min-height: {{lineHeightFirstRunTitle * fontSizeFirstRunTitle}};
   max-height: {{lineHeightFirstRunTitle * fontSizeFirstRunTitle}};
 }
+/* The compact dialog of one question (V3.PR3, Diego, 2026-11-19) */
+#CrateDialogHeading[crateSize="compact"] {
+  font-size: {{fontSizeConfirmTitle}};
+  letter-spacing: {{trackingTitle * fontSizeConfirmTitle}};
+  min-height: {{lineHeightConfirmTitle * fontSizeConfirmTitle}};
+  max-height: {{lineHeightConfirmTitle * fontSizeConfirmTitle}};
+}
+#CrateDialogIntro[crateSize="compact"] {
+  font-size: {{fontSizeCaption}};
+}
 #CrateFirstRunIntro,
+#CrateDialogIntro,
 #crate_based_on {
   color: {{textMuted}};
   font-size: {{fontSizeBody}};
+}
+/* Decks' own dialogs (CrateDialog, plan V3.PR3): sections as the Crate
+   page's, a 1 px rule over each, without a box */
+#CrateDialogSection {
+  border: 0;
+  border-top: {{strokeHairline}} solid {{border}};
+  background-color: transparent;
 }
 #crate_attribution {
   color: {{textSubtle}};

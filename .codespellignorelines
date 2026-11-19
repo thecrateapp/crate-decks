@@ -74,3 +74,4 @@ void EngineEffectsDelay::process(CSAMPLE* pInOut,
 void EngineFilter::process(CSAMPLE* pInOut, const size_t bufferSize)
     // Note(RRyan/Max Linke):
     // https://github.com/codders/libshout/blob/a17fb84671d3732317b0353d7281cc47e2df6cf6/src/timing/timing.c
+        {"Saltwater Hymn", "Ines Moreau", "Organic House", 121.00, "2A", "6:30", 5, "full"},

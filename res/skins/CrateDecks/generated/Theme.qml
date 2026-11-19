@@ -286,6 +286,14 @@ QtObject {
     readonly property real libraryColumnArtist: 0.16
     readonly property real libraryColumnGenre: 0.13
     readonly property real libraryStateGap: 6
+    readonly property real libraryColumnRank: 40
+    readonly property real libraryColumnScore: 120
+    readonly property real libraryColumnDelta: 72
+    readonly property real libraryColumnHarmony: 120
+    readonly property real libraryColumnDeltaEnergy: 48
+    readonly property real libraryColumnLike: 40
+    readonly property real libraryScoreFigure: 34
+    readonly property real libraryScoreGap: 8
     readonly property real searchGap: 14
     readonly property real searchIconGap: 10
     readonly property real sidebarPaddingTop: 6
@@ -374,6 +382,14 @@ QtObject {
     readonly property real glowHoverAlpha: 0.5
     readonly property real camelotWheelSize: 470
     readonly property real camelotLabelGap: 7
+    readonly property real wheelLegendGap: 18
+    readonly property real wheelLegendRowGap: 9
+    readonly property real wheelLegendItemGap: 7
+    readonly property real wheelLegendLine: 22
+    readonly property real wheelLegendGlyph: 14
+    readonly property real wheelLegendNode: 4
+    readonly property real fontSizeWheelLegend: 9
+    readonly property real camelotNameGap: 5
     readonly property real camelotLabelShift: 0.35
     readonly property real camelotEdgeBow: 0.86
     readonly property real camelotFigureBaseline: 4
@@ -541,6 +557,7 @@ QtObject {
     readonly property real cacheGaugeTickShort: 2
     readonly property real cacheLimitWidth: 52
     readonly property real cacheLimitMaximum: 100
+    readonly property real numberFieldWidth: 96
     readonly property real fontSizeUsage: 26
     readonly property real usageGap: 16
     readonly property real usageBottom: 12
@@ -564,6 +581,16 @@ QtObject {
     readonly property real lineHeightFirstRunTitle: 1.05
     readonly property real lineHeightPrefsTitle: 1.1
     readonly property real fontSizeFirstRunTitle: 34
+    readonly property real confirmWidth: 440
+    readonly property real confirmPaddingTop: 24
+    readonly property real confirmPaddingX: 28
+    readonly property real confirmPaddingBottom: 22
+    readonly property real confirmGap: 14
+    readonly property real confirmHeadGap: 10
+    readonly property real confirmLogoWidth: 26
+    readonly property real confirmLogoHeight: 28
+    readonly property real lineHeightConfirmTitle: 1.15
+    readonly property real fontSizeConfirmTitle: 22
     readonly property real firstRunActionsTop: 4
     readonly property real messageIconSize: 32
     readonly property real stepsGap: 10
@@ -615,4 +642,32 @@ QtObject {
     readonly property real assistActionsGap: 8
     readonly property real assistActionsPaddingY: 14
     readonly property real assistQuietTop: 8
+    readonly property real compatBandPaddingTop: 18
+    readonly property real compatBandPaddingBottom: 14
+    readonly property real compatBandGap: 32
+    readonly property real compatSummaryMinWidth: 300
+    readonly property real compatSummaryMaxWidth: 380
+    readonly property real compatSideMinWidth: 260
+    readonly property real compatColumnPaddingLeft: 26
+    readonly property real compatSideGap: 18
+    readonly property real compatWheelMinimum: 235
+    readonly property real compatListRows: 3
+    readonly property real compatTitleTop: 12
+    readonly property real compatTitleBottom: 3
+    readonly property real compatMetricsTop: 22
+    readonly property real compatMetricsPaddingY: 14
+    readonly property real compatMetricGap: 5
+    readonly property real compatSharesTop: 16
+    readonly property real compatSharesGap: 15
+    readonly property real compatMeterTop: 7
+    readonly property real compatPrewarmGap: 10
+    readonly property real compatSelectedGap: 8
+    readonly property real compatSelectedPaddingTop: 14
+    readonly property real compatButtonsTop: 6
+    readonly property real compatStripPaddingY: 6
+    readonly property real compatHintPaddingY: 12
+    readonly property real fontSizeCompatTitle: 28.8
+    readonly property real fontSizeCompatMetric: 16.8
+    readonly property real fontSizeCompatShare: 14.4
+    readonly property real fontSizeCompatSelected: 15
 }

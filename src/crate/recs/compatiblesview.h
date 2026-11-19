@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QLabel>
+#include <QList>
 #include <QObject>
 #include <QPointer>
 #include <QString>
@@ -19,7 +20,8 @@
 #include "track/track_decl.h"
 #include "util/db/dbconnectionpool.h"
 
-class QComboBox;
+class ControlProxy;
+class QItemSelectionModel;
 class QPushButton;
 
 namespace crate {
@@ -33,6 +35,7 @@ struct CrateTrackRef;
 
 namespace crate::widgets {
 class CamelotWheel;
+class LevelRing;
 } // namespace crate::widgets
 
 namespace crate::recs {
@@ -114,6 +117,12 @@ class Compatibles : public QObject {
 
     /// The master deck's track changed (PlayerInfo::currentPlayingTrackChanged).
     void setMasterTrack(const TrackPointer& pTrack);
+    /// The deck on air changed (PlayerInfo::currentPlayingDeckChanged): its
+    /// group ("[Channel1]"), or empty for none.
+    void setMasterDeck(const QString& group);
+    const QString& masterDeck() const {
+        return m_masterDeck;
+    }
     /// The library's selection changed: a track with a file, local or cached.
     void setSelectedTrack(const TrackPointer& pTrack);
     /// The library's selection changed to a Crate track, cached or not;
@@ -138,6 +147,7 @@ class Compatibles : public QObject {
 
   signals:
     void stateChanged(crate::recs::Compatibles::State state);
+    void masterDeckChanged(const QString& group);
 
   private:
     struct Followed {
@@ -157,6 +167,7 @@ class Compatibles : public QObject {
     CompatiblesModel* const m_pModel;
     const Options m_options;
     Follow m_follow = Follow::MasterDeck;
+    QString m_masterDeck;
     CompatibleContext m_context = CompatibleContext::Auto;
     Followed m_master;
     Followed m_selected;
@@ -173,11 +184,27 @@ class Compatibles : public QObject {
     QThreadPool m_pool;
 };
 
-/// The Compatibles view of the Crate section: a thin layer over Compatibles.
-/// A bar names the followed track and lets the DJ pick what to follow and
-/// the context; the Camelot wheel shows the keys of the results and filters
-/// the list by the key clicked (again: every key); the track table shows the
-/// model. Without a Crate track it says to load one.
+/// The Compatibles view of the Crate section (GU1 mockup
+/// library-compatibles, plan V3.PR2): a thin layer over Compatibles.
+///
+/// - A 56 px head: the view's name, what it follows ("DECK A · LATTICE ·
+///   8A · 124.00 BPM"), the Follow and Context chips, how many tracks and
+///   how long ago, and the library's maximise button (the search row, which
+///   this view does not use, hides while it shows).
+/// - A band on top: the Camelot wheel, scaled to the pane's height between
+///   its minimum and the mockup's 470 px; the "Master key" summary (key and
+///   track, Results / Harmonic / Cached and a meter per relation); and a side
+///   column with the wheel's legend, the cache of the best five and the
+///   selected track, which loads into the other deck or opens the Smart Mix
+///   assistant for that edge. A click on a key filters the list by it.
+/// - Where the band does not fit at its minimum, a one-line strip takes its
+///   place (key and relation counts, and a toggle that shows the wheel
+///   anyway), and the list takes the pane.
+/// - The track table under it, with the mockup's columns.
+///
+/// The view lays its parts out itself and asks no minimum size of its own,
+/// so that it never makes the window grow. Without a Crate track it says to
+/// load one.
 class CompatiblesView : public QWidget, public LibraryView {
     Q_OBJECT
   public:
@@ -188,22 +215,92 @@ class CompatiblesView : public QWidget, public LibraryView {
             QWidget* pTable,
             widgets::CamelotWheelModel* pWheelModel,
             QWidget* pParent = nullptr);
+    ~CompatiblesView() override;
 
     QLabel* hint() const {
         return m_pHint;
     }
-    QComboBox* followChoice() const {
-        return m_pFollow;
+    QWidget* head() const {
+        return m_pHead;
     }
-    QComboBox* contextChoice() const {
-        return m_pContext;
+    QWidget* band() const {
+        return m_pBand;
     }
+    QWidget* strip() const {
+        return m_pStrip;
+    }
+    QWidget* table() const {
+        return m_pTable;
+    }
+    QPushButton* followChip(Compatibles::Follow follow) const;
+    QPushButton* contextChip(CompatibleContext context) const;
     widgets::CamelotWheel* wheel() const {
         return m_pWheel;
     }
+    QPushButton* wheelToggle() const {
+        return m_pWheelToggle;
+    }
+    QPushButton* loadButton() const {
+        return m_pLoad;
+    }
+    QPushButton* planButton() const {
+        return m_pPlan;
+    }
+    QLabel* headMeta() const {
+        return m_pHeadMeta;
+    }
+    QLabel* countLabel() const {
+        return m_pCount;
+    }
+    QLabel* summaryTitle() const {
+        return m_pSummaryTitle;
+    }
+    QLabel* selectedLabel() const {
+        return m_pSelectedEyebrow;
+    }
+    const QList<QLabel*>& badges() const {
+        return m_badges;
+    }
+    QLabel* stripCounts() const {
+        return m_pStripCounts;
+    }
+    QLabel* prewarmLabel() const {
+        return m_pPrewarmLabel;
+    }
+    const QList<widgets::LevelRing*>& prewarmRings() const {
+        return m_prewarmRings;
+    }
+    /// Whether the band gave way to the strip.
+    bool isCompact() const {
+        return m_compact;
+    }
+    /// The deck "Load in deck N" loads into, or empty for none.
+    QString targetGroup() const;
 
     /// The text the hint shows in `state`.
     static QString hintFor(Compatibles::State state);
+    /// How long ago the results came: "0.4 s ago", "12 s ago", "3 min ago".
+    static QString ageText(qint64 ms);
+    /// The deck a track loads into beside the master deck `masterIndex`
+    /// (-1 for none): its partner (deck 1 with 2, 3 with 4) if it is
+    /// stopped, or else the first other deck that is, as the Smart Mix
+    /// assistant pairs them; -1 if every other deck plays.
+    static int targetDeck(int masterIndex, int deckCount, const std::function<bool(int)>& plays);
+
+    /// How the band fits a pane: `available` is the height left after the
+    /// head and the list's minimum, `paddingY` the band's own, `wheelMinimum`
+    /// and `wheelMaximum` the wheel's sizes (the maximum already as wide as
+    /// the pane allows) and `content` the height its columns need.
+    struct BandLayout {
+        bool compact = false;
+        int wheel = 0;
+        int height = 0;
+    };
+    static BandLayout bandLayout(
+            int available, int paddingY, int wheelMinimum, int wheelMaximum, int content);
+
+    QSize sizeHint() const override;
+    QSize minimumSizeHint() const override;
 
     // LibraryView
     void onShow() override;
@@ -212,18 +309,80 @@ class CompatiblesView : public QWidget, public LibraryView {
     void saveCurrentViewState() override;
     bool restoreCurrentViewState() override;
 
+  signals:
+    /// "Plan transition": the selected track went to `group`, and the Smart
+    /// Mix assistant should show the edge from the master deck to it.
+    void planTransitionRequested(const QString& group);
+
+  protected:
+    void resizeEvent(QResizeEvent* pEvent) override;
+    void showEvent(QShowEvent* pEvent) override;
+    void hideEvent(QHideEvent* pEvent) override;
+
   private:
+    QWidget* makeHead();
+    QWidget* makeBand();
+    QWidget* makeSummary(QWidget* pParent);
+    QWidget* makeSide(QWidget* pParent);
+    QWidget* makeStrip();
     void update();
+    void updateHead();
+    void updateSummary();
+    void updateCache();
+    void updateSelected();
+    void updateCount();
+    /// Shows the selected track's badges that fit the side column.
+    void fitBadges();
+    void watchSelection();
+    void layoutParts();
+    /// The table's selected row, or -1.
+    int selectedRow() const;
+    /// Loads the selected row into `group`, unless the deck has it already.
+    void loadSelected(const QString& group);
     void onKeyClicked(mixxx::track::io::key::ChromaticKey key);
 
     const QPointer<Compatibles> m_pCompatibles;
     QWidget* const m_pTable;
     widgets::CamelotWheelModel* const m_pWheelModel;
-    QLabel* m_pTitle;
-    QLabel* m_pHint;
-    QComboBox* m_pFollow;
-    QComboBox* m_pContext;
+    QWidget* m_pHead = nullptr;
+    QLabel* m_pHeadMeta = nullptr;
+    QLabel* m_pFollowLabel = nullptr;
+    QLabel* m_pContextLabel = nullptr;
+    QLabel* m_pCount = nullptr;
+    QList<QPushButton*> m_followChips;
+    QList<QPushButton*> m_contextChips;
+    QPushButton* m_pMaximize = nullptr;
+    QWidget* m_pBand = nullptr;
     widgets::CamelotWheel* m_pWheel = nullptr;
+    QWidget* m_pSummary = nullptr;
+    QLabel* m_pDeckBadge = nullptr;
+    QLabel* m_pSummaryTitle = nullptr;
+    QLabel* m_pSummaryTrack = nullptr;
+    QList<QLabel*> m_metrics;
+    QList<QLabel*> m_shareLabels;
+    QList<QLabel*> m_shareCounts;
+    QList<QWidget*> m_shareMeters;
+    QWidget* m_pSide = nullptr;
+    QLabel* m_pPrewarmLabel = nullptr;
+    QList<widgets::LevelRing*> m_prewarmRings;
+    QWidget* m_pSelected = nullptr;
+    QLabel* m_pSelectedEyebrow = nullptr;
+    QLabel* m_pSelectedTitle = nullptr;
+    QLabel* m_pSelectedArtist = nullptr;
+    QList<QLabel*> m_badges;
+    QPushButton* m_pLoad = nullptr;
+    QPushButton* m_pPlan = nullptr;
+    QWidget* m_pStrip = nullptr;
+    QLabel* m_pStripKey = nullptr;
+    QLabel* m_pStripCounts = nullptr;
+    QPushButton* m_pWheelToggle = nullptr;
+    QLabel* m_pHint = nullptr;
+    QPointer<QItemSelectionModel> m_pSelection;
+    QTimer m_clock;
+    ControlProxy* m_pMaximized = nullptr;
+    bool m_compact = false;
+    /// The side column's room for its content, in pixels; 0 if unknown.
+    int m_sideWidth = 0;
 };
 
 } // namespace crate::recs

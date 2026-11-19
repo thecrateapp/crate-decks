@@ -2,6 +2,7 @@
 
 #include <QFontMetrics>
 #include <QPainter>
+#include <cmath>
 
 #include "crate/ui/delegates/delegateroles.h"
 #include "moc_statedelegates.cpp"
@@ -47,6 +48,51 @@ void ProfileQualityDelegate::paint(QPainter* pPainter,
     case ProfileQuality::Unknown:
         break;
     }
+}
+
+DownloadProgressDelegate::DownloadProgressDelegate(const DelegateStyle& style, QObject* pParent)
+        : CellDelegate(style, pParent) {
+}
+
+int DownloadProgressDelegate::textOffset() const {
+    // The ring's box: its diameter and two pixels on each side
+    return static_cast<int>(std::ceil(2 * m_style.ringRadius + 4)) + m_style.stateGap;
+}
+
+QSize DownloadProgressDelegate::sizeHint(
+        const QStyleOptionViewItem& option, const QModelIndex& index) const {
+    QSize size = CellDelegate::sizeHint(option, index);
+    if (m_style.isValid()) {
+        const QFontMetrics metrics(m_style.monoFont(m_style.fontSizeMeta));
+        size.setWidth(2 * m_style.cellPadding + textOffset() +
+                metrics.horizontalAdvance(index.data(Qt::DisplayRole).toString()));
+    }
+    return size;
+}
+
+void DownloadProgressDelegate::paint(QPainter* pPainter,
+        const QStyleOptionViewItem& option,
+        const QModelIndex& index) const {
+    if (!m_style.isValid()) {
+        QStyledItemDelegate::paint(pPainter, option, index);
+        return;
+    }
+    paintBackground(pPainter, option, index);
+    const QRect content = contentRect(option);
+    const QPointF centre(content.left() + m_style.ringRadius + 2,
+            option.rect.top() + m_style.rowHeight / 2.0);
+    paintLevelRing(pPainter,
+            centre,
+            index.data(CacheProgressRole).toDouble(),
+            m_style.border,
+            m_style.accentHi,
+            m_style);
+    paintText(pPainter,
+            content.adjusted(textOffset(), 0, 0, 0),
+            index.data(Qt::DisplayRole).toString(),
+            m_style.monoFont(m_style.fontSizeMeta),
+            m_style.textSecondary,
+            Qt::AlignLeft | Qt::AlignVCenter);
 }
 
 CacheStateDelegate::CacheStateDelegate(const DelegateStyle& style, QObject* pParent)

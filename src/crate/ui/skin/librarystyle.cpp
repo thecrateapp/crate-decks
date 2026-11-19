@@ -19,6 +19,7 @@
 
 #include "crate/ui/delegates/camelotdelegate.h"
 #include "crate/ui/delegates/celldelegate.h"
+#include "crate/ui/delegates/compatiblesdelegates.h"
 #include "crate/ui/delegates/delegatestyle.h"
 #include "crate/ui/delegates/sidebardelegate.h"
 #include "crate/ui/delegates/statedelegates.h"
@@ -160,6 +161,10 @@ enum class ColumnKind {
     /// Crate's columns (plan F3.C-PR2), which only Crate's track models have
     Profile,
     Cache,
+    /// The Compatibles view's (plan V3.PR2)
+    Score,
+    Harmony,
+    Like,
 };
 
 // The icon name of crate::library::CrateServerFeature, whose root is a
@@ -170,6 +175,12 @@ const QString kCrateSectionIcon = QStringLiteral("crateserver");
 const QString kCrateEnergyField = QStringLiteral("crate_energy");
 const QString kCrateProfileField = QStringLiteral("crate_profile");
 const QString kCrateCacheField = QStringLiteral("crate_cache");
+const QString kCrateLikedField = QStringLiteral("crate_liked");
+// crate::recs::CompatiblesModel's own columns
+const QString kScoreField = QStringLiteral("crate_score");
+const QString kHarmonyField = QStringLiteral("crate_harmonic");
+const QString kBpmDeltaField = QStringLiteral("crate_bpm_delta");
+const QString kEnergyDeltaField = QStringLiteral("crate_energy_delta");
 
 ColumnKind columnKind(const QString& field) {
     if (field == LIBRARYTABLE_TITLE) {
@@ -187,12 +198,22 @@ ColumnKind columnKind(const QString& field) {
     if (field == kCrateCacheField) {
         return ColumnKind::Cache;
     }
+    if (field == kScoreField) {
+        return ColumnKind::Score;
+    }
+    if (field == kHarmonyField) {
+        return ColumnKind::Harmony;
+    }
+    if (field == kCrateLikedField) {
+        return ColumnKind::Like;
+    }
     if (field == LIBRARYTABLE_DURATION || field == LIBRARYTABLE_YEAR ||
             field == LIBRARYTABLE_TRACKNUMBER || field == LIBRARYTABLE_BITRATE ||
             field == LIBRARYTABLE_SAMPLERATE || field == LIBRARYTABLE_REPLAYGAIN ||
             field == LIBRARYTABLE_CHANNELS || field == LIBRARYTABLE_DATETIMEADDED ||
             field == LIBRARYTABLE_LAST_PLAYED_AT || field == PLAYLISTTRACKSTABLE_POSITION ||
-            field == PLAYLISTTRACKSTABLE_DATETIMEADDED || field == kCrateEnergyField) {
+            field == PLAYLISTTRACKSTABLE_DATETIMEADDED || field == kCrateEnergyField ||
+            field == kBpmDeltaField || field == kEnergyDeltaField) {
         return ColumnKind::Meta;
     }
     if (field == LIBRARYTABLE_ARTIST || field == LIBRARYTABLE_ALBUM ||
@@ -220,9 +241,12 @@ bool isMixxxTextDelegate(const QAbstractItemDelegate* pDelegate) {
 /// The columns of the mockups' track list, in their order: the playlist
 /// position where there is one, title, artist, BPM, key, duration, energy,
 /// genre, profile and cache. Energy, profile and cache are Crate's (plan
-/// F3.C-PR2): upstream's own track models do not have them. The like column
-/// waits for F4.
-const QStringList& defaultColumns() {
+/// F3.C-PR2): upstream's own track models do not have them.
+///
+/// The Compatibles view has its own (GU1 mockup library-compatibles, plan
+/// V3.PR2): rank, score, title, artist, BPM, Δ BPM, key, harmony, Δ energy,
+/// time, cache and like. A model with a score column is that view's.
+const QStringList& defaultColumns(const QHash<QString, int>& columnOfField) {
     static const QStringList columns = {
             PLAYLISTTRACKSTABLE_POSITION,
             LIBRARYTABLE_TITLE,
@@ -235,7 +259,21 @@ const QStringList& defaultColumns() {
             kCrateProfileField,
             kCrateCacheField,
     };
-    return columns;
+    static const QStringList compatibles = {
+            PLAYLISTTRACKSTABLE_POSITION,
+            kScoreField,
+            LIBRARYTABLE_TITLE,
+            LIBRARYTABLE_ARTIST,
+            LIBRARYTABLE_BPM,
+            kBpmDeltaField,
+            LIBRARYTABLE_KEY,
+            kHarmonyField,
+            kEnergyDeltaField,
+            LIBRARYTABLE_DURATION,
+            kCrateCacheField,
+            kCrateLikedField,
+    };
+    return columnOfField.contains(kScoreField) ? compatibles : columns;
 }
 
 /// The widths of the mockups' columns (decks.js trackTable).
@@ -246,6 +284,13 @@ struct ColumnWidths {
     int energy = 0;
     int profile = 0;
     int cache = 0;
+    // The Compatibles view's
+    int rank = 0;
+    int score = 0;
+    int delta = 0;
+    int harmony = 0;
+    int deltaEnergy = 0;
+    int like = 0;
     double artist = 0;
     double genre = 0;
 
@@ -260,6 +305,13 @@ struct ColumnWidths {
         widths.energy = static_cast<int>(number(QStringLiteral("CrateLibColumnEnergy")));
         widths.profile = static_cast<int>(number(QStringLiteral("CrateLibColumnProfile")));
         widths.cache = static_cast<int>(number(QStringLiteral("CrateLibColumnCache")));
+        widths.rank = static_cast<int>(number(QStringLiteral("CrateLibColumnRank")));
+        widths.score = static_cast<int>(number(QStringLiteral("CrateLibColumnScore")));
+        widths.delta = static_cast<int>(number(QStringLiteral("CrateLibColumnDelta")));
+        widths.harmony = static_cast<int>(number(QStringLiteral("CrateLibColumnHarmony")));
+        widths.deltaEnergy =
+                static_cast<int>(number(QStringLiteral("CrateLibColumnDeltaEnergy")));
+        widths.like = static_cast<int>(number(QStringLiteral("CrateLibColumnLike")));
         widths.artist = number(QStringLiteral("CrateLibColumnArtist"));
         widths.genre = number(QStringLiteral("CrateLibColumnGenre"));
         return widths;
@@ -447,6 +499,7 @@ class TrackTableStyle : public QObject {
               m_pView(pView),
               m_style(style),
               m_widths(widths),
+              m_skinPath(skinPath),
               m_lockIconPath(iconPath(skinPath, QStringLiteral("lock"))),
               m_pLoadedDecks(pLoadedDecks),
               m_pMeta(pMeta) {
@@ -661,8 +714,13 @@ class TrackTableStyle : public QObject {
                 m_titles.insert(column, QCoreApplication::translate("crate::LibraryStyle", "Time"));
             }
             const ColumnKind kind = columnKind(field);
+            if (field == kCrateLikedField) {
+                // The mockup's like column has no title
+                m_titles.insert(column, QStringLiteral(" "));
+            }
             if (kind == ColumnKind::Bpm || field == LIBRARYTABLE_DURATION ||
-                    field == kCrateEnergyField ||
+                    field == kCrateEnergyField || field == kBpmDeltaField ||
+                    field == kEnergyDeltaField ||
                     field == LIBRARYTABLE_BITRATE || field == LIBRARYTABLE_TRACKNUMBER ||
                     field == LIBRARYTABLE_REPLAYGAIN) {
                 // As upstream aligns their cells
@@ -738,6 +796,15 @@ class TrackTableStyle : public QObject {
             return new ProfileQualityDelegate(m_style, m_pView);
         case ColumnKind::Cache:
             return new CacheStateDelegate(m_style, m_pView);
+        case ColumnKind::Score:
+            return new ScoreDelegate(m_style, m_pView);
+        case ColumnKind::Harmony:
+            return new HarmonyDelegate(m_style, m_pView);
+        case ColumnKind::Like:
+            return new LikeDelegate(m_style,
+                    iconPath(m_skinPath, QStringLiteral("heart")),
+                    iconPath(m_skinPath, QStringLiteral("heart-bold")),
+                    m_pView);
         case ColumnKind::Name:
         case ColumnKind::Keep:
             break;
@@ -761,7 +828,13 @@ class TrackTableStyle : public QObject {
                 pHeader->resizeSection(column, size);
             }
         };
-        fix(PLAYLISTTRACKSTABLE_POSITION, m_widths.time);
+        const bool compatibles = m_columnOfField.contains(kScoreField);
+        fix(PLAYLISTTRACKSTABLE_POSITION, compatibles ? m_widths.rank : m_widths.time);
+        fix(kScoreField, m_widths.score);
+        fix(kBpmDeltaField, m_widths.delta);
+        fix(kHarmonyField, m_widths.harmony);
+        fix(kEnergyDeltaField, m_widths.deltaEnergy);
+        fix(kCrateLikedField, m_widths.like);
         fix(LIBRARYTABLE_BPM, m_widths.bpm);
         fix(LIBRARYTABLE_KEY, m_widths.key);
         fix(LIBRARYTABLE_DURATION, m_widths.time);
@@ -785,7 +858,7 @@ class TrackTableStyle : public QObject {
             return;
         }
         QList<int> shown;
-        for (const QString& field : defaultColumns()) {
+        for (const QString& field : defaultColumns(columnOfField)) {
             const int column = columnOfField.value(field, -1);
             if (column >= 0 && !pTrackModel->isColumnInternal(column)) {
                 shown.append(column);
@@ -822,6 +895,7 @@ class TrackTableStyle : public QObject {
     QPointer<WTrackTableView> m_pView;
     const DelegateStyle m_style;
     const ColumnWidths m_widths;
+    const QString m_skinPath;
     const QString m_lockIconPath;
     QPointer<LoadedDecks> m_pLoadedDecks;
     QPointer<LibraryMeta> m_pMeta;
@@ -871,12 +945,14 @@ void styleLibrary(QWidget* pSkinRoot,
         pSidebar->setItemDelegate(pDelegate);
         // The delegate indents child items itself and draws no branches,
         // as the admin's navigation, and the rows are as wide as the sidebar.
-        // The admin hides its navigation's scroll bar (.hide-rail-scrollbar);
-        // the wheel and the keys still scroll it
+        // The library's 8 px scroll bar shows only when the items overflow
+        // (Diego, 2026-11-18, plan V3.PR2): the admin hides its navigation's
+        // (.hide-rail-scrollbar), but a short pane under the decks needs to
+        // say there is more
         pSidebar->setIndentation(0);
         pSidebar->setRootIsDecorated(false);
         pSidebar->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-        pSidebar->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        pSidebar->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
         pSidebar->setMouseTracking(true);
         pSidebar->viewport()->setAttribute(Qt::WA_Hover);
     }
@@ -896,6 +972,30 @@ void styleLibrary(QWidget* pSkinRoot,
             pLayout->setContentsMargins(gutter, padding, gutter, padding);
             pLayout->setSpacing(barNumber("CrateLibBarGap"));
         }
+    }
+
+    // A view with a head of its own (the Compatibles view, plan V3.PR2)
+    // has what the search row would show: the row and its rule hide while
+    // it shows
+    if (auto* pLibraryWidget = pSkinRoot->findChild<WLibrary*>()) {
+        const QList<QPointer<QWidget>> searchRow = {
+                pSkinRoot->findChild<QWidget*>(QStringLiteral("CrateSearchRow")),
+                pSkinRoot->findChild<QWidget*>(QStringLiteral("CrateSearchRule")),
+        };
+        const auto showSearchRow = [pLibraryWidget, searchRow] {
+            const QWidget* pCurrent = pLibraryWidget->currentWidget();
+            const bool ownHead = pCurrent && pCurrent->property("crateOwnHead").toBool();
+            for (const QPointer<QWidget>& pPart : searchRow) {
+                if (pPart) {
+                    pPart->setVisible(!ownHead);
+                }
+            }
+        };
+        QObject::connect(pLibraryWidget,
+                &QStackedWidget::currentChanged,
+                pLibraryWidget,
+                showSearchRow);
+        showSearchRow();
     }
 
     const QList<WTrackTableView*> tables = pSkinRoot->findChildren<WTrackTableView*>();
