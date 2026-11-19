@@ -766,9 +766,12 @@ QDialog[crateChrome="true"] {
   font-size: 26px;
   letter-spacing: -1.3px;
 }
+/* "of 40 GB" in the figure's mono, without its tracking (preferences-crate) */
 #CrateCacheOf {
   color: #7e8084;
+  font-family: "JetBrains Mono";
   font-size: 13px;
+  letter-spacing: 0;
 }
 #CrateCacheCaption,
 #CratePrefsHint {

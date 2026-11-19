@@ -766,9 +766,12 @@ QDialog[crateChrome="true"] {
   font-size: {{fontSizeUsage}};
   letter-spacing: {{trackingNumeral * fontSizeUsage}};
 }
+/* "of 40 GB" in the figure's mono, without its tracking (preferences-crate) */
 #CrateCacheOf {
   color: {{textSubtle}};
+  font-family: "{{fontMono}}";
   font-size: {{fontSizeCaption}};
+  letter-spacing: 0;
 }
 #CrateCacheCaption,
 #CratePrefsHint {

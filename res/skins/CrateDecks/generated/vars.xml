@@ -318,6 +318,7 @@
   <SetVariable name="CrateDlgDialogLogoWidth">16</SetVariable>
   <SetVariable name="CrateDlgDialogLogoHeight">17</SetVariable>
   <SetVariable name="CrateDlgIconButtonSize">32</SetVariable>
+  <SetVariable name="CrateDlgScrollbarWidth">8</SetVariable>
   <SetVariable name="CrateDlgPrefsWidth">1180</SetVariable>
   <SetVariable name="CrateDlgPrefsHeight">940</SetVariable>
   <SetVariable name="CrateDlgPrefsNavWidth">232</SetVariable>

@@ -158,7 +158,10 @@ QCheckBox* PrefsSection::addToggle(const QString& title, const QString& hint) {
     pText->setSpacing(metrics.px("prefsHintGap"));
     pText->addStretch(1);
     pText->addWidget(textLabel(title, "CratePrefsRowLabel", pRow));
-    pText->addWidget(textLabel(hint, "CratePrefsHint", pRow));
+    // The hint wraps rather than widen the page past Preferences (V3.PR3)
+    auto* pHint = textLabel(hint, "CratePrefsHint", pRow);
+    pHint->setWordWrap(true);
+    pText->addWidget(pHint);
     pText->addStretch(1);
     pLayout->addLayout(pText, 1);
     auto* pSwitch = new QCheckBox(pRow);
@@ -309,11 +312,12 @@ SystemSection::SystemSection(system::SystemCheck* pCheck,
     pRunRow->setContentsMargins(0, metrics.px("addServerTop"), 0, 0);
     pRunRow->setSpacing(metrics.px("helperGap"));
     pRunRow->addWidget(m_pRun);
-    pRunRow->addWidget(textLabel(tr("measures the graphics, the power limit and the sound "
-                                    "for a few seconds"),
-                               "CrateFormHelper",
-                               this),
-            1);
+    auto* pHelper = textLabel(tr("measures the graphics, the power limit and the sound "
+                                 "for a few seconds"),
+            "CrateFormHelper",
+            this);
+    pHelper->setWordWrap(true);
+    pRunRow->addWidget(pHelper, 1);
     rows()->addLayout(pRunRow);
     rows()->addWidget(m_pView);
 

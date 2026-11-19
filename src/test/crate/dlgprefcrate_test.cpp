@@ -2,13 +2,16 @@
 
 #include <gtest/gtest.h>
 
+#include <QAbstractScrollArea>
 #include <QButtonGroup>
 #include <QCheckBox>
 #include <QComboBox>
+#include <QCoreApplication>
 #include <QDialog>
 #include <QFile>
 #include <QFileInfo>
 #include <QFrame>
+#include <QGroupBox>
 #include <QJsonDocument>
 #include <QLabel>
 #include <QLayout>
@@ -26,7 +29,9 @@
 #include <QTest>
 #include <QTimer>
 #include <QUrl>
+#include <QVBoxLayout>
 #include <memory>
+#include <utility>
 
 #include "crate/cache/audiocache.h"
 #include "crate/client/crateserveraddress.h"
@@ -1235,6 +1240,201 @@ TEST_F(CrateAddServerFlowTest, PreferencesRunTheSystemCheckAgain) {
     pPower = checkRow(pSection, "powerLimit");
     ASSERT_NE(nullptr, pPower);
     EXPECT_EQ(nullptr, pPower->findChild<QPushButton*>(QStringLiteral("crateCheckAction")));
+}
+
+/// The GU1 mockup's two servers (preferences-crate): one signed in with every
+/// feature, one signed out on the local network without two of them.
+QList<crate::ServerRow> mockupServerRows() {
+    const QStringList features = {QStringLiteral("library"),
+            QStringLiteral("analysis"),
+            QStringLiteral("beatmatch"),
+            QStringLiteral("bass handoff"),
+            QStringLiteral("long beatmatch"),
+            QStringLiteral("cues")};
+    crate::ServerRow dev;
+    dev.id = QStringLiteral("dev");
+    dev.name = QStringLiteral("dev.crate.local");
+    dev.meta = {QStringLiteral("https://dev.crate.local"),
+            QStringLiteral("signed in as diego@crate.local"),
+            QStringLiteral("136 512 tracks")};
+    dev.state = crate::ServerRow::State::SignedIn;
+    crate::ServerRow home;
+    home.id = QStringLiteral("home");
+    home.name = QStringLiteral("home.crate.lan");
+    home.meta = {QStringLiteral("http://192.168.1.20:8585"),
+            QStringLiteral("local network, no HTTPS"),
+            QStringLiteral("last seen 2 h ago")};
+    home.state = crate::ServerRow::State::SignedOut;
+    for (const QString& feature : features) {
+        dev.features.append({feature, true});
+        home.features.append({feature,
+                feature != QLatin1String("long beatmatch") &&
+                        feature != QLatin1String("cues")});
+    }
+    return {dev, home};
+}
+
+/// The Crate page in a dialog with Decks' dialog style and the page padding
+/// of Preferences (preferenceschrome.cpp), `width` wide.
+class StyledCratePage {
+  public:
+    StyledCratePage(CrateServers* pServers, int width)
+            : m_styled(crate::applyApplicationStyle(nullptr, crate::resourcePath())) {
+        const crate::DialogMetrics& metrics = crate::DialogMetrics::installed();
+        auto* pLayout = new QVBoxLayout(&m_dialog);
+        pLayout->setContentsMargins(0, 0, 0, 0);
+        pPage = new crate::DlgPrefCrate(&m_dialog, pServers);
+        pPage->layout()->setContentsMargins(metrics.px("prefsPagePaddingX"),
+                0,
+                metrics.px("prefsPagePaddingX"),
+                metrics.px("prefsPagePaddingY"));
+        pLayout->addWidget(pPage);
+        pPage->showServerRows(mockupServerRows());
+        m_dialog.resize(width, metrics.px("prefsHeight"));
+        m_dialog.show();
+        QCoreApplication::processEvents();
+        m_dialog.layout()->activate();
+    }
+    ~StyledCratePage() {
+        crate::applyStyles(nullptr, QString(), QString());
+    }
+    bool styled() const {
+        return m_styled;
+    }
+
+    crate::DlgPrefCrate* pPage = nullptr;
+
+  private:
+    const bool m_styled;
+    QDialog m_dialog;
+};
+
+/// The width Preferences gives a page at the GU1 mockup's size: the dialog
+/// less its navigation and the page's scroll bar.
+int mockupPageWidth() {
+    const crate::DialogMetrics& metrics = crate::DialogMetrics::installed();
+    return metrics.px("prefsWidth") - metrics.px("prefsNavWidth") -
+            metrics.px("scrollbarWidth");
+}
+
+// V3.PR3: at the mockup's width (1180 px, the same at 1920 x 1080 and at
+// 1366 x 768) the Crate page never scrolls sideways and cuts nothing: the
+// hints wrap instead of widening it
+TEST_F(CrateAddServerFlowTest, CratePageFitsTheMockupWidth) {
+    const int width = mockupPageWidth();
+    ASSERT_GT(width, 0);
+    StyledCratePage styled(m_pServers.get(), width);
+    ASSERT_TRUE(styled.styled());
+    crate::DlgPrefCrate* pPage = styled.pPage;
+    EXPECT_LE(pPage->minimumSizeHint().width(), width);
+    EXPECT_EQ(width, pPage->width());
+    const QRect pageRect = pPage->rect();
+    const QList<QWidget*> widgets = pPage->findChildren<QWidget*>();
+    int checked = 0;
+    for (QWidget* pWidget : widgets) {
+        if (!pWidget->isVisibleTo(pPage) ||
+                !(qobject_cast<QPushButton*>(pWidget) || qobject_cast<QCheckBox*>(pWidget) ||
+                        qobject_cast<QLabel*>(pWidget))) {
+            continue;
+        }
+        const QRect rect(pWidget->mapTo(pPage, QPoint(0, 0)), pWidget->size());
+        EXPECT_TRUE(pageRect.contains(rect))
+                << pWidget->objectName().toStdString() << " is cut at x "
+                << rect.right() << " of " << pageRect.right();
+        if (qobject_cast<QPushButton*>(pWidget)) {
+            EXPECT_GE(pWidget->width(), pWidget->sizeHint().width())
+                    << pWidget->objectName().toStdString();
+        }
+        ++checked;
+    }
+    EXPECT_GT(checked, 40);
+}
+
+// V3.PR3: the page has the grammar of the mockups: sections headed by an
+// accent MonoLabel over a 1 px rule, no group boxes or framed boxes inside
+// them, mono never bold, and red only where something is destroyed
+TEST_F(CrateAddServerFlowTest, CratePageHasTheMockupsGrammar) {
+    StyledCratePage styled(m_pServers.get(), mockupPageWidth());
+    ASSERT_TRUE(styled.styled());
+    crate::DlgPrefCrate* pPage = styled.pPage;
+    EXPECT_TRUE(pPage->findChildren<QGroupBox*>().isEmpty());
+
+    const QList<crate::PrefsSection*> sections = pPage->findChildren<crate::PrefsSection*>();
+    // Servers, Cache, Auto DJ and Smart Mix, Crate analysis, Stems, This
+    // computer
+    EXPECT_EQ(6, sections.size());
+    for (const crate::PrefsSection* pSection : sections) {
+        EXPECT_QSTRING_EQ(QStringLiteral("CratePrefsSection"), pSection->objectName());
+        EXPECT_EQ(QFrame::NoFrame, pSection->frameShape());
+        auto* pHead = qobject_cast<QLabel*>(pSection->layout()->itemAt(0)->widget());
+        ASSERT_NE(nullptr, pHead);
+        EXPECT_QSTRING_EQ(QStringLiteral("MonoPrefsSection"), pHead->objectName());
+        EXPECT_QSTRING_EQ(QStringLiteral("accent"), pHead->property("crateTone").toString());
+        // The 1 px rule over the section is its top border
+        EXPECT_EQ(crate::DialogMetrics::installed().px("prefsSectionPaddingTop"),
+                pSection->layout()->contentsMargins().top());
+    }
+    const QList<QFrame*> frames = pPage->findChildren<QFrame*>();
+    for (const QFrame* pFrame : frames) {
+        if (qobject_cast<const QLabel*>(pFrame) ||
+                qobject_cast<const QAbstractScrollArea*>(pFrame)) {
+            continue;
+        }
+        EXPECT_EQ(QFrame::NoFrame, pFrame->frameShape()) << pFrame->objectName().toStdString();
+    }
+
+    // Mono is never bold
+    const QString mono = crate::DialogMetrics::installed().variables().value(
+            QStringLiteral("CrateFontMono"));
+    ASSERT_FALSE(mono.isEmpty());
+    int monoWidgets = 0;
+    const QList<QWidget*> widgets = pPage->findChildren<QWidget*>();
+    for (QWidget* pWidget : widgets) {
+        if (pWidget->font().family() == mono) {
+            ++monoWidgets;
+            EXPECT_LE(pWidget->font().weight(), QFont::Normal)
+                    << pWidget->objectName().toStdString();
+        }
+    }
+    EXPECT_GT(monoWidgets, 20);
+
+    // Buttons: outlined cyan by default, red only to destroy
+    const auto variantOf = [pPage](const char* name) {
+        auto* pButton = pPage->findChild<QPushButton*>(QLatin1String(name));
+        return pButton ? pButton->property("crateButton").toString() : QStringLiteral("none");
+    };
+    EXPECT_QSTRING_EQ(QStringLiteral("primary"), variantOf("crateAddServer"));
+    EXPECT_QSTRING_EQ(QStringLiteral("danger"), variantOf("crateRemoveServer"));
+    EXPECT_QSTRING_EQ(QStringLiteral("danger"), variantOf("crateClearCache"));
+    EXPECT_QSTRING_EQ(QStringLiteral("ghost"), variantOf("crateChooseCache"));
+    const QList<QPushButton*> buttons = pPage->findChildren<QPushButton*>();
+    for (const QPushButton* pButton : buttons) {
+        if (pButton->property("crateButton").toString() == QLatin1String("danger")) {
+            EXPECT_TRUE(pButton->objectName() == QLatin1String("crateRemoveServer") ||
+                    pButton->objectName() == QLatin1String("crateClearCache"))
+                    << pButton->objectName().toStdString();
+        }
+    }
+
+    // The servers' chips: cyan when signed in, amber when signed out
+    QStringList states;
+    const QList<QLabel*> badges = pPage->findChildren<QLabel*>(QStringLiteral("CrateStateBadge"));
+    for (const QLabel* pBadge : badges) {
+        states.append(pBadge->property("crateState").toString());
+    }
+    EXPECT_EQ(QStringList({QStringLiteral("signedIn"), QStringLiteral("signedOut")}), states);
+    const QString qss = crate::dialogStyleSheet(crate::resourcePath());
+    const crate::DialogMetrics& metrics = crate::DialogMetrics::installed();
+    for (const auto& [state, colour] : {std::pair{"signedIn", "CrateAccentHi"},
+                 std::pair{"signedOut", "CrateWarningText"}}) {
+        const QString selector =
+                QStringLiteral("#CrateStateBadge[crateState=\"%1\"]").arg(QLatin1String(state));
+        const qsizetype at = qss.indexOf(selector);
+        ASSERT_GE(at, 0) << state;
+        const QString body = qss.mid(at, qss.indexOf(u'}', at) - at);
+        EXPECT_TRUE(body.contains(metrics.colour(colour).name(), Qt::CaseInsensitive))
+                << state << " " << body.toStdString();
+    }
 }
 
 } // namespace

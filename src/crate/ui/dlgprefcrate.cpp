@@ -100,6 +100,7 @@ DlgPrefCrate::DlgPrefCrate(QWidget* pParent, CrateServers* pServers, const QStri
                                   "local network after confirming"),
             "CrateFormHelper",
             this);
+    pHelper->setWordWrap(true);
     pAddRow->addWidget(pHelper, 1);
     pServersSection->rows()->addLayout(pAddRow);
     m_pAddBox->setObjectName(QStringLiteral("crateAddServerBox"));

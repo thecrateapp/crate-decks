@@ -318,6 +318,7 @@
   <SetVariable name="CrateDlgDialogLogoWidth">{{dialogLogoWidth}}</SetVariable>
   <SetVariable name="CrateDlgDialogLogoHeight">{{dialogLogoHeight}}</SetVariable>
   <SetVariable name="CrateDlgIconButtonSize">{{iconButtonSize}}</SetVariable>
+  <SetVariable name="CrateDlgScrollbarWidth">{{scrollbarWidth}}</SetVariable>
   <SetVariable name="CrateDlgPrefsWidth">{{prefsWidth}}</SetVariable>
   <SetVariable name="CrateDlgPrefsHeight">{{prefsHeight}}</SetVariable>
   <SetVariable name="CrateDlgPrefsNavWidth">{{prefsNavWidth}}</SetVariable>
