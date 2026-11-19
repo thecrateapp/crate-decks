@@ -18,7 +18,7 @@
 
 | Repo | Contenido | Ramas |
 |---|---|---|
-| `thecrateapp/crate-decks` (independiente, basado en `mixxxdj/mixxx`, fuera de la red de forks de GitHub) | Cliente de escritorio | `main` = `upstream` + código de Crate. `upstream` solo sirve para traer cambios de Mixxx (AGENTS.md §9) |
+| `thecrateapp/crate-decks` (independiente, basado en `mixxxdj/mixxx`, fuera de la red de forks de GitHub) | Cliente de escritorio | Fork duro desde el 2026-11-19: `upstream` solo sirve para traer con cherry-pick arreglos concretos de Mixxx (AGENTS.md §9) |
 | `thecrateapp/crate` (monorepo) | Cambios de servidor S1–S7 y documentación canónica | `feat/decks-server-<tema>` desde `main` en un worktree propio (`worktrees/decks-server-<tema>`) |
 
 ### 0.2. Reglas
@@ -1769,7 +1769,7 @@ La vista del plan de Smart Mix sale de este PR y pasa a V3.PR1b (Diego, 2026-11-
 
 ### V4 · Interfaz QML (etapa 2, solo tras GU2)
 
-**No se empieza sin GU2.** GU2 se evalúa con los criterios de §14.4 del diseño, nunca antes de la primera release.
+**No se empieza sin GU2.** GU2 se evalúa con los criterios de §14.4 del diseño, nunca antes de la primera release. Desde el fork duro (Diego, 2026-11-19) no dependen de upstream: la interfaz QML heredada la terminaríamos nosotros.
 
 Esquema previsto (se detallará en un plan propio cuando GU2 lo apruebe):
 1. **Skin QML:** derivar `res/skins/LateNightQML` en `res/skins/CrateDecksQML`; su tema sale del `Theme.qml` que V1 ya genera.
@@ -1819,7 +1819,7 @@ Esquema previsto (se detallará en un plan propio cuando GU2 lo apruebe):
 
 | Tarea | Frecuencia | Responsable |
 |---|---|---|
-| Traer cambios de Mixxx (`docs/mixxx-merges.md`) | Cuando Diego lo decide: tags estables, arreglos de motor, audio, controladoras o seguridad | Agente con revisión de Diego si hay conflictos en ficheros parcheados |
+| Traer arreglos de Mixxx con cherry-pick (`docs/mixxx-merges.md`) | Cuando un arreglo de upstream (motor, audio, controladoras, seguridad o un fallo que nos afecta) resuelve algo nuestro; Diego decide. Sin merges de tags: fork duro desde el 2026-11-19 | Agente con revisión de Diego si hay conflictos en ficheros parcheados |
 | Revisar `CRATE_PATCHES.md`: ¿qué parches se pueden reducir o convertir en hooks genéricos? | Trimestral | Diego decide; nada va a Mixxx |
 | Paridad de curvas y comportamiento de Smart Mix con Android | Cada cambio del planner o de las curvas en el monorepo | Test `MatchesAndroidReferenceValues` actualizado con la tabla nueva |
 | Sincronía de tokens con `app/shared/ui/tokens/`, `MonoLabel`, GenreWheel y StackMap (siempre desde `origin/main`) | En cada cambio de esos ficheros en el monorepo | PR en el fork que actualiza `tokens.json`, regenera y adjunta capturas |
@@ -1834,7 +1834,7 @@ Esquema previsto (se detallará en un plan propio cuando GU2 lo apruebe):
 | ~~F0 muestra que `Beats` importados se reanalizan igualmente~~ | Q3: no se reanalizan (10 de 10, medido) | Ninguna; el riesgo queda cerrado |
 | Desviación de arranque > 10 ms desde el hilo principal | Q7 en rojo | Mover el disparo a un `EngineControl` propio en el hilo del motor (parche más grande; evaluar en G0) |
 | El modo de AutoDJ externo necesita reescribir `AutoDJProcessor` | Q8 con más de 300 líneas de parche | Implementar el director como "AutoDJ paralelo" propio que usa la cola de Mixxx pero no su procesador |
-| Conflictos al traer cambios de Mixxx en ficheros parcheados | Más de 2 conflictos por merge | Reducir parches moviendo lógica a señales y slots externos o a hooks genéricos; traer solo tags estables o arreglos concretos |
+| Conflictos al traer arreglos de Mixxx en ficheros parcheados | Un cherry-pick que choca con varios parches | Reducir parches moviendo lógica a señales y slots externos o a hooks genéricos; si no compensa, rehacer el arreglo aquí |
 | Q13 muestra que QSS no llega al aspecto del admin | Capturas que no se reconocen como Crate | Ampliar los controles SVG propios y los delegates (sin tocar el motor); si aun así no basta, reevaluar en G0 adelantar QML con LateNightQML, aceptando el riesgo de §14.2 |
 | El QSS de la biblioteca degrada el scroll | Q14 o una medida de V2 por debajo del presupuesto | Sacar estilos de las reglas `::item` a delegates; simplificar selectores |
 | Divergencia entre `tokens.json` y el admin | El admin cambia de paleta y Decks no | Revisión en el trabajo continuo: cada cambio en `app/shared/ui/tokens/` abre un issue en el fork |

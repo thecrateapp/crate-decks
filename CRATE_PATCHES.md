@@ -2,7 +2,7 @@
 
 Cada fichero de Mixxx que Crate Decks cambia o borra. Todo PR que toque un fichero de Mixxx actualiza esta tabla (AGENTS.md §5.2). La lista cerrada de parches previstos está en §5.2 del [diseño](docs/plans/2026-11-02-crate-decks-design.md).
 
-Al traer cambios de Mixxx ([docs/mixxx-merges.md](docs/mixxx-merges.md)), los conflictos salen de estos ficheros. Cuanto más corta sea la tabla, más baratos son esos merges.
+Al traer arreglos de Mixxx con cherry-pick ([docs/mixxx-merges.md](docs/mixxx-merges.md)), los conflictos salen de estos ficheros. Cuanto más corta sea la tabla, más fácil es aplicarlos.
 
 | Fichero | Cambio y motivo | Origen | ¿Hook genérico? | Estado |
 | --- | --- | --- | --- | --- |
