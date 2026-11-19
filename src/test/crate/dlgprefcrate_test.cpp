@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include <QAbstractScrollArea>
+#include <QApplication>
 #include <QButtonGroup>
 #include <QCheckBox>
 #include <QComboBox>
@@ -44,6 +45,7 @@
 #include "crate/system/systemcheck.h"
 #include "crate/ui/cratefirstrun.h"
 #include "crate/ui/crateprefsections.h"
+#include "crate/ui/dialogs/cratedialog.h"
 #include "crate/ui/dialogs/dialogscrim.h"
 #include "crate/ui/dialogs/dialogstyle.h"
 #include "skin/legacy/launchimage.h"
@@ -1435,6 +1437,38 @@ TEST_F(CrateAddServerFlowTest, CratePageHasTheMockupsGrammar) {
         EXPECT_TRUE(body.contains(metrics.colour(colour).name(), Qt::CaseInsensitive))
                 << state << " " << body.toStdString();
     }
+}
+
+// V3.PR3: "Clear cache" asks first in a Crate dialog, with the action named
+// and red; Cancel deletes nothing. TEST_GAP: what Clear deletes is
+// AudioCache::clear(), tested in audiocache_test.cpp.
+TEST_F(CrateAddServerFlowTest, ClearCacheAsksInRedFirst) {
+    const crate::Confirmation confirmation = crate::DlgPrefCrate::clearCacheConfirmation();
+    EXPECT_TRUE(confirmation.destructive);
+    EXPECT_QSTRING_EQ(QStringLiteral("Clear cache"), confirmation.action);
+
+    crate::DlgPrefCrate page(nullptr, m_pServers.get());
+    crate::cache::AudioCache* pAudioCache = m_pServers->audioCache();
+    ASSERT_NE(nullptr, pAudioCache);
+    ASSERT_TRUE(QTest::qWaitFor([&] { return pAudioCache->isLoaded(); }, 5000));
+    QString title;
+    QString variant;
+    bool wasDefault = true;
+    QTimer::singleShot(0, &page, [&] {
+        auto* pDialog = qobject_cast<QDialog*>(QApplication::activeModalWidget());
+        ASSERT_NE(nullptr, pDialog);
+        title = pDialog->findChild<QLabel*>(QStringLiteral("CrateDialogHeading"))->text();
+        auto* pConfirm = pDialog->findChild<QPushButton*>(QStringLiteral("crateConfirm"));
+        ASSERT_NE(nullptr, pConfirm);
+        variant = pConfirm->property("crateButton").toString();
+        wasDefault = pConfirm->isDefault();
+        pDialog->findChild<QPushButton*>(QStringLiteral("crateCancel"))->click();
+    });
+    page.cacheSection()->clear()->click();
+    EXPECT_QSTRING_EQ(QStringLiteral("Clear the cache?"), title);
+    EXPECT_QSTRING_EQ(QStringLiteral("danger"), variant);
+    EXPECT_FALSE(wasDefault);
+    EXPECT_EQ(nullptr, QApplication::activeModalWidget());
 }
 
 } // namespace

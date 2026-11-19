@@ -15,6 +15,7 @@ class QWidget;
 namespace crate {
 
 class AddServerWidget;
+struct Confirmation;
 class AnalysisSection;
 class CacheSection;
 class CacheStatusModel;
@@ -76,6 +77,10 @@ class DlgPrefCrate : public DlgPreferencePage {
     system::PowerHelper* powerHelper() const {
         return m_pPowerHelper;
     }
+
+    /// "Clear the cache?", which "Clear cache" asks before it deletes
+    /// anything: red, as it destroys the cached tracks.
+    static Confirmation clearCacheConfirmation();
 
   public slots:
     void slotUpdate() override;

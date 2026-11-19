@@ -1,6 +1,7 @@
 #include "crate/ui/dlgprefcrate.h"
 
 #include <QCheckBox>
+#include <QDialog>
 #include <QDir>
 #include <QFileDialog>
 #include <QFrame>
@@ -8,10 +9,10 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
-#include <QMessageBox>
 #include <QPushButton>
 #include <QStringList>
 #include <QVBoxLayout>
+#include <memory>
 
 #include "crate/cache/audiocache.h"
 #include "crate/cratepreferences.h"
@@ -24,6 +25,7 @@
 #include "crate/ui/cachestatusmodel.h"
 #include "crate/ui/crateaddserverwidget.h"
 #include "crate/ui/crateprefsections.h"
+#include "crate/ui/dialogs/cratedialog.h"
 #include "crate/ui/dialogs/dialogstyle.h"
 
 namespace crate {
@@ -273,13 +275,22 @@ void DlgPrefCrate::clearCache() {
     if (!pCache) {
         return;
     }
-    const QMessageBox::StandardButton answer = QMessageBox::question(this,
-            tr("Clear cache"),
-            tr("Delete the cached tracks from this computer? Offline sets and the "
-               "downloads on their way stay."));
-    if (answer == QMessageBox::Yes) {
+    const std::unique_ptr<CrateDialog> pConfirm(createConfirmation(clearCacheConfirmation(), this));
+    if (pConfirm->exec() == QDialog::Accepted) {
         pCache->clear();
     }
+}
+
+Confirmation DlgPrefCrate::clearCacheConfirmation() {
+    Confirmation confirmation;
+    confirmation.context = tr("Cache");
+    confirmation.title = tr("Clear the cache?");
+    confirmation.text = tr(
+            "Delete the cached tracks from this computer? Offline sets and the "
+            "downloads on their way stay.");
+    confirmation.action = tr("Clear cache");
+    confirmation.destructive = true;
+    return confirmation;
 }
 
 void DlgPrefCrate::slotResetToDefaults() {
