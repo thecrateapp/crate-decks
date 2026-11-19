@@ -15,6 +15,7 @@
 #include <QStackedWidget>
 #include <QTreeWidget>
 #include <QVBoxLayout>
+#include <utility>
 
 #include "crate/appidentity.h"
 #include "crate/ui/delegates/delegatestyle.h"
@@ -30,15 +31,17 @@ QString translate(const char* text) {
     return QCoreApplication::translate("crate::Preferences", text);
 }
 
-/// A button of the foot that stands for one of upstream's: same text, enabled
-/// and shown when it is, and a click clicks upstream's button, so that
-/// DlgPreferences sees the role it expects.
+/// A button of the foot that stands for one of upstream's: same text (or
+/// `label`, the mockup's), the same mnemonic, enabled and shown when it is,
+/// and a click clicks upstream's button, so that DlgPreferences sees the role
+/// it expects.
 class ButtonMirror : public QObject {
   public:
-    ButtonMirror(QAbstractButton* pOriginal, QPushButton* pMirror)
+    ButtonMirror(QAbstractButton* pOriginal, QPushButton* pMirror, QString label)
             : QObject(pMirror),
               m_pOriginal(pOriginal),
-              m_pMirror(pMirror) {
+              m_pMirror(pMirror),
+              m_label(std::move(label)) {
         pOriginal->installEventFilter(this);
         QObject::connect(pMirror, &QPushButton::clicked, pOriginal, &QAbstractButton::click);
         sync();
@@ -64,7 +67,8 @@ class ButtonMirror : public QObject {
     void sync() {
         // The mnemonic without its underline, which the mockups do not draw
         const QString text = m_pOriginal->text();
-        m_pMirror->setText(QString(text).remove(QLatin1Char('&')));
+        m_pMirror->setText(
+                m_label.isEmpty() ? QString(text).remove(QLatin1Char('&')) : m_label);
         m_pMirror->setShortcut(QKeySequence::mnemonic(text));
         m_pMirror->setEnabled(m_pOriginal->isEnabled());
         m_pMirror->setVisible(!m_pOriginal->isHidden());
@@ -72,6 +76,7 @@ class ButtonMirror : public QObject {
 
     QAbstractButton* m_pOriginal;
     QPushButton* m_pMirror;
+    const QString m_label;
 };
 
 /// The mockups' page padding on a page of the stack (a QScrollArea around
@@ -167,7 +172,19 @@ void stylePreferences(QDialog* pDialog) {
     // The foot: upstream's buttons stay in their box, hidden, and the foot
     // shows them in the mockups' order
     QHBoxLayout* pFoot = pChrome->footLayout();
-    const auto mirror = [pButtons, pDialog](QDialogButtonBox::StandardButton which,
+    // The mockup's labels where upstream's differ ("&Restore Defaults",
+    // "&Ok"); the others keep upstream's text and its translations
+    const auto labelOf = [](QDialogButtonBox::StandardButton which) {
+        switch (which) {
+        case QDialogButtonBox::RestoreDefaults:
+            return translate("Restore defaults");
+        case QDialogButtonBox::Ok:
+            return translate("OK");
+        default:
+            return QString();
+        }
+    };
+    const auto mirror = [pButtons, pDialog, labelOf](QDialogButtonBox::StandardButton which,
                                 const char* variant) -> QPushButton* {
         QPushButton* pOriginal = pButtons->button(which);
         if (!pOriginal) {
@@ -176,7 +193,7 @@ void stylePreferences(QDialog* pDialog) {
         auto* pMirror = new QPushButton(pDialog);
         pMirror->setObjectName(QStringLiteral("CratePrefsButton"));
         setButtonVariant(pMirror, variant, true);
-        new ButtonMirror(pOriginal, pMirror);
+        new ButtonMirror(pOriginal, pMirror, labelOf(which));
         return pMirror;
     };
     for (const auto& [which, variant] :

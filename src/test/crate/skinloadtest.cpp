@@ -20,6 +20,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QKeySequence>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMap>
@@ -708,12 +709,14 @@ TEST_F(CrateSkinLoadTest, PreferencesHaveTheMockupsDialog) {
             pOk = pButton;
         }
     }
-    EXPECT_EQ((QStringList{QStringLiteral("Restore Defaults"),
+    // The mockup's labels (Diego, 2026-11-19), with upstream's mnemonics
+    EXPECT_EQ((QStringList{QStringLiteral("Restore defaults"),
                       QStringLiteral("Help"),
                       QStringLiteral("Cancel"),
                       QStringLiteral("Apply"),
-                      QStringLiteral("Ok")}),
+                      QStringLiteral("OK")}),
             foot);
+    EXPECT_EQ(QKeySequence::mnemonic(QStringLiteral("&Ok")), pOk->shortcut());
     ASSERT_NE(nullptr, pOk);
     pPreferences->show();
     EXPECT_TRUE(pPreferences->isVisible());
