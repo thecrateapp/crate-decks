@@ -1,12 +1,12 @@
 #pragma once
 
-#include <QDialog>
 #include <QObject>
 #include <QPointer>
 #include <QString>
 
 #include "crate/client/crateresult.h"
 #include "crate/recs/recsjson.h"
+#include "crate/ui/dialogs/cratedialog.h"
 
 class QButtonGroup;
 class QLabel;
@@ -76,8 +76,10 @@ class CratePathSource : public QObject {
     QPointer<Reply> m_pReply;
 };
 
-/// "Music Path from A to B": how many tracks, and where they go.
-class CratePathDialog : public QDialog {
+/// "Music Path from A to B": how many tracks, and where they go. A dialog
+/// of Decks' own (plan V3.PR3): the tracks and the destination are sections
+/// of the first start's grammar, and "Make the path" accepts it.
+class CratePathDialog : public CrateDialog {
     Q_OBJECT
   public:
     CratePathDialog(const QString& fromLabel, const QString& toLabel, QWidget* pParent = nullptr);

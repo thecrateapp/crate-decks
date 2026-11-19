@@ -1,8 +1,7 @@
 #include "crate/recs/cratepathsource.h"
 
 #include <QButtonGroup>
-#include <QDialogButtonBox>
-#include <QFormLayout>
+#include <QHBoxLayout>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QLabel>
@@ -13,6 +12,7 @@
 
 #include "crate/client/crateclient.h"
 #include "crate/recs/recommendationqueue.h"
+#include "crate/ui/dialogs/dialogstyle.h"
 #include "moc_cratepathsource.cpp"
 #include "util/logger.h"
 
@@ -114,38 +114,47 @@ void CratePathSource::onReply(Reply* pReply, const PathRequest& request, const J
 
 CratePathDialog::CratePathDialog(
         const QString& fromLabel, const QString& toLabel, QWidget* pParent)
-        : QDialog(pParent),
+        : CrateDialog(
+                  //: The title of the dialog that asks Crate for a Music Path between
+                  //: two tracks
+                  tr("Music Path"),
+                  tr("Music Path"),
+                  //: %1 and %2 are tracks: "Artist - Title"
+                  tr("A path of tracks from %1 to %2, through the sound of your library.")
+                          .arg(fromLabel, toLabel),
+                  pParent),
           m_pSteps(new QSpinBox(this)),
           m_pToQueue(new QRadioButton(tr("Add to the Auto DJ queue"), this)),
           m_pToPlaylist(new QRadioButton(tr("Save as a new playlist"), this)) {
-    //: The title of the dialog that asks Crate for a Music Path between two tracks
-    setWindowTitle(tr("Music Path"));
-    auto* pLayout = new QVBoxLayout(this);
-    auto* pIntro = new QLabel(
-            //: %1 and %2 are tracks: "Artist - Title"
-            tr("A path of tracks from %1 to %2, through the sound of your library.")
-                    .arg(fromLabel, toLabel),
-            this);
-    pIntro->setWordWrap(true);
-    pLayout->addWidget(pIntro);
-
-    auto* pForm = new QFormLayout();
+    QVBoxLayout* pTracks = addSection(tr("Tracks"));
+    m_pSteps->setObjectName(QStringLiteral("cratePathSteps"));
     m_pSteps->setRange(PathRequest::kMinSteps, PathRequest::kMaxSteps);
     m_pSteps->setValue(20);
-    pForm->addRow(tr("Tracks"), m_pSteps);
-    pLayout->addLayout(pForm);
+    m_pSteps->setAccessibleName(tr("Tracks"));
+    auto* pRow = new QHBoxLayout();
+    pRow->setSpacing(DialogMetrics::installed().px("helperGap"));
+    pRow->addWidget(m_pSteps);
+    auto* pHelper = new QLabel(
+            //: The range of the number of tracks of a Music Path
+            tr("%1 to %2 tracks, both ends included")
+                    .arg(QString::number(PathRequest::kMinSteps),
+                            QString::number(PathRequest::kMaxSteps)),
+            this);
+    pHelper->setObjectName(QStringLiteral("CrateFormHelper"));
+    pHelper->setTextFormat(Qt::PlainText);
+    pRow->addWidget(pHelper, 1);
+    pTracks->addLayout(pRow);
 
+    QVBoxLayout* pDestination = addSection(tr("Destination"));
     auto* pDestinations = new QButtonGroup(this);
     pDestinations->addButton(m_pToQueue);
     pDestinations->addButton(m_pToPlaylist);
     m_pToQueue->setChecked(true);
-    pLayout->addWidget(m_pToQueue);
-    pLayout->addWidget(m_pToPlaylist);
+    pDestination->addWidget(m_pToQueue);
+    pDestination->addWidget(m_pToPlaylist);
 
-    auto* pButtons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
-    connect(pButtons, &QDialogButtonBox::accepted, this, &QDialog::accept);
-    connect(pButtons, &QDialogButtonBox::rejected, this, &QDialog::reject);
-    pLayout->addWidget(pButtons);
+    addAction(tr("Make the path"), QStringLiteral("crateConfirm"), Action::Primary);
+    addAction(tr("Cancel"), QStringLiteral("crateCancel"), Action::Cancel);
 }
 
 int CratePathDialog::steps() const {
