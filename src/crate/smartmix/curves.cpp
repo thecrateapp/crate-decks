@@ -69,6 +69,23 @@ double stagingGain(double gainDb) {
     return gainFromDb(std::min(0.0, gainDb));
 }
 
+std::optional<double> replayGainDifferenceDb(
+        bool replayGainOn, double outgoingReplayGain, double incomingReplayGain) {
+    if (!replayGainOn || !std::isfinite(outgoingReplayGain) ||
+            !std::isfinite(incomingReplayGain) || outgoingReplayGain <= 0.0 ||
+            incomingReplayGain <= 0.0) {
+        return std::nullopt;
+    }
+    return dbFromGain(incomingReplayGain / outgoingReplayGain);
+}
+
+double incomingStagingDb(double planIncomingGainDb, std::optional<double> replayGainDifferenceDb) {
+    if (!std::isfinite(planIncomingGainDb)) {
+        return 0.0;
+    }
+    return std::min(0.0, planIncomingGainDb - replayGainDifferenceDb.value_or(0.0));
+}
+
 double stagingFactor(Role role, double progress, double stagingGain) {
     // Android passes the envelope's own progress, already within [0, 1].
     const double safe = clampUnit(progress);

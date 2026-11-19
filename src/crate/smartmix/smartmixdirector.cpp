@@ -22,6 +22,7 @@ namespace {
 const mixxx::Logger kLogger("SmartMixDirector");
 
 const QString kMixerGroup = QStringLiteral("[Master]");
+const QString kReplayGainGroup = QStringLiteral("[ReplayGain]");
 // EngineChannel::ChannelOrientation, as [ChannelN],orientation holds it.
 constexpr int kOrientationLeft = 0;
 constexpr int kOrientationRight = 2;
@@ -114,6 +115,10 @@ struct SmartMixDirector::Deck {
                       QStringLiteral("orientation"),
                       nullptr,
                       ControlFlag::NoAssertIfMissing),
+              replayGain(group,
+                      QStringLiteral("replaygain"),
+                      nullptr,
+                      ControlFlag::NoAssertIfMissing),
               midGain(eqmap::effectGroup(group),
                       eqmap::kMidGain,
                       nullptr,
@@ -153,6 +158,8 @@ struct SmartMixDirector::Deck {
     ControlProxy syncEnabled;
     ControlProxy keylock;
     ControlProxy orientation;
+    /// The track's ReplayGain ratio, 0 without data
+    ControlProxy replayGain;
     ControlProxy midGain;
     ControlProxy highGain;
     ControlProxy lowKill;
@@ -548,6 +555,18 @@ void SmartMixDirector::prepare() {
             : 0.0;
     incoming.pregainBase = 1.0;
     incoming.lowCutDbBase = 0.0;
+    // ReplayGain already matched the decks' loudness: the incoming deck
+    // stages only the residual of the plan's gain (G4 finding 3)
+    const ControlProxy replayGainOn(kReplayGainGroup,
+            QStringLiteral("ReplayGainEnabled"),
+            nullptr,
+            ControlFlag::NoAssertIfMissing);
+    m_report.replayGainDifferenceDb = curves::replayGainDifferenceDb(replayGainOn.valid() &&
+                    replayGainOn.toBool(),
+            outgoing.replayGain.valid() ? outgoing.replayGain.get() : 0.0,
+            incoming.replayGain.valid() ? incoming.replayGain.get() : 0.0);
+    m_report.incomingStagingDb =
+            curves::incomingStagingDb(m_plan->incomingGainDb, m_report.replayGainDifferenceDb);
     m_lastProgress = -1.0;
     m_loggedStep = -1;
     for (const Deck* pDeck : {&outgoing, &incoming}) {
@@ -622,20 +641,26 @@ void SmartMixDirector::startIncoming(double nowMs) {
         finish(State::FellBack, QStringLiteral("insufficient_window"));
         return;
     }
-    const double lateMs = std::max(0.0, (outgoingMs - m_startAtMs) / rate);
+    // The incoming deck starts at the next audio callback, which plays the
+    // outgoing deck from its engine position: off the cue by this much, in
+    // output time, early or late (G4 finding 2)
+    const double offsetMs = (outgoingMs - m_startAtMs) / rate;
+    const double lateMs = std::max(0.0, offsetMs);
     double incomingStartMs = static_cast<double>(m_plan->startIncomingCueMs());
-    if (lateMs > kLateStartToleranceMs) {
-        // Late (a long outro, a seek forward): start where the incoming deck
-        // would already be, so the beats stay aligned (spike review).
+    if (std::abs(offsetMs) > kStartAlignToleranceMs) {
+        // Start where the incoming deck would be, so the beats stay aligned
+        // (spike review): ahead on a late start (a long outro, a seek
+        // forward), back on an early one
         const double incomingRate = m_plan->isBeatmatch()
                 ? m_plan->incomingTempoRatio * rate
                 : std::max(incoming.rate->get(), 0.0);
-        incomingStartMs += lateMs * incomingRate;
+        incomingStartMs = std::max(0.0, incomingStartMs + offsetMs * incomingRate);
         incoming.pendingSeekMs = incomingStartMs;
     }
     incoming.pendingPlay = 1.0;
     m_report.mixed = true;
     m_report.lateMs = lateMs;
+    m_report.startOffsetMs = offsetMs;
     m_report.startOutgoingMs = outgoingMs;
     m_report.incomingStartMs = incomingStartMs;
     m_report.durationMs = boundedMs;
@@ -643,7 +668,7 @@ void SmartMixDirector::startIncoming(double nowMs) {
     m_runRate = rate;
     kLogger.info() << "Incoming" << incoming.group << "started at" << incomingStartMs
                    << "ms with the outgoing deck at" << outgoingMs << "ms (planned"
-                   << m_startAtMs << "ms, late" << lateMs << "ms, beat clock"
+                   << m_startAtMs << "ms, off by" << offsetMs << "ms, beat clock"
                    << m_report.usedBeatClock << ")";
     setState(State::Running);
     if (boundedMs <= 0.0) {
@@ -680,7 +705,7 @@ void SmartMixDirector::applyMix(double progress) {
     const double outgoingStaging = curves::stagingFactor(
             curves::Role::Outgoing, progress, curves::stagingGain(plan.outgoingGainDb));
     const double incomingStaging = curves::stagingFactor(
-            curves::Role::Incoming, progress, curves::stagingGain(plan.incomingGainDb));
+            curves::Role::Incoming, progress, curves::stagingGain(m_report.incomingStagingDb));
 
     // The levels Android gives each deck: the crossfade's equal-power gains
     // times the plan's staging. The crossfader sets their balance with the

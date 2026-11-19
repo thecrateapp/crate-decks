@@ -7,6 +7,7 @@
 #include <QStringList>
 #include <QTextStream>
 #include <limits>
+#include <optional>
 #include <utility>
 
 #include "test/mixxxtest.h"
@@ -112,6 +113,39 @@ TEST_F(CrateCurvesTest, StagingOnlyLowersATrack) {
     EXPECT_DOUBLE_EQ(crate::curves::stagingGain(3.0), 1.0);
     EXPECT_NEAR(crate::curves::stagingGain(-6.0), 0.501187, 1e-6);
     EXPECT_DOUBLE_EQ(crate::curves::stagingGain(std::numeric_limits<double>::quiet_NaN()), 1.0);
+}
+
+// G4 finding 3 (Diego, 2026-11-19): with ReplayGain on, the difference it
+// makes between the decks, in dB; none when it is off or a deck has no data.
+TEST_F(CrateCurvesTest, ReplayGainDifferenceNeedsReplayGainAndBothTracks) {
+    using crate::curves::replayGainDifferenceDb;
+    // The incoming track is boosted 6 dB more than the outgoing one
+    ASSERT_TRUE(replayGainDifferenceDb(true, 0.5, 1.0).has_value());
+    EXPECT_NEAR(*replayGainDifferenceDb(true, 0.5, 1.0), 6.0206, 1e-4);
+    EXPECT_NEAR(*replayGainDifferenceDb(true, 0.3577, 0.2939), -1.7071, 1e-3);
+    EXPECT_DOUBLE_EQ(*replayGainDifferenceDb(true, 0.4, 0.4), 0.0);
+    // ReplayGain off
+    EXPECT_FALSE(replayGainDifferenceDb(false, 0.5, 1.0).has_value());
+    // One deck without data for its track (0), or both
+    EXPECT_FALSE(replayGainDifferenceDb(true, 0.0, 1.0).has_value());
+    EXPECT_FALSE(replayGainDifferenceDb(true, 0.5, 0.0).has_value());
+    EXPECT_FALSE(replayGainDifferenceDb(true, 0.0, 0.0).has_value());
+}
+
+// The incoming deck stages the plan's gain less what ReplayGain already did,
+// and never a boost.
+TEST_F(CrateCurvesTest, IncomingStagingIsTheResidualOfThePlanGain) {
+    using crate::curves::incomingStagingDb;
+    // Without a difference: the plan's gain, a positive one as 0 dB
+    EXPECT_DOUBLE_EQ(incomingStagingDb(-4.0, std::nullopt), -4.0);
+    EXPECT_DOUBLE_EQ(incomingStagingDb(2.0, std::nullopt), 0.0);
+    // ReplayGain lowered the incoming deck 1.7 dB against the outgoing one:
+    // 1.7 dB of the plan's -4.65 dB are done
+    EXPECT_NEAR(incomingStagingDb(-4.6544, -1.7071), -2.9473, 1e-9);
+    // ReplayGain boosted it: more of a cut is left
+    EXPECT_NEAR(incomingStagingDb(-3.0, 2.0), -5.0, 1e-9);
+    // ReplayGain did more than the plan asked: no boost back
+    EXPECT_DOUBLE_EQ(incomingStagingDb(-3.0, -5.0), 0.0);
 }
 
 TEST_F(CrateCurvesTest, TempoRestoreIsAStraightLineOverFourSeconds) {
