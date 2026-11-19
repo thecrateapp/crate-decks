@@ -557,6 +557,7 @@ QtObject {
     readonly property real cacheGaugeTickShort: {{cacheGaugeTickShort}}
     readonly property real cacheLimitWidth: {{cacheLimitWidth}}
     readonly property real cacheLimitMaximum: {{cacheLimitMaximum}}
+    readonly property real numberFieldWidth: {{numberFieldWidth}}
     readonly property real fontSizeUsage: {{fontSizeUsage}}
     readonly property real usageGap: {{usageGap}}
     readonly property real usageBottom: {{usageBottom}}

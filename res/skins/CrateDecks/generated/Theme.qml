@@ -557,6 +557,7 @@ QtObject {
     readonly property real cacheGaugeTickShort: 2
     readonly property real cacheLimitWidth: 52
     readonly property real cacheLimitMaximum: 100
+    readonly property real numberFieldWidth: 96
     readonly property real fontSizeUsage: 26
     readonly property real usageGap: 16
     readonly property real usageBottom: 12
