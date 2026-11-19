@@ -159,6 +159,37 @@ TEST_F(CrateClientTest, RetriesIdempotentOn503WithBackoff) {
     EXPECT_EQ(503, outcome.result->error().httpStatus);
 }
 
+// Every finished request says whether the server answered (V3.PR3): any
+// HTTP answer, an error status included, is an answer; a network failure
+// after the retries is not; a cancelled request says nothing
+TEST_F(CrateClientTest, SaysWhetherTheServerAnswered) {
+    const auto pClient = makeClient();
+    QSignalSpy answered(pClient.get(), &Client::answered);
+
+    Outcome ok(pClient->get(QStringLiteral("/api/capabilities")));
+    lastReply()->respond(200, QByteArrayLiteral("{}"));
+    ASSERT_EQ(1, answered.size());
+    EXPECT_TRUE(answered.takeFirst().at(0).toBool());
+
+    Outcome notFound(pClient->post(QStringLiteral("/api/playlists"), QJsonDocument(QJsonObject())));
+    lastReply()->respond(404);
+    ASSERT_EQ(1, answered.size());
+    EXPECT_TRUE(answered.takeFirst().at(0).toBool());
+
+    Outcome unreachable(pClient->get(QStringLiteral("/api/me")));
+    for (int attempt = 0; attempt < 3; ++attempt) {
+        lastReply()->failNetwork();
+        m_scheduler.runAll();
+    }
+    ASSERT_TRUE(unreachable.finished());
+    ASSERT_EQ(1, answered.size());
+    EXPECT_FALSE(answered.takeFirst().at(0).toBool());
+
+    Reply* pCancelled = pClient->get(QStringLiteral("/api/tracks"));
+    pCancelled->cancel();
+    EXPECT_TRUE(answered.isEmpty());
+}
+
 TEST_F(CrateClientTest, DoesNotRetryPost) {
     const auto pClient = makeClient();
     Outcome outcome(pClient->post(QStringLiteral("/api/playlists"), QJsonDocument(QJsonObject())));

@@ -3,6 +3,7 @@
 #include <QHash>
 #include <QList>
 #include <QObject>
+#include <QSet>
 #include <QSqlDatabase>
 #include <QString>
 #include <QUrl>
@@ -11,6 +12,7 @@
 #include <vector>
 
 #include "crate/client/cratecapabilities.h"
+#include "crate/crateserverrows.h"
 #include "crate/session/cratesession.h"
 #include "preferences/usersettings.h"
 #include "util/db/dbconnectionpool.h"
@@ -150,6 +152,16 @@ class CrateServers : public QObject {
     /// capabilities.
     bool serverHas(const QString& serverId, DecksFeature feature) const;
 
+    /// Whether the server answers (Diego, 2026-11-19, plan V3.PR3): what
+    /// its last request learned (Client::answered()), Unknown until one
+    /// finishes.
+    Reachability reachability(const QString& serverId) const;
+    /// Asks every signed-in server that is not being asked already for its
+    /// capabilities (`GET /api/capabilities`, without the session): a light
+    /// check that the preferences page runs when it opens, and CrateServers
+    /// when the network changes. Its answer updates the server's features.
+    void checkReachability();
+
     /// Whether a server with this origin is kept or being added.
     bool hasOrigin(const QUrl& origin) const;
     /// Whether the server is saved: signed in once and stored.
@@ -161,6 +173,8 @@ class CrateServers : public QObject {
     void capabilitiesChanged(const QString& serverId);
     /// audioCache() created the cache.
     void audioCacheCreated();
+    /// reachability() of the server changed.
+    void reachabilityChanged(const QString& serverId);
 
   private:
     struct Server;
@@ -168,6 +182,7 @@ class CrateServers : public QObject {
     /// The outbox, started once the tables exist, and the history reporter.
     void createWriteback();
     bool save(Server* pServer);
+    void setReachability(const QString& serverId, Reachability reachability);
     QSqlDatabase database() const;
 
     Dependencies m_dependencies;
@@ -186,6 +201,9 @@ class CrateServers : public QObject {
     std::unique_ptr<writeback::CrateCorrections> m_pCorrections;
     /// The last capabilities of each server, as serverHas() read them.
     mutable QHash<QString, std::optional<Capabilities>> m_features;
+    QHash<QString, Reachability> m_reachability;
+    /// The servers that checkReachability() is asking.
+    QSet<QString> m_checking;
 };
 
 } // namespace crate

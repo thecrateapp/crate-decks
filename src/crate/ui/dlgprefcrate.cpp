@@ -10,6 +10,7 @@
 #include <QLineEdit>
 #include <QListWidget>
 #include <QPushButton>
+#include <QShowEvent>
 #include <QStringList>
 #include <QVBoxLayout>
 #include <memory>
@@ -158,9 +159,22 @@ DlgPrefCrate::DlgPrefCrate(QWidget* pParent, CrateServers* pServers, const QStri
     connect(m_pAddServer, &AddServerWidget::serverAdded, this, closeForm);
     if (m_pServers) {
         connect(m_pServers, &CrateServers::serversChanged, this, &DlgPrefCrate::slotUpdate);
+        // Online or Offline, as the servers' requests learn it
+        connect(m_pServers,
+                &CrateServers::reachabilityChanged,
+                this,
+                &DlgPrefCrate::slotUpdate);
         bindPreferences();
     }
     slotUpdate();
+}
+
+void DlgPrefCrate::showEvent(QShowEvent* pEvent) {
+    DlgPreferencePage::showEvent(pEvent);
+    // A light check of whether the servers answer each time the page opens
+    if (m_pServers && !pEvent->spontaneous()) {
+        m_pServers->checkReachability();
+    }
 }
 
 void DlgPrefCrate::bindPreferences() {

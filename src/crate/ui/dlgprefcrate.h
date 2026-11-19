@@ -10,6 +10,7 @@
 class QLabel;
 class QListWidget;
 class QPushButton;
+class QShowEvent;
 class QWidget;
 
 namespace crate {
@@ -90,6 +91,10 @@ class DlgPrefCrate : public DlgPreferencePage {
     void slotApply() override {
     }
     void slotResetToDefaults() override;
+
+  protected:
+    /// Checks whether the servers answer (CrateServers::checkReachability()).
+    void showEvent(QShowEvent* pEvent) override;
 
   private:
     void showRows(const QList<ServerRow>& rows);

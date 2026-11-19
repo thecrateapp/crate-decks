@@ -9,6 +9,7 @@
 #include <QComboBox>
 #include <QCoreApplication>
 #include <QDialog>
+#include <QEvent>
 #include <QFile>
 #include <QFileInfo>
 #include <QFrame>
@@ -318,13 +319,116 @@ TEST_F(CrateAddServerFlowTest, ServerRowsShowFeaturesAndState) {
     EXPECT_QSTRING_EQ(QStringLiteral("https://crate.test"), row.meta.value(0));
     EXPECT_TRUE(row.meta.join(u' ').contains(QStringLiteral("dj@crate.test")));
     EXPECT_EQ(crate::ServerRow::State::SignedIn, row.state);
-    EXPECT_QSTRING_EQ(QStringLiteral("signedIn"), row.stateName());
+    // It answered the sign-in: online
+    EXPECT_EQ(crate::Reachability::Online, row.reachability);
+    EXPECT_QSTRING_EQ(QStringLiteral("online"), row.stateName());
     // Every feature of the contract, in the mockup's order, available or not
     ASSERT_EQ(6, row.features.size());
     EXPECT_EQ((crate::ServerRow::Feature{QStringLiteral("library"), true}), row.features[0]);
     EXPECT_EQ((crate::ServerRow::Feature{QStringLiteral("analysis"), false}), row.features[1]);
     EXPECT_EQ((crate::ServerRow::Feature{QStringLiteral("beatmatch"), true}), row.features[2]);
     EXPECT_FALSE(row.features[5].available);
+}
+
+// The chip of a server (Diego, 2026-11-19): signed in, whether it answers
+// (Online in cyan, Offline in amber, "Signed in" muted until a request says);
+// otherwise the session's own state, muted
+TEST(CrateServerRowsTest, StateShowsWhetherTheServerAnswers) {
+    using State = crate::ServerRow::State;
+    using crate::Reachability;
+    struct Case {
+        State state;
+        Reachability reachability;
+        const char* name;
+        const char* text;
+    };
+    const Case cases[] = {
+            {State::SignedIn, Reachability::Online, "online", "Online"},
+            {State::SignedIn, Reachability::Offline, "offline", "Offline"},
+            {State::SignedIn, Reachability::Unknown, "signedIn", "Signed in"},
+            {State::Connecting, Reachability::Online, "connecting", "Connecting"},
+            {State::Connecting, Reachability::Offline, "connecting", "Connecting"},
+            {State::SignedOut, Reachability::Online, "signedOut", "Signed out"},
+            {State::SignedOut, Reachability::Offline, "signedOut", "Signed out"},
+            {State::SignedOut, Reachability::Unknown, "signedOut", "Signed out"},
+    };
+    for (const Case& c : cases) {
+        crate::ServerRow row;
+        row.state = c.state;
+        row.reachability = c.reachability;
+        EXPECT_QSTRING_EQ(QLatin1String(c.name), row.stateName()) << c.text;
+        EXPECT_QSTRING_EQ(QLatin1String(c.text), row.stateText()) << c.name;
+    }
+}
+
+// Whether a signed-in server answers: what its requests learn, and a light
+// check (GET /api/capabilities, without the session) that the page runs
+// when it opens; one at a time per server, none for a signed-out one
+TEST_F(CrateAddServerFlowTest, ReachabilityFollowsTheServersAnswers) {
+    m_pFlow->setAddress(QStringLiteral("https://crate.test"));
+    lastSent().pReply->respond(200, kDecksCapabilities);
+    m_pFlow->loginWithPassword(QStringLiteral("dj@crate.test"), QStringLiteral("right"));
+    lastSent().pReply->respond(200, kLoginAnswer);
+    ASSERT_EQ(1, m_pServers->sessions().size());
+    const QString serverId = m_pServers->sessions().constFirst()->profile().id;
+    EXPECT_EQ(crate::Reachability::Online, m_pServers->reachability(serverId));
+    QSignalSpy changed(m_pServers.get(), &CrateServers::reachabilityChanged);
+
+    // The check: one request, not authenticated, and no second one while it
+    // is on its way
+    const qsizetype before = m_network.sent.size();
+    m_pServers->checkReachability();
+    m_pServers->checkReachability();
+    ASSERT_EQ(before + 1, m_network.sent.size());
+    FakeNetworkAccessManager::Sent check = lastSent();
+    EXPECT_TRUE(check.request.url().path().endsWith(QStringLiteral("/api/capabilities")));
+    EXPECT_FALSE(check.request.hasRawHeader("Authorization"));
+
+    // Unreachable, after the Client's retries: offline, on the page too
+    crate::DlgPrefCrate page(nullptr, m_pServers.get());
+    // Each attempt fails as it is sent, until the Client gives up
+    ASSERT_TRUE(QTest::qWaitFor(
+            [&] {
+                for (crate::test::FakeReply* pOpen : m_network.openReplies()) {
+                    pOpen->failNetwork();
+                }
+                return m_pServers->reachability(serverId) == crate::Reachability::Offline;
+            },
+            10000));
+    EXPECT_EQ(1, changed.size());
+    // The rows the page replaced go with the deferred deletes
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+    auto* pBadge = page.findChild<QLabel*>(QStringLiteral("CrateStateBadge"));
+    ASSERT_NE(nullptr, pBadge);
+    EXPECT_QSTRING_EQ(QStringLiteral("Offline"), pBadge->text());
+    EXPECT_QSTRING_EQ(QStringLiteral("offline"), pBadge->property("crateState").toString());
+
+    // It answers again, with new features: online, and the features follow
+    const QByteArray features = QByteArrayLiteral(R"({"decks": {
+        "available": true, "min_client_version": "0.1.0", "contract_version": 1,
+        "features": ["library_cursor"]}})");
+    m_pServers->checkReachability();
+    lastSent().pReply->respond(200, features);
+    EXPECT_EQ(crate::Reachability::Online, m_pServers->reachability(serverId));
+    EXPECT_EQ(QJsonDocument::fromJson(features),
+            QJsonDocument::fromJson(m_pServers->lastCapabilities(serverId)));
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+    pBadge = page.findChild<QLabel*>(QStringLiteral("CrateStateBadge"));
+    ASSERT_NE(nullptr, pBadge);
+    EXPECT_QSTRING_EQ(QStringLiteral("Online"), pBadge->text());
+
+    // An HTTP error is an answer too
+    m_pServers->checkReachability();
+    lastSent().pReply->respond(503);
+    ASSERT_TRUE(QTest::qWaitFor(
+            [&] { return m_network.openReplies().isEmpty(); }, 5000));
+    EXPECT_EQ(crate::Reachability::Online, m_pServers->reachability(serverId));
+
+    // Signed out: not asked
+    m_pServers->session(serverId)->logout();
+    const qsizetype afterLogout = m_network.sent.size();
+    m_pServers->checkReachability();
+    EXPECT_EQ(afterLogout, m_network.sent.size());
 }
 
 TEST(CrateServerRowsTest, FeaturesNeedAValidAnswer) {
@@ -1253,8 +1357,8 @@ TEST_F(CrateAddServerFlowTest, PreferencesRunTheSystemCheckAgain) {
     EXPECT_EQ(nullptr, pPower->findChild<QPushButton*>(QStringLiteral("crateCheckAction")));
 }
 
-/// The GU1 mockup's two servers (preferences-crate): one signed in with every
-/// feature, one signed out on the local network without two of them.
+/// The GU1 mockup's two servers (preferences-crate): one online with every
+/// feature, one offline on the local network without two of them.
 QList<crate::ServerRow> mockupServerRows() {
     const QStringList features = {QStringLiteral("library"),
             QStringLiteral("analysis"),
@@ -1275,7 +1379,9 @@ QList<crate::ServerRow> mockupServerRows() {
     home.meta = {QStringLiteral("http://192.168.1.20:8585"),
             QStringLiteral("local network, no HTTPS"),
             QStringLiteral("last seen 2 h ago")};
-    home.state = crate::ServerRow::State::SignedOut;
+    home.state = crate::ServerRow::State::SignedIn;
+    dev.reachability = crate::Reachability::Online;
+    home.reachability = crate::Reachability::Offline;
     for (const QString& feature : features) {
         dev.features.append({feature, true});
         home.features.append({feature,
@@ -1427,17 +1533,18 @@ TEST_F(CrateAddServerFlowTest, CratePageHasTheMockupsGrammar) {
         }
     }
 
-    // The servers' chips: cyan when signed in, amber when signed out
+    // The servers' chips: cyan when online, amber when offline
     QStringList states;
     const QList<QLabel*> badges = pPage->findChildren<QLabel*>(QStringLiteral("CrateStateBadge"));
     for (const QLabel* pBadge : badges) {
         states.append(pBadge->property("crateState").toString());
     }
-    EXPECT_EQ(QStringList({QStringLiteral("signedIn"), QStringLiteral("signedOut")}), states);
+    EXPECT_EQ(QStringList({QStringLiteral("online"), QStringLiteral("offline")}), states);
     const QString qss = crate::dialogStyleSheet(crate::resourcePath());
     const crate::DialogMetrics& metrics = crate::DialogMetrics::installed();
-    for (const auto& [state, colour] : {std::pair{"signedIn", "CrateAccentHi"},
-                 std::pair{"signedOut", "CrateWarningText"}}) {
+    for (const auto& [state, colour] : {std::pair{"online", "CrateAccentHi"},
+                 std::pair{"offline", "CrateWarningText"},
+                 std::pair{"signedOut", "CrateTextMuted"}}) {
         const QString selector =
                 QStringLiteral("#CrateStateBadge[crateState=\"%1\"]").arg(QLatin1String(state));
         const qsizetype at = qss.indexOf(selector);

@@ -3552,7 +3552,9 @@ TEST_F(CrateSkinScreenshots, Dialogs) {
     home.meta = {QStringLiteral("http://192.168.1.20:8585"),
             QStringLiteral("local network, no HTTPS"),
             QStringLiteral("last seen 2 h ago")};
-    home.state = crate::ServerRow::State::SignedOut;
+    home.state = crate::ServerRow::State::SignedIn;
+    dev.reachability = crate::Reachability::Online;
+    home.reachability = crate::Reachability::Offline;
     for (const QString& feature : features) {
         dev.features.append({feature, true});
         home.features.append({feature,

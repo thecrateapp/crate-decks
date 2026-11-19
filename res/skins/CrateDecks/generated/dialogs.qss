@@ -616,10 +616,12 @@ QDialog[crateChrome="true"] {
   border-radius: 3px;
   background-color: #7e8084;
 }
-#CrateServerDot[crateState="signedIn"] {
+/* Online in cyan, Offline in amber; the session's own states muted
+   (Diego, 2026-11-19) */
+#CrateServerDot[crateState="online"] {
   background-color: #67e8f9;
 }
-#CrateServerDot[crateState="signedOut"] {
+#CrateServerDot[crateState="offline"] {
   background-color: #f9c94a;
 }
 #CrateServerName {
@@ -658,15 +660,21 @@ QDialog[crateChrome="true"] {
   border-radius: 12px;
   font-size: 12px;
 }
-#CrateStateBadge[crateState="signedIn"] {
+#CrateStateBadge[crateState="online"] {
   border-color: rgba(103, 232, 249, 102);
   background-color: rgba(6, 182, 212, 26);
   color: #67e8f9;
 }
-#CrateStateBadge[crateState="signedOut"] {
+#CrateStateBadge[crateState="offline"] {
   border-color: rgba(251, 191, 36, 64);
   background-color: rgba(251, 191, 36, 26);
   color: #f9c94a;
+}
+#CrateStateBadge[crateState="signedIn"],
+#CrateStateBadge[crateState="connecting"],
+#CrateStateBadge[crateState="signedOut"] {
+  border-color: rgba(241, 245, 249, 26);
+  color: #999ca0;
 }
 #CrateStateBadge[crateState="ok"] {
   border-color: rgba(103, 232, 249, 102);

@@ -34,6 +34,14 @@ ServerRow::State rowState(Session::State state) {
 QString ServerRow::stateName() const {
     switch (state) {
     case State::SignedIn:
+        switch (reachability) {
+        case Reachability::Online:
+            return QStringLiteral("online");
+        case Reachability::Offline:
+            return QStringLiteral("offline");
+        case Reachability::Unknown:
+            break;
+        }
         return QStringLiteral("signedIn");
     case State::Connecting:
         return QStringLiteral("connecting");
@@ -46,6 +54,16 @@ QString ServerRow::stateName() const {
 QString ServerRow::stateText() const {
     switch (state) {
     case State::SignedIn:
+        switch (reachability) {
+        case Reachability::Online:
+            //: A Crate server that answers
+            return translate("Online");
+        case Reachability::Offline:
+            //: A Crate server that does not answer
+            return translate("Offline");
+        case Reachability::Unknown:
+            break;
+        }
         return translate("Signed in");
     case State::Connecting:
         return translate("Connecting");
@@ -94,6 +112,7 @@ QList<ServerRow> serverRows(const CrateServers& servers) {
             row.meta.append(translate("local network, no HTTPS"));
         }
         row.state = rowState(pSession->state());
+        row.reachability = servers.reachability(profile.id);
         if (row.state == ServerRow::State::SignedIn && !profile.accountEmail.isEmpty()) {
             row.meta.append(translate("signed in as %1").arg(profile.accountEmail));
         } else if (row.state == ServerRow::State::SignedOut) {
