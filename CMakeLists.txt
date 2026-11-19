@@ -5494,6 +5494,7 @@ if(CRATE)
         src/test/crate/autodjcratepending_test.cpp
         src/test/crate/autodjsmartmix_test.cpp
         src/test/crate/autodjsmartmixlive_test.cpp
+        src/test/crate/decksg4render_test.cpp
         src/test/crate/cachestatusview_test.cpp
         src/test/crate/profilestore_test.cpp
         src/test/crate/cratecapabilities_test.cpp
