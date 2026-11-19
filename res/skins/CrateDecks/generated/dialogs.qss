@@ -827,6 +827,7 @@ QDialog[crateChrome="true"] {
 /* ── First start (GU1 mockups first-run) and About ───────────────────── */
 
 #CrateFirstRunTitle,
+#CrateDialogHeading,
 #CrateAboutTitle {
   color: #f1f5f9;
   font-family: "Bricolage Grotesque";
@@ -837,9 +838,17 @@ QDialog[crateChrome="true"] {
   max-height: 35.7px;
 }
 #CrateFirstRunIntro,
+#CrateDialogIntro,
 #crate_based_on {
   color: #999ca0;
   font-size: 15px;
+}
+/* Decks' own dialogs (CrateDialog, plan V3.PR3): sections as the Crate
+   page's, a 1 px rule over each, without a box */
+#CrateDialogSection {
+  border: 0;
+  border-top: 1px solid rgba(241, 245, 249, 26);
+  background-color: transparent;
 }
 #crate_attribution {
   color: #7e8084;
