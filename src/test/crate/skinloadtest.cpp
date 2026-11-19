@@ -63,6 +63,7 @@
 #include "crate/library/cratelibrarystore.h"
 #include "crate/recs/compatiblesmodel.h"
 #include "crate/recs/compatiblesview.h"
+#include "crate/recs/cratepathsource.h"
 #include "crate/recs/recsjson.h"
 #include "crate/smartmix/assistpanel.h"
 #include "crate/smartmix/planclient.h"
@@ -74,6 +75,7 @@
 #include "crate/ui/cratefirstrun.h"
 #include "crate/ui/crateprefsections.h"
 #include "crate/ui/delegates/sidebardelegate.h"
+#include "crate/ui/dialogs/cratedialog.h"
 #include "crate/ui/dialogs/dialogscrim.h"
 #include "crate/ui/dialogs/preferenceschrome.h"
 #include "crate/ui/dlgprefcrate.h"
@@ -3449,8 +3451,10 @@ class LastMenu : public QObject {
 
 /// Dev-only harness: renders the dialogs of plan V2.PR5 to PNG for the side
 /// by side with the GU1 mockups (preferences-crate, first-run): Preferences
-/// on the Crate page and two of upstream's pages, About, the first-start
-/// dialog, the splash screen and the track and column menus. Each one is
+/// on the Crate page (also with "Add a server" open and at the mockup's
+/// 1366 x 768) and two of upstream's pages, Decks' own dialogs (plan
+/// V3.PR3), About, the first-start dialog, the splash screen and the track
+/// and column menus. Each one is
 /// saved alone and over the main window, where it opens. Runs only with
 /// CRATE_SKIN_SCREENSHOTS=<output dir>, like Capture; the Crate page shows
 /// the mockup's two servers and its cache and Smart Mix sections, which wait
@@ -3580,7 +3584,69 @@ TEST_F(CrateSkinScreenshots, Dialogs) {
                     QStringLiteral("crate-prefs-") + page.toLower().replace(u' ', u'-'));
         }
     }
+    // V3.PR3: Add a server open, and the page at the mockup's 1366 x 768,
+    // from the top of the page
+    pTree->setCurrentItem(pCrateItem);
+    for (QWidget* pAncestor = pCratePage->parentWidget(); pAncestor;
+            pAncestor = pAncestor->parentWidget()) {
+        if (auto* pScroll = qobject_cast<QScrollArea*>(pAncestor)) {
+            pScroll->ensureVisible(0, 0);
+            break;
+        }
+    }
+    if (auto* pAdd = pCratePage->findChild<QPushButton*>(QStringLiteral("crateAddServer"))) {
+        pAdd->click();
+        saveOver(pPreferences, withServer, QStringLiteral("crate-prefs-crate-add"));
+        if (auto* pCancel = pCratePage->findChild<QPushButton*>(QStringLiteral("crateCancel"))) {
+            pCancel->click();
+        }
+    }
+    decks.mainWindow()->resize(QSize(1366, 768));
+    const QImage small = mainWindow();
+    pPreferences->resize(QSize(1180, 704));
+    saveOver(pPreferences, small, QStringLiteral("crate-prefs-crate-1366"));
+    decks.mainWindow()->resize(QSize(1920, 1080));
+    pPreferences->resize(QSize(1180, 940));
     pPreferences->hide();
+
+    // Decks' own dialogs (plan V3.PR3): Music Path, the red confirmation of
+    // "Clear cache", a download and the export to Crate, open as their
+    // callers open them: modal, over the scrim
+    decks.answerModalDialogs(false);
+    {
+        const auto capture = [&](crate::CrateDialog* pDialog, const QString& name) {
+            pDialog->open();
+            saveOver(pDialog, withServer, name);
+            pDialog->reject();
+        };
+        crate::recs::CratePathDialog path(QStringLiteral("Depeche Mode - I Feel Loved"),
+                QStringLiteral("Adult. - Lovely Love"),
+                decks.mainWindow());
+        capture(&path, QStringLiteral("crate-dialog-path"));
+        std::unique_ptr<crate::CrateDialog> pClear(crate::createConfirmation(
+                crate::DlgPrefCrate::clearCacheConfirmation(), decks.mainWindow()));
+        capture(pClear.get(), QStringLiteral("crate-dialog-clear-cache"));
+        crate::Confirmation offline;
+        offline.context = QStringLiteral("Download for offline use");
+        offline.title = QStringLiteral("Keep it on this computer?");
+        offline.text = QStringLiteral(
+                "Download 42 tracks, 1.2 GB, and keep them on this computer?");
+        offline.action = QStringLiteral("Download");
+        std::unique_ptr<crate::CrateDialog> pOffline(
+                crate::createConfirmation(offline, decks.mainWindow()));
+        capture(pOffline.get(), QStringLiteral("crate-dialog-offline"));
+        crate::Choice exportTo;
+        exportTo.context = QStringLiteral("Export to Crate");
+        exportTo.title = QStringLiteral("Export a playlist");
+        exportTo.text = QStringLiteral("Only its Crate tracks of this server go to Crate.");
+        exportTo.label = QStringLiteral("Playlist");
+        exportTo.items = {QStringLiteral("Warm-up"), QStringLiteral("Peak time")};
+        exportTo.action = QStringLiteral("Export");
+        std::unique_ptr<crate::CrateDialog> pExport(
+                crate::createChoice(exportTo, decks.mainWindow()));
+        capture(pExport.get(), QStringLiteral("crate-dialog-export"));
+    }
+    decks.answerModalDialogs(true);
 
     // About
     DlgAbout about;
