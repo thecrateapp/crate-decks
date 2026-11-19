@@ -94,7 +94,11 @@ DlgPrefCrate::DlgPrefCrate(QWidget* pParent, CrateServers* pServers, const QStri
     auto* pServersSection = new PrefsSection(tr("Servers"), this);
     pServersSection->rows()->addWidget(m_pServerList);
     pServersSection->rows()->addWidget(m_pStatus);
-    auto* pAddRow = new QHBoxLayout();
+    // "Add a server…" and its helper give way to the form, which has its
+    // own helper and Cancel (V3.PR3)
+    auto* pAddRowBox = new QWidget(this);
+    pAddRowBox->setObjectName(QStringLiteral("crateAddServerRow"));
+    auto* pAddRow = new QHBoxLayout(pAddRowBox);
     pAddRow->setContentsMargins(0, metrics.px("addServerTop"), 0, 0);
     pAddRow->setSpacing(metrics.px("helperGap"));
     pAddRow->addWidget(m_pAdd);
@@ -104,7 +108,7 @@ DlgPrefCrate::DlgPrefCrate(QWidget* pParent, CrateServers* pServers, const QStri
             this);
     pHelper->setWordWrap(true);
     pAddRow->addWidget(pHelper, 1);
-    pServersSection->rows()->addLayout(pAddRow);
+    pServersSection->rows()->addWidget(pAddRowBox);
     m_pAddBox->setObjectName(QStringLiteral("crateAddServerBox"));
     auto* pAddLayout = new QVBoxLayout(m_pAddBox);
     pAddLayout->setContentsMargins(0, metrics.px("addServerTop"), 0, 0);
@@ -142,9 +146,16 @@ DlgPrefCrate::DlgPrefCrate(QWidget* pParent, CrateServers* pServers, const QStri
     pLayout->addWidget(m_pSystem);
     pLayout->addStretch(1);
 
-    connect(m_pAdd, &QPushButton::clicked, m_pAddBox, &QWidget::show);
-    connect(m_pAddServer, &AddServerWidget::cancelled, m_pAddBox, &QWidget::hide);
-    connect(m_pAddServer, &AddServerWidget::serverAdded, m_pAddBox, &QWidget::hide);
+    connect(m_pAdd, &QPushButton::clicked, this, [this, pAddRowBox] {
+        pAddRowBox->hide();
+        m_pAddBox->show();
+    });
+    const auto closeForm = [this, pAddRowBox] {
+        m_pAddBox->hide();
+        pAddRowBox->show();
+    };
+    connect(m_pAddServer, &AddServerWidget::cancelled, this, closeForm);
+    connect(m_pAddServer, &AddServerWidget::serverAdded, this, closeForm);
     if (m_pServers) {
         connect(m_pServers, &CrateServers::serversChanged, this, &DlgPrefCrate::slotUpdate);
         bindPreferences();

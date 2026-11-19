@@ -277,8 +277,15 @@ TEST_F(CrateAddServerFlowTest, PageAddsAServer) {
     auto* pSignIn = page.findChild<QPushButton*>(QStringLiteral("crateSignIn"));
     ASSERT_TRUE(pList && pAdd && pAddress && pConnect && pEmail && pPassword && pSignIn);
     EXPECT_EQ(0, pList->count());
+    auto* pAddRow = page.findChild<QWidget*>(QStringLiteral("crateAddServerRow"));
+    auto* pForm = page.findChild<QWidget*>(QStringLiteral("crateAddServerBox"));
+    ASSERT_TRUE(pAddRow && pForm);
+    EXPECT_TRUE(pForm->isHidden());
 
+    // The form takes the place of "Add a server…" and its helper
     pAdd->click();
+    EXPECT_TRUE(pAddRow->isHidden());
+    EXPECT_FALSE(pForm->isHidden());
     pAddress->setText(QStringLiteral("https://crate.test"));
     pConnect->click();
     lastSent().pReply->respond(200, kDecksCapabilities);
@@ -290,6 +297,8 @@ TEST_F(CrateAddServerFlowTest, PageAddsAServer) {
 
     ASSERT_EQ(1, pList->count());
     EXPECT_TRUE(pList->item(0)->text().contains(QStringLiteral("https://crate.test")));
+    EXPECT_TRUE(pForm->isHidden());
+    EXPECT_FALSE(pAddRow->isHidden());
 }
 
 TEST_F(CrateAddServerFlowTest, ServerRowsShowFeaturesAndState) {
