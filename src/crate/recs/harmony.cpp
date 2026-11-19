@@ -1,6 +1,7 @@
 #include "crate/recs/harmony.h"
 
 #include <QCoreApplication>
+#include <QStringView>
 #include <optional>
 
 namespace crate::recs {
@@ -26,7 +27,7 @@ std::optional<Camelot> parse(const QString& text) {
         return std::nullopt;
     }
     bool ok = false;
-    const int number = key.left(key.size() - 1).toInt(&ok);
+    const int number = QStringView(key).chopped(1).toInt(&ok);
     if (!ok || number < 1 || number > kKeysPerRing) {
         return std::nullopt;
     }

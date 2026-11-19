@@ -15,6 +15,7 @@
 #include <QRegularExpression>
 #include <QString>
 #include <QStringList>
+#include <QStringView>
 
 #include "preferences/configobject.h"
 
@@ -102,7 +103,7 @@ QString withoutComments(const QString& code, bool blankStrings = false) {
 }
 
 int lineOf(const QString& code, qsizetype offset) {
-    return static_cast<int>(code.left(offset).count(QLatin1Char('\n'))) + 1;
+    return static_cast<int>(QStringView(code).left(offset).count(QLatin1Char('\n'))) + 1;
 }
 
 /// Where `code` writes a colour of its own: QColor from a "#…" string or a
