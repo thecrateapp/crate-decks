@@ -3614,9 +3614,9 @@ TEST_F(CrateSkinScreenshots, Dialogs) {
     pPreferences->resize(QSize(1180, 940));
     pPreferences->hide();
 
-    // Decks' own dialogs (plan V3.PR3): Music Path, the red confirmation of
-    // "Clear cache", a download and the export to Crate, open as their
-    // callers open them: modal, over the scrim
+    // Decks' own dialogs (plan V3.PR3): Music Path, the red confirmations
+    // of "Clear cache" and "Sign out and remove", a download and the export
+    // to Crate, open as their callers open them: modal, over the scrim
     decks.answerModalDialogs(false);
     {
         const auto capture = [&](crate::CrateDialog* pDialog, const QString& name) {
@@ -3631,6 +3631,10 @@ TEST_F(CrateSkinScreenshots, Dialogs) {
         std::unique_ptr<crate::CrateDialog> pClear(crate::createConfirmation(
                 crate::DlgPrefCrate::clearCacheConfirmation(), decks.mainWindow()));
         capture(pClear.get(), QStringLiteral("crate-dialog-clear-cache"));
+        std::unique_ptr<crate::CrateDialog> pRemove(crate::createConfirmation(
+                crate::DlgPrefCrate::removeServerConfirmation(QStringLiteral("dev.crate.local")),
+                decks.mainWindow()));
+        capture(pRemove.get(), QStringLiteral("crate-dialog-remove-server"));
         crate::Confirmation offline;
         offline.context = QStringLiteral("Download for offline use");
         offline.title = QStringLiteral("Keep it on this computer?");
