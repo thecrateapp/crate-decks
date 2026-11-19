@@ -241,6 +241,18 @@ bool AutoDJProcessor::offerTransitionToDirector(
     return m_directorTransition;
 }
 
+void AutoDJProcessor::transitionLeadChanged() {
+    if (m_eState != ADJ_IDLE) {
+        // A transition under way keeps its lead
+        return;
+    }
+    DeckAttributes* pFromDeck = getFromDeck();
+    if (!pFromDeck) {
+        return;
+    }
+    calculateTransition(pFromDeck, getOtherDeck(pFromDeck), false);
+}
+
 void AutoDJProcessor::handBackTransition() {
     if (!std::exchange(m_directorTransition, false) ||
             (m_eState != ADJ_LEFT_FADING && m_eState != ADJ_RIGHT_FADING)) {
@@ -1778,9 +1790,13 @@ void AutoDJProcessor::calculateTransition(DeckAttributes* pFromDeck,
     if (m_transitionMode == TransitionMode::CrateSmartMix && s_pTransitionDirector &&
             !m_ownTransition) {
         // Crate Decks: the director takes the transition early, to fetch its
-        // plan and wait for the plan's own cue
-        pFromDeck->fadeBeginPos = math_max(0.0,
-                pFromDeck->fadeBeginPos - kTransitionDirectorLeadSeconds / fromDeckDuration);
+        // plan and wait for the plan's own cue: as early as its plan needs
+        const double leadSeconds = s_pTransitionDirector->transitionLeadSeconds(this,
+                pFromDeck->group,
+                pToDeck->group,
+                pFromDeck->fadeBeginPos * fromDeckDuration);
+        pFromDeck->fadeBeginPos =
+                math_max(0.0, pFromDeck->fadeBeginPos - leadSeconds / fromDeckDuration);
     }
 
     pFromDeck->isFromDeck = true;

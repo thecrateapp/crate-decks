@@ -5,6 +5,7 @@
 #include <QtConcurrentRun>
 #include <algorithm>
 #include <cmath>
+#include <utility>
 
 #include "control/controlobject.h"
 #include "crate/cratepreferences.h"
@@ -258,6 +259,61 @@ bool AutoDJSmartMixAdapter::startTransition(AutoDJProcessor* pProcessor,
     return true;
 }
 
+double AutoDJSmartMixAdapter::leadSecondsFor(const TransitionPlan& plan,
+        qint64 outgoingDurationMs,
+        qint64 incomingDurationMs,
+        double fadeBeginSecond) {
+    const std::optional<TransitionPlan> playable =
+            plan.playable(outgoingDurationMs, incomingDurationMs);
+    if (!playable || !std::isfinite(fadeBeginSecond)) {
+        return kMinLeadSeconds;
+    }
+    const double startSecond =
+            SmartMixDirector::startAtMs(*playable, static_cast<double>(outgoingDurationMs)) /
+            1000.0;
+    const double needed = fadeBeginSecond - startSecond +
+            SmartMixDirector::kPrepareLeadMs / 1000.0 + kLeadMarginSeconds;
+    return std::clamp(needed, kMinLeadSeconds, kMaxLeadSeconds);
+}
+
+std::optional<TransitionPlan> AutoDJSmartMixAdapter::cachedPlanFor(
+        const QString& fromGroup, const QString& toGroup) const {
+    const auto outgoing = crateTrackOn(fromGroup);
+    const auto incoming = crateTrackOn(toGroup);
+    if (!outgoing || !incoming || outgoing->serverId != incoming->serverId) {
+        return std::nullopt;
+    }
+    PlanClient* pPlans =
+            m_options.planClientFor ? m_options.planClientFor(outgoing->serverId) : nullptr;
+    if (!pPlans) {
+        return std::nullopt;
+    }
+    const PlanEdge edge{outgoing->entityUid, incoming->entityUid, QString(), QString()};
+    return pPlans->cachedPlan(edge, contextFor(outgoing->serverId));
+}
+
+double AutoDJSmartMixAdapter::transitionLeadSeconds(AutoDJProcessor* pProcessor,
+        const QString& fromGroup,
+        const QString& toGroup,
+        double fadeBeginSecond) {
+    m_pProcessor = pProcessor;
+    const std::optional<TransitionPlan> plan = cachedPlanFor(fromGroup, toGroup);
+    m_leadPending = !plan.has_value();
+    if (!plan) {
+        return kMinLeadSeconds;
+    }
+    const auto durationMs = [](const QString& group) {
+        return static_cast<qint64>(
+                std::llround(deckControl(group, QStringLiteral("duration")).value_or(0.0) *
+                        1000.0));
+    };
+    const double lead = leadSecondsFor(
+            *plan, durationMs(fromGroup), durationMs(toGroup), fadeBeginSecond);
+    kLogger.info() << "Handover lead" << lead << "s for" << fromGroup << "->" << toGroup
+                   << "(Auto DJ's fade at" << fadeBeginSecond << "s)";
+    return lead;
+}
+
 bool AutoDJSmartMixAdapter::fadeNow() {
     if (m_pDirector->state() == SmartMixDirector::State::Running ||
             (!m_pDirector->isActive() && m_pDirector->report().mixed)) {
@@ -376,6 +432,10 @@ void AutoDJSmartMixAdapter::requestAhead(const QStringList& queue) {
                 if (plan.ok()) {
                     noteLimits(serverId, plan.value());
                 }
+            }
+            // A handover placed without its plan is placed again with it
+            if (std::exchange(m_leadPending, false) && m_pProcessor) {
+                m_pProcessor->transitionLeadChanged();
             }
         });
     }
