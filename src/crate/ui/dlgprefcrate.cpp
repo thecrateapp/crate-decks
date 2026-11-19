@@ -304,6 +304,23 @@ Confirmation DlgPrefCrate::clearCacheConfirmation() {
     return confirmation;
 }
 
+Confirmation DlgPrefCrate::removeServerConfirmation(const QString& serverName) {
+    Confirmation confirmation;
+    confirmation.context = tr("Servers");
+    //: %1 is the name of a Crate server
+    confirmation.title = tr("Remove %1?").arg(serverName);
+    // What CrateServers::removeServer() does: it signs out, forgets the
+    // server and its client, and leaves the audio cache alone
+    confirmation.text = tr(
+            "Decks signs out of %1 and forgets it: it leaves the library and "
+            "nothing new is downloaded from it. Its cached tracks and offline "
+            "sets stay on this computer.")
+                                .arg(serverName);
+    confirmation.action = tr("Sign out and remove");
+    confirmation.destructive = true;
+    return confirmation;
+}
+
 void DlgPrefCrate::slotResetToDefaults() {
     if (!m_pServers) {
         return;
@@ -416,8 +433,15 @@ QWidget* DlgPrefCrate::rowWidget(const ServerRow& row) {
     setButtonVariant(pRemove, "danger");
     pLayout->addWidget(pRemove, 0, Qt::AlignVCenter);
     const QString id = row.id;
-    connect(pRemove, &QPushButton::clicked, this, [this, id] {
-        if (m_pServers && !id.isEmpty()) {
+    const QString name = row.name;
+    connect(pRemove, &QPushButton::clicked, this, [this, id, name] {
+        if (!m_pServers || id.isEmpty()) {
+            return;
+        }
+        // Asked first, in red, with Cancel as the default (Diego, 2026-11-19)
+        const std::unique_ptr<CrateDialog> pConfirm(
+                createConfirmation(removeServerConfirmation(name), this));
+        if (pConfirm->exec() == QDialog::Accepted && m_pServers) {
             m_pServers->removeServer(id);
         }
     });

@@ -1484,4 +1484,65 @@ TEST_F(CrateAddServerFlowTest, ClearCacheAsksInRedFirst) {
     EXPECT_EQ(nullptr, QApplication::activeModalWidget());
 }
 
+// "Sign out and remove" asks first (Diego, 2026-11-19): red, Cancel the
+// default, and it says that the server's cached tracks and offline sets stay
+// (CrateServers::removeServer() leaves the audio cache alone)
+TEST_F(CrateAddServerFlowTest, RemovingAServerAsksInRedFirst) {
+    const crate::Confirmation confirmation =
+            crate::DlgPrefCrate::removeServerConfirmation(QStringLiteral("crate.test"));
+    EXPECT_TRUE(confirmation.destructive);
+    EXPECT_QSTRING_EQ(QStringLiteral("Remove crate.test?"), confirmation.title);
+    EXPECT_QSTRING_EQ(QStringLiteral("Sign out and remove"), confirmation.action);
+    EXPECT_TRUE(confirmation.text.contains(QStringLiteral("crate.test")));
+    EXPECT_TRUE(confirmation.text.contains(QStringLiteral("cached tracks and offline sets stay")));
+
+    m_pFlow->setAddress(QStringLiteral("https://crate.test"));
+    lastSent().pReply->respond(200, kDecksCapabilities);
+    m_pFlow->loginWithPassword(QStringLiteral("dj@crate.test"), QStringLiteral("right"));
+    lastSent().pReply->respond(200, kLoginAnswer);
+    ASSERT_EQ(1, crate::serverRows(*m_pServers).size());
+    crate::DlgPrefCrate page(nullptr, m_pServers.get());
+
+    // Answers the confirmation with `button` once it shows, and keeps what
+    // it showed
+    struct Shown {
+        QString title;
+        QString action;
+        bool cancelIsDefault = false;
+    };
+    const auto answer = [&page](const char* button, Shown* pShown) {
+        QTimer::singleShot(0, &page, [button, pShown] {
+            auto* pDialog = qobject_cast<QDialog*>(QApplication::activeModalWidget());
+            if (!pDialog) {
+                ADD_FAILURE() << "No confirmation";
+                return;
+            }
+            pShown->title =
+                    pDialog->findChild<QLabel*>(QStringLiteral("CrateDialogHeading"))->text();
+            auto* pConfirm = pDialog->findChild<QPushButton*>(QStringLiteral("crateConfirm"));
+            pShown->action = pConfirm->property("crateButton").toString();
+            pShown->cancelIsDefault =
+                    pDialog->findChild<QPushButton*>(QStringLiteral("crateCancel"))->isDefault();
+            pDialog->findChild<QPushButton*>(QLatin1String(button))->click();
+        });
+    };
+    const auto removeButton = [&page] {
+        return page.findChild<QPushButton*>(QStringLiteral("crateRemoveServer"));
+    };
+    ASSERT_NE(nullptr, removeButton());
+
+    Shown shown;
+    answer("crateCancel", &shown);
+    removeButton()->click();
+    EXPECT_QSTRING_EQ(QStringLiteral("Remove crate.test?"), shown.title);
+    EXPECT_QSTRING_EQ(QStringLiteral("danger"), shown.action);
+    EXPECT_TRUE(shown.cancelIsDefault);
+    EXPECT_EQ(1, crate::serverRows(*m_pServers).size()) << "Cancel removes nothing";
+
+    answer("crateConfirm", &shown);
+    removeButton()->click();
+    EXPECT_TRUE(crate::serverRows(*m_pServers).isEmpty());
+    EXPECT_TRUE(crate::db::loadServerProfiles(dbConnection()).isEmpty());
+}
+
 } // namespace

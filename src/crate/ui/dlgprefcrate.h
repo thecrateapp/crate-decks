@@ -81,6 +81,9 @@ class DlgPrefCrate : public DlgPreferencePage {
     /// "Clear the cache?", which "Clear cache" asks before it deletes
     /// anything: red, as it destroys the cached tracks.
     static Confirmation clearCacheConfirmation();
+    /// "Remove <server>?", which "Sign out and remove" asks first: red, and
+    /// it says what becomes of the server's cached tracks and offline sets.
+    static Confirmation removeServerConfirmation(const QString& serverName);
 
   public slots:
     void slotUpdate() override;
