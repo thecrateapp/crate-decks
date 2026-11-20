@@ -71,9 +71,15 @@ struct SmartMixDirectorOptions {
 ///   outgoing deck's pregain keeps the level it had.
 /// - Running: the incoming deck starts when the outgoing one reaches the
 ///   plan's cue, on the outgoing deck's beat clock when the cue is on its
-///   next beat; a late start jumps the incoming deck to where it would be.
-///   The transition follows the wall clock; the crossfader, the pregains and
-///   the bass EQs follow the plan's curve, gains and bass handoff.
+///   next beat. The incoming deck starts at the next audio callback, where
+///   the outgoing deck is at its engine position: the incoming deck is moved
+///   by as much as that position is off the cue, either way, so the start
+///   lands on the plan whatever the buffer size (G4 finding 2); a late start
+///   jumps it to where it would be. The transition follows the wall clock;
+///   the crossfader, the pregains and the bass EQs follow the plan's curve,
+///   gains and bass handoff. With ReplayGain on and data for both tracks,
+///   the incoming deck stages only the residual of the plan's gain
+///   (curves::incomingStagingDb(), G4 finding 3).
 /// - Completed: the outgoing deck is stopped and the mixer is left on the
 ///   incoming one, which then eases back to its own tempo (Android's tempo
 ///   restore). A plan that already was the server's fallback (it has a
@@ -123,6 +129,15 @@ class SmartMixDirector : public QObject {
         /// after shortening it to the outgoing track (outgoing track time).
         double lateMs = 0.0;
         double durationMs = 0.0;
+        /// How far the outgoing deck was from the plan's start when the
+        /// incoming one started, in output time: negative early, positive
+        /// late. The incoming deck was moved by as much.
+        double startOffsetMs = 0.0;
+        /// How many dB more ReplayGain gave the incoming deck than the
+        /// outgoing one (none with ReplayGain off or without data), and the
+        /// incoming deck's staging that left.
+        std::optional<double> replayGainDifferenceDb;
+        double incomingStagingDb = 0.0;
         QList<ConfigKey> overridden;
     };
 
@@ -140,8 +155,9 @@ class SmartMixDirector : public QObject {
     /// The start goes by the beat clock when the outgoing deck's next beat is
     /// this close to the cue.
     static constexpr double kBeatSnapToleranceMs = 15.0;
-    /// A start later than this jumps the incoming deck ahead.
-    static constexpr double kLateStartToleranceMs = 5.0;
+    /// A start further than this from the plan's cue, either way, moves the
+    /// incoming deck by as much (G4 finding 2).
+    static constexpr double kStartAlignToleranceMs = 0.5;
     /// The outgoing deck going back more than this is a loop or a seek.
     static constexpr double kBackwardJumpToleranceMs = 250.0;
     /// The cue may come this much later than the outgoing deck's position

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <optional>
+
 namespace crate::curves {
 
 /// The shapes of a Smart Mix transition, the same as the Android player's
@@ -40,6 +42,21 @@ double crossfade(double progress, bool djBlendCurve);
 /// The level a plan's gain sets for a deck as a factor (`startEnvelope`):
 /// Smart Mix only lowers a track, so positive gains count as 0 dB.
 double stagingGain(double gainDb);
+
+/// How many dB more ReplayGain gives the incoming deck than the outgoing one
+/// (`replaygain` of each deck, the track's ratio, 0 without data): none when
+/// ReplayGain is off or either deck has no data for its track (it then plays
+/// at the preference's default boost, which matches nothing).
+std::optional<double> replayGainDifferenceDb(
+        bool replayGainOn, double outgoingReplayGain, double incomingReplayGain);
+
+/// The incoming deck's staging when ReplayGain already plays both decks at
+/// matched loudness (Diego, 2026-11-19, G4 finding 3): the plan's gain
+/// matches the incoming track's loudness to the outgoing one's, so only the
+/// residual is staged, the plan's gain less what ReplayGain already gave the
+/// incoming deck over the outgoing one, and never a boost. Without a
+/// difference, the plan's gain as it is (still only attenuating).
+double incomingStagingDb(double planIncomingGainDb, std::optional<double> replayGainDifferenceDb);
 
 /// How far a deck is from unity towards its staging gain at `progress`
 /// (`staging(stagingGain, easeIn/easeOut(progress))`): the outgoing deck

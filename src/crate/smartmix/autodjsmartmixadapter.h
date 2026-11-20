@@ -48,7 +48,12 @@ bool autoDjSmartMixOffered();
 ///   and while Auto DJ runs in Crate Smart Mix, it asks for the plans of the
 ///   next two edges (the track on air to the next one, and that one to the
 ///   one after), so a transition usually finds its plan cached.
-/// - When Auto DJ hands a transition over (30 s before its own fade), it arms
+/// - Auto DJ hands a transition over as early as the edge's cached plan needs
+///   (transitionLeadSeconds(), G4 finding 1): the plan's start, with the
+///   director's preparation, before Auto DJ's own fade, at least 30 s; 30 s
+///   without a plan in the cache. Plans that arrive later place the handover
+///   again (AutoDJProcessor::transitionLeadChanged()).
+/// - When Auto DJ hands a transition over, it arms
 ///   the director at once, so the director's plan deadline counts from the
 ///   request, and gives it the cached plan or the one the request brings. An
 ///   edge that is not of two tracks of the same Crate server, or a director
@@ -74,6 +79,22 @@ class AutoDJSmartMixAdapter : public QObject, public AutoDJProcessor::Transition
   public:
     /// The most `preferredDurationMs` the server takes (its request schema).
     static constexpr int kMaxPreferredDurationMs = PlanContext::kMaxPreferredDurationMs;
+    /// The handover lead's floor, the lead without a plan, and its ceiling
+    /// (G4 finding 1); and the margin above what a plan needs.
+    static constexpr double kMinLeadSeconds = AutoDJProcessor::kTransitionDirectorLeadSeconds;
+    static constexpr double kMaxLeadSeconds = 300.0;
+    static constexpr double kLeadMarginSeconds = 2.0;
+
+    /// The lead `plan` needs on tracks of these durations when Auto DJ's own
+    /// fade begins at `fadeBeginSecond`: from its start
+    /// (SmartMixDirector::startAtMs() of the entry it would play) less the
+    /// director's kPrepareLeadMs and kLeadMarginSeconds, within
+    /// [kMinLeadSeconds, kMaxLeadSeconds]. kMinLeadSeconds for a plan it
+    /// could not play.
+    static double leadSecondsFor(const TransitionPlan& plan,
+            qint64 outgoingDurationMs,
+            qint64 incomingDurationMs,
+            double fadeBeginSecond);
 
     struct Options {
         /// Auto DJ's mode and transition time.
@@ -115,6 +136,10 @@ class AutoDJSmartMixAdapter : public QObject, public AutoDJProcessor::Transition
             const QString& toGroup) override;
     bool fadeNow() override;
     void cancelTransition() override;
+    double transitionLeadSeconds(AutoDJProcessor* pProcessor,
+            const QString& fromGroup,
+            const QString& toGroup,
+            double fadeBeginSecond) override;
 
     SmartMixDirector* director() const {
         return m_pDirector.get();
@@ -146,11 +171,17 @@ class AutoDJSmartMixAdapter : public QObject, public AutoDJProcessor::Transition
     QStringList autoDjDecks() const;
     TrackPointer trackOn(const QString& group) const;
     std::optional<cache::TrackKey> crateTrackOn(const QString& group) const;
+    /// The cached plan of the edge between the tracks on these decks, if any.
+    std::optional<TransitionPlan> cachedPlanFor(
+            const QString& fromGroup, const QString& toGroup) const;
 
     Options m_options;
     PlayerInfo* const m_pPlayerInfo;
     const std::unique_ptr<SmartMixDirector> m_pDirector;
     QPointer<AutoDJProcessor> m_pProcessor;
+    /// Auto DJ asked for a lead without a plan in the cache: the next plans
+    /// place its handover again.
+    bool m_leadPending = false;
     /// Counts the transitions, so the plan of an old one is not given to a
     /// new one.
     quint64 m_transition = 0;

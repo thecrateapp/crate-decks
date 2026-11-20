@@ -23,6 +23,7 @@
 #include <QString>
 #include <QTest>
 #include <cmath>
+#include <functional>
 #include <optional>
 #include <tuple>
 
@@ -822,9 +823,14 @@ class AutoDJSmartMixAdapterTest : public AutoDJSmartMixTest {
         return QJsonDocument::fromJson(file.readAll()).object();
     }
 
-    /// Answers the open plan requests with `name` for every edge.
-    void answerPlans(const QString& name = QStringLiteral("real-beatmatch.json")) {
-        const QJsonObject realPlan = fixture(name);
+    /// Answers the open plan requests with `name` for every edge, changed
+    /// by `edit` if given.
+    void answerPlans(const QString& name = QStringLiteral("real-beatmatch.json"),
+            const std::function<void(QJsonObject*)>& edit = nullptr) {
+        QJsonObject realPlan = fixture(name);
+        if (edit) {
+            edit(&realPlan);
+        }
         for (const auto& sent : std::as_const(m_network.sent)) {
             if (sent.request.url().path() != kPlansPath || !sent.pReply ||
                     sent.pReply->isFinished()) {
@@ -1051,6 +1057,67 @@ TEST_F(AutoDJSmartMixAdapterTest, AsksAgainForThePlansOfACorrectedTrack) {
             edges[0].toObject().value(QStringLiteral("incomingTrackEntityUid")).toString());
     answerPlans();
     ASSERT_TRUE(waitFor([this] { return m_pPlans->cachedPlans() == 2; }));
+}
+
+// G4 finding 1: the handover lead is what the plan needs, its start less the
+// director's preparation and a margin before Auto DJ's own fade, within 30 s
+// and 300 s; 30 s for a plan Decks could not play.
+TEST_F(AutoDJSmartMixAdapterTest, LeadIsWhatThePlanNeeds) {
+    using Adapter = crate::AutoDJSmartMixAdapter;
+    const auto parsed = crate::TransitionPlan::fromJson(
+            QJsonDocument(fixture(QStringLiteral("real-beatmatch.json"))).toJson());
+    ASSERT_TRUE(parsed.ok());
+    crate::TransitionPlan plan = parsed.value();
+    const auto outgoingMs = static_cast<qint64>(kSeconds[0] * 1000.0);
+    const auto incomingMs = static_cast<qint64>(kSeconds[1] * 1000.0);
+    const double extraSeconds =
+            crate::SmartMixDirector::kPrepareLeadMs / 1000.0 + Adapter::kLeadMarginSeconds;
+    // The plan starts after Auto DJ's fade: the floor
+    EXPECT_DOUBLE_EQ(Adapter::kMinLeadSeconds,
+            Adapter::leadSecondsFor(plan, outgoingMs, incomingMs, 410.0));
+    // 100 s before it: 100 s, the preparation and the margin
+    plan.outgoingCueMs = 310000;
+    EXPECT_NEAR(100.0 + extraSeconds,
+            Adapter::leadSecondsFor(plan, outgoingMs, incomingMs, 410.0),
+            1e-9);
+    // Further than the ceiling
+    plan.outgoingCueMs = 20000;
+    EXPECT_DOUBLE_EQ(Adapter::kMaxLeadSeconds,
+            Adapter::leadSecondsFor(plan, outgoingMs, incomingMs, 410.0));
+    // A plan the decks' tracks cannot take
+    EXPECT_DOUBLE_EQ(Adapter::kMinLeadSeconds, Adapter::leadSecondsFor(plan, 1000, 1000, 410.0));
+}
+
+// G4 finding 1: placed without a plan, Auto DJ's handover moves once the plan
+// asked ahead arrives, early enough for its start, which the director then
+// meets on time instead of jumping the incoming deck ahead.
+TEST_F(AutoDJSmartMixAdapterTest, HandsOverAsEarlyAsTheCachedPlanNeeds) {
+    const double ownStart = ownFadeStart(TransitionMode::FullIntroOutro);
+    makeAdapter();
+    startSmartMix();
+    ASSERT_TRUE(waitFor([this] { return !planRequests().isEmpty(); }));
+    // The plan starts 100 s before Auto DJ's own fade
+    const double fadeSecond = ownStart * kSeconds[0];
+    const auto startMs = static_cast<qint64>((fadeSecond - 100.0) * 1000.0);
+    answerPlans(QStringLiteral("real-beatmatch.json"), [startMs](QJsonObject* pPlan) {
+        pPlan->insert(QStringLiteral("outgoingCueMs"), startMs);
+    });
+    ASSERT_TRUE(waitFor([this] { return m_pPlans->cachedPlans() == 2; }));
+    QCoreApplication::processEvents();
+
+    const auto handover = playDeck1Until([this] { return fading(); });
+    ASSERT_TRUE(handover.has_value());
+    const double leadSeconds = 100.0 + crate::SmartMixDirector::kPrepareLeadMs / 1000.0 +
+            crate::AutoDJSmartMixAdapter::kLeadMarginSeconds;
+    EXPECT_NEAR(*handover, ownStart - leadSeconds / kSeconds[0], kStep + 1e-9);
+    EXPECT_EQ(crate::SmartMixDirector::State::Armed, director()->state());
+    EXPECT_NEAR(static_cast<double>(startMs), director()->report().plannedStartOutgoingMs, 1e-6);
+
+    // The director prepares and starts on the cue: not late
+    play(static_cast<double>(startMs) - deck1.playposition.get() * kSeconds[0] * 1000.0 +
+            2 * kTickMs);
+    ASSERT_EQ(crate::SmartMixDirector::State::Running, director()->state());
+    EXPECT_LT(director()->report().lateMs, 2 * kTickMs);
 }
 
 // No plan within the director's 3 s: it hands the transition back and Auto DJ

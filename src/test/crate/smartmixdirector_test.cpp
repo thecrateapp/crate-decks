@@ -7,6 +7,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QSignalSpy>
+#include <algorithm>
 #include <cmath>
 #include <map>
 #include <memory>
@@ -384,11 +385,102 @@ TEST_F(CrateSmartMixDirectorTest, StartsOnPredictedBeat) {
     EXPECT_EQ(m_pDirector->state(), State::Running);
     EXPECT_EQ(get(kDeck2, QStringLiteral("play")), 1.0);
     EXPECT_EQ(m_pDirector->report().lateMs, 0.0);
-    // On time: the incoming deck starts where it was prepared.
-    EXPECT_NEAR(m_pDirector->report().incomingStartMs,
-            static_cast<double>(beatmatch.startIncomingCueMs()),
-            1e-9);
-    EXPECT_NEAR(positionMs(kDeck2), static_cast<double>(beatmatch.startIncomingCueMs()), 1e-6);
+    // The beat came 5 ms before the cue by the position: the incoming deck
+    // starts 5 ms of output earlier in its track, on the plan (G4 finding 2).
+    EXPECT_NEAR(m_pDirector->report().startOffsetMs, -5.0, 1e-6);
+    const double expectedMs = static_cast<double>(beatmatch.startIncomingCueMs()) -
+            5.0 * beatmatch.incomingTempoRatio;
+    EXPECT_NEAR(m_pDirector->report().incomingStartMs, expectedMs, 1e-6);
+    EXPECT_NEAR(positionMs(kDeck2), expectedMs, 1e-6);
+}
+
+// G4 finding 2: the incoming deck starts at the next audio callback, which
+// plays the outgoing deck from its engine position. A start decided on an
+// engine position short of the cue, or past it, moves the incoming deck by as
+// much, so both decks are where the plan puts them; one within the tolerance
+// leaves it at its cue.
+TEST_F(CrateSmartMixDirectorTest, AlignsAStartOffTheCueEitherWay) {
+    const TransitionPlan beatmatch = plan(QStringLiteral("real-beatmatch.json"));
+    const double cueMs = static_cast<double>(beatmatch.outgoingCueMs);
+    const double incomingCueMs = static_cast<double>(beatmatch.startIncomingCueMs());
+    for (const double offMs : {-20.0, -0.3, 12.0}) {
+        SCOPED_TRACE(offMs);
+        SetUp();
+        loadBeatmatchEdge(beatmatch, 5000.0);
+        ASSERT_TRUE(m_pDirector->arm(kDeck1, kDeck2));
+        ASSERT_TRUE(m_pDirector->setPlan(beatmatch));
+        applySeeks();
+        ASSERT_EQ(m_pDirector->state(), State::Preparing);
+        // 20 ms before the cue the start is due in 20 ms...
+        seek(kDeck1, cueMs - 20.0);
+        m_pDirector->tick();
+        // ...and when it comes, the engine position (the last callback's)
+        // says the outgoing deck is `offMs` off the cue
+        m_pEnvironment->now += 20.0;
+        seek(kDeck1, cueMs + offMs);
+        m_pDirector->tick();
+        applySeeks();
+        ASSERT_EQ(m_pDirector->state(), State::Running);
+        const auto& report = m_pDirector->report();
+        EXPECT_NEAR(report.startOffsetMs, offMs, 1e-6);
+        EXPECT_NEAR(report.lateMs, std::max(0.0, offMs), 1e-6);
+        const double expectedMs = std::abs(offMs) > SmartMixDirector::kStartAlignToleranceMs
+                ? incomingCueMs + offMs * beatmatch.incomingTempoRatio
+                : incomingCueMs;
+        EXPECT_NEAR(report.incomingStartMs, expectedMs, 1e-6);
+        EXPECT_NEAR(positionMs(kDeck2), expectedMs, 1e-6);
+    }
+}
+
+// TEST_GAP: that the incoming deck then lands on the plan in the audio, at
+// any buffer size, needs the engine and its callbacks: the G4 harness
+// (decksg4render_test.cpp) measures it at 256, 1024 and 2048 frames.
+
+// G4 finding 3 (Diego, 2026-11-19): with ReplayGain on and data for both
+// tracks, the incoming deck stages only the residual of the plan's gain;
+// otherwise the plan's gain. Never a boost; the outgoing deck's gain stays.
+TEST_F(CrateSmartMixDirectorTest, StagesTheResidualOfThePlanGainWithReplayGain) {
+    const TransitionPlan beatmatch = plan(QStringLiteral("real-beatmatch.json"));
+    struct Case {
+        const char* name;
+        double enabled;
+        double outgoingReplayGain;
+        double incomingReplayGain;
+        double expectedIncomingDb;
+    };
+    const double planDb = beatmatch.incomingGainDb;
+    // ReplayGain gives the incoming deck 2 dB less than the outgoing one
+    const double lower = std::pow(10.0, -2.0 / 20.0);
+    const Case cases[] = {
+            {"off", 0.0, 0.5, 0.5 * lower, planDb},
+            {"no data for the incoming track", 1.0, 0.5, 0.0, planDb},
+            {"no data for the outgoing track", 1.0, 0.0, 0.5, planDb},
+            {"both", 1.0, 0.5, 0.5 * lower, planDb + 2.0},
+            {"ReplayGain did more than the plan", 1.0, 0.5, 0.5 * std::pow(10.0, -6.0 / 20.0), 0.0},
+            {"ReplayGain boosted the incoming deck", 1.0, 0.5, 0.5 / lower, planDb - 2.0},
+    };
+    for (const Case& testCase : cases) {
+        SCOPED_TRACE(testCase.name);
+        SetUp();
+        set(kMixerProfile, QStringLiteral("xFaderMode"), MIXXX_XFADER_CONSTPWR);
+        addControl(QStringLiteral("[ReplayGain]"),
+                QStringLiteral("ReplayGainEnabled"),
+                testCase.enabled);
+        addControl(kDeck1, QStringLiteral("replaygain"), testCase.outgoingReplayGain);
+        addControl(kDeck2, QStringLiteral("replaygain"), testCase.incomingReplayGain);
+        loadBeatmatchEdge(beatmatch, 6000.0);
+        armAndStart(beatmatch);
+        EXPECT_NEAR(m_pDirector->report().incomingStagingDb, testCase.expectedIncomingDb, 1e-6);
+        // The incoming deck starts at its staging gain; the outgoing deck
+        // reaches the plan's halfway
+        EXPECT_NEAR(get(kDeck2, QStringLiteral("pregain")),
+                crate::curves::stagingGain(testCase.expectedIncomingDb),
+                1e-3);
+        runUntilProgress(0.5, static_cast<double>(beatmatch.durationMs));
+        EXPECT_NEAR(get(kDeck1, QStringLiteral("pregain")),
+                crate::curves::stagingGain(beatmatch.outgoingGainDb),
+                1e-3);
+    }
 }
 
 TEST_F(CrateSmartMixDirectorTest, LateStartJumpsTheIncomingDeckAhead) {

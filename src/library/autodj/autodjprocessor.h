@@ -201,8 +201,26 @@ class AutoDJProcessor : public QObject {
         virtual bool fadeNow() = 0;
         /// Auto DJ was disabled during the director's transition.
         virtual void cancelTransition() = 0;
+        /// How long before Auto DJ's own fade, which begins `fadeBeginSecond`
+        /// into the outgoing track, the director takes the transition: what
+        /// its plan needs to start on its cue (G4 finding 1).
+        /// kTransitionDirectorLeadSeconds when it cannot tell yet; it calls
+        /// transitionLeadChanged() once it can.
+        virtual double transitionLeadSeconds(AutoDJProcessor* pProcessor,
+                const QString& fromGroup,
+                const QString& toGroup,
+                double fadeBeginSecond) {
+            Q_UNUSED(pProcessor);
+            Q_UNUSED(fromGroup);
+            Q_UNUSED(toGroup);
+            Q_UNUSED(fadeBeginSecond);
+            return kTransitionDirectorLeadSeconds;
+        }
     };
     static void setTransitionDirector(TransitionDirector* pDirector);
+    /// Crate Decks: the director's lead for the next transition changed;
+    /// Auto DJ places it again unless a transition is under way.
+    void transitionLeadChanged();
     static constexpr double kTransitionDirectorLeadSeconds = 30.0;
 
     AutoDJProcessor(QObject* pParent,
