@@ -1,4 +1,4 @@
-// Gates G4 and G4b of the Crate Decks plan: Auto DJ's Crate Smart Mix
+// Gates G4 and G4b of the Decks plan: Auto DJ's Crate Smart Mix
 // transitions rendered offline as Decks plays them, for the automatic metrics
 // of the report (docs/plans/2026-11-19-decks-g4-g4b-report.md).
 //
